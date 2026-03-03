@@ -31,11 +31,11 @@ jobs:
       - name: Build dashboard
         run: python build_dashboard.py
 
-      - name: Commit & push index.html only
+      - name: Commit & push index.html and checkins.csv
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add index.html
+          git add index.html checkins.csv
           git diff --staged --quiet && echo "Nothing changed" || (
             git commit -m "📍 Weekly update $(date -u +%Y-%m-%d)"
             git push
