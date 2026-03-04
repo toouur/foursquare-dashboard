@@ -49,8 +49,9 @@ jobs:
         id: fetch
         env:
           SWARM_TOKEN: ${{ secrets.SWARM_TOKEN }}
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |
-          output=$(python fetch_checkins.py --token "$SWARM_TOKEN" --csv checkins.csv)
+          output=$(python fetch_checkins.py --csv checkins.csv)
           echo "$output"
           # Propagate CHANGED flag to subsequent steps
           echo "$output" >> "$GITHUB_OUTPUT"
