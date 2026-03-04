@@ -26,7 +26,7 @@ jobs:
       - name: Fetch latest check-ins
         env:
           FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
-        run: python foursquare_checkins.py
+        run: python foursquare_checkins.py --full
 
       - name: Build dashboard
         run: python build_dashboard.py
