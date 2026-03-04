@@ -2,8 +2,14 @@
 fetch_checkins.py  –  Fetch check-ins from Foursquare/Swarm API and merge into
 checkins.csv. Designed for GitHub Actions and local manual runs.
 
-Usage:
-    python fetch_checkins.py --token $SWARM_TOKEN [--csv checkins.csv] [--full]
+Usage examples:
+    python fetch_checkins.py --token "$SWARM_TOKEN" --csv checkins.csv
+    python fetch_checkins.py --full
+
+Token resolution order:
+    1) --token
+    2) SWARM_TOKEN environment variable
+    3) FOURSQUARE_TOKEN environment variable
 
 Modes:
   - Incremental (default when CSV exists): fetch check-ins newer than latest CSV row.
@@ -41,6 +47,19 @@ FIELDS = [
 ]
 
 
+def resolve_token(cli_token: str | None) -> str:
+    cli = (cli_token or "").strip()
+    if cli:
+        return cli
+    env_swarm = os.environ.get("SWARM_TOKEN", "").strip()
+    if env_swarm:
+        return env_swarm
+    env_fsq = os.environ.get("FOURSQUARE_TOKEN", "").strip()
+    if env_fsq:
+        return env_fsq
+    return ""
+
+
 def load_existing(csv_path: Path) -> list[dict]:
     if not csv_path.exists():
         return []
@@ -56,11 +75,14 @@ def row_key(row: dict) -> tuple[str, str]:
 def request_checkins(token: str, params: dict, retries: int = 120) -> dict:
     """Fetch checkins with resilience for 500s during timestamp pagination."""
     for attempt in range(retries):
-        resp = requests.get(
-            API_BASE,
-            params={"oauth_token": token, "v": API_V, **params},
-            timeout=30,
-        )
+        try:
+            resp = requests.get(
+                API_BASE,
+                params={"oauth_token": token, "v": API_V, **params},
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            raise RuntimeError(f"Network error contacting Foursquare API: {exc}") from exc
 
         if resp.status_code == 500 and "beforeTimestamp" in params:
             params["beforeTimestamp"] = int(params["beforeTimestamp"]) - 1
@@ -74,7 +96,17 @@ def request_checkins(token: str, params: dict, retries: int = 120) -> dict:
             time.sleep(1)
             continue
 
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except requests.HTTPError as exc:
+            detail = ""
+            try:
+                payload = resp.json()
+                detail = f" | meta={payload.get('meta')}"
+            except ValueError:
+                detail = f" | body={resp.text[:300]}"
+            raise RuntimeError(f"HTTP error from Foursquare API: {exc}{detail}") from exc
+
         data = resp.json()
         code = data.get("meta", {}).get("code")
         if code != 200:
@@ -219,10 +251,18 @@ def max_timestamp(rows: list[dict]) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--token", required=True, help="Foursquare OAuth token")
+    parser.add_argument("--token", default="", help="Foursquare OAuth token")
     parser.add_argument("--csv", default="checkins.csv", help="Path to checkins CSV")
     parser.add_argument("--full", action="store_true", help="Force full re-fetch")
     args = parser.parse_args()
+
+    token = resolve_token(args.token)
+    if not token:
+        log.error(
+            "Missing API token. Provide --token, or set SWARM_TOKEN / FOURSQUARE_TOKEN in environment."
+        )
+        print("CHANGED=false")
+        return
 
     csv_path = Path(args.csv)
     existing_rows = load_existing(csv_path)
@@ -233,7 +273,12 @@ def main() -> None:
 
     if do_full:
         log.info("Mode: FULL %s", "(forced)" if args.full else "(csv missing/empty)")
-        fetched_rows = fetch_full_timestamp(args.token) if IS_CI else fetch_full_offset(args.token)
+        try:
+            fetched_rows = fetch_full_timestamp(token) if IS_CI else fetch_full_offset(token)
+        except RuntimeError as exc:
+            log.error("Full fetch failed: %s", exc)
+            print("CHANGED=false")
+            return
 
         deduped: dict[tuple[str, str], dict] = {}
         for row in fetched_rows:
@@ -253,7 +298,12 @@ def main() -> None:
         return
 
     log.info("Mode: INCREMENTAL (latest timestamp=%d)", after_ts)
-    new_rows = fetch_incremental(args.token, after_ts)
+    try:
+        new_rows = fetch_incremental(token, after_ts)
+    except RuntimeError as exc:
+        log.error("Incremental fetch failed: %s", exc)
+        print("CHANGED=false")
+        return
     log.info("API returned %d candidate rows", len(new_rows))
 
     added = [r for r in new_rows if row_key(r) not in existing_keys]
