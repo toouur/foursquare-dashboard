@@ -574,11 +574,13 @@ def categorize(cat):
 # Edit this dict to control what appears in the explorer.
 from collections import OrderedDict
 EXPLORER_GROUPS = OrderedDict([
-    ('Bars & Pubs',       ['Bar','Beer Bar','Pub','Dive Bar','Sports Bar','Gastropub',
-                            'Beer Garden','Irish Pub','Beach Bar']),
-    ('Coffee & Cafés',    ['Coffee Shop','Café','Tea Room','Turkish Coffeehouse',
+    ('Bars, Pubs & Breweries', ['Bar','Beer Bar','Pub','Dive Bar','Sports Bar','Gastropub',
+                            'Beer Garden','Irish Pub','Beach Bar',
+                            'Brewery']),
+    ('Cafés, Bakeries & Coffee',['Coffee Shop','Café','Tea Room','Turkish Coffeehouse',
                             'Corporate Coffee Shop','Coffee Roaster',
-                            'Café, Coffee, and Tea House']),
+                            'Café, Coffee, and Tea House',
+                            'Bakery','Pastry Shop','Donut Shop']),
     ('Parks',             ['Park','National Park','Urban Park',
                             'State or Provincial Park','Nature Preserve']),
     ('Plazas',            ['Plaza','Pedestrian Plaza']),
@@ -614,7 +616,7 @@ EXPLORER_GROUPS = OrderedDict([
     ('Waterfront',        ['Waterfront','Pier']),
     ('Hiking',            ['Hiking Trail','Bike Trail']),
     ('Shopping Malls',    ['Shopping Mall','Department Store','Big Box Store']),
-    ('Bakeries',          ['Bakery','Pastry Shop','Donut Shop']),
+    ('Bookstores',        ['Bookstore','Used Bookstore']),
     ('Fountains',         ['Fountain']),
     ('Border Crossings',  ['Border Crossing']),
     ('Banks',             ['Bank']),
@@ -627,7 +629,6 @@ EXPLORER_GROUPS = OrderedDict([
     ('Taxis',             ['Taxi','Taxi Stand']),
     ('Fuel Stations',     ['Fuel Station']),
     ('Clothing Stores',   ['Clothing Store','Shoe Store','Boutique']),
-    ('Bookstores',        ['Bookstore','Used Bookstore']),
     ('Pharmacies',        ['Pharmacy','Drugstore']),
     ('Liquor Stores',     ['Liquor Store','Wine Store']),
     ('Campgrounds',       ['Campground','RV Park','Trailer Park']),
@@ -647,8 +648,73 @@ EXPLORER_GROUPS = OrderedDict([
                             'Gelato Shop','Cupcake Shop','Chocolate Store']),
     ('Spas & Baths',      ['Spa','Bath House','Sauna']),
     ('Swimming Pools',    ['Swimming Pool','Gym Pool']),
-    ('Breweries',         ['Brewery','Beer Garden']),
 ])
+
+
+def detect_trips(rows, home_city='Minsk', min_checkins=5):
+    """Detect trips as consecutive sequences of check-ins outside home_city."""
+    valid = [r for r in rows if r.get('date','').strip()]
+    valid.sort(key=lambda r: int(r['date']))
+    raw_trips, current = [], []
+    for r in valid:
+        if r.get('city','').strip() != home_city:
+            current.append(r)
+        else:
+            if current: raw_trips.append(current)
+            current = []
+    if current: raw_trips.append(current)
+
+    result = []
+    for trip_rows in raw_trips:
+        if len(trip_rows) < min_checkins:
+            continue
+        dates      = [datetime.fromtimestamp(int(r['date']), tz=timezone.utc) for r in trip_rows]
+        countries_c = Counter(r.get('country','').strip() for r in trip_rows if r.get('country','').strip())
+        cities_c    = Counter(r.get('city','').strip()    for r in trip_rows if r.get('city','').strip())
+        top_countries = [c for c,_ in countries_c.most_common()]
+        top_cities    = [c for c,_ in cities_c.most_common(3)]
+        if len(top_countries) == 1:
+            name = f"{top_cities[0] if top_cities else top_countries[0]}, {top_countries[0]}"
+        elif len(top_countries) == 2:
+            name = ' & '.join(top_countries[:2])
+        else:
+            name = f"{top_countries[0]} + {top_countries[1]} + {len(top_countries)-2} more"
+        duration = (dates[-1].date() - dates[0].date()).days + 1
+        # Build checkin list
+        checkins = []
+        for r in trip_rows:
+            d = datetime.fromtimestamp(int(r['date']), tz=timezone.utc)
+            try: lat = round(float(r.get('lat','')), 5)
+            except: lat = None
+            try: lng = round(float(r.get('lng','')), 5)
+            except: lng = None
+            checkins.append({'ts': int(r['date']), 'date': d.strftime('%Y-%m-%d'),
+                'time': d.strftime('%H:%M'), 'datetime': d.strftime('%d %b %Y, %H:%M'),
+                'venue': r.get('venue','').strip(), 'venue_id': r.get('venue_id','').strip(),
+                'city': r.get('city','').strip(), 'country': r.get('country','').strip(),
+                'category': r.get('category','').strip(), 'lat': lat, 'lng': lng})
+        # Unique places (for map dots)
+        seen_v = set(); unique_pts = []
+        for r in trip_rows:
+            vid = r.get('venue_id','').strip()
+            if vid and vid not in seen_v:
+                seen_v.add(vid)
+                try: unique_pts.append([round(float(r['lat']),5), round(float(r['lng']),5), r.get('venue','').strip()])
+                except: pass
+        trip_cats = Counter(r.get('category','').strip() for r in trip_rows if r.get('category','').strip())
+        result.append({
+            'name': name, 'start_date': str(dates[0].date()), 'end_date': str(dates[-1].date()),
+            'start_ts': int(trip_rows[0]['date']), 'start_year': dates[0].year,
+            'duration': duration, 'countries': top_countries,
+            'cities': [c for c,_ in cities_c.most_common()],
+            'checkin_count': len(trip_rows), 'unique_places': len(seen_v),
+            'checkins': checkins, 'coords': [[c['lat'],c['lng']] for c in checkins if c['lat'] and c['lng']],
+            'unique_pts': unique_pts, 'top_cats': [[c,n] for c,n in trip_cats.most_common(10)],
+        })
+    result.sort(key=lambda t: t['start_ts'])
+    # Assign sequential IDs
+    for i, t in enumerate(result): t['id'] = i + 1
+    return result
 
 
 def process(csv_path):
@@ -666,7 +732,101 @@ def process(csv_path):
                  for r in rows if r.get('date','').strip()]
     countries = Counter(r['country'] for r in rows if r.get('country','').strip())
     cities    = Counter(r['city']    for r in rows if r.get('city','').strip())
-    venues_c  = Counter(r['venue']   for r in rows if r.get('venue','').strip())
+
+    # ── Venues: unique by venue_id, with city ──────────────────────────────────
+    venue_by_id = {}  # venue_id -> {name, city, count}
+    for r in rows:
+        vid  = r.get('venue_id','').strip()
+        name = r.get('venue','').strip()
+        city = r.get('city','').strip()
+        if not (vid and name):
+            continue
+        if vid not in venue_by_id:
+            venue_by_id[vid] = {'name': name, 'city': city, 'count': 0}
+        venue_by_id[vid]['count'] += 1
+    venues_top500 = sorted(venue_by_id.values(), key=lambda x: -x['count'])[:500]
+    venues_list   = [[v['name'], v['count'], v['city']] for v in venues_top500]
+
+    # ── Companions (split combined entries) ───────────────────────────────────
+    comp_raw = Counter()
+    for r in rows:
+        raw = r.get('with_name','').strip()
+        if not raw: continue
+        for name in [n.strip() for n in raw.replace(' ,',',').split(',')]:
+            if name: comp_raw[name] += 1
+    companions = [[n, c] for n, c in comp_raw.most_common(30)]
+
+    # ── Year heatmap (day → count) ────────────────────────────────────────────
+    heatmap = defaultdict(dict)
+    for r in rows:
+        try:
+            d = datetime.fromtimestamp(int(r['date']), tz=timezone.utc)
+            key = d.strftime('%Y-%m-%d')
+            yr  = str(d.year)
+            heatmap[yr][key] = heatmap[yr].get(key, 0) + 1
+        except: pass
+    heatmap = dict(sorted(heatmap.items()))
+
+    # ── Discovery rate (new vs repeat per month) ──────────────────────────────
+    _seen = set(); _mon = defaultdict(lambda: [0, 0])
+    for r in sorted(rows, key=lambda r: int(r.get('date','0') or '0')):
+        vid = r.get('venue_id','').strip() or r.get('venue','').strip()
+        if not vid: continue
+        try:
+            d   = datetime.fromtimestamp(int(r['date']), tz=timezone.utc)
+            key = f"{d.year}-{d.month:02d}"
+        except: continue
+        if vid not in _seen: _seen.add(vid); _mon[key][0] += 1
+        else: _mon[key][1] += 1
+    discovery_rate = sorted([[k, v[0], v[1]] for k, v in _mon.items()])
+
+    # ── Venue loyalty (seen in 3+ different years) ────────────────────────────
+    _vy = defaultdict(set); _vi = {}; _vc = defaultdict(int)
+    for r in rows:
+        vid = r.get('venue_id','').strip()
+        if not vid: continue
+        try: yr = datetime.fromtimestamp(int(r['date']), tz=timezone.utc).year
+        except: continue
+        _vy[vid].add(yr); _vc[vid] += 1
+        if vid not in _vi: _vi[vid] = (r.get('venue','').strip(), r.get('city','').strip())
+    loyal = []
+    for vid, yrs in _vy.items():
+        if len(yrs) >= 3:
+            nm, cy = _vi[vid]
+            loyal.append([nm, cy, sorted(yrs), _vc[vid]])
+    loyal.sort(key=lambda x: (-len(x[2]), -x[3]))
+    venue_loyalty = loyal[:100]
+
+    # ── Trips ─────────────────────────────────────────────────────────────────
+    trips = detect_trips(rows)
+    timeline = [{'id':t['id'],'name':t['name'],'start':t['start_date'],'end':t['end_date'],
+                 'days':t['duration'],'countries':t['countries'][:4],'count':t['checkin_count'],
+                 'year':t['start_year']} for t in trips]
+
+    # ── Recent 30 check-ins ────────────────────────────────────────────────────
+    valid_rows = [r for r in rows if r.get('date','').strip()]
+    recent_sorted = sorted(valid_rows, key=lambda r: int(r['date']), reverse=True)[:30]
+    recent = []
+    for r in recent_sorted:
+        ts = int(r['date'])
+        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+        try: lat = round(float(r.get('lat','')), 5)
+        except: lat = None
+        try: lng = round(float(r.get('lng','')), 5)
+        except: lng = None
+        recent.append({
+            'ts':       ts,
+            'date':     dt.strftime('%Y-%m-%d'),
+            'time':     dt.strftime('%H:%M'),
+            'datetime': dt.strftime('%d %b %Y, %H:%M'),
+            'venue':    r.get('venue','').strip(),
+            'venue_id': r.get('venue_id','').strip(),
+            'city':     r.get('city','').strip(),
+            'country':  r.get('country','').strip(),
+            'category': r.get('category','').strip(),
+            'lat':      lat,
+            'lng':      lng,
+        })
     by_year   = Counter(d.year for d in dates)
     by_month  = Counter((d.year, d.month) for d in dates)
     by_hour   = Counter(d.hour for d in dates)
@@ -754,13 +914,20 @@ def process(csv_path):
         'countries': [[c, n] for c,n in countries.most_common()],
         'countries_by_venues': countries_by_venues,
         'cities':    cities.most_common(),
-        'venues':    venues_c.most_common(500),
+        'venues':    venues_list,
         'cat_groups': cat_groups.most_common(),
+        'recent':    recent,
         'explorer_cats': explorer_cats,
         'explorer':  explorer,
         'unique_places': unique_places,
         'all_coords': all_coords,
-    }
+        'companions':    companions,
+        'heatmap':       heatmap,
+        'discovery_rate': discovery_rate,
+        'venue_loyalty': venue_loyalty,
+        'timeline':      timeline,
+        'trips_count':   len(trips),
+    }, trips
 
 
 # ── HTML Template ───────────────────────────────────────────────────────────────
@@ -838,7 +1005,106 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 #map{height:600px;border-radius:8px;}
 .map-status{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(11,13,19,0.9);border:1px solid var(--border);border-radius:8px;padding:7px 16px;font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--gold);pointer-events:none;transition:opacity 0.5s;white-space:nowrap;z-index:999;}
 
-/* ── MOBILE RESPONSIVE ─────────────────────────────────────────── */
+/* ── GITHUB CALENDAR HEATMAP ── */
+.heatmap-outer{overflow-x:auto;padding-bottom:8px;}
+.heatmap-outer::-webkit-scrollbar{height:3px;}
+.heatmap-outer::-webkit-scrollbar-thumb{background:var(--border);}
+.heatmap-year{display:flex;gap:14px;align-items:flex-start;margin-bottom:10px;}
+.heatmap-label{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);width:34px;flex-shrink:0;padding-top:4px;text-align:right;}
+.heatmap-grid{display:flex;gap:3px;}
+.heatmap-week{display:flex;flex-direction:column;gap:3px;}
+.heatmap-cell{width:11px;height:11px;border-radius:2px;background:var(--card2);}
+.heatmap-cell[data-v="0"]{background:#151820;}
+.heatmap-cell[data-v="1"]{background:#1a3a1a;}
+.heatmap-cell[data-v="2"]{background:#1e5c1e;}
+.heatmap-cell[data-v="3"]{background:#c97a20;}
+.heatmap-cell[data-v="4"]{background:#e8b86d;}
+.heatmap-cell[data-v="5"]{background:#f5d48a;}
+.heatmap-tooltip{position:fixed;pointer-events:none;background:rgba(11,13,19,0.96);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-family:'DM Mono',monospace;font-size:0.64rem;color:var(--text);z-index:9999;display:none;}
+.heatmap-month-labels{display:flex;gap:3px;margin-left:48px;margin-bottom:4px;}
+.hm-month{font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted);text-transform:uppercase;}
+
+/* ── TRAVEL TIMELINE ── */
+.timeline-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;position:relative;}
+.tl-year-label{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);width:38px;flex-shrink:0;text-align:right;}
+.tl-track{flex:1;height:24px;background:var(--card2);border-radius:4px;position:relative;overflow:visible;}
+.tl-bar{position:absolute;top:2px;height:20px;border-radius:3px;cursor:pointer;transition:filter 0.15s,opacity 0.15s;display:flex;align-items:center;overflow:hidden;min-width:4px;}
+.tl-bar:hover{filter:brightness(1.3);z-index:10;}
+.tl-bar-label{font-family:'DM Sans',sans-serif;font-size:0.60rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 5px;color:#0b0d13;font-weight:600;}
+.tl-checkin-count{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);width:48px;flex-shrink:0;}
+
+/* ── COMPANIONS ── */
+.companion-bar{display:grid;grid-template-columns:160px 1fr 52px;align-items:center;gap:8px;margin-bottom:6px;}
+.companion-name{font-size:0.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.companion-track{height:5px;background:var(--card2);border-radius:3px;overflow:hidden;}
+.companion-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--teal),#45b7d1);}
+.companion-cnt{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--muted);text-align:right;}
+
+/* ── DISCOVERY RATE ── */
+/* (canvas handled by Chart.js) */
+
+/* ── VENUE LOYALTY ── */
+.loyalty-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;max-height:500px;overflow-y:auto;padding-right:4px;}
+.loyalty-grid::-webkit-scrollbar{width:3px;}
+.loyalty-grid::-webkit-scrollbar-thumb{background:var(--border);}
+.loyalty-item{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;}
+.loyalty-name{flex:1;min-width:0;}
+.loyalty-venue{font-size:0.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.loyalty-city{font-size:0.65rem;color:var(--muted);}
+.loyalty-years{display:flex;gap:3px;flex-wrap:wrap;flex-shrink:0;}
+.loyalty-yr{font-family:'DM Mono',monospace;font-size:0.55rem;padding:2px 5px;border-radius:3px;background:rgba(232,184,109,0.15);color:var(--gold);border:1px solid rgba(232,184,109,0.25);}
+.loyalty-total{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--muted);width:26px;text-align:right;flex-shrink:0;}
+
+/* ── TRIPS LINK ── */
+.trips-link-card{display:flex;align-items:center;justify-content:space-between;padding:20px 26px;background:linear-gradient(135deg,#12151f 0%,#1a1f30 100%);border:1px solid var(--border);border-radius:14px;cursor:pointer;text-decoration:none;transition:border-color 0.2s;}
+.trips-link-card:hover{border-color:var(--gold);}
+.tlc-left{display:flex;flex-direction:column;gap:4px;}
+.tlc-num{font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:var(--gold);line-height:1;}
+.tlc-label{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--muted);}
+.tlc-arrow{font-size:1.6rem;color:var(--gold);opacity:0.7;}
+
+@media (max-width:900px){
+  .loyalty-grid{grid-template-columns:1fr;}
+  .companion-bar{grid-template-columns:120px 1fr 44px;}
+  .heatmap-cell{width:9px;height:9px;}
+}
+@media (max-width:520px){
+  .heatmap-cell{width:7px;height:7px;}
+  .companion-bar{grid-template-columns:100px 1fr 40px;}
+}
+
+
+.recent-section{padding:0 56px 28px;max-width:1500px;}
+.recent-header{display:flex;align-items:baseline;gap:16px;margin-bottom:14px;}
+.recent-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);}
+.recent-sub{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);}
+.recent-scroll{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;}
+.recent-scroll::-webkit-scrollbar{height:3px;}
+.recent-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.recent-card{flex:0 0 220px;scroll-snap-align:start;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 18px 14px;display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden;transition:border-color 0.2s;}
+.recent-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.3;}
+.recent-card:hover{border-color:var(--gold);}
+.rc-venue{font-size:0.88rem;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);margin-top:2px;}
+.rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
+.rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);margin-top:auto;padding-top:8px;}
+.rc-weather{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.rc-weather-icon{font-size:1.3rem;line-height:1;}
+.rc-weather-temp{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--gold);}
+.rc-weather-desc{font-size:0.65rem;color:var(--muted);}
+.rc-weather-loading{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:0.4;}50%{opacity:1;}}
+.recent-loading{font-family:'DM Mono',monospace;font-size:0.70rem;color:var(--muted);padding:20px 0;}
+@media (max-width: 900px) {
+  .recent-section{padding:0 14px 20px;}
+  .recent-card{flex:0 0 185px;}
+}
+@media (max-width: 520px) {
+  .recent-card{flex:0 0 160px;padding:14px 14px 10px;}
+  .rc-venue{font-size:0.80rem;}
+}
+
+
 @media (max-width: 900px) {
   header{padding:28px 20px 24px;flex-direction:column;align-items:flex-start;gap:20px;}
   .kpis{gap:16px;}
@@ -882,8 +1148,18 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="kpi"><div class="num">{{COUNTRIES}}</div><div class="lbl">Countries</div></div>
     <div class="kpi"><div class="num">{{CITIES}}</div><div class="lbl">Cities</div></div>
     <div class="kpi"><div class="num">{{PLACES}}</div><div class="lbl">Unique Places</div></div>
+    <div class="kpi"><div class="num">{{TRIPS}}</div><div class="lbl">Trips</div></div>
   </div>
 </header>
+
+<div class="recent-section">
+  <div class="recent-header">
+    <span class="recent-title">Recent Check-ins</span>
+  </div>
+  <div class="recent-scroll" id="recentScroll">
+    <div class="recent-loading">Loading…</div>
+  </div>
+</div>
 
 <div class="grid">
   <div class="card"><div class="card-title">Check-ins by Year</div><canvas id="yearChart" height="210"></canvas></div>
@@ -892,15 +1168,23 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   <div class="card"><div class="card-title">Day of Week</div><canvas id="dowChart" height="200"></canvas></div>
 
   <div class="card full">
-    <div class="card-title">Place Categories <em>&middot; by group</em></div>
-    <canvas id="catChart" height="85"></canvas>
+    <div class="card-title">Activity Calendar <em>&middot; GitHub-style heatmap by day</em></div>
+    <div id="heatmapTip" class="heatmap-tooltip"></div>
+    <div class="heatmap-outer" id="heatmapCont"></div>
   </div>
 
   <div class="card full">
-    <div class="card-title">Category Explorer <em>&middot; top 50 unique venues per category (by check-ins)</em></div>
-    <div class="cat-pills" id="catPills"></div>
-    <div class="bar-list" id="explorerList"></div>
+    <div class="card-title">Travel Timeline <em>&middot; trips away from Minsk &middot; click a bar for details</em></div>
+    <div id="timelineCont"></div>
   </div>
+
+  <a class="trips-link-card" href="trips.html">
+    <div class="tlc-left">
+      <div class="tlc-num">{{TRIPS}}</div>
+      <div class="tlc-label">Trips documented &nbsp;&middot;&nbsp; view full trip journal →</div>
+    </div>
+    <div class="tlc-arrow">✈</div>
+  </a>
 
   <div class="card full">
     <div class="card-title">
@@ -920,9 +1204,35 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="bar-list" id="citiesList"></div>
   </div>
   <div class="card">
-    <div class="card-title">Top 500 Venues <em>&middot; scroll &amp; search</em></div>
+    <div class="card-title">Top 500 Venues <em>&middot;&nbsp;unique by venue&nbsp;&middot;&nbsp; scroll &amp; search</em></div>
     <input class="search-box" type="text" placeholder="Search venues..." oninput="filterList('venuesList',this.value)">
     <div class="bar-list" id="venuesList"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Top Companions <em>&middot; check-ins with others</em></div>
+    <div id="companionsList"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Discovery Rate <em>&middot; new vs revisited venues per month</em></div>
+    <canvas id="discoveryChart" height="200"></canvas>
+  </div>
+
+  <div class="card full">
+    <div class="card-title">Venue Loyalty <em>&middot; places visited in 3+ different years</em></div>
+    <div class="loyalty-grid" id="loyaltyGrid"></div>
+  </div>
+
+  <div class="card full">
+    <div class="card-title">Place Categories <em>&middot; by group</em></div>
+    <canvas id="catChart" height="85"></canvas>
+  </div>
+
+  <div class="card full">
+    <div class="card-title">Category Explorer <em>&middot; top 50 unique venues per category (by check-ins)</em></div>
+    <div class="cat-pills" id="catPills"></div>
+    <div class="bar-list" id="explorerList"></div>
   </div>
 
   <div class="card full">
@@ -951,7 +1261,119 @@ new Chart(document.getElementById('dowChart'),{type:'bar',data:{labels:S.by_dow.
 const CC=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f','#96ceb4'];
 new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:S.cat_groups.map(x=>x[0]),datasets:[{data:S.cat_groups.map(x=>x[1]),backgroundColor:S.cat_groups.map((_,i)=>CC[i%CC.length]),borderRadius:5,borderWidth:0}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.x.toLocaleString()+' check-ins'}}},scales:{x:{grid:{color:'#1a1e2e'}},y:{grid:{display:false}}}}});
 
-// ── Category Explorer ─────────────────────────────────────────────
+// ── GitHub Heatmap ─────────────────────────────────────────────────────────
+(function(){
+  const data=S.heatmap, tip=document.getElementById('heatmapTip');
+  const cont=document.getElementById('heatmapCont');
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function level(v){if(!v||v===0)return 0;if(v<=2)return 1;if(v<=5)return 2;if(v<=10)return 3;if(v<=20)return 4;return 5;}
+  Object.keys(data).sort().forEach(year=>{
+    const d=data[year];
+    const row=document.createElement('div'); row.className='heatmap-year';
+    const lbl=document.createElement('div'); lbl.className='heatmap-label'; lbl.textContent=year; row.appendChild(lbl);
+    const grid=document.createElement('div'); grid.className='heatmap-grid';
+    let cur=new Date(parseInt(year),0,1);
+    const end=new Date(parseInt(year),11,31);
+    // pad to Monday start
+    let dow=cur.getDay(); dow=(dow===0?6:dow-1);
+    let week=document.createElement('div'); week.className='heatmap-week';
+    for(let p=0;p<dow;p++){const blank=document.createElement('div');blank.className='heatmap-cell';blank.setAttribute('data-v','0');week.appendChild(blank);}
+    while(cur<=end){
+      if(cur.getDay()===1&&week.children.length>0){grid.appendChild(week);week=document.createElement('div');week.className='heatmap-week';}
+      const ds=cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')+'-'+String(cur.getDate()).padStart(2,'0');
+      const v=d[ds]||0; const cell=document.createElement('div'); cell.className='heatmap-cell';
+      cell.setAttribute('data-v',level(v));
+      cell.addEventListener('mouseenter',e=>{if(v>0){tip.textContent=ds+': '+v+' check-in'+(v===1?'':'s');tip.style.display='block';}});
+      cell.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
+      cell.addEventListener('mouseleave',()=>{tip.style.display='none';});
+      week.appendChild(cell);
+      cur.setDate(cur.getDate()+1);
+    }
+    if(week.children.length>0) grid.appendChild(week);
+    row.appendChild(grid); cont.appendChild(row);
+  });
+})();
+
+// ── Travel Timeline ─────────────────────────────────────────────────────────
+(function(){
+  const trips=S.timeline;
+  const cont=document.getElementById('timelineCont');
+  // Group by year
+  const byYear={};
+  trips.forEach(t=>{
+    const yr=t.year;
+    if(!byYear[yr]) byYear[yr]=[];
+    byYear[yr].push(t);
+  });
+  const COLORS=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f','#96ceb4','#ff6b9d','#4d79ff'];
+  const years=Object.keys(byYear).sort();
+  years.forEach(yr=>{
+    const row=document.createElement('div'); row.className='timeline-row';
+    const lbl=document.createElement('div'); lbl.className='tl-year-label'; lbl.textContent=yr; row.appendChild(lbl);
+    const track=document.createElement('div'); track.className='tl-track';
+    const yearStart=new Date(parseInt(yr),0,1).getTime()/1000;
+    const yearEnd=new Date(parseInt(yr),11,31,23,59,59).getTime()/1000;
+    const yearSpan=yearEnd-yearStart;
+    byYear[yr].forEach((t,i)=>{
+      const sTs=new Date(t.start+'T00:00:00Z').getTime()/1000;
+      const eTs=new Date(t.end+'T23:59:59Z').getTime()/1000;
+      const left=Math.max(0,((sTs-yearStart)/yearSpan)*100);
+      const width=Math.max(0.3,((eTs-sTs)/yearSpan)*100);
+      const bar=document.createElement('a');
+      bar.className='tl-bar'; bar.href='trips.html#trip-'+t.id; bar.title=t.name+' ('+t.start+' – '+t.end+', '+t.count+' check-ins)';
+      bar.style.left=left.toFixed(2)+'%'; bar.style.width=width.toFixed(2)+'%';
+      bar.style.background=COLORS[i%COLORS.length];
+      if(width>6){const lv=document.createElement('span');lv.className='tl-bar-label';lv.textContent=t.name;bar.appendChild(lv);}
+      track.appendChild(bar);
+    });
+    row.appendChild(track);
+    const cnt=document.createElement('div'); cnt.className='tl-checkin-count';
+    const total=byYear[yr].reduce((s,t)=>s+t.count,0);
+    cnt.textContent=total.toLocaleString(); row.appendChild(cnt);
+    cont.appendChild(row);
+  });
+})();
+
+// ── Companions ──────────────────────────────────────────────────────────────
+(function(){
+  const data=S.companions, max=data[0]?data[0][1]:1;
+  document.getElementById('companionsList').innerHTML=data.map(([n,c])=>
+    `<div class="companion-bar">
+      <span class="companion-name" title="${n}">${n}</span>
+      <div class="companion-track"><div class="companion-fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
+      <span class="companion-cnt">${c.toLocaleString()}</span>
+    </div>`
+  ).join('');
+})();
+
+// ── Discovery Rate ─────────────────────────────────────────────────────────
+new Chart(document.getElementById('discoveryChart'),{type:'bar',
+  data:{labels:S.discovery_rate.map(x=>x[0]),
+    datasets:[
+      {label:'New venues',data:S.discovery_rate.map(x=>x[1]),backgroundColor:'rgba(78,205,196,0.75)',borderWidth:0,borderRadius:2},
+      {label:'Revisits',  data:S.discovery_rate.map(x=>x[2]),backgroundColor:'rgba(232,184,109,0.45)',borderWidth:0,borderRadius:2},
+    ]},
+  options:{responsive:true,plugins:{legend:{display:true,labels:{color:'#7a85a8',font:{family:"'DM Mono',monospace",size:10}}},
+    tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+ctx.parsed.y.toLocaleString()}}},
+    scales:{x:{stacked:true,grid:{display:false},ticks:{maxTicksLimit:24,maxRotation:0,font:{size:10}}},
+      y:{stacked:true,grid:{color:'#1a1e2e'}}}}});
+
+// ── Venue Loyalty ──────────────────────────────────────────────────────────
+(function(){
+  const data=S.venue_loyalty;
+  document.getElementById('loyaltyGrid').innerHTML=data.map(([name,city,years,total])=>
+    `<div class="loyalty-item">
+      <div class="loyalty-name">
+        <div class="loyalty-venue" title="${name}">${name}</div>
+        <div class="loyalty-city">${city||''}</div>
+      </div>
+      <div class="loyalty-years">${years.map(y=>`<span class="loyalty-yr">${y}</span>`).join('')}</div>
+      <div class="loyalty-total">${total}</div>
+    </div>`
+  ).join('');
+})();
+
+
 const explorerData=S.explorer, explorerCats=S.explorer_cats;
 let activeCat=explorerCats[0];
 const pillsEl=document.getElementById('catPills');
@@ -1009,12 +1431,81 @@ function barList(id,data){
   ).join('');
 }
 barList('citiesList',S.cities);
-barList('venuesList',S.venues);
+// Venues: data is [name, count, city]
+(function(){
+  const data=S.venues, max=data[0][1];
+  document.getElementById('venuesList').innerHTML=data.map(([n,c,city],i)=>
+    `<div class="bar-row" data-name="${n.toLowerCase().replace(/"/g,'')}${city?' '+city.toLowerCase():''}">
+      <span class="rank">#${i+1}</span>
+      <span class="name" title="${n}${city?' · '+city:''}">${n}<span class="city-tag">${city||''}</span></span>
+      <div class="track"><div class="fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
+      <span class="cnt">${c.toLocaleString()}</span>
+    </div>`
+  ).join('');
+})();
 function filterList(id,q){
   document.getElementById(id).querySelectorAll('.bar-row').forEach(r=>
     r.classList.toggle('hidden',q.length>0&&!r.dataset.name.includes(q.toLowerCase()))
   );
 }
+
+// ── Recent Check-ins + Weather ─────────────────────────────────
+(function(){
+  const recent=S.recent;
+  const WMO={
+    0:['☀️','Clear'],1:['🌤️','Mainly clear'],2:['⛅','Partly cloudy'],3:['☁️','Overcast'],
+    45:['🌫️','Fog'],48:['🌫️','Icy fog'],51:['🌦️','Light drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy drizzle'],
+    61:['🌧️','Light rain'],63:['🌧️','Rain'],65:['🌧️','Heavy rain'],
+    71:['🌨️','Light snow'],73:['❄️','Snow'],75:['❄️','Heavy snow'],77:['🌨️','Snow grains'],
+    80:['🌦️','Rain showers'],81:['🌧️','Rain showers'],82:['⛈️','Violent showers'],
+    85:['🌨️','Snow showers'],86:['❄️','Heavy snow showers'],
+    95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm+hail'],99:['⛈️','Thunderstorm+hail'],
+  };
+  const scrollEl=document.getElementById('recentScroll');
+  // Render cards immediately (weather loads async)
+  // Build Foursquare app URL: slug is lowercased name with spaces→hyphens, then encoded
+  function fsUrl(r){
+    if(!r.venue_id) return null;
+    const slug=encodeURIComponent(r.venue.toLowerCase().replace(/\s+/g,'-'));
+    return `https://app.foursquare.com/v/${slug}/${r.venue_id}`;
+  }
+  scrollEl.innerHTML=recent.map((r,i)=>{
+    const url=fsUrl(r);
+    const tag=url?'a':'div', href=url?` href="${url}" target="_blank" rel="noopener"`:'';
+    return `<${tag}${href} class="recent-card" id="rc_${i}" style="${url?'text-decoration:none;cursor:pointer;':''}">
+      <div class="rc-venue">${r.venue||'Unknown venue'}</div>
+      <div class="rc-cat">${r.category||''}</div>
+      <div class="rc-location">${[r.city,r.country].filter(Boolean).join(', ')}</div>
+      <div class="rc-weather" id="rcw_${i}"><span class="rc-weather-loading">fetching weather…</span></div>
+      <div class="rc-date">${r.datetime}</div>
+    </${tag}>`;
+  }).join('');
+
+  // Fetch weather from Open-Meteo for each check-in (throttled)
+  async function fetchWeather(r,i){
+    if(!r.lat||!r.lng){
+      document.getElementById('rcw_'+i).innerHTML='';
+      return;
+    }
+    try{
+      const url=`https://archive-api.open-meteo.com/v1/archive?latitude=${r.lat}&longitude=${r.lng}`+
+        `&start_date=${r.date}&end_date=${r.date}&hourly=temperature_2m,weather_code&timezone=UTC`;
+      const res=await fetch(url);
+      const d=await res.json();
+      const hour=parseInt(r.time.split(':')[0]);
+      const temp=d.hourly?.temperature_2m?.[hour];
+      const code=d.hourly?.weather_code?.[hour];
+      const [icon,desc]=WMO[code]||['🌡️',''];
+      const el=document.getElementById('rcw_'+i);
+      if(el) el.innerHTML=`<span class="rc-weather-icon">${icon}</span><span class="rc-weather-temp">${temp!=null?Math.round(temp)+'°C':'—'}</span><span class="rc-weather-desc">${desc}</span>`;
+    }catch(e){
+      const el=document.getElementById('rcw_'+i);
+      if(el) el.innerHTML='';
+    }
+  }
+  // Stagger requests to avoid rate limiting
+  recent.forEach((r,i)=>setTimeout(()=>fetchWeather(r,i), i*120));
+})();
 
 // ── Map ───────────────────────────────────────────────────────────
 const map=L.map('map',{preferCanvas:true}).setView([30,15],2);
@@ -1058,7 +1549,301 @@ function switchMap(mode){
 </html>"""
 
 
-def build(data, out_path):
+TRIPS_TEMPLATE = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Trip Journal</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<style>
+:root{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+a{color:inherit;}
+
+/* ── TOP NAV ── */
+.topnav{display:flex;align-items:center;gap:20px;padding:18px 56px;border-bottom:1px solid var(--border);background:var(--card);}
+.topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
+.topnav a{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover,.topnav a.active{color:var(--gold);}
+
+/* ── VIEWS ── */
+#listView,#detailView{min-height:calc(100vh - 57px);}
+#detailView{display:none;}
+
+/* ── LIST HEADER ── */
+.list-header{padding:40px 56px 28px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.list-header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.list-meta{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:.12em;}
+.list-filters{padding:0 56px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.filter-search{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.85rem;outline:none;min-width:220px;transition:border-color .2s;}
+.filter-search:focus{border-color:var(--gold);}
+.filter-pill{padding:5px 13px;border-radius:6px;font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;}
+.filter-pill.active{background:var(--gold);color:#0b0d13;border-color:var(--gold);}
+.filter-pill:hover:not(.active){border-color:var(--gold);color:var(--gold);}
+
+/* ── TRIPS GRID ── */
+.trips-grid{padding:0 56px 72px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.trip-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 22px 18px;cursor:pointer;transition:border-color .2s,transform .15s;position:relative;overflow:hidden;text-decoration:none;display:block;}
+.trip-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.3;}
+.trip-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.trip-card.hidden{display:none;}
+.tc-num{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);margin-bottom:6px;}
+.tc-name{font-size:1rem;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:8px;}
+.tc-dates{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);margin-bottom:10px;}
+.tc-countries{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.tc-country{font-family:'DM Mono',monospace;font-size:.56rem;padding:3px 8px;border-radius:4px;background:rgba(78,205,196,.1);color:var(--teal);border:1px solid rgba(78,205,196,.2);}
+.tc-stats{display:flex;gap:16px;}
+.tc-stat{display:flex;flex-direction:column;gap:2px;}
+.tc-stat-v{font-family:'DM Mono',monospace;font-size:.80rem;color:var(--gold);}
+.tc-stat-l{font-size:.60rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+
+/* ── DETAIL VIEW ── */
+.detail-back{display:flex;align-items:center;gap:8px;padding:18px 56px 0;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);cursor:pointer;text-transform:uppercase;letter-spacing:.12em;width:max-content;transition:color .2s;}
+.detail-back:hover{color:var(--gold);}
+.detail-back::before{content:'←';}
+.detail-hero{padding:28px 56px 24px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px;border-bottom:1px solid var(--border);}
+.detail-hero h2{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,4vw,2.6rem);font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;}
+.detail-dates{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);margin-top:6px;}
+.detail-kpis{display:flex;gap:24px;flex-wrap:wrap;}
+.detail-kpi .num{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1;}
+.detail-kpi .lbl{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:4px;}
+.detail-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:24px 56px 60px;max-width:1400px;}
+.detail-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 24px;position:relative;overflow:hidden;}
+.detail-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.3;}
+.detail-card.full{grid-column:1/-1;}
+.detail-card-title{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);margin-bottom:16px;}
+#detailMap{height:380px;border-radius:8px;}
+.detail-countries{display:flex;flex-wrap:wrap;gap:6px;}
+.detail-country{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:.78rem;}
+.detail-timeline{max-height:440px;overflow-y:auto;padding-right:4px;}
+.detail-timeline::-webkit-scrollbar{width:3px;}
+.detail-timeline::-webkit-scrollbar-thumb{background:var(--border);}
+.tl-day{margin-bottom:18px;}
+.tl-day-header{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.tl-checkin{display:flex;gap:10px;align-items:flex-start;padding:5px 0;}
+.tl-checkin-time{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);flex-shrink:0;width:40px;}
+.tl-checkin-info{flex:1;min-width:0;}
+.tl-checkin-venue{font-size:.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tl-checkin-venue a{color:inherit;text-decoration:none;}
+.tl-checkin-venue a:hover{color:var(--gold);}
+.tl-checkin-sub{font-size:.65rem;color:var(--muted);}
+.cat-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.cat-bar-name{font-size:.75rem;color:var(--text);flex:1;}
+.cat-bar-track{width:100px;height:5px;background:var(--card2);border-radius:3px;overflow:hidden;}
+.cat-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--teal));}
+.cat-bar-cnt{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);width:36px;text-align:right;}
+
+@media(max-width:900px){
+  .topnav,.list-header,.list-filters,.trips-grid,.detail-back,.detail-hero,.detail-body{padding-left:18px;padding-right:18px;}
+  .trips-grid{grid-template-columns:1fr 1fr;}
+  .detail-body{grid-template-columns:1fr;}
+}
+@media(max-width:520px){
+  .trips-grid{grid-template-columns:1fr;}
+  .detail-kpis{gap:14px;}
+  .detail-kpi .num{font-size:1.4rem;}
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">Check-in Journal</a>
+  <a href="index.html">← Dashboard</a>
+  <a href="trips.html" class="active">Trips</a>
+</nav>
+
+<!-- ── LIST VIEW ── -->
+<div id="listView">
+  <div class="list-header">
+    <div>
+      <h1>Trip Journal</h1>
+      <div class="list-meta">{{TOTAL_TRIPS}} trips &nbsp;·&nbsp; updated {{UPDATED}}</div>
+    </div>
+  </div>
+  <div class="list-filters">
+    <input class="filter-search" type="text" placeholder="Search trips…" id="tripSearch" oninput="filterTrips()">
+    <div id="yearPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+  </div>
+  <div class="trips-grid" id="tripsGrid"></div>
+</div>
+
+<!-- ── DETAIL VIEW ── -->
+<div id="detailView">
+  <div class="detail-back" onclick="showList()">All trips</div>
+  <div class="detail-hero">
+    <div>
+      <h2 id="detailName"></h2>
+      <div class="detail-dates" id="detailDates"></div>
+    </div>
+    <div class="detail-kpis" id="detailKpis"></div>
+  </div>
+  <div class="detail-body">
+    <div class="detail-card full">
+      <div class="detail-card-title">Map</div>
+      <div id="detailMap"></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-card-title">Countries & Cities</div>
+      <div id="detailCountries" class="detail-countries"></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-card-title">Top Categories</div>
+      <div id="detailCats"></div>
+    </div>
+    <div class="detail-card full">
+      <div class="detail-card-title">Check-in Timeline</div>
+      <div class="detail-timeline" id="detailTimeline"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TRIPS = {{TRIPS_JSON}};
+let activeMap = null;
+
+// ── Build the grid ──────────────────────────────────────────────────────────
+function renderGrid(trips){
+  const grid = document.getElementById('tripsGrid');
+  grid.innerHTML = trips.map(t => `
+    <a class="trip-card" id="card-trip-${t.id}" href="#trip-${t.id}" onclick="showTrip(${t.id});return false;">
+      <div class="tc-num">Trip #${t.id}</div>
+      <div class="tc-name">${t.name}</div>
+      <div class="tc-dates">${t.start_date} &nbsp;–&nbsp; ${t.end_date}</div>
+      <div class="tc-countries">${t.countries.slice(0,5).map(c=>`<span class="tc-country">${c}</span>`).join('')}</div>
+      <div class="tc-stats">
+        <div class="tc-stat"><div class="tc-stat-v">${t.duration}</div><div class="tc-stat-l">Days</div></div>
+        <div class="tc-stat"><div class="tc-stat-v">${t.checkin_count.toLocaleString()}</div><div class="tc-stat-l">Check-ins</div></div>
+        <div class="tc-stat"><div class="tc-stat-v">${t.unique_places.toLocaleString()}</div><div class="tc-stat-l">Places</div></div>
+        <div class="tc-stat"><div class="tc-stat-v">${t.countries.length}</div><div class="tc-stat-l">Countries</div></div>
+      </div>
+    </a>`).join('');
+}
+renderGrid(TRIPS);
+
+// ── Year filter pills ───────────────────────────────────────────────────────
+const years = [...new Set(TRIPS.map(t => t.start_year))].sort();
+const pillsEl = document.getElementById('yearPills');
+let activeYear = null;
+['All',...years].forEach(y => {
+  const p = document.createElement('div');
+  p.className = 'filter-pill' + (y==='All'?' active':'');
+  p.textContent = y;
+  p.onclick = () => {
+    document.querySelectorAll('.filter-pill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    activeYear = y==='All' ? null : y;
+    filterTrips();
+  };
+  pillsEl.appendChild(p);
+});
+
+function filterTrips(){
+  const q = document.getElementById('tripSearch').value.toLowerCase();
+  TRIPS.forEach(t => {
+    const card = document.getElementById('card-trip-'+t.id);
+    const matchYear = !activeYear || t.start_year === activeYear;
+    const matchQ = !q || t.name.toLowerCase().includes(q)
+      || t.countries.some(c=>c.toLowerCase().includes(q))
+      || t.cities.some(c=>c.toLowerCase().includes(q))
+      || t.start_date.includes(q);
+    card.classList.toggle('hidden', !(matchYear && matchQ));
+  });
+}
+
+// ── Show detail ─────────────────────────────────────────────────────────────
+function showTrip(id){
+  const t = TRIPS.find(x=>x.id===id);
+  if(!t) return;
+  history.pushState({trip:id},'','#trip-'+id);
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+  document.getElementById('detailName').textContent = t.name;
+  document.getElementById('detailDates').textContent = t.start_date + ' – ' + t.end_date;
+  document.getElementById('detailKpis').innerHTML =
+    `<div class="detail-kpi"><div class="num">${t.duration}</div><div class="lbl">Days</div></div>
+     <div class="detail-kpi"><div class="num">${t.checkin_count.toLocaleString()}</div><div class="lbl">Check-ins</div></div>
+     <div class="detail-kpi"><div class="num">${t.unique_places.toLocaleString()}</div><div class="lbl">Unique Places</div></div>
+     <div class="detail-kpi"><div class="num">${t.countries.length}</div><div class="lbl">Countries</div></div>`;
+  // Countries + cities
+  document.getElementById('detailCountries').innerHTML =
+    t.countries.map(c=>`<span class="detail-country">🌍 ${c}</span>`).join('')
+    + '<br style="margin:8px 0">'
+    + t.cities.slice(0,12).map(c=>`<span class="detail-country" style="background:rgba(232,184,109,.05);border-color:rgba(232,184,109,.15);color:var(--text2);">📍 ${c}</span>`).join('');
+  // Categories
+  const maxCat = t.top_cats[0]?t.top_cats[0][1]:1;
+  document.getElementById('detailCats').innerHTML = t.top_cats.map(([cat,cnt])=>
+    `<div class="cat-bar-row">
+      <span class="cat-bar-name">${cat}</span>
+      <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(cnt/maxCat*100).toFixed(1)}%"></div></div>
+      <span class="cat-bar-cnt">${cnt}</span>
+    </div>`).join('');
+  // Timeline grouped by day
+  const byDay = {};
+  t.checkins.forEach(c=>{
+    if(!byDay[c.date]) byDay[c.date] = [];
+    byDay[c.date].push(c);
+  });
+  document.getElementById('detailTimeline').innerHTML = Object.keys(byDay).sort().map(day=>
+    `<div class="tl-day">
+      <div class="tl-day-header">${day} &nbsp;·&nbsp; ${byDay[day].length} check-ins</div>
+      ${byDay[day].map(c=>{
+        const fsUrl = c.venue_id ? `https://app.foursquare.com/v/${encodeURIComponent(c.venue.toLowerCase().replace(/\s+/g,'-'))}/${c.venue_id}` : null;
+        return `<div class="tl-checkin">
+          <div class="tl-checkin-time">${c.time}</div>
+          <div class="tl-checkin-info">
+            <div class="tl-checkin-venue">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}</div>
+            <div class="tl-checkin-sub">${[c.category,c.city,c.country].filter(Boolean).join(' · ')}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+  // Map
+  if(activeMap){ activeMap.remove(); activeMap=null; }
+  setTimeout(()=>{
+    activeMap = L.map('detailMap',{preferCanvas:true});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      {attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(activeMap);
+    const coords = t.coords.filter(c=>c[0]&&c[1]);
+    if(coords.length){
+      const heat = L.heatLayer(coords,{radius:14,blur:16,maxZoom:18,
+        gradient:{'0.0':'#000033','0.25':'#0a3d6b','0.5':'#e8b86d','0.75':'#ff7700','1.0':'#ff1100'}}).addTo(activeMap);
+      const lats=coords.map(c=>c[0]), lngs=coords.map(c=>c[1]);
+      activeMap.fitBounds([[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]],{padding:[20,20]});
+    }
+  },50);
+  window.scrollTo(0,0);
+}
+
+function showList(){
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('listView').style.display = 'block';
+  if(activeMap){ activeMap.remove(); activeMap=null; }
+  history.pushState({},'','trips.html');
+  window.scrollTo(0,0);
+}
+
+// Handle direct #trip-N links & back button
+function handleHash(){
+  const m = location.hash.match(/^#trip-(\d+)$/);
+  if(m){ showTrip(parseInt(m[1])); }
+  else { showList(); }
+}
+window.addEventListener('popstate', handleHash);
+handleHash();
+</script>
+</body>
+</html>"""
+
+
+def build(data, trips, out_dir='.'):
+    import os
+    # ── index.html ──────────────────────────────────────────────────────────
     html = TEMPLATE
     html = html.replace('{{DATE_MIN}}',  data['date_min'])
     html = html.replace('{{DATE_MAX}}',  data['date_max'])
@@ -1067,10 +1852,20 @@ def build(data, out_path):
     html = html.replace('{{CITIES}}',    f"{len(data['cities']):,}")
     html = html.replace('{{PLACES}}',    f"{data['unique_places_count']:,}")
     html = html.replace('{{UPDATED}}',   datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
+    html = html.replace('{{TRIPS}}',     str(data['trips_count']))
     html = html.replace('{{STATS}}',     json.dumps(data, ensure_ascii=False))
-    with open(out_path, 'w', encoding='utf-8') as f:
-        f.write(html)
-    print(f"Built → {out_path}  ({len(html)//1024:,} KB)")
+    idx_path = os.path.join(out_dir, 'index.html')
+    with open(idx_path, 'w', encoding='utf-8') as f: f.write(html)
+    print(f"Built → {idx_path}  ({len(html)//1024:,} KB)")
+
+    # ── trips.html ──────────────────────────────────────────────────────────
+    trips_html = TRIPS_TEMPLATE
+    trips_html = trips_html.replace('{{TRIPS_JSON}}', json.dumps(trips, ensure_ascii=False))
+    trips_html = trips_html.replace('{{TOTAL_TRIPS}}', str(len(trips)))
+    trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
+    trips_path = os.path.join(out_dir, 'trips.html')
+    with open(trips_path, 'w', encoding='utf-8') as f: f.write(trips_html)
+    print(f"Built → {trips_path}  ({len(trips_html)//1024:,} KB)")
 
 
 def save_category_list(csv_path, out_path):
@@ -1090,7 +1885,7 @@ if __name__ == '__main__':
     if not os.path.exists(INPUT_CSV):
         print(f"ERROR: {INPUT_CSV} not found."); exit(1)
     print(f"Processing {INPUT_CSV}...")
-    data = process(INPUT_CSV)
-    build(data, OUTPUT_HTML)
+    data, trips = process(INPUT_CSV)
+    build(data, trips)
     save_category_list(INPUT_CSV, 'category_list.txt')
     print("Done!")
