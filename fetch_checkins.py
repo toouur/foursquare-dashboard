@@ -3,13 +3,12 @@ fetch_checkins.py  –  Fetch check-ins from Foursquare/Swarm API and merge into
 checkins.csv. Designed for GitHub Actions and local manual runs.
 
 Usage examples:
-    python fetch_checkins.py --token "$SWARM_TOKEN" --csv checkins.csv
+    python fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv checkins.csv
     python fetch_checkins.py --full
 
 Token resolution order:
     1) --token
-    2) SWARM_TOKEN environment variable
-    3) FOURSQUARE_TOKEN environment variable
+    2) FOURSQUARE_TOKEN environment variable
 
 Modes:
   - Incremental (default when CSV exists): fetch check-ins newer than latest CSV row.
@@ -51,9 +50,6 @@ def resolve_token(cli_token: str | None) -> str:
     cli = (cli_token or "").strip()
     if cli:
         return cli
-    env_swarm = os.environ.get("SWARM_TOKEN", "").strip()
-    if env_swarm:
-        return env_swarm
     env_fsq = os.environ.get("FOURSQUARE_TOKEN", "").strip()
     if env_fsq:
         return env_fsq
@@ -259,7 +255,7 @@ def main() -> None:
     token = resolve_token(args.token)
     if not token:
         log.error(
-            "Missing API token. Provide --token, or set SWARM_TOKEN / FOURSQUARE_TOKEN in environment."
+            "Missing API token. Provide --token, or set FOURSQUARE_TOKEN in environment."
         )
         print("CHANGED=false")
         return

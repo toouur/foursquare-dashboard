@@ -9,7 +9,7 @@
 #      a separate scheduled job (netlify-monthly), to stay within free tier.
 #
 # Required repository secrets:
-#   SWARM_TOKEN        — Foursquare OAuth token
+#   FOURSQUARE_TOKEN        — Foursquare OAuth token
 #   NETLIFY_SITE_ID    — found in Netlify site settings → General → Site ID
 #   NETLIFY_AUTH_TOKEN — personal access token from app.netlify.com/user/applications
 
@@ -49,11 +49,15 @@ jobs:
       - name: Fetch new Swarm check-ins
         id: fetch
         env:
-          SWARM_TOKEN: ${{ secrets.SWARM_TOKEN }}
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |
-          output=$(python fetch_checkins.py --token "$SWARM_TOKEN" --csv checkins.csv)
-          echo "$output"
-          echo "$output" >> "$GITHUB_OUTPUT"
+          if [ -z "$FOURSQUARE_TOKEN" ]; then
+            echo "⚠️  FOURSQUARE_TOKEN secret is not set in repository Settings → Secrets and variables → Actions."
+            echo "   Add it and re-run this workflow. Skipping fetch for now."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+          else
+            python fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv checkins.csv >> "$GITHUB_OUTPUT"
+          fi
 
       # ── 4. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
