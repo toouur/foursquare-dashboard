@@ -210,9 +210,10 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .recent-card{flex:0 0 220px;scroll-snap-align:start;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 18px 14px;display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden;transition:border-color 0.2s;}
 .recent-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.3;}
 .recent-card:hover{border-color:var(--gold);}
-.rc-venue{font-size:0.88rem;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:36px;}
+.rc-venue-row{display:flex;align-items:flex-start;gap:6px;justify-content:space-between;}
+.rc-cat-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px;}
+.rc-venue{font-size:0.88rem;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1;}
 .rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);margin-top:2px;}
-.rc-cat-icon{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.4);}
 .rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
 .rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);margin-top:auto;padding-top:8px;}
 .rc-weather{display:flex;align-items:center;gap:6px;margin-top:4px;}
@@ -415,13 +416,14 @@ const ISO2={
   'Switzerland':'ch','Taiwan':'tw','Thailand':'th','Tunisia':'tn',
   'Turkey':'tr','Türkiye':'tr','Ukraine':'ua','United Arab Emirates':'ae',
   'United Kingdom':'gb','United States':'us','Uruguay':'uy','Uzbekistan':'uz',
-  'Venezuela':'ve','Vietnam':'vn','Holy See (Vatican City State)':'va','Vatican City':'va',
+  'Venezuela':'ve','Vietnam':'vn','Holy See (Vatican City State)':'va','	Holy See (Vatican City State)':'va','Vatican City':'va',
   'North Korea':'kp','Cuba':'cu','Iceland':'is','Sri Lanka':'lk',
   'Liechtenstein':'li',
 };
 // Returns an HTML <span> using flag-icons CSS library (renders on all platforms)
 function flagHtml(country,size){
-  const code=ISO2[country];
+  const c=(country||'').trim();
+  const code=ISO2[c];
   if(!code) return '';
   const sz=size||'1em';
   return `<span class="fi fi-${code}" style="font-size:${sz};border-radius:2px;vertical-align:middle;flex-shrink:0"></span>`;
@@ -802,6 +804,7 @@ function filterList(id,q){
     // ── Outdoors ──────────────────────────────────────────────────────
     'Park':                     ['🌳','#1E8449'],
     'Plaza':                    ['🏛️','#2E86C1'],
+    'Pedestrian Plaza':         ['🚶','#2E86C1'],
     'Beach':                    ['🏖️','#F39C12'],
     'Mountain':                 ['⛰️','#7F8C8D'],
     'Hiking Trail':             ['🥾','#6E2F1A'],
@@ -877,12 +880,106 @@ function filterList(id,q){
     'Neighborhood':             ['🏘️','#5D6D7E'],
     'Intersection':             ['🔀','#717D7E'],
     'Housing Development':      ['🏘️','#1A5276'],
+    'Bridge':                   ['🌉','#5D6D7E'],
+    // ── Shops (extended) ──────────────────────────────────────────────
+    'Miscellaneous Store':      ['🏪','#E67E22'],
+    'Food and Beverage Retail': ['🛒','#27AE60'],
+    'Sporting Goods Retail':    ['⚽','#27AE60'],
+    'Health Food Store':        ['🥗','#1E8449'],
+    'Butcher':                  ['🥩','#C0392B'],
+    'Eyecare Store':            ['👓','#2471A3'],
+    'Tailor':                   ['🧵','#7D3C98'],
+    'Bike Rental':              ['🚲','#27AE60'],
+    'Currency Exchange':        ['💱','#F39C12'],
+    // ── Food extended ─────────────────────────────────────────────────
+    'Diner':                    ['🍳','#E67E22'],
+    'Bistro':                   ['🍽️','#C0392B'],
+    'Breakfast Spot':           ['🥞','#F39C12'],
+    'Bagel Shop':               ['🥯','#C8860A'],
+    'Dessert Shop':             ['🍰','#F06292'],
+    'Ice Cream Parlor':         ['🍦','#F06292'],
+    'Sandwich Spot':            ['🥪','#E67E22'],
+    'Noodle Restaurant':        ['🍜','#E74C3C'],
+    'Turkish Restaurant':       ['🥙','#C0392B'],
+    'Indian Restaurant':        ['🍛','#E67E22'],
+    'Romanian Restaurant':      ['🍲','#C0392B'],
+    'Ukrainian Restaurant':     ['🥟','#D4A017'],
+    'Eastern European Restaurant':['🍲','#C0392B'],
+    'Modern European Restaurant':['🍽️','#922B21'],
+    'Middle Eastern Restaurant':['🧆','#D35400'],
+    'Beer Garden':              ['🍻','#D4A017'],
+    // ── Culture & Entertainment ────────────────────────────────────────
+    'Concert Hall':             ['🎼','#922B21'],
+    'Movie Theater':            ['🎬','#C0392B'],
+    'Cultural Center':          ['🎭','#7D3C98'],
+    'Exhibit':                  ['🖼️','#7D3C98'],
+    'Science Museum':           ['🔬','#1A5276'],
+    'Amusement Park':           ['🎡','#E74C3C'],
+    'Memorial Site':            ['🕯️','#626567'],
+    'Library':                  ['📚','#1A5276'],
+    // ── Outdoors extended ─────────────────────────────────────────────
+    'National Park':            ['🌲','#186A3B'],
+    'Nature Preserve':          ['🌿','#1E8449'],
+    'Forest':                   ['🌲','#186A3B'],
+    'Botanical Garden':         ['🌺','#1E8449'],
+    'Waterfall':                ['💦','#2980B9'],
+    'Canal':                    ['🚤','#2471A3'],
+    'Bay':                      ['🌊','#2980B9'],
+    'Reservoir':                ['💧','#2471A3'],
+    'Playground':               ['🛝','#E74C3C'],
+    'Campground':               ['⛺','#186A3B'],
+    'Ski Area':                 ['⛷️','#85C1E9'],
+    'Well':                     ['🪣','#7F8C8D'],
+    'Tree':                     ['🌳','#1E8449'],
+    'Lighthouse':               ['🔦','#F39C12'],
+    'Port':                     ['🚢','#154360'],
+    'Pier':                     ['🎣','#2471A3'],
+    // ── Religion extended ─────────────────────────────────────────────
+    'Buddhist Temple':          ['☸️','#D4A017'],
+    'Hindu Temple':             ['🛕','#E67E22'],
+    'Shrine':                   ['⛩️','#C0392B'],
+    // ── Education ─────────────────────────────────────────────────────
+    'Education':                ['🎓','#1A5276'],
+    'College Arts Building':    ['🎨','#7D3C98'],
+    'College Technology Building':['💻','#2471A3'],
+    'College Academic Building':['📖','#1A5276'],
+    'College Residence Hall':   ['🏠','#2C3E50'],
+    'College Library':          ['📚','#154360'],
+    'College Gym':              ['💪','#C0392B'],
+    'College Cafeteria':        ['🥣','#D4A017'],
+    // ── Transport extended ────────────────────────────────────────────
+    'Airport Lounge':           ['🛋️','#21618C'],
+    'Airport':                  ['✈️','#154360'],
+    'Airport Ticket Counter':   ['🎫','#2471A3'],
+    'Baggage Claim':            ['🧳','#2C3E50'],
+    'Travel and Transportation':['🧳','#2C3E50'],
+    'Transportation Service':   ['🚐','#27AE60'],
+    'Shipping, Freight, and Material Transportation Service':['📦','#7F8C8D'],
+    'Moving Target':            ['📍','#E74C3C'],
+    'Toll Plaza':               ['🛣️','#626567'],
+    // ── Civic extended ────────────────────────────────────────────────
+    'Embassy or Consulate':     ['🏛️','#1A5276'],
+    'Hair Salon':               ['✂️','#F06292'],
+    'Swimming Pool':            ['🏊','#2980B9'],
+    'Pool Hall':                ['🎱','#2C3E50'],
+    'Factory':                  ['🏭','#7F8C8D'],
+    'Structure':                ['🏗️','#626567'],
+    'Arts and Entertainment':   ['🎭','#7D3C98'],
+    'Sports and Recreation':    ['⚽','#27AE60'],
+    'Gym and Studio':           ['💪','#E74C3C'],
+    // ── Geography labels ──────────────────────────────────────────────
+    'City':                     ['🏙️','#2E86C1'],
+    'Town':                     ['🏘️','#5D6D7E'],
+    'Village':                  ['🏡','#5D6D7E'],
+    'Country':                  ['🌍','#2E86C1'],
+    'County':                   ['📍','#626567'],
+    'State':                    ['📍','#626567'],
   };
   function catIcon(category){
     const entry=CAT_ICON[category];
     if(!entry) return '';
     const [emoji,bg]=entry;
-    return `<div class="rc-cat-icon" style="background:${bg}" title="${category}">${emoji}</div>`;
+    return `<div class="rc-cat-icon" style="background:${bg}22;border:1px solid ${bg}66" title="${category}">${emoji}</div>`;
   }
 
 
@@ -896,8 +993,7 @@ function filterList(id,q){
     const locStr=loc.join(', ');
     return `<${tag}${href} class="recent-card" id="rc_${i}" style="${url?'text-decoration:none;cursor:pointer;':''}">
       ${tileBlock(r.lat,r.lng)}
-      ${catIcon(r.category)}
-      <div class="rc-venue">${esc(r.venue)||'Unknown venue'}</div>
+      <div class="rc-venue-row"><div class="rc-venue">${esc(r.venue)||'Unknown venue'}</div>${catIcon(r.category)}</div>
       ${streak}
       <div class="rc-cat">${esc(r.category||'')}</div>
       <div class="rc-location">${f} ${esc(locStr)}</div>
@@ -911,7 +1007,7 @@ function filterList(id,q){
     if(!r.lat||!r.lng){document.getElementById('rcw_'+i).innerHTML='';return;}
     try{
       const url=`https://archive-api.open-meteo.com/v1/archive?latitude=${r.lat}&longitude=${r.lng}`+
-        `&start_date=${r.date}&end_date=${r.date}&hourly=temperature_2m,weather_code&timezone=UTC`;
+        `&start_date=${r.date}&end_date=${r.date}&hourly=temperature_2m,weather_code&timezone=${encodeURIComponent(r.tz_name||'UTC')}`;
       const res=await fetch(url); const d=await res.json();
       const hour=parseInt(r.time.split(':')[0]);
       const temp=d.hourly?.temperature_2m?.[hour], code=d.hourly?.weather_code?.[hour];
