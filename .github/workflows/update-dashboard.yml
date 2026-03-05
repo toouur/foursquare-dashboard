@@ -2,16 +2,16 @@
 #
 # Runs every 2 hours (and on every push to main).
 # 1. Fetches new Swarm check-ins via the Foursquare v2 API.
-# 2. If new check-ins were found, rebuilds index.html + trips.html.
-# 3. Commits and pushes the updated CSV + HTML back to the repo.
+# 2. Rebuilds index.html + trips.html.
+# 3. Commits and pushes updated files back to the repo.
+#    → Cloudflare Pages picks up every commit automatically (connected via Git).
+#    → Netlify is triggered manually only on the last day of each month via
+#      a separate scheduled job (netlify-monthly), to stay within free tier.
 #
-# Required repository secret:
-#   SWARM_TOKEN   — your Foursquare OAuth token
-#                   (Settings → Secrets and variables → Actions → New repository secret)
-#
-# Optional: change the cron schedule below to taste.
-# "0 */2 * * *" = every 2 hours on the hour. 
-# "*/30 * * * *" = every 30 minutes (may hit API rate limits if you check in rarely).
+# Required repository secrets:
+#   SWARM_TOKEN        — Foursquare OAuth token
+#   NETLIFY_SITE_ID    — found in Netlify site settings → General → Site ID
+#   NETLIFY_AUTH_TOKEN — personal access token from app.netlify.com/user/applications
 
 name: Update check-in dashboard
 
@@ -19,13 +19,14 @@ on:
   schedule:
     - cron: "0 */2 * * *"   # every 2 hours
   push:
-    branches: [main]         # also rebuild on every push (e.g. manual CSV edits)
-  workflow_dispatch:         # allow manual "Run workflow" button in GitHub UI
+    branches: [main]         # rebuild on every push
+  workflow_dispatch:         # manual trigger button in GitHub UI
 
 permissions:
-  contents: write            # needed to push the updated files back
+  contents: write
 
 jobs:
+  # ── Main job: fetch → rebuild → commit (Cloudflare deploys on every push) ──
   update:
     runs-on: ubuntu-latest
 
@@ -33,9 +34,9 @@ jobs:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0     # full history so we can push back
+          fetch-depth: 0
 
-      # ── 2. Python setup ───────────────────────────────────────────────────────
+      # ── 2. Python setup ──────────────────────────────────────────────────────
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -44,19 +45,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ── 3. Fetch new check-ins ────────────────────────────────────────────────
+      # ── 3. Fetch new check-ins ───────────────────────────────────────────────
       - name: Fetch new Swarm check-ins
         id: fetch
         env:
           SWARM_TOKEN: ${{ secrets.SWARM_TOKEN }}
-          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |
-          output=$(python fetch_checkins.py --csv checkins.csv)
+          output=$(python fetch_checkins.py --token "$SWARM_TOKEN" --csv checkins.csv)
           echo "$output"
-          # Propagate CHANGED flag to subsequent steps
           echo "$output" >> "$GITHUB_OUTPUT"
 
-      # ── 4. Rebuild dashboard (always, so a manual push also refreshes it) ────
+      # ── 4. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
         run: |
           python build.py \
@@ -64,7 +63,7 @@ jobs:
             --config-dir config \
             --output-dir .
 
-      # ── 5. Commit & push if anything changed ─────────────────────────────────
+      # ── 5. Commit & push → Cloudflare Pages auto-deploys on every push ───────
       - name: Commit updated files
         run: |
           git config user.name  "github-actions[bot]"
@@ -72,7 +71,6 @@ jobs:
 
           git add checkins.csv index.html trips.html
 
-          # Only commit if there is actually something staged
           if git diff --cached --quiet; then
             echo "Nothing to commit."
           else
@@ -81,3 +79,42 @@ jobs:
             git commit -m "chore: auto-update dashboard [${TIMESTAMP}] (+${NEW_ROWS} check-ins)"
             git push
           fi
+
+  # ── Monthly job: deploy to Netlify on the last day of each month ────────────
+  netlify-monthly:
+    runs-on: ubuntu-latest
+    # Run at 23:00 UTC on the 28th, 29th, 30th, and 31st — but only proceed
+    # if today is actually the last day of the month (checked in the step below).
+    if: github.event_name == 'schedule'
+    needs: update
+
+    steps:
+      - name: Check if today is last day of month
+        id: lastday
+        run: |
+          TODAY=$(date -u +%d)
+          LAST=$(date -u -d "$(date -u +%Y-%m-01) +1 month -1 day" +%d)
+          if [ "$TODAY" = "$LAST" ]; then
+            echo "is_last_day=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "is_last_day=false" >> "$GITHUB_OUTPUT"
+            echo "Not the last day of month ($TODAY/$LAST) — skipping Netlify deploy."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.lastday.outputs.is_last_day == 'true'
+
+      - name: Deploy to Netlify
+        if: steps.lastday.outputs.is_last_day == 'true'
+        env:
+          NETLIFY_SITE_ID:    ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          npm install -g netlify-cli
+          netlify deploy \
+            --site  "$NETLIFY_SITE_ID" \
+            --auth  "$NETLIFY_AUTH_TOKEN" \
+            --dir   "." \
+            --prod \
+            --message "Monthly deploy $(date -u +%Y-%m-%d)"
+          echo "Netlify deploy complete."
