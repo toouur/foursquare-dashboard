@@ -1,0 +1,18 @@
+# netlify.toml
+#
+# Netlify builds are disabled — deploys happen via GitHub Actions
+# on the last day of each month only (to stay within free tier limits).
+# Cloudflare Pages handles all other deploys on every commit.
+
+[build]
+  # No build command needed — index.html is pre-built by GitHub Actions
+  command = ""
+  publish = "."
+
+[build.environment]
+  PYTHON_VERSION = "3.11"
+
+# Disable automatic Netlify builds triggered by git pushes.
+# Deploys are triggered manually via the netlify-monthly GitHub Actions job.
+[build]
+  ignore = "exit 0"
