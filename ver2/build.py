@@ -20,9 +20,6 @@ from metrics import process
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger(__name__)
 
-# Directory that contains this script — used as base for default paths
-_SCRIPT_DIR = Path(__file__).resolve().parent
-
 
 def load_settings(config_dir: Path) -> dict:
     path = config_dir / "settings.yaml"
@@ -210,9 +207,8 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .recent-card{flex:0 0 220px;scroll-snap-align:start;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 18px 14px;display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden;transition:border-color 0.2s;}
 .recent-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.3;}
 .recent-card:hover{border-color:var(--gold);}
-.rc-venue{font-size:0.88rem;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:36px;}
+.rc-venue{font-size:0.88rem;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);margin-top:2px;}
-.rc-cat-icon{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.4);}
 .rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
 .rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);margin-top:auto;padding-top:8px;}
 .rc-weather{display:flex;align-items:center;gap:6px;margin-top:4px;}
@@ -415,7 +411,7 @@ const ISO2={
   'Switzerland':'ch','Taiwan':'tw','Thailand':'th','Tunisia':'tn',
   'Turkey':'tr','Türkiye':'tr','Ukraine':'ua','United Arab Emirates':'ae',
   'United Kingdom':'gb','United States':'us','Uruguay':'uy','Uzbekistan':'uz',
-  'Venezuela':'ve','Vietnam':'vn','Holy See (Vatican City State)':'va','Vatican City':'va',
+  'Venezuela':'ve','Vietnam':'vn','Holy See (Vatican City State)':'va',
   'North Korea':'kp','Cuba':'cu','Iceland':'is','Sri Lanka':'lk',
   'Liechtenstein':'li',
 };
@@ -728,164 +724,6 @@ function filterList(id,q){
     return `https://app.foursquare.com/v/${encodeURIComponent(r.venue.toLowerCase().replace(/\s+/g,'-'))}/${r.venue_id}`;
   }
 
-  // ── Category icons: emoji + vivid colour, 100% self-contained, no CDN ──
-  // Each entry: [emoji, background-colour]
-  const CAT_ICON={
-    // ── Food & Drink ──────────────────────────────────────────────────
-    'Coffee Shop':              ['☕','#6F4E37'],
-    'Café':                     ['☕','#6F4E37'],
-    'Bakery':                   ['🥐','#C8860A'],
-    'Restaurant':               ['🍽️','#C0392B'],
-    'Fast Food Restaurant':     ['🍔','#E67E22'],
-    'Pizzeria':                 ['🍕','#E74C3C'],
-    'Burger Joint':             ['🍔','#D35400'],
-    'Italian Restaurant':       ['🍝','#C0392B'],
-    'Kebab Restaurant':         ['🌯','#E67E22'],
-    'Doner Restaurant':         ['🌯','#D35400'],
-    'Shawarma Restaurant':      ['🌯','#E67E22'],
-    'Caucasian Restaurant':     ['🍖','#922B21'],
-    'Food Court':               ['🍱','#E67E22'],
-    'Cafeteria':                ['🥣','#D4A017'],
-    'Corporate Cafeteria':      ['🥣','#D4A017'],
-    'College Cafeteria':        ['🥣','#D4A017'],
-    'Farmers Market':           ['🥦','#27AE60'],
-    'Market':                   ['🛒','#27AE60'],
-    'Grocery Store':            ['🛒','#27AE60'],
-    'Supermarket':              ['🛒','#219A52'],
-    'Convenience Store':        ['🏪','#2ECC71'],
-    'Gourmet Store':            ['🧀','#F39C12'],
-    'Candy Store':              ['🍬','#F06292'],
-    // ── Nightlife ─────────────────────────────────────────────────────
-    'Bar':                      ['🍺','#F39C12'],
-    'Beer Bar':                 ['🍺','#E67E22'],
-    'Pub':                      ['🍻','#D4A017'],
-    'Hookah Bar':               ['💨','#8E44AD'],
-    'Cocktail Bar':             ['🍸','#E74C3C'],
-    'Wine Bar':                 ['🍷','#922B21'],
-    'Wine Store':               ['🍷','#7B241C'],
-    'Liquor Store':             ['🥃','#784212'],
-    'Lounge':                   ['🛋️','#5D6D7E'],
-    'Gastropub':                ['🍖','#CA6F1E'],
-    'Brewery':                  ['🍻','#BA4A00'],
-    'Nightclub':                ['🎵','#6C3483'],
-    'Karaoke Bar':              ['🎤','#7D3C98'],
-    // ── Hotels & Accommodation ────────────────────────────────────────
-    'Hotel':                    ['🏨','#2C3E50'],
-    'Hostel':                   ['🛏️','#34495E'],
-    'Bed and Breakfast':        ['🛏️','#4A235A'],
-    'Inn':                      ['🏠','#2E4053'],
-    'Apartment or Condo':       ['🏠','#1A5276'],
-    'Home (private)':           ['🏠','#17202A'],
-    // ── Transport ─────────────────────────────────────────────────────
-    'Metro Station':            ['🚇','#2980B9'],
-    'Rail Station':             ['🚉','#1A5276'],
-    'Train':                    ['🚂','#E74C3C'],
-    'Tram Station':             ['🚃','#2471A3'],
-    'Light Rail Station':       ['🚈','#2980B9'],
-    'Platform':                 ['🚉','#1F618D'],
-    'Bus Line':                 ['🚌','#27AE60'],
-    'Bus Station':              ['🚌','#1E8449'],
-    'Bus Stop':                 ['🚏','#239B56'],
-    'Airport Terminal':         ['✈️','#2471A3'],
-    'International Airport':    ['✈️','#154360'],
-    'Airport Gate':             ['✈️','#1A5276'],
-    'Airport Service':          ['✈️','#21618C'],
-    'Plane':                    ['✈️','#2980B9'],
-    'Travel Lounge':            ['🛋️','#21618C'],
-    'Boat or Ferry':            ['⛴️','#117A65'],
-    'Border Crossing':          ['🛂','#717D7E'],
-    'Taxi':                     ['🚕','#F4D03F'],
-    'Parking':                  ['🅿️','#2980B9'],
-    'Fuel Station':             ['⛽','#E67E22'],
-    'Rest Area':                ['🛑','#7F8C8D'],
-    'Cable Car':                ['🚡','#8E44AD'],
-    // ── Outdoors ──────────────────────────────────────────────────────
-    'Park':                     ['🌳','#1E8449'],
-    'Plaza':                    ['🏛️','#2E86C1'],
-    'Beach':                    ['🏖️','#F39C12'],
-    'Mountain':                 ['⛰️','#7F8C8D'],
-    'Hiking Trail':             ['🥾','#6E2F1A'],
-    'Garden':                   ['🌸','#1E8449'],
-    'Scenic Lookout':           ['🔭','#1A5276'],
-    'Waterfront':               ['🌊','#2471A3'],
-    'Harbor or Marina':         ['⚓','#154360'],
-    'River':                    ['🌊','#2980B9'],
-    'Lake':                     ['🏞️','#2471A3'],
-    'Island':                   ['🏝️','#27AE60'],
-    'Bike Trail':               ['🚴','#E67E22'],
-    'Other Great Outdoors':     ['🌲','#186A3B'],
-    'Cemetery':                 ['🪦','#5D6D7E'],
-    'Ski Area':                 ['⛷️','#85C1E9'],
-    'Sculpture Garden':         ['🗿','#7F8C8D'],
-    'Bridge':                   ['🌉','#626567'],
-    'Fountain':                 ['⛲','#5DADE2'],
-    // ── Arts & Culture ────────────────────────────────────────────────
-    'Museum':                   ['🏛️','#7D3C98'],
-    'Art Museum':               ['🎨','#884EA0'],
-    'History Museum':           ['📜','#6E2F1A'],
-    'Art Gallery':              ['🖼️','#7D3C98'],
-    'Monument':                 ['🗽','#626567'],
-    'Historic and Protected Site':['🏰','#784212'],
-    'Castle':                   ['🏰','#6E2F1A'],
-    'Palace':                   ['🏯','#784212'],
-    'Outdoor Sculpture':        ['🗿','#717D7E'],
-    'Public Art':               ['🎨','#7D3C98'],
-    'Street Art':               ['🎨','#8E44AD'],
-    'Event Space':              ['🎪','#C0392B'],
-    'Dance Studio':             ['💃','#E74C3C'],
-    'Theater':                  ['🎭','#922B21'],
-    // ── Religion ──────────────────────────────────────────────────────
-    'Church':                   ['⛪','#7D3C98'],
-    'Mosque':                   ['🕌','#117A65'],
-    'Temple':                   ['🛕','#B9770E'],
-    'Monastery':                ['🙏','#6E2F1A'],
-    'Synagogue':                ['✡️','#1A5276'],
-    // ── Shops ─────────────────────────────────────────────────────────
-    'Shopping Mall':            ['🛍️','#E91E63'],
-    'Department Store':         ['🏬','#C0392B'],
-    'Clothing Store':           ['👔','#8E44AD'],
-    'Shoe Store':               ['👟','#D35400'],
-    'Electronics Store':        ['💻','#2471A3'],
-    'Mobile Phone Store':       ['📱','#2E86C1'],
-    'Bookstore':                ['📚','#1A5276'],
-    'Furniture and Home Store': ['🛋️','#784212'],
-    'Cosmetics Store':          ['💄','#F06292'],
-    'Bicycle Store':            ['🚲','#27AE60'],
-    'Big Box Store':            ['📦','#7F8C8D'],
-    'Flea Market':              ['🏷️','#D35400'],
-    'Hardware Store':           ['🔧','#7F8C8D'],
-    // ── Health & Fitness ──────────────────────────────────────────────
-    'Gym':                      ['💪','#E74C3C'],
-    'Bath House':               ['♨️','#1ABC9C'],
-    'Spa':                      ['💆','#1ABC9C'],
-    'Medical Center':           ['🏥','#E74C3C'],
-    'Pharmacy':                 ['💊','#27AE60'],
-    // ── Civic ─────────────────────────────────────────────────────────
-    'Bank':                     ['🏦','#1A5276'],
-    'Office':                   ['🏢','#2C3E50'],
-    'Post Office':              ['📮','#E74C3C'],
-    'Police Station':           ['👮','#2471A3'],
-    'City Hall':                ['🏛️','#1A5276'],
-    'Government Building':      ['🏛️','#154360'],
-    'University':               ['🎓','#154360'],
-    'Tech Startup':             ['💡','#F39C12'],
-    'Business Center':          ['🏢','#2C3E50'],
-    'Non-Profit Organization':  ['🤝','#1E8449'],
-    // ── Roads & Generic ───────────────────────────────────────────────
-    'Road':                     ['🛣️','#626567'],
-    'Tunnel':                   ['🚧','#E67E22'],
-    'Neighborhood':             ['🏘️','#5D6D7E'],
-    'Intersection':             ['🔀','#717D7E'],
-    'Housing Development':      ['🏘️','#1A5276'],
-  };
-  function catIcon(category){
-    const entry=CAT_ICON[category];
-    if(!entry) return '';
-    const [emoji,bg]=entry;
-    return `<div class="rc-cat-icon" style="background:${bg}" title="${category}">${emoji}</div>`;
-  }
-
-
   scrollEl.innerHTML=recent.map((r,i)=>{
     const url=fsUrl(r);
     const tag=url?'a':'div', href=url?` href="${url}" target="_blank" rel="noopener"`:'';
@@ -896,7 +734,6 @@ function filterList(id,q){
     const locStr=loc.join(', ');
     return `<${tag}${href} class="recent-card" id="rc_${i}" style="${url?'text-decoration:none;cursor:pointer;':''}">
       ${tileBlock(r.lat,r.lng)}
-      ${catIcon(r.category)}
       <div class="rc-venue">${esc(r.venue)||'Unknown venue'}</div>
       ${streak}
       <div class="rc-cat">${esc(r.category||'')}</div>
@@ -930,14 +767,14 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
 const status=document.getElementById('mapStatus');
 let heatLayer=null,dotLayer=null,currentMode='heat';
 
-// Heatmap: pre-computed p75-capped weights from Python (one point per ~330m cell).
-// radius=14, blur=10 keeps individual cities distinct at world zoom.
-// minOpacity=0.3 ensures even single-visit places show up on the map.
+// Heatmap uses pre-computed per-venue log-weights from Python.
+// Each unique location is one point regardless of visit count (weight = log(visits)).
+// This prevents Minsk from drowning out the rest of the world.
 heatLayer=L.heatLayer(S.venues_heatmap,{
-  radius:14, blur:10, maxZoom:18, max:1.0, minOpacity:0.3,
-  gradient:{'0.0':'#0a1628','0.2':'#0d3b6e','0.4':'#1a6b9a','0.65':'#e8b86d','0.85':'#ff7700','1.0':'#ff2200'}
+  radius:18, blur:14, maxZoom:18, max:1.0,
+  gradient:{'0.0':'#000522','0.15':'#0a2a5c','0.35':'#1a6b9a','0.6':'#e8b86d','0.8':'#ff7700','1.0':'#ff1100'}
 }).addTo(map);
-status.textContent='Heatmap · '+S.venues_heatmap.length.toLocaleString()+' unique locations';
+status.textContent='Heatmap · '+S.venues_heatmap.length.toLocaleString()+' unique locations (log-weighted)';
 setTimeout(()=>status.style.opacity='0',2800);
 
 function buildDots(){
@@ -958,47 +795,23 @@ function buildDots(){
 let countriesMapInst=null;
 function buildCountriesMap(){
   if(countriesMapInst) return;
-  countriesMapInst=L.map('countriesMap',{preferCanvas:false,zoomControl:true}).setView([25,20],2);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
+  countriesMapInst=L.map('countriesMap',{preferCanvas:true}).setView([20,15],2);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:10}).addTo(countriesMapInst);
-
   const centroids=S.country_centroids;
   const counts=Object.values(centroids).map(v=>v[2]);
-  const maxC=Math.max(...counts);
-
-  // Sort by count ascending so high-traffic countries render on top
-  const sorted=Object.entries(centroids).sort((a,b)=>a[1][2]-b[1][2]);
-
-  sorted.forEach(([country,[lat,lng,count]])=>{
-    const code=ISO2[country];
-
-    // Scale: min 18px, max 42px based on sqrt(count/max)
-    const size=Math.round(18+Math.sqrt(count/maxC)*24);
-    const half=Math.round(size/2);
-
-    // Flag width = size * 4/3 (flag-icons are 4:3 ratio)
-    const fw=Math.round(size*1.33);
-
-    // Build inner HTML: flag + count badge
-    const flagEl=code
-      ? `<span class="fi fi-${code}" style="width:${fw}px;height:${size}px;display:block;border-radius:3px;box-shadow:0 1px 4px rgba(0,0,0,.7)"></span>`
-      : `<div style="width:${fw}px;height:${size}px;background:#2a2f45;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*.55)}px;box-shadow:0 1px 4px rgba(0,0,0,.7)">🌐</div>`;
-
-    const badge=count>=100
-      ? `<div style="position:absolute;top:-7px;right:-7px;background:#e8b86d;color:#0b0d13;font-family:'DM Mono',monospace;font-size:${Math.max(8,Math.round(size*.22))}px;font-weight:700;padding:1px 4px;border-radius:10px;white-space:nowrap;line-height:1.4">${count>=10000?(count/1000).toFixed(0)+'k':count>=1000?(count/1000).toFixed(1)+'k':count}</div>`
-      : '';
-
+  const maxC=Math.max(...counts), minC=Math.min(...counts);
+  Object.entries(centroids).forEach(([country,[lat,lng,count]])=>{
+    const r=12+Math.sqrt((count-minC)/(maxC-minC+1))*22; // radius 12–34px
+    const fHtml=flagHtml(country,Math.round(r*1.6)+'px')||`<span style="font-size:${Math.round(r)}px">🌐</span>`;
     const icon=L.divIcon({
       className:'',
-      html:`<div style="position:relative;cursor:pointer;transition:transform .15s" onmouseenter="this.style.transform='scale(1.25)'" onmouseleave="this.style.transform=''">${flagEl}${badge}</div>`,
-      iconSize:[fw,size],
-      iconAnchor:[half,half],
-      popupAnchor:[0,-half],
+      html:`<div style="filter:drop-shadow(0 1px 5px rgba(0,0,0,.95));cursor:pointer;line-height:1">${fHtml}</div>`,
+      iconAnchor:[r/2,r/2],
     });
-
     L.marker([lat,lng],{icon})
-      .bindTooltip(`<b>${esc(country)}</b> &nbsp;${count.toLocaleString()} check-ins`,{
-        direction:'top',opacity:0.97,offset:[0,-half]})
+      .bindTooltip(`<b>${esc(country)}</b><br>${count.toLocaleString()} check-ins`,{
+        direction:'top',opacity:0.95,className:'leaflet-tooltip'})
       .addTo(countriesMapInst);
   });
 }
@@ -1357,18 +1170,12 @@ def build(data, trips, out_dir='.'):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build Foursquare check-in dashboard")
-    parser.add_argument("--input",       default=str(_SCRIPT_DIR / "checkins.csv"),
-                        help="Input CSV file (default: checkins.csv next to build.py)")
-    parser.add_argument("--config-dir",  default=str(_SCRIPT_DIR / "config"),
-                        help="Directory with config JSON/YAML files (default: config/ next to build.py)")
-    parser.add_argument("--output-dir",  default=str(_SCRIPT_DIR),
-                        help="Output directory for HTML files (default: same dir as build.py)")
-    parser.add_argument("--home-city",   default=None,
-                        help="Override home city (default: from settings.yaml, fallback Minsk)")
-    parser.add_argument("--min-checkins",type=int, default=None,
-                        help="Override min check-ins for a trip")
-    parser.add_argument("--cat-list",    action="store_true",
-                        help="Also write category_list.txt")
+    parser.add_argument("--input",       default="checkins.csv",  help="Input CSV file")
+    parser.add_argument("--config-dir",  default="config",        help="Directory with config JSON/YAML files")
+    parser.add_argument("--output-dir",  default=".",             help="Output directory for HTML files")
+    parser.add_argument("--home-city",   default=None,            help="Override home city (default: from settings.yaml)")
+    parser.add_argument("--min-checkins",type=int, default=None,  help="Override min check-ins for a trip")
+    parser.add_argument("--cat-list",    action="store_true",     help="Also write category_list.txt")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):

@@ -1,0 +1,83 @@
+# .github/workflows/update-dashboard.yml
+#
+# Runs every 2 hours (and on every push to main).
+# 1. Fetches new Swarm check-ins via the Foursquare v2 API.
+# 2. If new check-ins were found, rebuilds index.html + trips.html.
+# 3. Commits and pushes the updated CSV + HTML back to the repo.
+#
+# Required repository secret:
+#   SWARM_TOKEN   — your Foursquare OAuth token
+#                   (Settings → Secrets and variables → Actions → New repository secret)
+#
+# Optional: change the cron schedule below to taste.
+# "0 */2 * * *" = every 2 hours on the hour. 
+# "*/30 * * * *" = every 30 minutes (may hit API rate limits if you check in rarely).
+
+name: Update check-in dashboard
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"   # every 2 hours
+  push:
+    branches: [main]         # also rebuild on every push (e.g. manual CSV edits)
+  workflow_dispatch:         # allow manual "Run workflow" button in GitHub UI
+
+permissions:
+  contents: write            # needed to push the updated files back
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # full history so we can push back
+
+      # ── 2. Python setup ───────────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 3. Fetch new check-ins ────────────────────────────────────────────────
+      - name: Fetch new Swarm check-ins
+        id: fetch
+        env:
+          SWARM_TOKEN: ${{ secrets.SWARM_TOKEN }}
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          output=$(python fetch_checkins.py --csv checkins.csv)
+          echo "$output"
+          # Propagate CHANGED flag to subsequent steps
+          echo "$output" >> "$GITHUB_OUTPUT"
+
+      # ── 4. Rebuild dashboard (always, so a manual push also refreshes it) ────
+      - name: Rebuild dashboard
+        run: |
+          python build.py \
+            --input checkins.csv \
+            --config-dir config \
+            --output-dir .
+
+      # ── 5. Commit & push if anything changed ─────────────────────────────────
+      - name: Commit updated files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add checkins.csv index.html trips.html
+
+          # Only commit if there is actually something staged
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            NEW_ROWS=$(git diff --cached --stat checkins.csv | grep -oP '\d+ insertion' | grep -oP '\d+' || echo "0")
+            git commit -m "chore: auto-update dashboard [${TIMESTAMP}] (+${NEW_ROWS} check-ins)"
+            git push
+          fi
