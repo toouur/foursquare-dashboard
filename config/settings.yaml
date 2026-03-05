@@ -1,0 +1,17 @@
+# Dashboard configuration
+# Edit this file to customise behaviour without touching Python code.
+
+trip_detection:
+  home_city: Minsk         # check-ins in this city are treated as "home" (not part of a trip)
+  min_checkins: 5          # minimum check-ins outside home to count as a real trip
+  # Optional: path to a hand-curated trips YAML override file.
+  # When set, the automatic detection is skipped and these dates are used instead.
+  # trips_override_file: trips_manual.yaml
+
+dashboard:
+  title: "Check-in Journal"
+  subtitle_source: "Foursquare"
+
+output:
+  index_html: index.html
+  trips_html: trips.html
