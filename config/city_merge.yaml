@@ -13,6 +13,24 @@
   "Гарни": "Garni"  # ok — Cyrillic → Garni
   "Нораванк": "Noravank"  # ok — Cyrillic → Noravank
 
+  # ══ ARGENTINA / Buenos Aires ══
+  "AAQ": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Balvanera": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Belgrano": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Belgrano C": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Capital Federal": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Chacarita": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Ciudad Autónoma de Buenos Aire": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Ciudad de Buenos AIres": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Flores": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Puerto Madero": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Retiro": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "San Telmo": "Buenos Aires"  # auto-added from city_merge_normalized_by_country.json
+  "Ciudad": "Mendoza"  # auto-added from city_merge_normalized_by_country.json
+  "Las Heras": "Mendoza"  # auto-added from city_merge_normalized_by_country.json
+  "M5500GMF": "Mendoza"  # auto-added from city_merge_normalized_by_country.json
+  "Villa Nueva": "Mendoza"  # auto-added from city_merge_normalized_by_country.json
+
   # ══ AZERBAIJAN ══
   "Binə": "Baku"  # ok — Binagadi district of Baku
   "Binǝ": "Baku"  # ok — variant spelling
@@ -242,11 +260,16 @@
   "Haerbin Shi": "Harbin"  # ok — alternate pinyin
   "哈尔滨": "Harbin"  # ok — Chinese characters
   "Guang Zhou Shi": "Guangzhou"  # ok — pinyin
+  "Jing’an": "Shanghai"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ CROATIA ══
   "Kaštel Štafilić": "Kastel Stafilic"  # ok — keeping simplified form for compatibility
   "Kastel Stafilic": "Kaštel Štafilić"  # ok — ASCII → proper Croatian
   "Plitvice Lakes": "Plitvička Jezera"  # ok — English → proper Croatian
+
+  # ══ CYPRUS ══
+  "Lanarca": "Larnaca"  # auto-added from city_merge_normalized_by_country.json
+  "Pafos": "Paphos"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ CZECH REPUBLIC ══
   "Praha1": "Prague"  # ok — no space typo
@@ -510,9 +533,11 @@
   "Нур-сұлтан": "Astana"  # ok — Kazakh Cyrillic form
   "Nur-Sultan": "Astana"  # ok — Latin form of former name
   "Бурабай": "Burabay"  # ok — Cyrillic
+  "Būrabay": "Burabay"  # auto-added from city_merge_normalized_by_country.json
   "Щучинск": "Shchuchinsk"  # ok — Cyrillic
   "Кордай": "Korday"  # ok — Cyrillic
   "Жанашар": "Zhanashar"  # ok — Cyrillic → Latin
+  "Shchūchīnsk": "Shchuchinsk"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ KYRGYZSTAN ══
   "Сары Ой / Sary Oy": "Sary-Oy"  # ok — mixed script → Latin
@@ -608,6 +633,7 @@
   "Кишинёв": "Chișinău"  # ok — Russian Cyrillic
   "Bălți": "Bălți"  # ok — canonical
   "Balti": "Bălți"  # ok — ASCII form
+  "Călărași": "Calarasi"  # auto-added from city_merge_normalized_by_country.json
   "Cimișlia": "Cimișlia"  # ok — canonical
   "Cimişlia": "Cimișlia"  # ok — ş variant
   "Cimislia": "Cimișlia"  # ok — ASCII form
@@ -639,6 +665,7 @@
   "Vadul lui Vodă": "Vadul lui Vodă"  # ok — canonical
   "Varnița": "Varnița"  # ok — canonical
   "Varnita": "Varnița"  # ok — ASCII form
+  "Тирасполь": "Tiraspol"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ MONTENEGRO ══
   "Podgorics": "Podgorica"  # ok — typo
@@ -717,6 +744,7 @@
   "Foz do Douro": "Porto"  # ok — neighbourhood of Porto
   "Foz do douro": "Porto"  # ok — lowercase variant
   "Vila Nova Gaia": "Porto"  # ok — shortened form
+  "Coímbra": "Coimbra"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ QATAR ══
   "Доха": "Doha"  # ok — Cyrillic
@@ -847,6 +875,8 @@
   "РФ / РБ": "Smolensk Region"  # ok — Russia/Belarus border label
   "Skidel'skiy": "Skidel"  # ok — apostrophe district form
   "Skidzyel'": "Skidel"  # ok — Belarusian Latin apostrophe
+  "Пос. Хужир": "Khuzhir"  # auto-added from city_merge_normalized_by_country.json
+  "Ломоносов": "Lomonosov"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ RUSSIA / SAINT PETERSBURG ══
   "Санкт-Петербург": "Saint Petersburg"  # ok — Cyrillic
@@ -866,6 +896,7 @@
   "Пушкин": "Pushkin"  # ok — kept as Pushkin (Tsarskoye Selo)
   "город Кронштадт": "Kronshtadt"  # ok — island city of SPb
   "Кронштадт": "Kronshtadt"  # ok
+  "Kupchino Municipal Okrug": "Saint Petersburg"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ SERBIA ══
   "Beograd": "Belgrade"  # ok — Serbian name
@@ -913,6 +944,9 @@
   # ══ SWEDEN ══
   "Nyköping": "Nyköping"  # ok — canonical
   "Nykoping": "Nyköping"  # ok — ASCII form
+
+  # ══ SWITZERLAND ══
+  "St.Gallen": "St. Gallen"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ TURKEY / ISTANBUL ══
   "İstanbul": "Istanbul"  # ok — Turkish name → common English Istanbul
@@ -990,6 +1024,7 @@
   "пгт. Хлебодарское": "Khlebodarskoye"  # ok — urban settlement
   "Біла Церква, Закарпатская обл, Украина": "Bila Tserkva"  # ok — Cyrillic with region label
   "Одесская обл.": "Odesa Region"  # ok — region label
+  "Кривой Рог": "Kryvyi Rih"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ UZBEKISTAN ══
   "Ташкент": "Tashkent"  # ok — Cyrillic
