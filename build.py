@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from transform import load_mappings, apply_transforms
+from transform import load_mappings, apply_transforms, build_blank_city_resolver
 from metrics import process
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
@@ -114,7 +114,12 @@ if __name__ == "__main__":
         rows = list(csv.DictReader(fh))
     log.info("  %d rows loaded", len(rows))
 
-    rows = apply_transforms(rows, mappings)
+    # Blank-city inference: if the review CSV exists next to the config dir,
+    # resolve blank city fields using timestamp + coordinate matching.
+    review_csv = config_dir / "city_merge_normalized_review.csv"
+    blank_resolver = build_blank_city_resolver(review_csv)
+
+    rows = apply_transforms(rows, mappings, blank_city_resolver=blank_resolver)
 
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
     data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins)
