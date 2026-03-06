@@ -165,11 +165,13 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
                 return {}
 
     country_fixes = _load_file("country_fixes.json")
+    city_fixes    = _load_file("city_fixes.json")   # per-timestamp city overrides
     city_merge    = _load_file("city_merge.yaml")
     cats_raw      = _load_file("categories.json")
 
     return {
         "country_fixes":   country_fixes,
+        "city_fixes":      city_fixes,
         "city_merge":      city_merge,
         "category_groups": cats_raw.get("category_groups", {}),
         "explorer_groups": cats_raw.get("explorer_groups", {}),
@@ -191,6 +193,7 @@ def apply_transforms(
     blank city fields using coordinate + timestamp inference.
     """
     country_fixes = mappings.get("country_fixes", {})
+    city_fixes    = mappings.get("city_fixes", {})
     city_merge    = mappings.get("city_merge", {})
 
     blank_filled  = 0
@@ -201,6 +204,12 @@ def apply_transforms(
         ts = row.get("date", "").strip()
         if ts in country_fixes:
             row["country"] = country_fixes[ts]
+
+        # Per-timestamp city override (city_fixes.json) — applied before
+        # city_merge and blank-city inference so manual assignments win.
+        if ts in city_fixes:
+            row["city"] = city_fixes[ts]
+            continue
 
         # City normalisation
         city = row.get("city", "").strip()
