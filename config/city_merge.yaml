@@ -60,14 +60,14 @@
   "Borovlyany": "Minsk"  # ok — suburb within Minsk area
   "Novaya Borovaya": "Minsk"  # ok — new development inside Minsk
   "Новая Боровая": "Minsk"  # ok — Cyrillic form
-  "Минский р-н": "Minsk"  # ok — Minsk District label, check-ins at Aksak., Yunost, Usha station — all within Minsk metro area
-  "Минская Обл.": "Minsk"  # ok — single checkin at A-100 petrol near Minsk
-  "Минский район": "Minsk"  # ok — single checkin at Tarasovo, 15km from Minsk
-  "Minski Rayon": "Minsk"  # ok — 10 checkins all within Minsk ring (MKAD-2, Minsk Sea, etc.)
-  "Minsk District": "Minsk"  # ok — no checkins in CSV, keep as safety merge
-  "Minsk Region": "Minsk"  # ok — no checkins in CSV, keep as safety merge
-  "Прилуки": "Minsk"  # ⚠️ DECISION NEEDED — 5 checkins at Pryluky estate (53.79,27.45), 20km west of Minsk. Merged to Minsk previously. Keep as separate city 'Pryluky'?
-  "Прилукская Слобода": "Priluki"  # ok — village adjacent to Pryluky estate
+  "Минский р-н": "Minsk District"  # ok — Minsk District label, check-ins at Aksak., Yunost, Usha station — all within Minsk metro area
+  "Минская Обл.": "Minsk Region"  # ok — single checkin at A-100 petrol near Minsk
+  "Минский район": "Minsk District"  # ok — single checkin at Tarasovo, 15km from Minsk
+  "Minski Rayon": "Minsk District"  # ok — 10 checkins all within Minsk ring (MKAD-2, Minsk Sea, etc.)
+  "Minsk District": "Minsk District"  # ok — no checkins in CSV, keep as safety merge
+  "Minsk Region": "Minsk Region"  # ok — no checkins in CSV, keep as safety merge
+  "Прилуки": "Pryluky"  # ok
+  "Прилукская Слобода": "Minsk"  # ok — village adjacent to Pryluky, within Minsk orbit
 
   # ══ BELARUS / OTHER ══
   "Ашмяны": "Ashmyany"  # ok — Cyrillic
@@ -511,7 +511,8 @@
   # ══ IRAN ══
   "Tehrān": "Tehran"  # ok — diacritic → Tehran (common English name)
   "تهران": "Tehran"  # ok — Arabic/Persian script
-  "Tajrīsh": "Tajrish"  # ok — neighbourhood of Tehran, simplified
+  "Tajrīsh": "Tehran"  # ok — neighbourhood of Tehran, simplified
+  "shiraz": "Shiraz"  # ok — lowercase variant of city name
 
   # ══ ITALY ══
   "Venezia": "Venice"  # ok — Italian name
@@ -836,10 +837,11 @@
   "Bulatnikovskoye": "Moscow"  # ok — settlement near Moscow
   "Битца": "Moscow"  # ok — Bitsa park district, 20km from Moscow centre
   "Московский": "Moscow"  # ok — 13 checkins all at Salarevo bus terminal (55.62,37.42) = Moscow oblast but effectively Moscow transport hub
+  "д. Черная Грязь": "Chernaya Gryaz'"  # ok — village on M10 at 55.98,37.30 (BP gas station), 20km north of Moscow; Moscow Oblast
 
   # ══ RUSSIA / OTHER ══
-  "Казань": "Kazan'"  # ok — Cyrillic
-  "Kazan": "Kazan'"  # ok — without apostrophe
+  "Казань": "Kazan"  # ok — Cyrillic
+  "Kazan": "Kazan"  # ok — without apostrophe
   "Новосибирск": "Novosibirsk"  # ok — Cyrillic
   "Красноярск": "Krasnoyarsk"  # ok — Cyrillic
   "город Красноярск": "Krasnoyarsk"  # ok — administrative label
@@ -877,6 +879,8 @@
   "Skidzyel'": "Skidel"  # ok — Belarusian Latin apostrophe
   "Пос. Хужир": "Khuzhir"  # auto-added from city_merge_normalized_by_country.json
   "Ломоносов": "Lomonosov"  # auto-added from city_merge_normalized_by_country.json
+  "Ol'khonskiy Rayon": "Olkhon Island"  # ok — administrative district name for Olkhon Island area
+  "Olkhonsky District": "Olkhon Island"  # ok — English form of same district
 
   # ══ RUSSIA / SAINT PETERSBURG ══
   "Санкт-Петербург": "Saint Petersburg"  # ok — Cyrillic
