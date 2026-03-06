@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Trip Journal</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<style>
+:root{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+a{color:inherit;}
+
+/* ── TOP NAV ── */
+.topnav{display:flex;align-items:center;gap:20px;padding:18px 56px;border-bottom:1px solid var(--border);background:var(--card);}
+.topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
+.topnav a{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover,.topnav a.active{color:var(--gold);}
+
+/* ── VIEWS ── */
+#listView,#detailView{min-height:calc(100vh - 57px);}
+#detailView{display:none;}
+
+/* ── LIST HEADER ── */
+.list-header{padding:40px 56px 28px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.list-header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.list-meta{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:.12em;}
+.list-filters{padding:0 56px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.filter-search{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.85rem;outline:none;min-width:220px;transition:border-color .2s;}
+.filter-search:focus{border-color:var(--gold);}
+.filter-pill{padding:5px 13px;border-radius:6px;font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;}
+.filter-pill.active{background:var(--gold);color:#0b0d13;border-color:var(--gold);}
+.filter-pill:hover:not(.active){border-color:var(--gold);color:var(--gold);}
+
+/* ── TRIPS GRID ── */
+.trips-grid{padding:0 56px 72px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.trip-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 22px 18px;cursor:pointer;transition:border-color .2s,transform .15s;position:relative;overflow:hidden;text-decoration:none;display:block;}
+.trip-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.3;}
+.trip-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.trip-card.hidden{display:none;}
+.tc-num{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);margin-bottom:6px;}
+.tc-name{font-size:1rem;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:8px;}
+.tc-dates{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);margin-bottom:10px;}
+.tc-countries{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.tc-country{font-family:'DM Mono',monospace;font-size:.56rem;padding:3px 8px;border-radius:4px;background:rgba(78,205,196,.1);color:var(--teal);border:1px solid rgba(78,205,196,.2);}
+.tc-stats{display:flex;gap:16px;}
+.tc-stat{display:flex;flex-direction:column;gap:2px;}
+.tc-stat-v{font-family:'DM Mono',monospace;font-size:.80rem;color:var(--gold);}
+.tc-stat-l{font-size:.60rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+
+/* ── DETAIL VIEW ── */
+.detail-back{display:flex;align-items:center;gap:8px;padding:18px 56px 0;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);cursor:pointer;text-transform:uppercase;letter-spacing:.12em;width:max-content;transition:color .2s;}
+.detail-back:hover{color:var(--gold);}
+.detail-back::before{content:'←';}
+.detail-hero{padding:28px 56px 24px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px;border-bottom:1px solid var(--border);}
+.detail-hero h2{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,4vw,2.6rem);font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;}
+.detail-dates{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);margin-top:6px;}
+.detail-kpis{display:flex;gap:24px;flex-wrap:wrap;}
+.detail-kpi .num{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1;}
+.detail-kpi .lbl{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:4px;}
+.detail-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:24px 56px 60px;max-width:1400px;}
+.detail-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px 24px;position:relative;overflow:hidden;}
+.detail-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.3;}
+.detail-card.full{grid-column:1/-1;}
+.detail-card-title{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);margin-bottom:16px;}
+#detailMap{height:380px;border-radius:8px;}
+.detail-countries{display:flex;flex-wrap:wrap;gap:6px;}
+.detail-country{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:.78rem;}
+.detail-timeline{max-height:440px;overflow-y:auto;padding-right:4px;}
+.detail-timeline::-webkit-scrollbar{width:3px;}
+.detail-timeline::-webkit-scrollbar-thumb{background:var(--border);}
+.tl-day{margin-bottom:18px;}
+.tl-day-header{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.tl-checkin{display:flex;gap:10px;align-items:flex-start;padding:5px 0;}
+.tl-checkin-time{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);flex-shrink:0;width:40px;}
+.tl-checkin-info{flex:1;min-width:0;}
+.tl-checkin-venue{font-size:.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tl-checkin-venue a{color:inherit;text-decoration:none;}
+.tl-checkin-venue a:hover{color:var(--gold);}
+.tl-checkin-sub{font-size:.65rem;color:var(--muted);}
+.cat-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.cat-bar-name{font-size:.75rem;color:var(--text);flex:1;}
+.cat-bar-track{width:100px;height:5px;background:var(--card2);border-radius:3px;overflow:hidden;}
+.cat-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--teal));}
+.cat-bar-cnt{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);width:36px;text-align:right;}
+
+@media(max-width:900px){
+  .topnav,.list-header,.list-filters,.trips-grid,.detail-back,.detail-hero,.detail-body{padding-left:18px;padding-right:18px;}
+  .trips-grid{grid-template-columns:1fr 1fr;}
+  .detail-body{grid-template-columns:1fr;}
+}
+@media(max-width:520px){
+  .trips-grid{grid-template-columns:1fr;}
+  .detail-kpis{gap:14px;}
+  .detail-kpi .num{font-size:1.4rem;}
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">Check-in Journal</a>
+  <a href="index.html">← Dashboard</a>
+  <a href="trips.html" class="active">Trips</a>
+</nav>
+
+<!-- ── LIST VIEW ── -->
+<div id="listView">
+  <div class="list-header">
+    <div>
+      <h1>Trip Journal</h1>
+      <div class="list-meta">{{TOTAL_TRIPS}} trips &nbsp;·&nbsp; updated {{UPDATED}}</div>
+    </div>
+  </div>
+  <div class="list-filters">
+    <input class="filter-search" type="text" placeholder="Search trips…" id="tripSearch" oninput="filterTrips()">
+    <div id="yearPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+  </div>
+  <div class="trips-grid" id="tripsGrid"></div>
+</div>
+
+<!-- ── DETAIL VIEW ── -->
+<div id="detailView">
+  <div class="detail-back" onclick="showList()">All trips</div>
+  <div class="detail-hero">
+    <div>
+      <h2 id="detailName"></h2>
+      <div class="detail-dates" id="detailDates"></div>
+    </div>
+    <div class="detail-kpis" id="detailKpis"></div>
+  </div>
+  <div class="detail-body">
+    <div class="detail-card full">
+      <div class="detail-card-title">Map</div>
+      <div id="detailMap"></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-card-title">Countries & Cities</div>
+      <div id="detailCountries" class="detail-countries"></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-card-title">Top Categories</div>
+      <div id="detailCats"></div>
+    </div>
+    <div class="detail-card full">
+      <div class="detail-card-title">Check-in Timeline</div>
+      <div class="detail-timeline" id="detailTimeline"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TRIPS = {{TRIPS_JSON}};
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+let activeMap = null;
+
+// ── Build the grid ──────────────────────────────────────────────────────────
+function renderGrid(trips){
+  const grid = document.getElementById('tripsGrid');
+  grid.innerHTML = trips.map(t => `
+    <a class="trip-card" id="card-trip-${t.id}" href="#trip-${t.id}" onclick="showTrip(${t.id});return false;">
+      <div class="tc-num">Trip #${t.id}</div>
+      <div class="tc-name">${esc(t.name)}</div>
+      <div class="tc-dates">${t.start_date} &nbsp;–&nbsp; ${t.end_date}</div>
+      <div class="tc-countries">${t.countries.slice(0,5).map(c=>`<span class="tc-country">${c}</span>`).join('')}</div>
+      <div class="tc-stats">
+        <div class="tc-stat"><div class="tc-stat-v">${t.duration}</div><div class="tc-stat-l">Days</div></div>
+        <div class="tc-stat"><div class="tc-stat-v">${t.checkin_count.toLocaleString()}</div><div class="tc-stat-l">Check-ins</div></div>
+        <div class="tc-stat"><div class="tc-stat-v">${t.unique_places.toLocaleString()}</div><div class="tc-stat-l">Places</div></div>
+        <div class="tc-stat"><div class="tc-stat-v">${t.countries.length}</div><div class="tc-stat-l">Countries</div></div>
+      </div>
+    </a>`).join('');
+}
+renderGrid(TRIPS);
+
+// ── Year filter pills ───────────────────────────────────────────────────────
+const years = [...new Set(TRIPS.map(t => t.start_year))].sort();
+const pillsEl = document.getElementById('yearPills');
+let activeYear = null;
+['All',...years].forEach(y => {
+  const p = document.createElement('div');
+  p.className = 'filter-pill' + (y==='All'?' active':'');
+  p.textContent = y;
+  p.onclick = () => {
+    document.querySelectorAll('.filter-pill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    activeYear = y==='All' ? null : y;
+    filterTrips();
+  };
+  pillsEl.appendChild(p);
+});
+
+function filterTrips(){
+  const q = document.getElementById('tripSearch').value.toLowerCase();
+  TRIPS.forEach(t => {
+    const card = document.getElementById('card-trip-'+t.id);
+    const matchYear = !activeYear || t.start_year === activeYear;
+    const matchQ = !q || t.name.toLowerCase().includes(q)
+      || t.countries.some(c=>c.toLowerCase().includes(q))
+      || t.cities.some(c=>c.toLowerCase().includes(q))
+      || t.start_date.includes(q);
+    card.classList.toggle('hidden', !(matchYear && matchQ));
+  });
+}
+
+// ── Show detail ─────────────────────────────────────────────────────────────
+function showTrip(id){
+  const t = TRIPS.find(x=>x.id===id);
+  if(!t) return;
+  history.pushState({trip:id},'','#trip-'+id);
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+  document.getElementById('detailName').textContent = t.name;
+  document.getElementById('detailDates').textContent = t.start_date + ' – ' + t.end_date;
+  document.getElementById('detailKpis').innerHTML =
+    `<div class="detail-kpi"><div class="num">${t.duration}</div><div class="lbl">Days</div></div>
+     <div class="detail-kpi"><div class="num">${t.checkin_count.toLocaleString()}</div><div class="lbl">Check-ins</div></div>
+     <div class="detail-kpi"><div class="num">${t.unique_places.toLocaleString()}</div><div class="lbl">Unique Places</div></div>
+     <div class="detail-kpi"><div class="num">${t.countries.length}</div><div class="lbl">Countries</div></div>`;
+  // Countries + cities
+  document.getElementById('detailCountries').innerHTML =
+    t.countries.map(c=>`<span class="detail-country">🌍 ${c}</span>`).join('')
+    + '<br style="margin:8px 0">'
+    + t.cities.slice(0,12).map(c=>`<span class="detail-country" style="background:rgba(232,184,109,.05);border-color:rgba(232,184,109,.15);color:var(--text2);">📍 ${c}</span>`).join('');
+  // Categories
+  const maxCat = t.top_cats[0]?t.top_cats[0][1]:1;
+  document.getElementById('detailCats').innerHTML = t.top_cats.map(([cat,cnt])=>
+    `<div class="cat-bar-row">
+      <span class="cat-bar-name">${cat}</span>
+      <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(cnt/maxCat*100).toFixed(1)}%"></div></div>
+      <span class="cat-bar-cnt">${cnt}</span>
+    </div>`).join('');
+  // Timeline grouped by day
+  const byDay = {};
+  t.checkins.forEach(c=>{
+    if(!byDay[c.date]) byDay[c.date] = [];
+    byDay[c.date].push(c);
+  });
+  document.getElementById('detailTimeline').innerHTML = Object.keys(byDay).sort().map(day=>
+    `<div class="tl-day">
+      <div class="tl-day-header">${day} &nbsp;·&nbsp; ${byDay[day].length} check-ins</div>
+      ${byDay[day].map(c=>{
+        const fsUrl = c.venue_id ? `https://app.foursquare.com/v/${encodeURIComponent(c.venue.toLowerCase().replace(/\s+/g,'-'))}/${c.venue_id}` : null;
+        return `<div class="tl-checkin">
+          <div class="tl-checkin-time">${c.time}</div>
+          <div class="tl-checkin-info">
+            <div class="tl-checkin-venue">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}</div>
+            <div class="tl-checkin-sub">${[c.category,c.city,c.country].filter(Boolean).join(' · ')}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+  // Map
+  if(activeMap){ activeMap.remove(); activeMap=null; }
+  setTimeout(()=>{
+    activeMap = L.map('detailMap',{preferCanvas:true});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      {attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(activeMap);
+    const coords = t.coords.filter(c=>c[0]&&c[1]);
+    if(coords.length){
+      const heat = L.heatLayer(coords,{radius:14,blur:16,maxZoom:18,
+        gradient:{'0.0':'#000033','0.25':'#0a3d6b','0.5':'#e8b86d','0.75':'#ff7700','1.0':'#ff1100'}}).addTo(activeMap);
+      const lats=coords.map(c=>c[0]), lngs=coords.map(c=>c[1]);
+      activeMap.fitBounds([[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]],{padding:[20,20]});
+    }
+  },50);
+  window.scrollTo(0,0);
+}
+
+function showList(){
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('listView').style.display = 'block';
+  if(activeMap){ activeMap.remove(); activeMap=null; }
+  history.pushState({},'','trips.html');
+  window.scrollTo(0,0);
+}
+
+// Handle direct #trip-N links & back button
+function handleHash(){
+  const m = location.hash.match(/^#trip-(\d+)$/);
+  if(m){ showTrip(parseInt(m[1])); }
+  else { showList(); }
+}
+window.addEventListener('popstate', handleHash);
+handleHash();
+</script>
+</body>
+</html>

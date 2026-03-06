@@ -269,6 +269,16 @@ def main() -> None:
 
     if do_full:
         log.info("Mode: FULL %s", "(forced)" if args.full else "(csv missing/empty)")
+        # Two strategies for a full fetch:
+        #
+        # fetch_full_offset  — uses ?offset=N pagination. Simple and reliable
+        #   locally, but the Foursquare API silently caps offset at ~2,500,
+        #   so histories longer than that are silently truncated.
+        #
+        # fetch_full_timestamp — walks backwards through history using
+        #   ?beforeTimestamp=T.  No hard cap; handles large histories and the
+        #   500-retry logic in request_checkins() covers occasional API gaps.
+        #   Used in CI where a correct full history matters most.
         try:
             fetched_rows = fetch_full_timestamp(token) if IS_CI else fetch_full_offset(token)
         except RuntimeError as exc:
