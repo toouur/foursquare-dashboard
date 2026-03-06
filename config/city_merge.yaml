@@ -38,6 +38,16 @@
   "Bakı": "Baku"  # ok — Azerbaijani name for Baku
   "Səbayıl": "Baku"  # ok — district of Baku
 
+  # ══ BELGIUM ══
+  "Antwerp Province": "Antwerp"  # ok — province label
+  "East Flanders": "Ghent"  # ok — venue named "Ghent (Gent)"
+  "West Flanders": "Bruges"  # ok — venue named "Bruges (Brugge)"
+  "City of Brussels": "Brussels"  # ok — administrative label
+  "Elsene / Ixelles": "Brussels"  # ok — Brussels municipality
+  "Saint-Josse-ten-Noode": "Brussels"  # ok — Brussels municipality
+  "Schaarbeek": "Brussels"  # ok — Brussels municipality (International Bus Station)
+  "Schaerbeek": "Brussels"  # ok — variant spelling of Schaarbeek
+
   # ══ BELARUS / HRODNA ══
   "Гродна": "Hrodna"  # ok — Belarusian Cyrillic name
   "гродно": "Hrodna"  # ok — Russian lowercase name
@@ -195,6 +205,7 @@
   "Подборовье-1": "Podborovye"  # ok
   "пос. Заплюсье": "Zaplyusye"  # ok — settlement prefix пос.
   "Navapolatsk": "Navapolatsk"  # ok — already Latin
+  "Pinski Rayon": "Pinsk"  # ok — single checkin at 52.11,26.12, inside Pinsk city
 
   # ══ BELARUS / SMARHON ══
   "Smarhon'": "Smarhon"  # ok — apostrophe variant
@@ -214,6 +225,8 @@
   "Niteroi": "Niterói"  # ok — ASCII form
 
   # ══ BULGARIA ══
+  "Santo Cristo": "Rio de Janeiro"  # ok — downtown Rio neighborhood, 2.7km from city center
+
   "София": "Sofia"  # ok — Cyrillic
   "Varna Municipality": "Varna"  # ok — municipality = city
 
@@ -266,10 +279,13 @@
   "Kaštel Štafilić": "Kastel Stafilic"  # ok — keeping simplified form for compatibility
   "Kastel Stafilic": "Kaštel Štafilić"  # ok — ASCII → proper Croatian
   "Plitvice Lakes": "Plitvička Jezera"  # ok — English → proper Croatian
+  "ヴェリカゴリツァ": "Velika Gorica"  # ok — Japanese script
+  "メトコビッチ": "Metković"  # ok — Japanese script
 
   # ══ CYPRUS ══
   "Lanarca": "Larnaca"  # auto-added from city_merge_normalized_by_country.json
   "Pafos": "Paphos"  # auto-added from city_merge_normalized_by_country.json
+  "Εγκώμη": "Nicosia"  # ok — Greek script for Engomi, suburb of Nicosia
 
   # ══ CZECH REPUBLIC ══
   "Praha1": "Prague"  # ok — no space typo
@@ -405,12 +421,16 @@
   # ══ FRANCE ══
   "Tillé": "Tillé"  # ok — canonical (Beauvais airport commune)
   "Tille": "Tillé"  # ok — ASCII form
+  "Roissy-en-France": "Paris"  # ok — CDG airport commune, 22km north of Paris
+  "Haut-Rhin": "Saint-Louis"  # ok — dept. label; only checkin at Saint-Louis near Basel
+  "Muggensturm": "Iffezheim"  # ok — Rhine border crossing; Muggensturm is on FR side
 
   # ══ GEORGIA ══
   "Батуми": "Batumi"  # ok — Cyrillic
   "Batum": "Batumi"  # ok — older form
   "Сигнаги": "Signagi"  # ok — Cyrillic → Signagi
   "Кутаиси": "Kutaisi"  # ok — Cyrillic
+  "აჯარა": "Batumi"  # ok — Georgian script for Adjara region; venue inside Batumi city
 
   # ══ GERMANY ══
   "Tübingen": "Tübingen"  # ok — canonical
@@ -479,6 +499,7 @@
   "Uttarpāra": "Kolkata"  # ok — suburb of Kolkata
   "Thāne": "Mumbai"  # ok — suburb of Mumbai
   "Borivli": "Mumbai"  # ok — suburb of Mumbai
+  "Kolkata & Howrah": "Kolkata"  # ok — compound label for Howrah-Kolkata Ferry
 
   # ══ INDONESIA ══
   "Kecamatan Taman Sari": "Jakarta"  # ok — kecamatan = sub-district of Jakarta
@@ -513,6 +534,7 @@
   "تهران": "Tehran"  # ok — Arabic/Persian script
   "Tajrīsh": "Tehran"  # ok — neighbourhood of Tehran, simplified
   "shiraz": "Shiraz"  # ok — lowercase variant of city name
+  "يزد،": "Yazd"  # ok — Persian script with trailing comma
 
   # ══ ITALY ══
   "Venezia": "Venice"  # ok — Italian name
@@ -526,6 +548,17 @@
   "Provincia di Verona": "Verona"  # ok — province of Verona
   "Provincia di Bari": "Bari"  # ok
   "Provincia di Palermo": "Palermo"  # ok
+  "FIorence": "Florence"  # ok — capital-I typo (I not l)
+  "Nápoles": "Naples"  # ok — Spanish name, 3km from Naples center
+  "Bergamo Città Alta": "Bergamo"  # ok — historic upper-town district
+  "Provincia di Bergamo": "Bergamo"  # ok — province label
+  "Provincia di Bologna": "Bologna"  # ok — province label
+  "Provincia di Lecce": "Lecce"  # ok — province label
+  "Provincia di Ravenna": "Bologna"  # ok — coords at Bologna Marconi airport
+  "Provincia di Treviso": "Treviso"  # ok — province label
+  "Provincia di Trieste": "Trieste"  # ok — province label
+  "Provincia di Reggio Calabria": "Villa San Giovanni"  # ok — venue/coords in Villa San Giovanni (ferry port to Sicily)
+  "Madrid Centro, Madrid": "Madrid"  # ok — moved here; Barrio de Goya, inner Madrid
 
   # ══ KAZAKHSTAN ══
   "Алматы": "Almaty"  # ok — Cyrillic
@@ -726,6 +759,7 @@
   "Szczecin": "Szczecin"  # ok — already Latin, no merge needed
   "Bydgoszcz": "Bydgoszcz"  # ok — already Latin
   "Lublin": "Lublin"  # ok — already Latin
+  "Kuźnica Białostocka": "Kuźnica"  # ok — official full name of same border-crossing village
 
   # ══ PORTUGAL / LISBON ══
   "Moscavide": "Lisbon"  # ok — parish of Lisbon area
@@ -737,6 +771,7 @@
 
   # ══ PORTUGAL / OTHER ══
   "Coimbrã": "Coimbra"  # ok — variant → Coimbra
+  "Centro": "Coimbra"  # ok — generic region name; single checkin at Miradouro do Mercado, 0.8km from Coimbra center
 
   # ══ PORTUGAL / PORTO ══
   "Vila Nova de Gaia": "Porto"  # ok — city across river from Porto
@@ -760,6 +795,7 @@
   "Iași": "Iași"  # ok — canonical
   "Iaşi": "Iași"  # ok — ş variant
   "Iasi": "Iași"  # ok — ASCII form
+  "Lași": "Iași"  # ok — misspelling (missing diacritic on L)
   "Brașov": "Brașov"  # ok — canonical
   "Constanța": "Constanța"  # ok — canonical
   "Bacău": "Bacău"  # ok — canonical
@@ -795,6 +831,7 @@
   "Târgu Mureș": "Târgu Mureș"  # ok — canonical
   "Târgu Mureş": "Târgu Mureș"  # ok — ş variant
   "Targu Mures": "Târgu Mureș"  # ok — ASCII form
+  "Tg-Mures": "Târgu Mureș"  # ok — abbreviated romanization
   "Curtea de Argeș": "Curtea de Argeș"  # ok — canonical
   "Curtea de Argeş": "Curtea de Argeș"  # ok — ş variant
   "Curtea de Arges": "Curtea de Argeș"  # ok — ASCII form
@@ -826,6 +863,7 @@
   "Зеленоградск": "Kaliningrad"  # ok — coastal resort, Kaliningrad oblast
   "Зеленоград": "Zelenograd"  # ok — separate city near Moscow, NOT Kaliningrad
   "п. Лесной": "Zelenogradsk"  # ok — settlement Lesnoe 16km from Zelenogradsk, Kaliningrad coast
+  "Zelenogradskiy rayon": "Zelenogradsk"  # ok — admin district; checkin 0.6km from Zelenogradsk center
 
   # ══ RUSSIA / MOSCOW ══
   "Москва": "Moscow"  # ok — Cyrillic
@@ -838,6 +876,7 @@
   "Битца": "Moscow"  # ok — Bitsa park district, 20km from Moscow centre
   "Московский": "Moscow"  # ok — 13 checkins all at Salarevo bus terminal (55.62,37.42) = Moscow oblast but effectively Moscow transport hub
   "д. Черная Грязь": "Chernaya Gryaz'"  # ok — village on M10 at 55.98,37.30 (BP gas station), 20km north of Moscow; Moscow Oblast
+  "Domodedovsky Urban Okrug": "Moscow"  # ok — Domodedovo airport district, 1.3km from DME terminal
 
   # ══ RUSSIA / OTHER ══
   "Казань": "Kazan"  # ok — Cyrillic
@@ -870,7 +909,7 @@
   "Воскресенское": "Voskresenkoye"  # ok — M-11 highway toll at 56.73,36.26, no major city nearby, standalone
   "Старомелковское": "Staromelkovskoye"  # ok — highway point 56.60,36.46, standalone
   "Красноярский край": "Krasnoyarsk Region"  # ok — region label kept distinct from city
-  "Ленинградская обл.": "Leningrad Region"  # ok — region label
+  "Ленинградская обл.": "Shlissel'burg"  # ok — single checkin at Staroladoga Canal (59.90,31.20), 12km from Shlissel'burg
   "Псковская область": "Pskov Region"  # ok — region label
   "Смоленская обл.": "Smolensk Region"  # ok — region label
   "Смоленская обл. - республика Беларусь": "Smolensk Region"  # ok — border area label
@@ -881,6 +920,7 @@
   "Ломоносов": "Lomonosov"  # auto-added from city_merge_normalized_by_country.json
   "Ol'khonskiy Rayon": "Olkhon Island"  # ok — administrative district name for Olkhon Island area
   "Olkhonsky District": "Olkhon Island"  # ok — English form of same district
+  "Ryazanskiy rayon": "Ryazan"  # ok — Spaso-Preobrazhensky Cathedral inside Ryazan city (54.63,39.75)
 
   # ══ RUSSIA / SAINT PETERSBURG ══
   "Санкт-Петербург": "Saint Petersburg"  # ok — Cyrillic
@@ -923,6 +963,7 @@
   # ══ SLOVAKIA ══
   "Košice": "Košice"  # ok — canonical
   "Kosice": "Košice"  # ok — ASCII form
+  "Košice, Košický": "Košice"  # ok — compound administrative label
 
   # ══ SLOVENIA ══
   "Škofja Loka": "Škofja Loka"  # ok — canonical
@@ -938,6 +979,7 @@
 
   # ══ SPAIN ══
   "Madrid City Center": "Madrid"  # ok — label → Madrid
+  "론다": "Ronda"  # ok — Korean script for Ronda
   "Málaga": "Málaga"  # ok — canonical
   "Malaga": "Málaga"  # ok — ASCII form
   "Córdoba": "Córdoba"  # ok — canonical
@@ -951,6 +993,8 @@
 
   # ══ SWITZERLAND ══
   "St.Gallen": "St. Gallen"  # auto-added from city_merge_normalized_by_country.json
+  "Twann-Tüscherz": "Twann"  # ok — official merged municipality name
+  "Douanne": "Twann"  # ok — French name for Twann on Lake Biel
 
   # ══ TURKEY / ISTANBUL ══
   "İstanbul": "Istanbul"  # ok — Turkish name → common English Istanbul
@@ -1026,9 +1070,10 @@
   "Iвано-Франківськ": "Ivano-Frankivsk"  # ok — variant (Latin I)
   "Роздільна": "Rozdilna"  # ok — Cyrillic
   "пгт. Хлебодарское": "Khlebodarskoye"  # ok — urban settlement
-  "Біла Церква, Закарпатская обл, Украина": "Bila Tserkva"  # ok — Cyrillic with region label
+  "Біла Церква, Закарпатская обл, Украина": "Sighetu Marmației"  # ok — Zakarpattia village near Sighetu, not the Bila Tserkva near Kyiv
   "Одесская обл.": "Odesa Region"  # ok — region label
   "Кривой Рог": "Kryvyi Rih"  # auto-added from city_merge_normalized_by_country.json
+  "Rava-Ruska": "Hrebenne"  # ok — PL-UA border crossing; Ukrainian-side name, same checkpoint
 
   # ══ UZBEKISTAN ══
   "Ташкент": "Tashkent"  # ok — Cyrillic
