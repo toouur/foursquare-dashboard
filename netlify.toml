@@ -5,14 +5,12 @@
 # Cloudflare Pages handles all other deploys on every commit.
 
 [build]
-  # No build command needed — index.html is pre-built by GitHub Actions
+  # No build command needed — index.html is pre-built by GitHub Actions.
+  # Deploys are triggered manually via the netlify-monthly GitHub Actions job;
+  # automatic Netlify builds on git push are disabled via the ignore command.
   command = ""
   publish = "."
+  ignore = "exit 0"
 
 [build.environment]
   PYTHON_VERSION = "3.11"
-
-# Disable automatic Netlify builds triggered by git pushes.
-# Deploys are triggered manually via the netlify-monthly GitHub Actions job.
-[build]
-  ignore = "exit 0"

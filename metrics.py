@@ -10,6 +10,8 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
+from transform import build_categorize_fn
+
 log = logging.getLogger(__name__)
 
 
@@ -20,6 +22,25 @@ def _parse_ts(row: dict) -> datetime | None:
         return datetime.fromtimestamp(int(row["date"]), tz=timezone.utc)
     except (ValueError, KeyError, TypeError, OSError):
         return None
+
+
+def _tz_from_lng(lng: float) -> str:
+    """
+    Map a longitude to a best-effort Etc/GMT±N IANA timezone string.
+
+    This is used only for the Open-Meteo archive weather lookup on recent
+    check-ins.  Accuracy is ±30 min in the worst case (half a UTC slot), which
+    is good enough for picking the right hourly weather band.  Countries with
+    non-integer UTC offsets (India, Iran, Nepal, etc.) will land on the nearest
+    whole hour — still far better than always using UTC.
+    """
+    offset = round(lng / 15)          # 15° per hour
+    offset = max(-12, min(14, offset)) # clamp to valid IANA range
+    if offset == 0:
+        return "Etc/GMT"
+    # IANA Etc/GMT sign is intentionally inverted vs. normal UTC notation
+    sign = "-" if offset > 0 else "+"
+    return f"Etc/GMT{sign}{abs(offset)}"
 
 
 # ── Trip detection ─────────────────────────────────────────────────────────────
@@ -166,8 +187,6 @@ def process(
     Compute all dashboard metrics from pre-transformed rows.
     Returns (stats_dict, trips_list).
     """
-    from transform import build_categorize_fn
-
     categorize     = build_categorize_fn(mappings.get("category_groups", {}))
     explorer_groups: dict[str, list[str]] = mappings.get("explorer_groups", {})
 
@@ -419,6 +438,13 @@ def process(
             lng = round(float(r["lng"]), 5)
         except (ValueError, KeyError, TypeError):
             lng = None
+        # Derive a best-effort IANA timezone name from longitude so that the
+        # JS weather widget can pass a meaningful timezone to the Open-Meteo
+        # archive API instead of silently falling back to UTC.
+        # Precision: ±1 h in most cases; sufficient for the hourly weather
+        # lookup. Countries with unusual offsets (India +5:30, Nepal +5:45,
+        # etc.) may be slightly off but will at least be in the right ballpark.
+        tz_name = _tz_from_lng(lng) if lng is not None else "UTC"
         recent.append(
             {
                 "ts":       int(r["date"]),
@@ -432,6 +458,7 @@ def process(
                 "category": r.get("category", "").strip(),
                 "lat":      lat,
                 "lng":      lng,
+                "tz_name":  tz_name,
             }
         )
 
