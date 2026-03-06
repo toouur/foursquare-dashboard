@@ -43,14 +43,14 @@
   "Borovlyany": "Minsk",  // ok — suburb within Minsk area
   "Novaya Borovaya": "Minsk",  // ok — new development inside Minsk
   "Новая Боровая": "Minsk",  // ok — Cyrillic form
-  "Минский р-н": "Minsk",  // ok — Minsk District label, check-ins at Aksak., Yunost, Usha station — all within Minsk metro area
-  "Минская Обл.": "Minsk",  // ok — single checkin at A-100 petrol near Minsk
-  "Минский район": "Minsk",  // ok — single checkin at Tarasovo, 15km from Minsk
-  "Minski Rayon": "Minsk",  // ok — 10 checkins all within Minsk ring (MKAD-2, Minsk Sea, etc.)
-  "Minsk District": "Minsk",  // ok — no checkins in CSV, keep as safety merge
-  "Minsk Region": "Minsk",  // ok — no checkins in CSV, keep as safety merge
-  "Прилуки": "Minsk",  // ⚠️ DECISION NEEDED — 5 checkins at Pryluky estate (53.79,27.45), 20km west of Minsk. Merged to Minsk previously. Keep as separate city 'Pryluky'?
-  "Прилукская Слобода": "Priluki",  // ok — village adjacent to Pryluky estate
+  "Минский р-н": "Minsk District",  // ok — Minsk District label, check-ins at Aksak., Yunost, Usha station — all within Minsk metro area
+  "Минская Обл.": "Minsk Region",  // ok — single checkin at A-100 petrol near Minsk
+  "Минский район": "Minsk District",  // ok — single checkin at Tarasovo, 15km from Minsk
+  "Minski Rayon": "Minsk District",  // ok — 10 checkins all within Minsk ring (MKAD-2, Minsk Sea, etc.)
+  "Minsk District": "Minsk District",  // ok — no checkins in CSV, keep as safety merge
+  "Minsk Region": "Minsk Region",  // ok — no checkins in CSV, keep as safety merge
+  "Прилуки": "Pryluky",  // ⚠️ DECISION NEEDED — 5 checkins at Pryluky estate (53.79,27.45), 20km west of Minsk. Merged to Minsk previously. Keep as separate city 'Pryluky'?
+  "Прилукская Слобода": "Pryluky",  // ok — village adjacent to Pryluky estate
 
   // ══ BELARUS / OTHER ══
   "Ашмяны": "Ashmyany",  // ok — Cyrillic
@@ -133,7 +133,6 @@
   "Новогрудок": "Navahrudak",  // ok — Cyrillic → Navahrudak
   "Наваполле": "Navapolle",  // ok — village
   "Несвиж": "Nesvizh",  // ok — Cyrillic
-  "Нур-Султан": "Astana",  // ok — former name, now Astana
   "Орша": "Orsha",  // ok — Cyrillic
   "Orša": "Orsha",  // ok — Latin with háček
   "Осиповичи": "Asipovichy",  // ok — Russian Cyrillic
@@ -245,7 +244,7 @@
   "Guang Zhou Shi": "Guangzhou",  // ok — pinyin
 
   // ══ CROATIA ══
-  "Kaštel Štafilić": "Kastel Stafilic",  // ok — keeping simplified form for compatibility
+  "Kaštel Štafilić": "Kaštel Štafilić",  // ok — keeping simplified form for compatibility
   "Kastel Stafilic": "Kaštel Štafilić",  // ok — ASCII → proper Croatian
   "Plitvice Lakes": "Plitvička Jezera",  // ok — English → proper Croatian
 
@@ -497,7 +496,7 @@
   "Murano": "Venice",  // ok — island of Venice lagoon
   "Lido": "Venice",  // ok — island of Venice
   "Tessera": "Venice",  // ok — Venice airport area
-  "Mestre": "Venice",  // ok — mainland part of Venice
+  "Mestre": "Mestre",  // ok — mainland part of Venice
   "Borgo Panigale": "Bologna",  // ok — suburb/district of Bologna
   "Provincia di Vicenza": "Venice",  // ok — checked coords, within Venice province area
   "Provincia di Verona": "Verona",  // ok — province of Verona
@@ -510,6 +509,7 @@
   "Астана": "Astana",  // ok — Cyrillic
   "Нур-сұлтан": "Astana",  // ok — Kazakh Cyrillic form
   "Nur-Sultan": "Astana",  // ok — Latin form of former name
+  "Нур-Султан": "Astana",  // ok — former name, now Astana
   "Бурабай": "Burabay",  // ok — Cyrillic
   "Щучинск": "Shchuchinsk",  // ok — Cyrillic
   "Кордай": "Korday",  // ok — Cyrillic
@@ -861,7 +861,7 @@
   "Malaya Okhta Municipal Okrug": "Saint Petersburg",  // ok — Malaya Okhta district
   "Murino": "Saint Petersburg",  // ok — suburb of SPb
   "Kudrovo": "Saint Petersburg",  // ok — suburb of SPb
-  "gorod Petrodvorets": "Saint Petersburg",  // ok — Peterhof = part of SPb
+  "gorod Petrodvorets": "Peterhof",  // ok — Peterhof = part of SPb
   "Свердловское": "Saint Petersburg",  // ok — 23km south of SPb centre, within SPb agglomeration
   "Петергоф": "Peterhof",  // ok — kept as Peterhof (palace destination)
   "Пушкин": "Pushkin",  // ok — kept as Pushkin (Tsarskoye Selo)
