@@ -6,6 +6,7 @@ Loads mappings from config/ and applies them to raw CSV rows.
 from __future__ import annotations
 
 import json
+import yaml
 import logging
 from pathlib import Path
 from typing import Any
@@ -16,20 +17,27 @@ log = logging.getLogger(__name__)
 # ── Config loader ──────────────────────────────────────────────────────────────
 
 def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
-    """Load city_merge, country_fixes and categories from config/."""
+    """Load city_merge (YAML), country_fixes and categories (JSON) from config/."""
+
     config_dir = Path(config_dir)
 
-    def _load_json(name: str) -> dict:
+    def _load_file(name: str) -> dict:
         path = config_dir / name
         if not path.exists():
-            log.warning("Config file not found: %s — skipping", path)
+            print(f"Config file not found: {path} — skipping")
             return {}
         with open(path, encoding="utf-8") as fh:
-            return json.load(fh)
+            if path.suffix == ".yaml" or path.suffix == ".yml":
+                return yaml.safe_load(fh) or {}
+            elif path.suffix == ".json":
+                return json.load(fh)
+            else:
+                print(f"Unknown config file type for {path}; must be .json or .yaml")
+                return {}
 
-    country_fixes = _load_json("country_fixes.json")
-    city_merge    = _load_json("city_merge.json")
-    cats_raw      = _load_json("categories.json")
+    country_fixes = _load_file("country_fixes.json")
+    city_merge    = _load_file("city_merge.yaml")   # This one is YAML!
+    cats_raw      = _load_file("categories.json")
 
     return {
         "country_fixes":   country_fixes,
