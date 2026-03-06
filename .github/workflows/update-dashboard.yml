@@ -1,6 +1,6 @@
 # .github/workflows/update-dashboard.yml
 #
-# Runs every 2 hours (and on every push to main).
+# Runs every hour (and on every push to main).
 # 1. Fetches new Swarm check-ins via the Foursquare v2 API.
 # 2. Rebuilds index.html + trips.html.
 # 3. Commits and pushes updated files back to the repo.
@@ -17,7 +17,7 @@ name: Update check-in dashboard
 
 on:
   schedule:
-    - cron: "0 */2 * * *"   # every 2 hours
+    - cron: "0 */1  * * *"   # every hour
   push:
     branches: [main]         # rebuild on every push
   workflow_dispatch:         # manual trigger button in GitHub UI
