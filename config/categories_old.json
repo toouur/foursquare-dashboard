@@ -46,6 +46,7 @@
       "Romanian Restaurant",
       "Eastern European Restaurant",
       "Belarusian Restaurant",
+      "Caucasian Restaurant",
       "Modern European Restaurant",
       "Indian Restaurant",
       "Asian Restaurant",
@@ -233,37 +234,26 @@
       "Café, Coffee, and Tea House",
       "Bakery",
       "Pastry Shop",
-      "Donut Shop",
-      "Breakfast Spot",
-      "Juice Bar"
+      "Donut Shop"
     ],
     "Parks": [
       "Park",
       "National Park",
       "Urban Park",
       "State or Provincial Park",
-      "Nature Preserve",
-      "Forest"
+      "Nature Preserve"
     ],
     "Plazas": [
       "Plaza",
       "Pedestrian Plaza"
     ],
-    "Public Transit": [
+    "Metro Stations": [
       "Metro Station",
-      "Light Rail Station",
-      "Rail Station",
-      "Tram Station",
-      "Platform",
-      "Bus Station",
-      "Bus Stop",
-      "Bus Line",
-      "Train"
+      "Light Rail Station"
     ],
     "Monuments": [
       "Monument",
-      "Memorial Site",
-      "Landmark"
+      "Memorial Site"
     ],
     "Historic Sites": [
       "Historic and Protected Site",
@@ -277,6 +267,16 @@
       "Sculpture Garden",
       "Street Art",
       "Public Art"
+    ],
+    "Rail Stations": [
+      "Rail Station",
+      "Tram Station",
+      "Platform"
+    ],
+    "Bus Stops": [
+      "Bus Station",
+      "Bus Stop",
+      "Bus Line"
     ],
     "Bridges": [
       "Bridge"
@@ -314,21 +314,7 @@
       "Belarusian Restaurant",
       "Middle Eastern Restaurant",
       "Greek Restaurant",
-      "Turkish Restaurant",
-      "Chinese Restaurant",
-      "French Restaurant",
-      "Indian Restaurant",
-      "Asian Restaurant",
-      "Sushi Restaurant",
-      "Vietnamese Restaurant",
-      "Noodle Restaurant",
-      "Ramen Restaurant",
-      "Tapas Restaurant",
-      "Modern European Restaurant",
-      "BBQ Joint",
-      "Bistro",
-      "Diner",
-      "Sandwich Spot"
+      "Turkish Restaurant"
     ],
     "Airports": [
       "Airport",
@@ -338,25 +324,24 @@
       "Airport Service",
       "Airport Lounge",
       "Airport Ticket Counter",
-      "Airport Tram Station",
-      "Plane"
+      "Airport Tram Station"
     ],
-    "Accommodation": [
+    "Hotels": [
       "Hotel",
       "Inn",
       "Motel",
       "Resort",
       "Lodging",
-      "Boarding House",
+      "Boarding House"
+    ],
+    "Hostels": [
       "Hostel",
-      "Bed and Breakfast",
-      "Vacation Rental"
+      "Bed and Breakfast"
     ],
     "Supermarkets": [
       "Supermarket",
       "Grocery Store",
-      "Convenience Store",
-      "Food and Beverage Retail"
+      "Convenience Store"
     ],
     "Gardens": [
       "Garden",
@@ -366,8 +351,7 @@
       "Beach"
     ],
     "Scenic Lookouts": [
-      "Scenic Lookout",
-      "Waterfall"
+      "Scenic Lookout"
     ],
     "Rivers & Lakes": [
       "River",
@@ -381,19 +365,12 @@
     ],
     "Hiking": [
       "Hiking Trail",
-      "Bike Trail",
-      "Other Great Outdoors",
-      "Rock Climbing Spot"
+      "Bike Trail"
     ],
     "Shopping Malls": [
       "Shopping Mall",
       "Department Store",
-      "Big Box Store",
-      "Electronics Store",
-      "Furniture and Home Store",
-      "Gift Store",
-      "Hardware Store",
-      "Miscellaneous Store"
+      "Big Box Store"
     ],
     "Bookstores": [
       "Bookstore",
@@ -410,8 +387,7 @@
     ],
     "Gyms": [
       "Gym",
-      "Gym and Studio",
-      "Yoga Studio"
+      "Gym and Studio"
     ],
     "Wine & Cocktail": [
       "Wine Bar",
@@ -425,9 +401,7 @@
       "Concert Hall",
       "Opera House",
       "Theater",
-      "Movie Theater",
-      "Amphitheater",
-      "Cultural Center"
+      "Movie Theater"
     ],
     "Nightclubs": [
       "Night Club",
@@ -475,17 +449,12 @@
     "Cafeterias": [
       "Corporate Cafeteria",
       "Cafeteria",
-      "College Cafeteria",
-      "Food Court"
+      "College Cafeteria"
     ],
-    "Home & Office": [
+    "Offices": [
       "Office",
       "Corporate Office",
-      "Coworking Space",
-      "Business Center",
-      "Home (private)",
-      "Apartment or Condo",
-      "Housing Development"
+      "Coworking Space"
     ],
     "Parking": [
       "Parking"
@@ -494,10 +463,7 @@
       "Cemetery"
     ],
     "Harbors & Marinas": [
-      "Harbor or Marina",
-      "Marine Terminal",
-      "Boat or Ferry",
-      "Ferry"
+      "Harbor or Marina"
     ],
     "Universities": [
       "University",
@@ -512,12 +478,7 @@
       "Soccer Stadium",
       "Tennis Stadium",
       "Hockey Stadium",
-      "Soccer Field",
-      "Arena",
-      "Track",
-      "Tennis Court",
-      "Basketball Court",
-      "Golf Course"
+      "Soccer Field"
     ],
     "Bakery / Sweets": [
       "Ice Cream Parlor",
@@ -535,9 +496,6 @@
     "Swimming Pools": [
       "Swimming Pool",
       "Gym Pool"
-    ],
-    "Libraries": [
-      "Library"
     ]
   }
 }
