@@ -24,38 +24,42 @@ def _parse_ts(row: dict) -> datetime | None:
         return None
 
 
-def _tz_from_lng(lng: float) -> str:
-    """
-    Map a longitude to a best-effort Etc/GMT±N IANA timezone string.
+# Try to use timezonefinder for accurate lat/lng → IANA timezone resolution.
+# Fall back to a longitude-based approximation (±30 min) if not installed.
+try:
+    from timezonefinder import TimezoneFinder as _TZF
+    _tf = _TZF()
 
-    This is used only for the Open-Meteo archive weather lookup on recent
-    check-ins.  Accuracy is ±30 min in the worst case (half a UTC slot), which
-    is good enough for picking the right hourly weather band.  Countries with
-    non-integer UTC offsets (India, Iran, Nepal, etc.) will land on the nearest
-    whole hour — still far better than always using UTC.
-    """
-    offset = round(lng / 15)          # 15° per hour
-    offset = max(-12, min(14, offset)) # clamp to valid IANA range
-    if offset == 0:
-        return "Etc/GMT"
-    # IANA Etc/GMT sign is intentionally inverted vs. normal UTC notation
-    sign = "-" if offset > 0 else "+"
-    return f"Etc/GMT{sign}{abs(offset)}"
+    def _tz_at(lat: float | None, lng: float | None) -> str:
+        """Return the IANA timezone name for a coordinate pair."""
+        if lat is None or lng is None:
+            return "UTC"
+        tz = _tf.timezone_at(lat=lat, lng=lng)
+        return tz if tz else "UTC"
+
+except ImportError:
+    log.warning(
+        "timezonefinder not installed — falling back to longitude-based timezone "
+        "approximation (±30 min accuracy). Run: pip install timezonefinder"
+    )
+
+    def _tz_at(lat: float | None, lng: float | None) -> str:  # type: ignore[misc]
+        if lng is None:
+            return "UTC"
+        offset = max(-12, min(14, round(lng / 15)))
+        if offset == 0:
+            return "Etc/GMT"
+        sign = "-" if offset > 0 else "+"
+        return f"Etc/GMT{sign}{abs(offset)}"
 
 
-def _localise(d: datetime, lng: float | None) -> datetime:
-    """
-    Shift a UTC datetime to the approximate local time at the given longitude.
-
-    Uses the same ±30 min accuracy as _tz_from_lng.  No external deps —
-    timedelta is part of the stdlib datetime module already imported above.
-    """
-    from datetime import timedelta
-    if lng is None:
+def _localise(d: datetime, lat: float | None, lng: float | None) -> datetime:
+    """Shift a UTC datetime to local time at the given coordinates."""
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    try:
+        return d.astimezone(ZoneInfo(_tz_at(lat, lng)))
+    except (ZoneInfoNotFoundError, Exception):
         return d
-    offset_hours = round(lng / 15)
-    offset_hours = max(-12, min(14, offset_hours))
-    return d.astimezone(timezone(timedelta(hours=offset_hours)))
 
 
 # ── Trip detection ─────────────────────────────────────────────────────────────
@@ -133,7 +137,7 @@ def detect_trips(
                 lng = round(float(r["lng"]), 5)
             except (ValueError, KeyError, TypeError):
                 lng = None
-            d_local = _localise(d, lng)
+            d_local = _localise(d, lat, lng)
             checkins.append(
                 {
                     "ts":       int(r["date"]),
@@ -458,8 +462,8 @@ def process(
         # timezone (longitude-based, ±30 min accuracy).
         # tz_name (Etc/GMT±N) is also passed to the Open-Meteo archive API so
         # the weather lookup uses the correct local hour rather than UTC.
-        tz_name = _tz_from_lng(lng) if lng is not None else "UTC"
-        d_local = _localise(d, lng)
+        tz_name = _tz_at(lat, lng)
+        d_local = _localise(d, lat, lng)
         recent.append(
             {
                 "ts":       int(r["date"]),
