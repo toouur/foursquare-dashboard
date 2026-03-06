@@ -1,0 +1,746 @@
+{
+  "Минск": "Minsk", ok
+  "Мiнск": "Minsk", ok
+  "Мінск": "Minsk", ok
+  "минск": "Minsk", ok
+  "Mink": "Minsk", ok
+  "Mińsk": "Minsk", ok
+  "Минск - Гродно": "Minsk", ok
+  "Московский": "Moscow", show me check ins so i can decide
+  "Priluki": "Minsk", Separate city
+  "Санкт-Петербург": "Saint Petersburg",ok
+  "Санкт–Петербург": "Saint Petersburg", ok
+  "Санкт-Петкрбург": "Saint Petersburg", ok
+  "Sankt-Peterburg": "Saint Petersburg", ok
+  "Лахта": "Saint Petersburg", ok
+  "Ломоносов": "Lomonosov", ok
+  "Murino": "Saint Petersburg", ok
+  "Kudrovo": "Saint Petersburg", ok
+  "Shlissel'burg": "Saint Petersburg", Separate city
+  "Округ Автово": "Saint Petersburg", ok
+  "Лахтинский": "Saint Petersburg", ok
+  "gorod Petrodvorets": "Saint Petersburg", ok
+  "Kupchino Municipal Okrug": "Saint Petersburg", ok
+  "Malaya Okhta Municipal Okrug": "Saint Petersburg", ok
+  "Москва": "Moscow", ok
+  "город Москва": "Moscow", ok
+  "Moskva": "Moscow", ok
+  "Зеленоградск": "Kaliningrad", ok
+  "Odintsovo": "Moscow", ok
+  "Vnukovo": "Moscow", ok
+  "Kommunarka": "Moscow", ok
+  "Bulatnikovskoye": "Moscow", ok
+  "İstanbul": "Istanbul", ok
+  "Fatih": "Istanbul", ok
+  "Beyoğlu": "Istanbul", ok
+  "Beşiktaş": "Istanbul", ok
+  "Kadıköy": "Istanbul", ok
+  "Üsküdar": "Istanbul", ok
+  "Şişli": "Istanbul", ok
+  "Bakırköy": "Istanbul", ok
+  "Maltepe": "Istanbul", ok
+  "Eminönü": "Istanbul", ok
+  "Sultanahmet": "Istanbul", ok
+  "Kağıthane": "Istanbul", ok
+  "Sarıyer": "Istanbul", ok
+  "Arnavutköy": "Istanbul", ok
+  "Beykoz": "Istanbul", ok
+  "Adalar": "Istanbul", ok
+  "Pendik": "Istanbul", ok
+  "Ataşehir": "Istanbul", ok
+  "Bağcılar": "Istanbul", ok
+  "Esenler": "Istanbul", ok
+  "Kartal": "Istanbul", ok
+  "Tuzla": "Istanbul", ok
+  "Ümraniye": "Istanbul", ok
+  "Sancaktepe": "Istanbul", ok
+  "Sultangazi": "Istanbul", ok
+  "Eyüp": "Istanbul", ok
+  "Zeytinburnu": "Istanbul", ok
+  "Avcılar": "Istanbul", ok
+  "Esenyurt": "Istanbul", ok
+  "Küçükçekmece": "Istanbul", ok
+  "Büyükçekmece": "Istanbul", ok
+  "Çekmeköy": "Istanbul", ok
+  "Sultanbeyli": "Istanbul", ok
+  "Başakşehir": "Istanbul", ok
+  "Bayrampaşa": "Istanbul", ok
+  "Gaziosmanpaşa": "Istanbul", ok
+  "Güngören": "Istanbul", ok
+  "Istanbul Province": "Istanbul", ok
+  "Vatan Caddesi,Fatih/İstanbul": "Istanbul", ok
+  "İstanbul Beşiktaş": "Istanbul", ok
+  "Beyazit": "Istanbul", ok
+  "Topkapi": "Istanbul", ok
+  "Cankurtaran": "Istanbul", ok
+  "Çengelköy": "Istanbul", ok
+  "Downtown": "Cairo", ok
+  "Bab Al Louq": "Cairo", ok
+  "Wust El-Balad": "Cairo", ok
+  "Kahire": "Cairo", ok
+  "Downtown, Cairo, Muḩāfaz̧at al Qāhirah": "Cairo", ok
+  "Nasr City, Muḩāfaz̧at al Qāhirah": "Cairo", ok
+  "Heliopolis, Muḩāfaz̧at al Qāhirah": "Cairo", ok
+  "Al Azbakīyah, Muḩāfaz̧at al Qāhirah": "Cairo", ok
+  "Al Haram, Muḩāfaz̧at al Jīzah": "Cairo", ok
+  "Mit Ruhaynah, Muḩāfaz̧at al Jīzah": "Cairo", ok
+  "Al Azbakīyah": "Cairo", ok
+  "Al Zamalek": "Cairo", ok
+  "Zamalek": "Cairo", ok
+  "Heliopolis": "Cairo", ok
+  "New Cairo": "Cairo", ok
+  "Zahraa El Maadi": "Cairo", ok
+  "Dokki": "Cairo", ok
+  "Giza": "Cairo", ok
+  "Islamic Cairo": "Cairo", ok
+  "Coptic Cairo": "Cairo", ok
+  "Mohandeseen": "Cairo", ok
+  "Mohandesin": "Cairo", ok
+  "Mohandessin": "Cairo", ok
+  "Bāb ash Sha'rīyah": "Cairo", ok
+  "Rawḑ al Faraj": "Cairo", ok
+  "Al 'Abbāsīyah": "Cairo", ok
+  "Bāb al Lūq": "Cairo", ok
+  "Bab El Louk": "Cairo", ok
+  "El Saiyida Zeinab": "Cairo", ok
+  "Al Sayeda Zaynab": "Cairo", ok
+  "Al Sayeda Zainab Sq.": "Cairo", ok
+  "Al Nozha": "Cairo", ok
+  "Ghamrah": "Cairo", ok
+  "Ar Raml": "Alexandria", ok
+  "Madīnat al Muqaţţam": "Cairo", ok
+  "Al Muqattam": "Cairo", ok
+  "Al Moqattam": "Cairo", ok
+  "Muqattam": "Cairo", ok
+  "Manshīyat Nāşir": "Cairo", ok
+  "Shubrā": "Cairo", ok
+  "Masr Al Qadima": "Cairo", ok
+  "Al Gamaliyah": "Cairo", ok
+  "Al Gamaleyah": "Cairo", ok
+  "Jamāliyah": "Cairo", ok
+  "Madīnat an Naşr": "Cairo", ok
+  "Al Matar": "Cairo", ok
+  "Ad Doqi": "Cairo", ok
+  "Al Ma'ādī": "Al Maadi", ok
+  "Ma'ādī al Khabīrī": "Al Maadi", ok
+  "Al Basātīn": "Cairo", ok
+  "Al Baghalah": "Cairo", ok
+  "Al Abageyah": "Cairo", ok
+  "Al Haram": "Cairo", ok
+  "Abdeen": "Cairo", ok
+  "Abdin": "Cairo", ok
+  "Al Khalīfah": "Cairo", ok
+  "Al Qal'ah": "Cairo", ok
+  "Al Qalaa": "Cairo", ok
+  "Al Abājīyah": "Cairo", ok
+  "Qesm Al Khalifah": "Cairo", ok
+  "Misr Al Qadimah": "Cairo", ok
+  "Misr El Qaddima": "Cairo", ok
+  "Misr al-Qadima": "Cairo", ok
+  "Misr Al Qadima": "Cairo", ok
+  "Mohandiseen": "Cairo", ok
+  "Qasr El Dubara": "Cairo",ok
+  "Al Mosky": "Cairo",ok
+  "Bab El Shaaria": "Cairo",ok
+  "Bab Al Shaaria": "Cairo",ok
+  "Bab Al Shearia": "Cairo",ok
+  "Abbassiya": "Cairo",ok
+  "Al Zaher": "Cairo",ok
+  "Al 'Ajūzah": "Cairo",ok
+  "Gazirat Mit Oqbah": "Cairo",ok
+  "Mīt 'Uqbah": "Cairo",ok
+  "Al Gomrok": "Alexandria",ok
+  "As Sayalah Sharq": "Alexandria",ok
+  "Al Azaritah WA Ash Shatebi": "Alexandria",ok
+  "Shatby": "Alexandria",ok
+  "Al-Shatbi": "Alexandria",ok
+  "Al 'Aţţārīn": "Cairo",ok
+  "Ramsis": "Cairo",ok
+  "El Zabalin": "Cairo",ok
+  "El-Darb El-Ahmar": "Cairo",ok
+  "Asad": "Cairo",ok
+  "Nazlat as Sammān": "Cairo",ok
+  "Kafr Nassar": "Cairo",ok
+  "Nazlet El-Semman": "Cairo",ok
+  "Kafr Ghaţāţī": "Cairo",ok
+  "Shabrāmant": "Cairo",ok
+  "Al Badrasheen": "Cairo",ok
+  "Helwan": "Cairo",ok
+  "El Moneeb": "Cairo",ok
+  "Saqqara": "Cairo",ok
+  "El Sharq": "Port Said",ok
+  "Al Mansheyah Al Kubra": "Alexandria",ok
+  "Manshiyya": "Alexandria",ok
+  "El-Gamaleya": "Cairo",ok
+  "Attaba": "Cairo",ok
+  "Sheraton Al Matar": "Cairo",ok
+  "شيراتون المطار": "Cairo",ok
+  "Ghayt Al Adah": "Cairo",ok
+  "'Izbat al Baḩr": "Alexandria",ok
+  "Bulaq": "Cairo",ok
+  "Kecamatan Taman Sari": "Jakarta",ok
+  "Jakarta Barat": "Jakarta",ok
+  "Jakarta Pusat": "Jakarta",ok
+  "Jakarta Utara": "Jakarta",ok
+  "Jakarta Selatan": "Jakarta",ok
+  "Jakarta Timur": "Jakarta",ok
+  "Jakarta Kota": "Jakarta",ok
+  "South Jakarta": "Jakarta",ok
+  "West Jakarta": "Jakarta",ok
+  "Central Jakarta": "Jakarta",ok
+  "Jakarta Selata": "Jakarta",ok
+  "Kecamatan Pademangan": "Jakarta",ok
+  "Kecamatan Gambir": "Jakarta",ok
+  "Kecamatan Tambora": "Jakarta",ok
+  "Kecamatan Penjaringan": "Jakarta",ok
+  "Kecamatan Tebet": "Jakarta",ok
+  "Kebayoran Baru": "Jakarta",ok
+  "Kecamatan Menteng": "Jakarta",ok
+  "Kecamatan Kramat jati": "Jakarta",ok
+  "Kecamatan Sawah Besar": "Jakarta",ok
+  "Sawah Besar": "Jakarta",ok
+  "Kecamatan Benda": "Jakarta",ok
+  "Menteng": "Jakarta",ok
+  "Pademangan Barat": "Jakarta",ok
+  "Tangerang": "Jakarta",ok
+  "Benda": "Jakarta",ok
+  "Ciudad Autónoma de Buenos Aire": "Buenos Aires",ok
+  "Ciudad de Buenos AIres": "Buenos Aires",ok
+  "Capital Federal": "Buenos Aires",ok
+  "San Telmo": "Buenos Aires",ok
+  "Retiro": "Buenos Aires",ok
+  "Puerto Madero": "Buenos Aires",ok
+  "Belgrano": "Buenos Aires",ok
+  "Belgrano C": "Buenos Aires",ok
+  "Balvanera": "Buenos Aires",ok
+  "Chacarita": "Buenos Aires",ok
+  "Flores": "Buenos Aires",ok
+  "AAQ": "Buenos Aires",ok
+  "Las Heras": "Mendoza",ok
+  "Villa Nueva": "Mendoza",ok
+  "M5500GMF": "Mendoza",ok
+  "Ciudad": "Mendoza",ok
+  "Providencia": "Santiago",ok
+  "Recoleta": "Santiago",ok
+  "Estación Central": "Santiago",ok
+  "Pudahuel": "Santiago",ok
+  "Quinta Normal": "Santiago",ok
+  "Maipú": "Santiago",ok
+  "La Florida": "Santiago",ok
+  "Vitacura": "Santiago",ok
+  "Santiago de Chile​": "Santiago",ok
+  "Metropolitana": "Santiago",ok
+  "Puente Alto": "Santiago",ok
+  "Hoàn Kiếm": "Hanoi",ok
+  "Tây Hồ": "Hanoi",ok
+  "Hai Bà Trưng": "Hanoi",ok
+  "Ba Đình": "Hanoi",ok
+  "Đống Đa": "Hanoi",ok
+  "Hồ Tây": "Hanoi",ok
+  "Hà Nội": "Hanoi",ok
+  "Hai Ba Trưng": "Hanoi",ok
+  "Sóc Sơn": "Hanoi",ok
+  "Thanh Xuân": "Hanoi",ok
+  "Trúc Bạch": "Hanoi",ok
+  "Hồ Chí Minh": "Ho Chi Minh City",ok
+  "Thành phố Hồ Chí Minh": "Ho Chi Minh City",ok
+  "Quận 3": "Ho Chi Minh City",ok
+  "Phường Phạm Ngũ Lão": "Ho Chi Minh City",ok
+  "Hcm": "Ho Chi Minh City",ok
+  "Ho Chi Minh": "Ho Chi Minh City",ok
+  "Hochiminh": "Ho Chi Minh City",ok
+  "Ben Nghe Ward": "Ho Chi Minh City",ok
+  "Củ Chi": "Ho Chi Minh City",ok
+  "Tân Bình": "Ho Chi Minh City",ok
+  "Daun Penh": "Phnom Penh",ok
+  "Phnom Pehn": "Phnom Penh",ok
+  "Chroy Changvar": "Phnom Penh",ok
+  "Dongcheng": "Beijing",ok
+  "Dōngchéng": "Beijing",ok
+  "Xicheng Qu": "Beijing",ok
+  "北京市朝陽區": "Beijing",ok
+  "Haidian": "Beijing",ok
+  "Jingshan": "Beijing",ok
+  "Chē gōngzhuāng": "Beijing",ok
+  "Jinrongjie": "Beijing",ok
+  "Badaling": "Beijing",ok
+  "Ha Er Bin Shi": "Harbin",ok
+  "Haerbin Shi": "Harbin",ok
+  "哈尔滨": "Harbin",ok
+  "Tsim Sha Tsui": "Hong Kong",ok
+  "Tsim Sha Tsui East": "Hong Kong",ok
+  "Kowloon": "Hong Kong",ok
+  "Kowloon City": "Hong Kong",ok
+  "Central": "Hong Kong",ok
+  "Central and Western District": "Hong Kong",ok
+  "Central District": "Hong Kong",ok
+  "Mong Kok to Tsim Sha Tsui": "Hong Kong",ok
+  "佐敦": "Hong Kong",ok
+  "Diamond Hill": "Hong Kong",ok
+  "Yau Ma Tei": "Hong Kong",ok
+  "Sheung Wan": "Hong Kong",ok
+  "Tamar": "Hong Kong",ok
+  "The Peak": "Hong Kong",ok
+  "Jordan": "Hong Kong",ok
+  "Se": "Macau",ok
+  "Macao": "Macau",ok
+  "大堂": "Macau",ok
+  "望德堂區": "Macau",ok
+  "澳門 Macau": "Macau",ok
+  "Nossa Senhora do Carmo": "Macau",ok
+  "Sao Lazaro": "Macau",ok
+  "Santo Antonio": "Macau",ok
+  "Sao Lourenco": "Macau",ok
+  "Taipa": "Macau",ok
+  "Shanghái": "Shanghai",ok
+  "Jing'an": "Shanghai",ok
+  "Baoshan": "Shanghai",ok
+  "Hongkou": "Shanghai",ok
+  "Xuhui": "Shanghai",ok
+  "Guang Zhou Shi": "Guangzhou",ok
+  "Changi Village": "Singapore",ok
+  "Marina": "Singapore",ok
+  "Thomson": "Singapore",ok
+  "Clarke Quay": "Singapore",ok
+  "City": "Singapore",ok
+  "Jalan Besar": "Singapore",ok
+  "Sentosa Island": "Singapore",ok
+  "Bur Dubai": "Dubai",ok
+  "Deira": "Dubai",ok
+  "Al Rigga": "Dubai",ok
+  "Al Karama": "Dubai",ok
+  "Palm Jumeirah": "Dubai",ok
+  "Dubai International Airport": "Dubai",ok
+  "Athina": "Athens",ok
+  "Athens Center": "Athens",ok
+  "Spata": "Athens",ok
+  "Néa Filadélfeia": "Athens",ok
+  "Νέας Φιλαδέλφειας": "Athens",ok
+  "Nea Ionia": "Athens",ok
+  "Acropolis": "Athens",ok
+  "Thissio": "Athens",ok
+  "Gyzi": "Athens",ok
+  "Αργυρούπολης": "Athens",ok
+  "Πετράλωνα": "Athens",ok
+  "Ν. Κόσμος": "Athens",ok
+  "Paianía": "Athens",ok
+  "Nea Smyrni": "Athens",ok
+  "Νέας Σμύρνης": "Athens",ok
+  "Elliniko": "Athens",ok
+  "Argyroupoli": "Athens",ok
+  "Alimos": "Athens",ok
+  "Voula": "Athens",ok
+  "Pangrati": "Athens",ok
+  "Koukaki": "Athens",ok
+  "Palaio Faliro": "Athens",ok
+  "København K": "Copenhagen",ok
+  "København NV": "Copenhagen",ok
+  "København Ø": "Copenhagen",ok
+  "København V": "Copenhagen",ok
+  "Christianshavn": "Copenhagen",ok
+  "Kopenhagen": "Copenhagen",ok
+  "København": "Copenhagen",ok
+  "Hellerup": "Copenhagen",ok
+  "Kastrup": "Copenhagen",ok
+  "Venezia": "Venice",ok
+  "Burano": "Venice",ok
+  "Murano": "Venice",ok
+  "Lido": "Venice",ok
+  "Tessera": "Venice",ok
+  "Borgo Panigale": "Bologna",ok
+  "Vila Nova de Gaia": "Porto",ok
+  "Matosinhos": "Porto",ok
+  "Maia": "Porto",ok
+  "Foz do Douro": "Porto",ok
+  "Foz do douro": "Porto",ok
+  "Vila Nova Gaia": "Porto",ok
+  "Moscavide": "Lisbon",ok
+  "Camarate": "Lisbon",ok
+  "Algés": "Lisbon",ok
+  "Cacilhas": "Lisbon",ok
+  "Almada": "Lisbon",ok
+  "Alfama": "Lisbon",ok
+  "Praha1": "Prague",ok
+  "Praha 3": "Prague",ok
+  "Nové Město": "Prague",ok
+  "Budapest VIII. kerület": "Budapest",ok
+  "Budapest V. kerület": "Budapest",ok
+  "Budapest XIV. kerület": "Budapest",ok
+  "Óbuda-Békásmegyer": "Budapest",ok
+  "Angyalföld": "Budapest",ok
+  "Beograd": "Belgrade",ok
+  "Belgrad": "Belgrade",ok
+  "Beograde": "Belgrade",ok
+  "Zemun": "Belgrade",ok
+  "Opština Beograd-Zemun": "Belgrade",ok
+  "Senjak": "Belgrade",ok
+  "Dorćol": "Belgrade",ok
+  "Sarejevo": "Sarajevo",ok
+  "Sarajevo Canton": "Sarajevo",ok
+  "Ilidža": "Sarajevo",ok
+  "Istočno Sarajevo": "Sarajevo",ok
+  "Kraków-Śródmieście": "Kraków",ok
+  "Краків": "Krakow",ok
+  "Delhi": "New Delhi",ok
+  "Hāora": "Kolkata",ok
+  "Uttarpāra": "Kolkata",ok
+  "Thāne": "Mumbai",ok
+  "Borivli": "Mumbai",ok
+  "Binǝ": "Baku",ok
+  "Binə": "Baku",ok
+  "Şimal": "Baku",ok
+  "Bakı": "Baku",ok
+  "Səbayıl": "Baku",ok
+  "Chişinău": "Chișinău",ok
+  "Кишинёв": "Chișinău",ok
+  "Chisinau": "Chișinău",ok
+  "Київ": "Kyiv",ok
+  "Ужгород": "Uzhhorod",ok
+  "Uzhhorodskyi raion": "Uzhhorod",ok
+  "Могилёв": "Mogilev",ok
+  "Могилев": "Mogilev",ok
+  "Магiлёў": "Mogilev",ok
+  "Магілёў": "Mogilev",ok
+  "Витебск": "Vitebsk",ok
+  "Viciebsk": "Vitebsk",ok
+  "Vitsyebsk": "Vitebsk",ok
+  "Бобруйск": "Bobruisk",ok
+  "Бабруйск": "Bobruisk",ok
+  "Брест": "Brest",ok
+  "Гомель": "Gomel",ok
+  "Homieĺ": "Gomel",ok
+  "Борисов": "Borisov",ok
+  "Barysaŭ": "Borisov",ok
+  "Barysaw": "Borisov",ok
+  "Батуми": "Batumi",ok
+  "Batum": "Batumi",ok
+  "Тошкент": "Tashkent",ok
+  "Ташкент": "Tashkent",ok
+  "Алматы": "Almaty",ok
+  "Алма-Ата": "Almaty",ok
+  "Нур-Султан": "Astana",ok
+  "Астана": "Astana",ok
+  "Nur-Sultan": "Astana",ok
+  "Варшава": "Warsaw",ok
+  "Warszawa": "Warsaw",ok
+  "Warszawa-Praga Północ": "Warsaw",ok
+  "Казань": "Kazan'",ok
+  "Kazan": "Kazan'",ok
+  "Новосибирск": "Novosibirsk",ok
+  "Красноярск": "Krasnoyarsk",ok
+  "город Красноярск": "Krasnoyarsk",ok
+  "Екатеринбург": "Yekaterinburg",ok
+  "город Омск": "Omsk",ok
+  "Ярославль": "Yaroslavl",ok
+  "Тверь": "Tver",ok
+  "Нижний Новгород": "Nizhny Novgorod",ok
+  "Смоленск": "Smolensk",ok
+  "Вильнюс": "Vilnius",ok
+  "București": "Bucharest",ok
+  "Sector  1": "Bucharest",ok
+  "София": "Sofia",ok
+  "Скопје": "Skopje",ok
+  "Shkupi": "Skopje",ok
+  "Dolna Matka": "Skopje",ok
+  "Львів": "Lviv",ok
+  "Днiпропетровськ": "Dnipro",ok
+  "Днiпро": "Dnipro",ok
+  "Днепропетровск": "Dnipro",ok
+  "Jaunmārupe": "Riga",ok
+  "Mārupe": "Riga",ok
+  "Mārupes Novads 10/1": "Riga",ok
+  "Rīga": "Riga",ok
+  "Centrs": "Riga",ok
+  "Lidosta \"Rīga\"": "Riga",ok
+  "Smarhon'": "Smarhon",ok
+  "Smarhoń": "Smarhon",ok
+  "Smarhonski Rayon": "Smarhon",ok
+  "Iaşi": "Iași",ok
+  "Iasi": "Iași",ok
+  "Yerevan, Sakharov Square": "Yerevan",ok
+  "콸라룸푸르": "Kuala Lumpur",ok
+  "Куала-Лумпур": "Kuala Lumpur",ok
+  "Kuala Lumpur City Center": "Kuala Lumpur",ok
+  "Batu Caves": "Kuala Lumpur",ok
+  "Petaling Jaya": "Kuala Lumpur",ok
+  "Ampang": "Kuala Lumpur",ok
+  "Hulu Klang": "Kuala Lumpur",ok
+  "Gombak": "Kuala Lumpur",ok
+  "Albița - Leușeni": "Leuseni",ok
+  "Albița": "Leuseni",ok
+  "Leuşeni": "Leușeni",ok
+  "Sighişoara": "Sighișoara",ok
+  "Mediaş": "Mediaș",ok
+  "Curtea de Argeş": "Curtea de Argeș",ok
+  "Corneşti": "Cornești",ok
+  "Focşani": "Focșani",ok
+  "Botoşani": "Botoșani",ok
+  "Giurgiuleşti": "Giurgiulești",ok
+  "Dragomireşti": "Dragomir esti",ok
+  "Cimişlia": "Cimișlia",ok
+  "Sighetu Marmaţiei": "Sighetu Marmației",ok
+  "Coşniţa": "Coșnița",ok
+  "Cârţişoara": "Cârțișoara",ok
+  "Hârşova": "Hârșova",ok
+  "Târgu Mureş": "Târgu Mureș",ok
+  "Borşa": "Borșa",ok
+  "Tehrān": "Tehran",ok
+  "تهران": "Tehran",ok
+  "Malaga": "Málaga",ok
+  "Mestre": "Venice",ok
+  "Karmėlava": "Kaunas",ok
+  "Otopeni": "Bucharest",ok
+  "SÃ£o Paulo": "São Paulo",ok
+  "Петергоф": "Peterhof",ok
+  "Пушкин": "Pushkin",ok
+  "город Кронштадт": "Kronshtadt",ok
+  "Кронштадт": "Kronshtadt",ok
+  "Vilniaus rajonas": "Vilniaus Rajonas",ok
+  "Химки": "Khimki",ok
+  "Зеленоград": "Zelenograd",ok
+  "Прилуки": "Priluki",ok
+  "Щомыслица": "Shchomyslitsa",ok
+  "Городище": "Haradzishcha",ok
+  "Haradzišča": "Haradzishcha",ok
+  "Гонолес": "Gonoles",ok
+  "Копишча": "Kopishcha",ok
+  "Kopishche": "Minsk",ok
+  "Минский р-н": "Minsk",Normalize into latin and check if separate or minsk
+  "Минская Обл.": "Minsk",Normalize into latin and check if separate or minsk
+  "Минский район": "Minsk",Normalize into latin and check if separate or minsk
+  "Minski Rayon": "Minsk",Normalize into latin and check if separate or minsk
+  "Новая Боровая": "Minsk",ok
+  "Старое село": "Staroye Selo",ok
+  "Дегтяревка": "Dehtaryowka",ok
+  "п. Ратомка": "Ratamka",ok
+  "Valer'yanovo": "Valeryanovo",ok
+  "Заслаўе": "Zaslawye",ok
+  "Осиповичи": "Asipovichy",ok
+  "Браслав": "Braslav",ok
+  "Ашмяны": "Ashmyany",ok
+  "Полоцк": "Polotsk",okok
+  "Орша": "Orsha",ok
+  "Несвиж": "Nesvizh",ok
+  "Миоры": "Miyory",ok
+  "Быхов": "Bykhov",ok
+  "Язненский": "Yaznenski",ok
+  "Домашаны": "Domoshany",ok
+  "Домошаны": "Domoshany",ok
+  "Хотислав": "Khotislav",ok
+  "д. Муравьёвка": "Muravyovka",ok
+  "д. Бенякони": "Benyakoni",ok
+  "д. Мокраны": "Mokrany",ok
+  "д. Котловка": "Kotlovka",ok
+  "Городьки": "Haradzki",ok
+  "Чики": "Chiki",ok
+  "Рогачёв": "Rahachow",ok
+  "Тирасполь": "Tiraspol",ok
+  "Бендеры": "Bender",ok
+  "Первомайск": "Pervomaysk",ok
+  "Мамалига": "Mamalyha",ok
+  "Подборовье-1": "Podborovye",ok
+  "пос. Заплюсье": "Zaplyusye",ok
+  "Дивногорск": "Divnogorsk",ok
+  "Кривой Рог": "Kryvyi Rih",ok
+  "Здолбунов": "Zdolbuniv",ok
+  "Сигнаги": "Signagi",ok
+  "Кутаиси": "Kutaisi",ok
+  "Бурабай": "Burabay",ok
+  "Щучинск": "Shchuchinsk",ok
+  "Кордай": "Korday",ok
+  "Мостар": "Mostar",ok
+  "Чернигов": "Chernihiv",ok
+  "Hrodzyenski Rayon": "Lida",show me check ins so i can decide
+  "Ol'khonskiy Rayon": "Olkhon Island",ok
+  "Olkhonsky District": "Olkhon Island",ok
+  "Пос. Хужир": "Khuzhir",ok
+  "Вiцебск": "Vitebsk",ok
+  "Гродна": "Hrodna",ok
+  "Нур-сұлтан": "Astana",ok
+  "Tirana District": "Tirana",ok
+  "Lundër 1": "Tirana",ok
+  "Gozo and Comino District": "Victoria",ok
+  "Victoria, Gozo": "Victoria",ok
+  "서울특별시": "Seoul",I have never been to seoul, check ccordinates
+  "Seoul": "Seoul",I have never been to seoul, check ccordinates
+  "Kopishcha": "Minsk",ok
+  "Borovaya": "Minsk",ok
+  "Zhdanovichy": "Minsk",ok
+  "Borovlyany": "Minsk",ok
+  "Novaya Borovaya": "Minsk",ok
+  "Доха": "Doha",ok
+  "دوحة": "Doha",ok
+  "Кальнiкавiчы": "Kalinkavichy",ok
+  "Калінкавічы": "Kalinkavichy",ok
+  "Калiнкавiчы": "Kalinkavichy",ok
+  "Калинковичи": "Kalinkavichy",ok
+  "Kalinkavičy": "Kalinkavichy",ok
+  "Бярозa": "Byaroza",ok
+  "Baranavičy": "Baranovichi",ok
+  "Baranawičy": "Baranavichy",ok
+  "Барановичи": "Baranovichi",ok
+  "Баранавічы": "Baranovichi",ok
+  "Baranavichy": "Baranovichi",ok
+  "Maladziečna": "Maladzyechna",ok
+  "Maladzechna": "Maladzyechna",ok
+  "Маладзечна": "Maladzyechna",ok
+  "Молодечно": "Maladzyechna",ok
+  "Bychaŭ": "Bykhov",ok
+  "Rečyca": "Rechytsa",ok
+  "Kryčaŭ": "Krychaw",ok
+  "Krychaw": "Krychaw",ok
+  "Orša": "Orsha",ok
+  "Stoŭbcy": "Stowbtsy",ok
+  "Stowbtsy": "Stowbtsy",ok
+  "Ašmiany": "Ashmyany",ok
+  "Mscislaŭ": "Mstsislaw",ok
+  "Lojeŭ": "Loyew",ok
+  "Lyepyel'": "Lyepyel",ok
+  "Hâncești": "Hîncești",ok
+  "Câmpulung": "Câmpulung",ok
+  "Giurgiu": "Giurgiu",ok
+  "Szczecin": "Szczecin",ok
+  "Bydgoszcz": "Bydgoszcz",ok
+  "Lublin": "Lublin",ok
+  "Oświęcim": "Oświęcim",ok
+  "Coimbrã": "Coimbra",ok
+  "Āgra": "Agra",ok
+  "Muţraḩ": "Muscat",ok
+  "As Sīb al Jadīdah": "Al Seeb",Muscat
+  "Ruwī": "Ruwi",Muscat
+  "Tajrīsh": "Tajrish",Tehran
+  "Dahshūr": "Dahshur",ok
+  "Сергиев Посад": "Sergiyev Posad",ok
+  "Sliznëvo": "Sliznevo",ok
+  "stancyja Hudahaj": "Gudogay",ok
+  "Mar'ina Horka": "Maryina Horka",ok
+  "Zales'ye": "Zalesye",ok
+  "Skidel'skiy": "Skidel",ok
+  "Skidzyel'": "Skidel",ok
+  "Nevel'": "Nevel",ok
+  "Ob'": "Ob",check the coordinates of the check in by timelinem from which city I checked in
+  "Navapolatsk": "Navapolatsk",ok
+  "Одесская обл.": "Odesa Region",ok
+  "Запоріжжя": "Zaporizhzhia",ok
+  "Zaporizhia": "Zaporizhzhia",ok
+  "Смоленская обл.": "Smolensk Region",ok
+  "Смоленская обл. - республика Беларусь": "Smolensk Region",ok
+  "РФ / РБ": "Smolensk Region",ok
+  "Красноярский край": "Krasnoyarsk Region",ok
+  "Ленинградская обл.": "Leningrad Region",ok
+  "Псковская область": "Pskov Region",ok
+  "Poznan": "Poznań",ok
+  "Wroclaw": "Wrocław",ok
+  "Samarkand": "Samarqand",ok
+  "Sighisoara": "Sighișoara",ok
+  "Podgorics": "Podgorica",ok
+  "Lanarca": "Larnaca",ok
+  "Pafos": "Paphos",ok
+  "Krong Siem Reap": "Siem Reap",ok
+  "Huangpu": "Shanghai",ok
+  "Pudong": "Shanghai",ok
+  "Vatican": "Vatican City",ok
+  "Polack": "Polotsk",ok
+  "Polatsk": "Polotsk",ok
+  "Madrid City Center": "Madrid",ok
+  "Varna Municipality": "Varna",ok
+  "Daugavpils municipality": "Daugavpils",ok
+  "Kauno rajonas": "Kaunas",ok
+  "Tartu Parish": "Tartu",ok
+  "Mazowieckie": "Warsaw",ok
+  "Provincia di Vicenza": "Venice",ok
+  "Provincia di Verona": "Verona",ok
+  "Provincia di Bari": "Bari",ok
+  "Provincia di Palermo": "Palermo",ok
+  "Borsa": "Borșa",ok
+  "Garni": "Garni",ok
+  "Garrni": "Garni",ok
+  "Minsk District": "Minsk",check if separate, show check ins
+  "Minsk Region": "Minsk",check if separate, show check ins
+  "Grodno District": "Lida",check if separate, show check ins
+  "Baranovichi": "Baranavichy",ok
+  "Balti": "Bălți",ok
+  "Leuseni": "Leușeni",ok
+  "Giurgiulesti": "Giurgiulești",ok
+  "Hincesti": "Hîncești",ok
+  "Varnita": "Varnița",ok
+  "Truseni": "Trușeni",ok
+  "Edinet": "Edineț",ok
+  "Cimislia": "Cimișlia",ok
+  "Cosnita": "Coșnița",ok
+  "Cornesti": "Cornești",ok
+  "Bacau": "Bacău",ok
+  "Galati": "Galați",ok
+  "Braila": "Brăila",ok
+  "Bistrita": "Bistrița",ok
+  "Fetesti": "Fetești",ok
+  "Viseu de Sus": "Vișeu de Sus",ok
+  "Transfagarasan": "Transfăgărășan",ok
+  "Poiana Brasov": "Poiana Brașov",ok
+  "Muntii Bucegi": "Munții Bucegi",ok
+  "Busteni": "Bușteni",ok
+  "Rasnov": "Râșnov",ok
+  "Sapanta": "Săpânța",ok
+  "Targu Mures": "Târgu Mureș",ok
+  "Curtea de Arges": "Curtea de Argeș",ok
+  "Sighetu Marmatiei": "Sighetu Marmației",ok
+  "Focsani": "Focșani",ok
+  "Harsova": "Hârșova",ok
+  "Medias": "Mediaș",ok
+  "Botosani": "Botoșani",ok
+  "Cartisoara": "Cârțișoara",ok
+  "Dragomir esti": "Dragomirești",ok
+  "Galbiori": "Gălbiori",ok
+  "Lodz": "Łódź",ok
+  "Gdansk": "Gdańsk",ok
+  "Bialystok": "Białystok",ok
+  "Torun": "Toruń",ok
+  "Krakow": "Kraków",ok
+  "Оświęcim": "Oświęcim",ok
+  "Oswiecim": "Oświęcim",ok
+  "Augustow": "Augustów",ok
+  "Chorzow": "Chorzów",ok
+  "Grojec": "Grójec",ok
+  "Babieta": "Babięta",ok
+  "Kosice": "Košice",ok
+  "Salcininkai": "Šalčininkai",ok
+  "Jurmala": "Jūrmala",ok
+  "Parnu": "Pärnu",ok
+  "Skofja Loka": "Škofja Loka",ok
+  "Portoroz": "Portorož",ok
+  "Obrezje": "Obrežje",ok
+  "Ribcev Laz": "Ribčev Laz",ok
+  "Stara Fuzina": "Stara Fužina",ok
+  "Plitvice Lakes": "Plitvička Jezera",ok
+  "Kastel Stafilic": "Kaštel Štafilić",ok
+  "Tubingen": "Tübingen",ok
+  "Lubeck": "Lübeck",ok
+  "Wurenlos": "Würenlos",ok
+  "Warnemunde": "Warnemünde",ok
+  "Schonefeld": "Schönefeld",ok
+  "Nykoping": "Nyköping",ok
+  "Cordoba": "Córdoba",ok
+  "Alora": "Álora",ok
+  "Valparaiso": "Valparaíso",ok
+  "Vina del Mar": "Viña del Mar",ok
+  "San Jose de Maipo": "San José de Maipo",ok
+  "Sao Paulo": "São Paulo",ok
+  "Niteroi": "Niterói",ok
+  "My Tho": "Mỹ Tho",ok
+  "Bugibba": "Buġibba",ok
+  "Mellieha": "Mellieħa",ok
+  "Zebbug Gozo": "Żebbuġ",ok
+  "Ghajnsielem": "Għajnsielem",ok
+  "Mgarr Gozo": "Imġarr",ok
+  "Zurrieq": "Żurrieq",ok
+  "Ghasri": "Għasri",ok
+  "Mgarr": "Mġarr",ok
+  "Cirkewwa": "Ċirkewwa",ok
+  "Rabat Gozo": "Ir-Rabat Għawdex",ok
+  "Gharb": "Għarb",ok
+  "Siggiewi": "Siġġiewi",ok
+  "Zejtun": "Żejtun",ok
+  "Gzira": "Gżira",ok
+  "St Pauls Bay": "San Pawl il-Baħar",ok
+  "Tille": "Tillé"ok
+}

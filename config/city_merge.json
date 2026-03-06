@@ -1,746 +1,1033 @@
 {
-  "Минск": "Minsk",
-  "Мiнск": "Minsk",
-  "Мінск": "Minsk",
-  "минск": "Minsk",
-  "Mink": "Minsk",
-  "Mińsk": "Minsk",
-  "Минск - Гродно": "Minsk",
-  "Московский": "Moscow",
-  "Priluki": "Minsk",
-  "Санкт-Петербург": "Saint Petersburg",
-  "Санкт–Петербург": "Saint Petersburg",
-  "Санкт-Петкрбург": "Saint Petersburg",
-  "Sankt-Peterburg": "Saint Petersburg",
-  "Лахта": "Saint Petersburg",
-  "Ломоносов": "Lomonosov",
-  "Murino": "Saint Petersburg",
-  "Kudrovo": "Saint Petersburg",
-  "Shlissel'burg": "Saint Petersburg",
-  "Округ Автово": "Saint Petersburg",
-  "Лахтинский": "Saint Petersburg",
-  "gorod Petrodvorets": "Saint Petersburg",
-  "Kupchino Municipal Okrug": "Saint Petersburg",
-  "Malaya Okhta Municipal Okrug": "Saint Petersburg",
-  "Москва": "Moscow",
-  "город Москва": "Moscow",
-  "Moskva": "Moscow",
-  "Зеленоградск": "Kaliningrad",
-  "Odintsovo": "Moscow",
-  "Vnukovo": "Moscow",
-  "Kommunarka": "Moscow",
-  "Bulatnikovskoye": "Moscow",
-  "İstanbul": "Istanbul",
-  "Fatih": "Istanbul",
-  "Beyoğlu": "Istanbul",
-  "Beşiktaş": "Istanbul",
-  "Kadıköy": "Istanbul",
-  "Üsküdar": "Istanbul",
-  "Şişli": "Istanbul",
-  "Bakırköy": "Istanbul",
-  "Maltepe": "Istanbul",
-  "Eminönü": "Istanbul",
-  "Sultanahmet": "Istanbul",
-  "Kağıthane": "Istanbul",
-  "Sarıyer": "Istanbul",
-  "Arnavutköy": "Istanbul",
-  "Beykoz": "Istanbul",
-  "Adalar": "Istanbul",
-  "Pendik": "Istanbul",
-  "Ataşehir": "Istanbul",
-  "Bağcılar": "Istanbul",
-  "Esenler": "Istanbul",
-  "Kartal": "Istanbul",
-  "Tuzla": "Istanbul",
-  "Ümraniye": "Istanbul",
-  "Sancaktepe": "Istanbul",
-  "Sultangazi": "Istanbul",
-  "Eyüp": "Istanbul",
-  "Zeytinburnu": "Istanbul",
-  "Avcılar": "Istanbul",
-  "Esenyurt": "Istanbul",
-  "Küçükçekmece": "Istanbul",
-  "Büyükçekmece": "Istanbul",
-  "Çekmeköy": "Istanbul",
-  "Sultanbeyli": "Istanbul",
-  "Başakşehir": "Istanbul",
-  "Bayrampaşa": "Istanbul",
-  "Gaziosmanpaşa": "Istanbul",
-  "Güngören": "Istanbul",
-  "Istanbul Province": "Istanbul",
-  "Vatan Caddesi,Fatih/İstanbul": "Istanbul",
-  "İstanbul Beşiktaş": "Istanbul",
-  "Beyazit": "Istanbul",
-  "Topkapi": "Istanbul",
-  "Cankurtaran": "Istanbul",
-  "Çengelköy": "Istanbul",
-  "Downtown": "Cairo",
-  "Bab Al Louq": "Cairo",
-  "Wust El-Balad": "Cairo",
-  "Kahire": "Cairo",
-  "Downtown, Cairo, Muḩāfaz̧at al Qāhirah": "Cairo",
-  "Nasr City, Muḩāfaz̧at al Qāhirah": "Cairo",
-  "Heliopolis, Muḩāfaz̧at al Qāhirah": "Cairo",
-  "Al Azbakīyah, Muḩāfaz̧at al Qāhirah": "Cairo",
-  "Al Haram, Muḩāfaz̧at al Jīzah": "Cairo",
-  "Mit Ruhaynah, Muḩāfaz̧at al Jīzah": "Cairo",
-  "Al Azbakīyah": "Cairo",
-  "Al Zamalek": "Cairo",
-  "Zamalek": "Cairo",
-  "Heliopolis": "Cairo",
-  "New Cairo": "Cairo",
-  "Zahraa El Maadi": "Cairo",
-  "Dokki": "Cairo",
-  "Giza": "Cairo",
-  "Islamic Cairo": "Cairo",
-  "Coptic Cairo": "Cairo",
-  "Mohandeseen": "Cairo",
-  "Mohandesin": "Cairo",
-  "Mohandessin": "Cairo",
-  "Bāb ash Sha'rīyah": "Cairo",
-  "Rawḑ al Faraj": "Cairo",
-  "Al 'Abbāsīyah": "Cairo",
-  "Bāb al Lūq": "Cairo",
-  "Bab El Louk": "Cairo",
-  "El Saiyida Zeinab": "Cairo",
-  "Al Sayeda Zaynab": "Cairo",
-  "Al Sayeda Zainab Sq.": "Cairo",
-  "Al Nozha": "Cairo",
-  "Ghamrah": "Cairo",
-  "Ar Raml": "Alexandria",
-  "Madīnat al Muqaţţam": "Cairo",
-  "Al Muqattam": "Cairo",
-  "Al Moqattam": "Cairo",
-  "Muqattam": "Cairo",
-  "Manshīyat Nāşir": "Cairo",
-  "Shubrā": "Cairo",
-  "Masr Al Qadima": "Cairo",
-  "Al Gamaliyah": "Cairo",
-  "Al Gamaleyah": "Cairo",
-  "Jamāliyah": "Cairo",
-  "Madīnat an Naşr": "Cairo",
-  "Al Matar": "Cairo",
-  "Ad Doqi": "Cairo",
-  "Al Ma'ādī": "Al Maadi",
-  "Ma'ādī al Khabīrī": "Al Maadi",
-  "Al Basātīn": "Cairo",
-  "Al Baghalah": "Cairo",
-  "Al Abageyah": "Cairo",
-  "Al Haram": "Cairo",
-  "Abdeen": "Cairo",
-  "Abdin": "Cairo",
-  "Al Khalīfah": "Cairo",
-  "Al Qal'ah": "Cairo",
-  "Al Qalaa": "Cairo",
-  "Al Abājīyah": "Cairo",
-  "Qesm Al Khalifah": "Cairo",
-  "Misr Al Qadimah": "Cairo",
-  "Misr El Qaddima": "Cairo",
-  "Misr al-Qadima": "Cairo",
-  "Misr Al Qadima": "Cairo",
-  "Mohandiseen": "Cairo",
-  "Qasr El Dubara": "Cairo",
-  "Al Mosky": "Cairo",
-  "Bab El Shaaria": "Cairo",
-  "Bab Al Shaaria": "Cairo",
-  "Bab Al Shearia": "Cairo",
-  "Abbassiya": "Cairo",
-  "Al Zaher": "Cairo",
-  "Al 'Ajūzah": "Cairo",
-  "Gazirat Mit Oqbah": "Cairo",
-  "Mīt 'Uqbah": "Cairo",
-  "Al Gomrok": "Alexandria",
-  "As Sayalah Sharq": "Alexandria",
-  "Al Azaritah WA Ash Shatebi": "Alexandria",
-  "Shatby": "Alexandria",
-  "Al-Shatbi": "Alexandria",
-  "Al 'Aţţārīn": "Cairo",
-  "Ramsis": "Cairo",
-  "El Zabalin": "Cairo",
-  "El-Darb El-Ahmar": "Cairo",
-  "Asad": "Cairo",
-  "Nazlat as Sammān": "Cairo",
-  "Kafr Nassar": "Cairo",
-  "Nazlet El-Semman": "Cairo",
-  "Kafr Ghaţāţī": "Cairo",
-  "Shabrāmant": "Cairo",
-  "Al Badrasheen": "Cairo",
-  "Helwan": "Cairo",
-  "El Moneeb": "Cairo",
-  "Saqqara": "Cairo",
-  "El Sharq": "Port Said",
-  "Al Mansheyah Al Kubra": "Alexandria",
-  "Manshiyya": "Alexandria",
-  "El-Gamaleya": "Cairo",
-  "Attaba": "Cairo",
-  "Sheraton Al Matar": "Cairo",
-  "شيراتون المطار": "Cairo",
-  "Ghayt Al Adah": "Cairo",
-  "'Izbat al Baḩr": "Alexandria",
-  "Bulaq": "Cairo",
-  "Kecamatan Taman Sari": "Jakarta",
-  "Jakarta Barat": "Jakarta",
-  "Jakarta Pusat": "Jakarta",
-  "Jakarta Utara": "Jakarta",
-  "Jakarta Selatan": "Jakarta",
-  "Jakarta Timur": "Jakarta",
-  "Jakarta Kota": "Jakarta",
-  "South Jakarta": "Jakarta",
-  "West Jakarta": "Jakarta",
-  "Central Jakarta": "Jakarta",
-  "Jakarta Selata": "Jakarta",
-  "Kecamatan Pademangan": "Jakarta",
-  "Kecamatan Gambir": "Jakarta",
-  "Kecamatan Tambora": "Jakarta",
-  "Kecamatan Penjaringan": "Jakarta",
-  "Kecamatan Tebet": "Jakarta",
-  "Kebayoran Baru": "Jakarta",
-  "Kecamatan Menteng": "Jakarta",
-  "Kecamatan Kramat jati": "Jakarta",
-  "Kecamatan Sawah Besar": "Jakarta",
-  "Sawah Besar": "Jakarta",
-  "Kecamatan Benda": "Jakarta",
-  "Menteng": "Jakarta",
-  "Pademangan Barat": "Jakarta",
-  "Tangerang": "Jakarta",
-  "Benda": "Jakarta",
-  "Ciudad Autónoma de Buenos Aire": "Buenos Aires",
-  "Ciudad de Buenos AIres": "Buenos Aires",
-  "Capital Federal": "Buenos Aires",
-  "San Telmo": "Buenos Aires",
-  "Retiro": "Buenos Aires",
-  "Puerto Madero": "Buenos Aires",
-  "Belgrano": "Buenos Aires",
-  "Belgrano C": "Buenos Aires",
-  "Balvanera": "Buenos Aires",
-  "Chacarita": "Buenos Aires",
-  "Flores": "Buenos Aires",
-  "AAQ": "Buenos Aires",
-  "Las Heras": "Mendoza",
-  "Villa Nueva": "Mendoza",
-  "M5500GMF": "Mendoza",
-  "Ciudad": "Mendoza",
-  "Providencia": "Santiago",
-  "Recoleta": "Santiago",
-  "Estación Central": "Santiago",
-  "Pudahuel": "Santiago",
-  "Quinta Normal": "Santiago",
-  "Maipú": "Santiago",
-  "La Florida": "Santiago",
-  "Vitacura": "Santiago",
-  "Santiago de Chile​": "Santiago",
-  "Metropolitana": "Santiago",
-  "Puente Alto": "Santiago",
-  "Hoàn Kiếm": "Hanoi",
-  "Tây Hồ": "Hanoi",
-  "Hai Bà Trưng": "Hanoi",
-  "Ba Đình": "Hanoi",
-  "Đống Đa": "Hanoi",
-  "Hồ Tây": "Hanoi",
-  "Hà Nội": "Hanoi",
-  "Hai Ba Trưng": "Hanoi",
-  "Sóc Sơn": "Hanoi",
-  "Thanh Xuân": "Hanoi",
-  "Trúc Bạch": "Hanoi",
-  "Hồ Chí Minh": "Ho Chi Minh City",
-  "Thành phố Hồ Chí Minh": "Ho Chi Minh City",
-  "Quận 3": "Ho Chi Minh City",
-  "Phường Phạm Ngũ Lão": "Ho Chi Minh City",
-  "Hcm": "Ho Chi Minh City",
-  "Ho Chi Minh": "Ho Chi Minh City",
-  "Hochiminh": "Ho Chi Minh City",
-  "Ben Nghe Ward": "Ho Chi Minh City",
-  "Củ Chi": "Ho Chi Minh City",
-  "Tân Bình": "Ho Chi Minh City",
-  "Daun Penh": "Phnom Penh",
-  "Phnom Pehn": "Phnom Penh",
-  "Chroy Changvar": "Phnom Penh",
-  "Dongcheng": "Beijing",
-  "Dōngchéng": "Beijing",
-  "Xicheng Qu": "Beijing",
-  "北京市朝陽區": "Beijing",
-  "Haidian": "Beijing",
-  "Jingshan": "Beijing",
-  "Chē gōngzhuāng": "Beijing",
-  "Jinrongjie": "Beijing",
-  "Badaling": "Beijing",
-  "Ha Er Bin Shi": "Harbin",
-  "Haerbin Shi": "Harbin",
-  "哈尔滨": "Harbin",
-  "Tsim Sha Tsui": "Hong Kong",
-  "Tsim Sha Tsui East": "Hong Kong",
-  "Kowloon": "Hong Kong",
-  "Kowloon City": "Hong Kong",
-  "Central": "Hong Kong",
-  "Central and Western District": "Hong Kong",
-  "Central District": "Hong Kong",
-  "Mong Kok to Tsim Sha Tsui": "Hong Kong",
-  "佐敦": "Hong Kong",
-  "Diamond Hill": "Hong Kong",
-  "Yau Ma Tei": "Hong Kong",
-  "Sheung Wan": "Hong Kong",
-  "Tamar": "Hong Kong",
-  "The Peak": "Hong Kong",
-  "Jordan": "Hong Kong",
-  "Se": "Macau",
-  "Macao": "Macau",
-  "大堂": "Macau",
-  "望德堂區": "Macau",
-  "澳門 Macau": "Macau",
-  "Nossa Senhora do Carmo": "Macau",
-  "Sao Lazaro": "Macau",
-  "Santo Antonio": "Macau",
-  "Sao Lourenco": "Macau",
-  "Taipa": "Macau",
-  "Shanghái": "Shanghai",
-  "Jing'an": "Shanghai",
-  "Baoshan": "Shanghai",
-  "Hongkou": "Shanghai",
-  "Xuhui": "Shanghai",
-  "Guang Zhou Shi": "Guangzhou",
-  "Changi Village": "Singapore",
-  "Marina": "Singapore",
-  "Thomson": "Singapore",
-  "Clarke Quay": "Singapore",
-  "City": "Singapore",
-  "Jalan Besar": "Singapore",
-  "Sentosa Island": "Singapore",
-  "Bur Dubai": "Dubai",
-  "Deira": "Dubai",
-  "Al Rigga": "Dubai",
-  "Al Karama": "Dubai",
-  "Palm Jumeirah": "Dubai",
-  "Dubai International Airport": "Dubai",
-  "Athina": "Athens",
-  "Athens Center": "Athens",
-  "Spata": "Athens",
-  "Néa Filadélfeia": "Athens",
-  "Νέας Φιλαδέλφειας": "Athens",
-  "Nea Ionia": "Athens",
-  "Acropolis": "Athens",
-  "Thissio": "Athens",
-  "Gyzi": "Athens",
-  "Αργυρούπολης": "Athens",
-  "Πετράλωνα": "Athens",
-  "Ν. Κόσμος": "Athens",
-  "Paianía": "Athens",
-  "Nea Smyrni": "Athens",
-  "Νέας Σμύρνης": "Athens",
-  "Elliniko": "Athens",
-  "Argyroupoli": "Athens",
-  "Alimos": "Athens",
-  "Voula": "Athens",
-  "Pangrati": "Athens",
-  "Koukaki": "Athens",
-  "Palaio Faliro": "Athens",
-  "København K": "Copenhagen",
-  "København NV": "Copenhagen",
-  "København Ø": "Copenhagen",
-  "København V": "Copenhagen",
-  "Christianshavn": "Copenhagen",
-  "Kopenhagen": "Copenhagen",
-  "København": "Copenhagen",
-  "Hellerup": "Copenhagen",
-  "Kastrup": "Copenhagen",
-  "Venezia": "Venice",
-  "Burano": "Venice",
-  "Murano": "Venice",
-  "Lido": "Venice",
-  "Tessera": "Venice",
-  "Borgo Panigale": "Bologna",
-  "Vila Nova de Gaia": "Porto",
-  "Matosinhos": "Porto",
-  "Maia": "Porto",
-  "Foz do Douro": "Porto",
-  "Foz do douro": "Porto",
-  "Vila Nova Gaia": "Porto",
-  "Moscavide": "Lisbon",
-  "Camarate": "Lisbon",
-  "Algés": "Lisbon",
-  "Cacilhas": "Lisbon",
-  "Almada": "Lisbon",
-  "Alfama": "Lisbon",
-  "Praha1": "Prague",
-  "Praha 3": "Prague",
-  "Nové Město": "Prague",
-  "Budapest VIII. kerület": "Budapest",
-  "Budapest V. kerület": "Budapest",
-  "Budapest XIV. kerület": "Budapest",
-  "Óbuda-Békásmegyer": "Budapest",
-  "Angyalföld": "Budapest",
-  "Beograd": "Belgrade",
-  "Belgrad": "Belgrade",
-  "Beograde": "Belgrade",
-  "Zemun": "Belgrade",
-  "Opština Beograd-Zemun": "Belgrade",
-  "Senjak": "Belgrade",
-  "Dorćol": "Belgrade",
-  "Sarejevo": "Sarajevo",
-  "Sarajevo Canton": "Sarajevo",
-  "Ilidža": "Sarajevo",
-  "Istočno Sarajevo": "Sarajevo",
-  "Kraków-Śródmieście": "Kraków",
-  "Краків": "Krakow",
-  "Delhi": "New Delhi",
-  "Hāora": "Kolkata",
-  "Uttarpāra": "Kolkata",
-  "Thāne": "Mumbai",
-  "Borivli": "Mumbai",
-  "Binǝ": "Baku",
-  "Binə": "Baku",
-  "Şimal": "Baku",
-  "Bakı": "Baku",
-  "Səbayıl": "Baku",
-  "Chişinău": "Chișinău",
-  "Кишинёв": "Chișinău",
-  "Chisinau": "Chișinău",
-  "Київ": "Kyiv",
-  "Ужгород": "Uzhhorod",
-  "Uzhhorodskyi raion": "Uzhhorod",
-  "Могилёв": "Mogilev",
-  "Могилев": "Mogilev",
-  "Магiлёў": "Mogilev",
-  "Магілёў": "Mogilev",
-  "Витебск": "Vitebsk",
-  "Viciebsk": "Vitebsk",
-  "Vitsyebsk": "Vitebsk",
-  "Бобруйск": "Bobruisk",
-  "Бабруйск": "Bobruisk",
-  "Брест": "Brest",
-  "Гомель": "Gomel",
-  "Homieĺ": "Gomel",
-  "Борисов": "Borisov",
-  "Barysaŭ": "Borisov",
-  "Barysaw": "Borisov",
-  "Батуми": "Batumi",
-  "Batum": "Batumi",
-  "Тошкент": "Tashkent",
-  "Ташкент": "Tashkent",
-  "Алматы": "Almaty",
-  "Алма-Ата": "Almaty",
-  "Нур-Султан": "Astana",
-  "Астана": "Astana",
-  "Nur-Sultan": "Astana",
-  "Варшава": "Warsaw",
-  "Warszawa": "Warsaw",
-  "Warszawa-Praga Północ": "Warsaw",
-  "Казань": "Kazan'",
-  "Kazan": "Kazan'",
-  "Новосибирск": "Novosibirsk",
-  "Красноярск": "Krasnoyarsk",
-  "город Красноярск": "Krasnoyarsk",
-  "Екатеринбург": "Yekaterinburg",
-  "город Омск": "Omsk",
-  "Ярославль": "Yaroslavl",
-  "Тверь": "Tver",
-  "Нижний Новгород": "Nizhny Novgorod",
-  "Смоленск": "Smolensk",
-  "Вильнюс": "Vilnius",
-  "București": "Bucharest",
-  "Sector  1": "Bucharest",
-  "София": "Sofia",
-  "Скопје": "Skopje",
-  "Shkupi": "Skopje",
-  "Dolna Matka": "Skopje",
-  "Львів": "Lviv",
-  "Днiпропетровськ": "Dnipro",
-  "Днiпро": "Dnipro",
-  "Днепропетровск": "Dnipro",
-  "Jaunmārupe": "Riga",
-  "Mārupe": "Riga",
-  "Mārupes Novads 10/1": "Riga",
-  "Rīga": "Riga",
-  "Centrs": "Riga",
-  "Lidosta \"Rīga\"": "Riga",
-  "Smarhon'": "Smarhon",
-  "Smarhoń": "Smarhon",
-  "Smarhonski Rayon": "Smarhon",
-  "Iaşi": "Iași",
-  "Iasi": "Iași",
-  "Yerevan, Sakharov Square": "Yerevan",
-  "콸라룸푸르": "Kuala Lumpur",
-  "Куала-Лумпур": "Kuala Lumpur",
-  "Kuala Lumpur City Center": "Kuala Lumpur",
-  "Batu Caves": "Kuala Lumpur",
-  "Petaling Jaya": "Kuala Lumpur",
-  "Ampang": "Kuala Lumpur",
-  "Hulu Klang": "Kuala Lumpur",
-  "Gombak": "Kuala Lumpur",
-  "Albița - Leușeni": "Leuseni",
-  "Albița": "Leuseni",
-  "Leuşeni": "Leușeni",
-  "Sighişoara": "Sighișoara",
-  "Mediaş": "Mediaș",
-  "Curtea de Argeş": "Curtea de Argeș",
-  "Corneşti": "Cornești",
-  "Focşani": "Focșani",
-  "Botoşani": "Botoșani",
-  "Giurgiuleşti": "Giurgiulești",
-  "Dragomireşti": "Dragomir esti",
-  "Cimişlia": "Cimișlia",
-  "Sighetu Marmaţiei": "Sighetu Marmației",
-  "Coşniţa": "Coșnița",
-  "Cârţişoara": "Cârțișoara",
-  "Hârşova": "Hârșova",
-  "Târgu Mureş": "Târgu Mureș",
-  "Borşa": "Borșa",
-  "Tehrān": "Tehran",
-  "تهران": "Tehran",
-  "Malaga": "Málaga",
-  "Mestre": "Venice",
-  "Karmėlava": "Kaunas",
-  "Otopeni": "Bucharest",
-  "SÃ£o Paulo": "São Paulo",
-  "Петергоф": "Peterhof",
-  "Пушкин": "Pushkin",
-  "город Кронштадт": "Kronshtadt",
-  "Кронштадт": "Kronshtadt",
-  "Vilniaus rajonas": "Vilniaus Rajonas",
-  "Химки": "Khimki",
-  "Зеленоград": "Zelenograd",
-  "Прилуки": "Priluki",
-  "Щомыслица": "Shchomyslitsa",
-  "Городище": "Haradzishcha",
-  "Haradzišča": "Haradzishcha",
-  "Гонолес": "Gonoles",
-  "Копишча": "Kopishcha",
-  "Kopishche": "Minsk",
-  "Минский р-н": "Minsk",
-  "Минская Обл.": "Minsk",
-  "Минский район": "Minsk",
-  "Minski Rayon": "Minsk",
-  "Новая Боровая": "Minsk",
-  "Старое село": "Staroye Selo",
-  "Дегтяревка": "Dehtaryowka",
-  "п. Ратомка": "Ratamka",
-  "Valer'yanovo": "Valeryanovo",
-  "Заслаўе": "Zaslawye",
-  "Осиповичи": "Asipovichy",
-  "Браслав": "Braslav",
-  "Ашмяны": "Ashmyany",
-  "Полоцк": "Polotsk",
-  "Орша": "Orsha",
-  "Несвиж": "Nesvizh",
-  "Миоры": "Miyory",
-  "Быхов": "Bykhov",
-  "Язненский": "Yaznenski",
-  "Домашаны": "Domashany",
-  "Домошаны": "Domoshany",
-  "Хотислав": "Khotislav",
-  "д. Муравьёвка": "Muravyovka",
-  "д. Бенякони": "Benyakoni",
-  "д. Мокраны": "Mokrany",
-  "д. Котловка": "Kotlovka",
-  "Городьки": "Haradzki",
-  "Чики": "Chiki",
-  "Рогачёв": "Rahachow",
-  "Тирасполь": "Tiraspol",
-  "Бендеры": "Bender",
-  "Первомайск": "Pervomaysk",
-  "Мамалига": "Mamalyha",
-  "Подборовье-1": "Podborovye",
-  "пос. Заплюсье": "Zaplyusye",
-  "Дивногорск": "Divnogorsk",
-  "Кривой Рог": "Kryvyi Rih",
-  "Здолбунов": "Zdolbuniv",
-  "Сигнаги": "Signagi",
-  "Кутаиси": "Kutaisi",
-  "Бурабай": "Burabay",
-  "Щучинск": "Shchuchinsk",
-  "Кордай": "Korday",
-  "Мостар": "Mostar",
-  "Чернигов": "Chernihiv",
-  "Hrodzyenski Rayon": "Lida",
-  "Ol'khonskiy Rayon": "Olkhon Island",
-  "Olkhonsky District": "Olkhon Island",
-  "Пос. Хужир": "Khuzhir",
-  "Вiцебск": "Vitebsk",
-  "Гродна": "Hrodna",
-  "Нур-сұлтан": "Astana",
-  "Tirana District": "Tirana",
-  "Lundër 1": "Tirana",
-  "Gozo and Comino District": "Victoria",
-  "Victoria, Gozo": "Victoria",
-  "서울특별시": "Seoul",
-  "Seoul": "Seoul",
-  "Kopishcha": "Minsk",
-  "Borovaya": "Minsk",
-  "Zhdanovichy": "Minsk",
-  "Borovlyany": "Minsk",
-  "Novaya Borovaya": "Minsk",
-  "Доха": "Doha",
-  "دوحة": "Doha",
-  "Кальнiкавiчы": "Kalinkavichy",
-  "Калінкавічы": "Kalinkavichy",
-  "Калiнкавiчы": "Kalinkavichy",
-  "Калинковичи": "Kalinkavichy",
-  "Kalinkavičy": "Kalinkavichy",
-  "Бярозa": "Byaroza",
-  "Baranavičy": "Baranovichi",
-  "Baranawičy": "Baranavichy",
-  "Барановичи": "Baranovichi",
-  "Баранавічы": "Baranovichi",
-  "Baranavichy": "Baranovichi",
-  "Maladziečna": "Maladzyechna",
-  "Maladzechna": "Maladzyechna",
-  "Маладзечна": "Maladzyechna",
-  "Молодечно": "Maladzyechna",
-  "Bychaŭ": "Bykhov",
-  "Rečyca": "Rechytsa",
-  "Kryčaŭ": "Krychaw",
-  "Krychaw": "Krychaw",
-  "Orša": "Orsha",
-  "Stoŭbcy": "Stowbtsy",
-  "Stowbtsy": "Stowbtsy",
-  "Ašmiany": "Ashmyany",
-  "Mscislaŭ": "Mstsislaw",
-  "Lojeŭ": "Loyew",
-  "Lyepyel'": "Lyepyel",
-  "Hâncești": "Hîncești",
-  "Câmpulung": "Campulung",
-  "Giurgiu": "Giurgiu",
-  "Szczecin": "Szczecin",
-  "Bydgoszcz": "Bydgoszcz",
-  "Lublin": "Lublin",
-  "Oświęcim": "Oswiecim",
-  "Coimbrã": "Coimbra",
-  "Āgra": "Agra",
-  "Muţraḩ": "Mutrah",
-  "As Sīb al Jadīdah": "Al Seeb",
-  "Ruwī": "Ruwi",
-  "Tajrīsh": "Tajrish",
-  "Dahshūr": "Dahshur",
-  "Сергиев Посад": "Sergiyev Posad",
-  "Sliznëvo": "Sliznevo",
-  "stancyja Hudahaj": "Gudogay",
-  "Mar'ina Horka": "Maryina Horka",
-  "Zales'ye": "Zalesye",
-  "Skidel'skiy": "Skidel",
-  "Skidzyel'": "Skidel",
-  "Nevel'": "Nevel",
-  "Ob'": "Ob",
-  "Navapolatsk": "Navapolatsk",
-  "Одесская обл.": "Odesa Region",
-  "Запоріжжя": "Zaporizhzhia",
-  "Zaporizhia": "Zaporizhzhia",
-  "Смоленская обл.": "Smolensk Region",
-  "Смоленская обл. - республика Беларусь": "Smolensk Region",
-  "РФ / РБ": "Smolensk Region",
-  "Красноярский край": "Krasnoyarsk Region",
-  "Ленинградская обл.": "Leningrad Region",
-  "Псковская область": "Pskov Region",
-  "Poznan": "Poznań",
-  "Wroclaw": "Wrocław",
-  "Samarkand": "Samarqand",
-  "Sighisoara": "Sighișoara",
-  "Podgorics": "Podgorica",
-  "Lanarca": "Larnaca",
-  "Pafos": "Paphos",
-  "Krong Siem Reap": "Siem Reap",
-  "Huangpu": "Shanghai",
-  "Pudong": "Shanghai",
-  "Vatican": "Vatican City",
-  "Polack": "Polotsk",
-  "Polatsk": "Polotsk",
-  "Madrid City Center": "Madrid",
-  "Varna Municipality": "Varna",
-  "Daugavpils municipality": "Daugavpils",
-  "Kauno rajonas": "Kaunas",
-  "Tartu Parish": "Tartu",
-  "Mazowieckie": "Warsaw",
-  "Provincia di Vicenza": "Venice",
-  "Provincia di Verona": "Verona",
-  "Provincia di Bari": "Bari",
-  "Provincia di Palermo": "Palermo",
-  "Borsa": "Borșa",
-  "Garni": "Garni",
-  "Garrni": "Garni",
-  "Minsk District": "Minsk",
-  "Minsk Region": "Minsk",
-  "Grodno District": "Lida",
-  "Baranovichi": "Baranavichy",
-  "Balti": "Bălți",
-  "Leuseni": "Leușeni",
-  "Giurgiulesti": "Giurgiulești",
-  "Hincesti": "Hîncești",
-  "Varnita": "Varnița",
-  "Truseni": "Trușeni",
-  "Edinet": "Edineț",
-  "Cimislia": "Cimișlia",
-  "Cosnita": "Coșnița",
-  "Cornesti": "Cornești",
-  "Bacau": "Bacău",
-  "Galati": "Galați",
-  "Braila": "Brăila",
-  "Bistrita": "Bistrița",
-  "Fetesti": "Fetești",
-  "Viseu de Sus": "Vișeu de Sus",
-  "Transfagarasan": "Transfăgărășan",
-  "Poiana Brasov": "Poiana Brașov",
-  "Muntii Bucegi": "Munții Bucegi",
-  "Busteni": "Bușteni",
-  "Rasnov": "Râșnov",
-  "Sapanta": "Săpânța",
-  "Targu Mures": "Târgu Mureș",
-  "Curtea de Arges": "Curtea de Argeș",
-  "Sighetu Marmatiei": "Sighetu Marmației",
-  "Focsani": "Focșani",
-  "Harsova": "Hârșova",
-  "Medias": "Mediaș",
-  "Botosani": "Botoșani",
-  "Cartisoara": "Cârțișoara",
-  "Dragomir esti": "Dragomirești",
-  "Galbiori": "Gălbiori",
-  "Lodz": "Łódź",
-  "Gdansk": "Gdańsk",
-  "Bialystok": "Białystok",
-  "Torun": "Toruń",
-  "Krakow": "Kraków",
-  "Оświęcim": "Oświęcim",
-  "Oswiecim": "Oświęcim",
-  "Augustow": "Augustów",
-  "Chorzow": "Chorzów",
-  "Grojec": "Grójec",
-  "Babieta": "Babięta",
-  "Kosice": "Košice",
-  "Salcininkai": "Šalčininkai",
-  "Jurmala": "Jūrmala",
-  "Parnu": "Pärnu",
-  "Skofja Loka": "Škofja Loka",
-  "Portoroz": "Portorož",
-  "Obrezje": "Obrežje",
-  "Ribcev Laz": "Ribčev Laz",
-  "Stara Fuzina": "Stara Fužina",
-  "Plitvice Lakes": "Plitvička Jezera",
-  "Kastel Stafilic": "Kaštel Štafilić",
-  "Tubingen": "Tübingen",
-  "Lubeck": "Lübeck",
-  "Wurenlos": "Würenlos",
-  "Warnemunde": "Warnemünde",
-  "Schonefeld": "Schönefeld",
-  "Nykoping": "Nyköping",
-  "Cordoba": "Córdoba",
-  "Alora": "Álora",
-  "Valparaiso": "Valparaíso",
-  "Vina del Mar": "Viña del Mar",
-  "San Jose de Maipo": "San José de Maipo",
-  "Sao Paulo": "São Paulo",
-  "Niteroi": "Niterói",
-  "My Tho": "Mỹ Tho",
-  "Bugibba": "Buġibba",
-  "Mellieha": "Mellieħa",
-  "Zebbug Gozo": "Żebbuġ",
-  "Ghajnsielem": "Għajnsielem",
-  "Mgarr Gozo": "Imġarr",
-  "Zurrieq": "Żurrieq",
-  "Ghasri": "Għasri",
-  "Mgarr": "Mġarr",
-  "Cirkewwa": "Ċirkewwa",
-  "Rabat Gozo": "Ir-Rabat Għawdex",
-  "Gharb": "Għarb",
-  "Siggiewi": "Siġġiewi",
-  "Zejtun": "Żejtun",
-  "Gzira": "Gżira",
-  "St Pauls Bay": "San Pawl il-Baħar",
-  "Tille": "Tillé"
+  // ─────────────────────────────────────────────────────────────────────
+  // city_merge.json — canonical city merge map
+  // Format: "raw_foursquare_value" → "canonical_city_name"  // comment
+  // Sections sorted alphabetically by country.
+  // ─────────────────────────────────────────────────────────────────────
+
+  // ══ ALBANIA ══
+  "Tirana District": "Tirana",  // ok — city district
+  "Lundër 1": "Tirana",  // ok — suburb of Tirana
+
+  // ══ ARMENIA ══
+  "Yerevan, Sakharov Square": "Yerevan",  // ok — landmark in Yerevan
+  "Гарни": "Garni",  // ok — Cyrillic → Garni
+  "Нораванк": "Noravank",  // ok — Cyrillic → Noravank
+
+  // ══ AZERBAIJAN ══
+  "Binə": "Baku",  // ok — Binagadi district of Baku
+  "Binǝ": "Baku",  // ok — variant spelling
+  "Şimal": "Baku",  // ok — district of Baku
+  "Bakı": "Baku",  // ok — Azerbaijani name for Baku
+  "Səbayıl": "Baku",  // ok — district of Baku
+
+  // ══ BELARUS / HRODNA ══
+  "Гродна": "Hrodna",  // ok — Belarusian Cyrillic name
+  "гродно": "Hrodna",  // ok — Russian lowercase name
+  "Hrodzyenski Rayon": "Lida",  // ⚠️ DECISION NEEDED — 8 checkins at 53.89,25.31 = Lida city centre (Лидское Озеро, Площадь 600-летия Лиды). NOT near Hrodna (53.68,23.84). Change to Lida?
+  "Grodno District": "Lida",  // ok — same as above, no direct checkins
+
+  // ══ BELARUS / MINSK ══
+  "Минск": "Minsk",  // ok — Cyrillic name
+  "Мiнск": "Minsk",  // ok — variant Cyrillic
+  "Мінск": "Minsk",  // ok — Belarusian Cyrillic
+  "минск": "Minsk",  // ok — lowercase
+  "Mink": "Minsk",  // ok — typo
+  "Mińsk": "Minsk",  // ok — Polish diacritic form
+  "Минск - Гродно": "Minsk",  // ok — transit label, starts from Minsk
+  "Копишча": "Minsk",  // ok — Kopishcha, suburb within Minsk ring
+  "Kopishcha": "Minsk",  // ok — Latin form
+  "Kopishche": "Minsk",  // ok — alternate Latin
+  "Borovaya": "Minsk",  // ok — suburban district of Minsk
+  "Zhdanovichy": "Minsk",  // ok — suburb within Minsk area
+  "Borovlyany": "Minsk",  // ok — suburb within Minsk area
+  "Novaya Borovaya": "Minsk",  // ok — new development inside Minsk
+  "Новая Боровая": "Minsk",  // ok — Cyrillic form
+  "Минский р-н": "Minsk",  // ok — Minsk District label, check-ins at Aksak., Yunost, Usha station — all within Minsk metro area
+  "Минская Обл.": "Minsk",  // ok — single checkin at A-100 petrol near Minsk
+  "Минский район": "Minsk",  // ok — single checkin at Tarasovo, 15km from Minsk
+  "Minski Rayon": "Minsk",  // ok — 10 checkins all within Minsk ring (MKAD-2, Minsk Sea, etc.)
+  "Minsk District": "Minsk",  // ok — no checkins in CSV, keep as safety merge
+  "Minsk Region": "Minsk",  // ok — no checkins in CSV, keep as safety merge
+  "Прилуки": "Minsk",  // ⚠️ DECISION NEEDED — 5 checkins at Pryluky estate (53.79,27.45), 20km west of Minsk. Merged to Minsk previously. Keep as separate city 'Pryluky'?
+  "Прилукская Слобода": "Priluki",  // ok — village adjacent to Pryluky estate
+
+  // ══ BELARUS / OTHER ══
+  "Ашмяны": "Ashmyany",  // ok — Cyrillic
+  "Ašmiany": "Ashmyany",  // ok — Belarusian Latin
+  "Брест": "Brest",  // ok — Cyrillic
+  "Браслав": "Braslav",  // ok — Cyrillic
+  "Бярозa": "Byaroza",  // ok — Cyrillic
+  "Барановичи": "Baranovichi",  // ok — Russian Cyrillic
+  "Баранавічы": "Baranovichi",  // ok — Belarusian Cyrillic
+  "Baranavičy": "Baranovichi",  // ok — Belarusian Latin
+  "Baranawičy": "Baranovichi",  // ok — variant Latin
+  "Baranavichy": "Baranovichi",  // ok — another Latin variant
+  "Baranovichi": "Baranovichi",  // ok — standard Latin
+  "Бобруйск": "Bobruisk",  // ok — Russian Cyrillic
+  "Бабруйск": "Bobruisk",  // ok — Belarusian Cyrillic
+  "Борисов": "Borisov",  // ok — Cyrillic
+  "Barysaŭ": "Borisov",  // ok — Belarusian Latin
+  "Barysaw": "Borisov",  // ok — variant
+  "Быхов": "Bykhov",  // ok — Cyrillic
+  "Bychaŭ": "Bykhov",  // ok — Belarusian Latin
+  "Витебск": "Vitebsk",  // ok — Russian Cyrillic
+  "Вiцебск": "Vitebsk",  // ok — Belarusian Cyrillic
+  "Viciebsk": "Vitebsk",  // ok — Belarusian Latin
+  "Vitsyebsk": "Vitebsk",  // ok — alternate Latin
+  "Гомель": "Gomel",  // ok — Cyrillic
+  "Homieĺ": "Gomel",  // ok — Belarusian Latin
+  "Городище": "Haradzishcha",  // ok — Cyrillic
+  "Haradzišča": "Haradzishcha",  // ok — Belarusian Latin
+  "Городьки": "Haradzki",  // ok — Cyrillic
+  "Чики": "Chiki",  // ok — village
+  "Дегтяревка": "Dehtaryowka",  // ok — Cyrillic → Latin
+  "Дабрынёва": "Dabrynova",  // ok — Cyrillic → Latin
+  "Д. Страченята": "Strachanyaty",  // ok — village with prefix д.
+  "Домашаны": "Domoshany",  // ok — Cyrillic
+  "Домошаны": "Domoshany",  // ok — Russian variant
+  "Заслаўе": "Zaslavye",  // ok — Belarusian Cyrillic
+  "Заславль": "Zaslavye",  // ok — Russian Cyrillic name
+  "Зарэчча 1": "Zarechye",  // ok — Belarusian Cyrillic, village
+  "Заречье-1": "Zarechye",  // ok — Russian form
+  "Залог Пятилетки": "Zalog Pyatiletki",  // ok — standalone village (53.29,28.25), no nearby city
+  "Гонолес": "Gonoles",  // ok — village
+  "Хотислав": "Khotislav",  // ok — village
+  "д. Муравьёвка": "Muravyovka",  // ok — village prefix д.
+  "д. Бенякони": "Benyakoni",  // ok
+  "д. Мокраны": "Mokrany",  // ok — same as Мокраны
+  "д. Котловка": "Kotlovka",  // ok
+  "д. Михановичи": "Mikhanovichi",  // ok — village
+  "д. Крупица": "Krupitsa",  // ok — village
+  "д. Брузги": "Bruzgi",  // ok — border village
+  "Бегомльский с/с": "Biegomlia",  // ok — Begomlia rural council → Begomlia
+  "Бараўцы": "Barawtsy",  // ok — Cyrillic → Latin
+  "Беларучи": "Belaruchy",  // ok
+  "Бялынічы": "Byalynichy",  // ok — Cyrillic
+  "Крэва": "Krevo",  // ok — Cyrillic
+  "Кричев": "Krychaw",  // ok — merged with existing Krychaw entry
+  "Крылово": "Krylovo",  // ok
+  "Куропаты": "Kuropaty",  // ok — historical site near Minsk, keep separate
+  "Камянец": "Kamyanyets",  // ok — Kamyanyets city
+  "Калінкавічы": "Kalinkavichy",  // ok — Belarusian Cyrillic
+  "Кальнiкавiчы": "Kalinkavichy",  // ok — mixed script variant
+  "Калiнкавiчы": "Kalinkavichy",  // ok — variant
+  "Калинковичи": "Kalinkavichy",  // ok — Russian Cyrillic
+  "Kalinkavičy": "Kalinkavichy",  // ok — Latin with háček
+  "Лепель": "Lyepyel",  // ok — Cyrillic, same as Lyepyel'
+  "Лесковка": "Leskovka",  // ok
+  "Логойский р-н": "Logoisk",  // ok — single checkin at Logoisk ski resort (54.18,27.81), clearly Logoisk
+  "Маладзечна": "Maladzyechna",  // ok — Belarusian Cyrillic
+  "Молодечно": "Maladzyechna",  // ok — Russian Cyrillic
+  "Maladziečna": "Maladzyechna",  // ok — Latin
+  "Maladzechna": "Maladzyechna",  // ok — variant Latin
+  "Мачулищи": "Machulishchy",  // ok — town 15km south of Minsk, kept separate
+  "Миоры": "Miyory",  // ok — Cyrillic
+  "Мокраны": "Mokrany",  // ok — village
+  "Могилёв": "Mogilev",  // ok — Russian Cyrillic
+  "Могилев": "Mogilev",  // ok — variant
+  "Магiлёў": "Mogilev",  // ok — Belarusian Cyrillic
+  "Магілёў": "Mogilev",  // ok — variant Belarusian
+  "Mar'ina Horka": "Maryina Horka",  // ok — apostrophe form
+  "Mscislaŭ": "Mstsislaw",  // ok — Belarusian Latin
+  "Новогрудок": "Navahrudak",  // ok — Cyrillic → Navahrudak
+  "Наваполле": "Navapolle",  // ok — village
+  "Несвиж": "Nesvizh",  // ok — Cyrillic
+  "Нур-Султан": "Astana",  // ok — former name, now Astana
+  "Орша": "Orsha",  // ok — Cyrillic
+  "Orša": "Orsha",  // ok — Latin with háček
+  "Осиповичи": "Asipovichy",  // ok — Russian Cyrillic
+  "Асіповічы": "Asipovichy",  // ok — Belarusian Cyrillic
+  "Першаи": "Pershai",  // ok — village
+  "Полоцк": "Polotsk",  // ok — Cyrillic
+  "Polack": "Polotsk",  // ok — Belarusian Latin
+  "Polatsk": "Polotsk",  // ok — variant
+  "п. Ратомка": "Ratamka",  // ok — settlement prefix п.
+  "Раковцы": "Rakovtsy",  // ok — village
+  "Раубичи": "Raubichi",  // ok — sports complex village
+  "Рованичи": "Rovanichi",  // ok — village
+  "Рогачёв": "Rahachow",  // ok — Cyrillic
+  "Речица": "Rechytsa",  // ok — Russian Cyrillic, merged with Rečyca
+  "Rečyca": "Rechytsa",  // ok — Belarusian Latin
+  "Kryčaŭ": "Krychaw",  // ok — Belarusian Latin
+  "Krychaw": "Krychaw",  // ok — already Latin
+  "Сеница": "Senitsa",  // ok — village
+  "Слонім": "Slonim",  // ok — Cyrillic
+  "Слуцкі раён": "Slutsk",  // ok — Slutsk district → Slutsk city
+  "Слуцк": "Slutsk",  // ok — Cyrillic
+  "Солигорск": "Soligorsk",  // ok — Cyrillic
+  "Станьково": "Stankov",  // ok — village
+  "Старое село": "Staroye Selo",  // ok
+  "stancyja Hudahaj": "Gudogay",  // ok — station name in Belarusian Latin
+  "Stoŭbcy": "Stowbtsy",  // ok — Belarusian Latin
+  "Stowbtsy": "Stowbtsy",  // ok
+  "Цуденишки": "Tsudenyshki",  // ok — village
+  "Шклов": "Shklov",  // ok — Cyrillic
+  "Шищицы": "Shishitsy",  // ok — village
+  "Щомыслица": "Shchomyslitsa",  // ok — Cyrillic
+  "Вилы": "Vily",  // ok — village
+  "Вишнёвка": "Vishniovka",  // ok — village
+  "Valer'yanovo": "Valeryanovo",  // ok — apostrophe form
+  "Зелёное": "Zyelonaye",  // ok — village
+  "Ивенец": "Ivyanets",  // ok — town Ivyanets
+  "Zales'ye": "Zalesye",  // ok — apostrophe form
+  "Lojeŭ": "Loyew",  // ok — Belarusian Latin
+  "Lyepyel'": "Lyepyel",  // ok — apostrophe form
+  "д. Большие Новосёлки": "Bolshiye Novosyolki",  // ok — village
+  "Язненский": "Yaznenski",  // ok
+  "Подборовье-1": "Podborovye",  // ok
+  "пос. Заплюсье": "Zaplyusye",  // ok — settlement prefix пос.
+  "Navapolatsk": "Navapolatsk",  // ok — already Latin
+
+  // ══ BELARUS / SMARHON ══
+  "Smarhon'": "Smarhon",  // ok — apostrophe variant
+  "Smarhoń": "Smarhon",  // ok — diacritic form
+  "Smarhonski Rayon": "Smarhon",  // ok — district = city here
+
+  // ══ BOSNIA AND HERZEGOVINA ══
+  "Sarejevo": "Sarajevo",  // ok — typo
+  "Sarajevo Canton": "Sarajevo",  // ok — canton = city administrative area
+  "Ilidža": "Sarajevo",  // ok — municipality of Sarajevo
+  "Istočno Sarajevo": "Sarajevo",  // ok — East Sarajevo, across the boundary but same urban area
+  "Мостар": "Mostar",  // ok — Cyrillic → Mostar
+
+  // ══ BRAZIL ══
+  "SÃ£o Paulo": "São Paulo",  // ok — encoding artefact
+  "Sao Paulo": "São Paulo",  // ok — ASCII form
+  "Niteroi": "Niterói",  // ok — ASCII form
+
+  // ══ BULGARIA ══
+  "София": "Sofia",  // ok — Cyrillic
+  "Varna Municipality": "Varna",  // ok — municipality = city
+
+  // ══ CAMBODIA ══
+  "Daun Penh": "Phnom Penh",  // ok — central district
+  "Phnom Pehn": "Phnom Penh",  // ok — typo
+  "Chroy Changvar": "Phnom Penh",  // ok — district
+  "Krong Siem Reap": "Siem Reap",  // ok — Khmer administrative prefix
+
+  // ══ CHILE ══
+  "Providencia": "Santiago",  // ok — municipality of Santiago
+  "Recoleta": "Santiago",  // ok — municipality of Santiago
+  "Estación Central": "Santiago",  // ok — municipality of Santiago
+  "Pudahuel": "Santiago",  // ok — municipality, contains airport
+  "Quinta Normal": "Santiago",  // ok — municipality of Santiago
+  "Maipú": "Santiago",  // ok — municipality of Santiago
+  "La Florida": "Santiago",  // ok — municipality of Santiago
+  "Vitacura": "Santiago",  // ok — municipality of Santiago
+  "Santiago de Chile​": "Santiago",  // ok — full name with invisible char
+  "Metropolitana": "Santiago",  // ok — Región Metropolitana = Santiago area
+  "Puente Alto": "Santiago",  // ok — municipality of Gran Santiago
+  "Valparaiso": "Valparaíso",  // ok — ASCII form
+  "Vina del Mar": "Viña del Mar",  // ok — ASCII form
+  "San Jose de Maipo": "San José de Maipo",  // ok — ASCII form
+
+  // ══ CHINA ══
+  "Shanghái": "Shanghai",  // ok — Spanish diacritic form
+  "Jing'an": "Shanghai",  // ok — district of Shanghai
+  "Baoshan": "Shanghai",  // ok — district of Shanghai
+  "Hongkou": "Shanghai",  // ok — district of Shanghai
+  "Xuhui": "Shanghai",  // ok — district of Shanghai
+  "Huangpu": "Shanghai",  // ok — central district of Shanghai
+  "Pudong": "Shanghai",  // ok — district of Shanghai
+  "Dongcheng": "Beijing",  // ok — central district of Beijing
+  "Dōngchéng": "Beijing",  // ok — pinyin with tones
+  "Xicheng Qu": "Beijing",  // ok — district of Beijing
+  "北京市朝陽區": "Beijing",  // ok — Chinese characters, Chaoyang district
+  "Haidian": "Beijing",  // ok — district of Beijing
+  "Jingshan": "Beijing",  // ok — park/area in Beijing
+  "Chē gōngzhuāng": "Beijing",  // ok — subway station area
+  "Jinrongjie": "Beijing",  // ok — financial street area
+  "Badaling": "Beijing",  // ok — Great Wall area, Beijing municipality
+  "Ha Er Bin Shi": "Harbin",  // ok — pinyin transcription
+  "Haerbin Shi": "Harbin",  // ok — alternate pinyin
+  "哈尔滨": "Harbin",  // ok — Chinese characters
+  "Guang Zhou Shi": "Guangzhou",  // ok — pinyin
+
+  // ══ CROATIA ══
+  "Kaštel Štafilić": "Kastel Stafilic",  // ok — keeping simplified form for compatibility
+  "Kastel Stafilic": "Kaštel Štafilić",  // ok — ASCII → proper Croatian
+  "Plitvice Lakes": "Plitvička Jezera",  // ok — English → proper Croatian
+
+  // ══ CZECH REPUBLIC ══
+  "Praha1": "Prague",  // ok — no space typo
+  "Praha 3": "Prague",  // ok — district number
+  "Nové Město": "Prague",  // ok — New Town district of Prague
+
+  // ══ DENMARK ══
+  "København K": "Copenhagen",  // ok — postal district K = centre
+  "København NV": "Copenhagen",  // ok — NV = north-west district
+  "København Ø": "Copenhagen",  // ok — east district
+  "København V": "Copenhagen",  // ok — west district
+  "Christianshavn": "Copenhagen",  // ok — neighbourhood of Copenhagen
+  "Kopenhagen": "Copenhagen",  // ok — German name
+  "København": "Copenhagen",  // ok — Danish name
+  "Hellerup": "Copenhagen",  // ok — suburb of Copenhagen
+  "Kastrup": "Copenhagen",  // ok — airport area, Copenhagen municipality
+
+  // ══ EGYPT / ALEXANDRIA ══
+  "Ar Raml": "Alexandria",  // ok — district of Alexandria
+  "Al Gomrok": "Alexandria",  // ok — district of Alexandria
+  "As Sayalah Sharq": "Alexandria",  // ok
+  "Al Azaritah WA Ash Shatebi": "Alexandria",  // ok
+  "Shatby": "Alexandria",  // ok — neighbourhood
+  "Al-Shatbi": "Alexandria",  // ok
+  "Al Mansheyah Al Kubra": "Alexandria",  // ok
+  "Manshiyya": "Alexandria",  // ok
+  "Dahshūr": "Dahshur",  // ok — keeping simplified (small site, no diacritic in common use)
+  "'Izbat al Baḩr": "Alexandria",  // ok — coastal area of Alexandria
+
+  // ══ EGYPT / CAIRO ══
+  "Downtown": "Cairo",  // ok — Downtown Cairo
+  "Bab Al Louq": "Cairo",  // ok — area of central Cairo
+  "Wust El-Balad": "Cairo",  // ok — Arabic for 'Downtown'
+  "Kahire": "Cairo",  // ok — Turkish name for Cairo
+  "Downtown, Cairo, Muḩāfaz̧at al Qāhirah": "Cairo",  // ok — full Arabic address
+  "Nasr City, Muḩāfaz̧at al Qāhirah": "Cairo",  // ok
+  "Heliopolis, Muḩāfaz̧at al Qāhirah": "Cairo",  // ok
+  "Al Azbakīyah, Muḩāfaz̧at al Qāhirah": "Cairo",  // ok
+  "Al Haram, Muḩāfaz̧at al Jīzah": "Cairo",  // ok — Giza plateau, treated as Cairo
+  "Mit Ruhaynah, Muḩāfaz̧at al Jīzah": "Cairo",  // ok — Giza area
+  "Al Azbakīyah": "Cairo",  // ok
+  "Al Zamalek": "Cairo",  // ok — Zamalek island
+  "Zamalek": "Cairo",  // ok
+  "Heliopolis": "Cairo",  // ok — district of Cairo
+  "New Cairo": "Cairo",  // ok — satellite city of Cairo
+  "Zahraa El Maadi": "Cairo",  // ok
+  "Dokki": "Cairo",  // ok — district of Giza/Cairo
+  "Giza": "Cairo",  // ok — part of Greater Cairo
+  "Islamic Cairo": "Cairo",  // ok
+  "Coptic Cairo": "Cairo",  // ok
+  "Mohandeseen": "Cairo",  // ok
+  "Mohandesin": "Cairo",  // ok — variant spelling
+  "Mohandessin": "Cairo",  // ok — variant
+  "Mohandiseen": "Cairo",  // ok — variant
+  "Bāb ash Sha'rīyah": "Cairo",  // ok
+  "Rawḑ al Faraj": "Cairo",  // ok
+  "Al 'Abbāsīyah": "Cairo",  // ok
+  "Bāb al Lūq": "Cairo",  // ok
+  "Bab El Louk": "Cairo",  // ok
+  "El Saiyida Zeinab": "Cairo",  // ok
+  "Al Sayeda Zaynab": "Cairo",  // ok
+  "Al Sayeda Zainab Sq.": "Cairo",  // ok
+  "Al Nozha": "Cairo",  // ok
+  "Ghamrah": "Cairo",  // ok
+  "Madīnat al Muqaţţam": "Cairo",  // ok
+  "Al Muqattam": "Cairo",  // ok
+  "Al Moqattam": "Cairo",  // ok
+  "Muqattam": "Cairo",  // ok
+  "Manshīyat Nāşir": "Cairo",  // ok
+  "Shubrā": "Cairo",  // ok
+  "Masr Al Qadima": "Cairo",  // ok — Old Cairo
+  "Al Gamaliyah": "Cairo",  // ok
+  "Al Gamaleyah": "Cairo",  // ok
+  "Jamāliyah": "Cairo",  // ok
+  "Madīnat an Naşr": "Cairo",  // ok — Nasr City
+  "Al Matar": "Cairo",  // ok — airport area
+  "Ad Doqi": "Cairo",  // ok — Dokki
+  "Al Ma'ādī": "Al Maadi",  // ok — kept as separate city entry
+  "Ma'ādī al Khabīrī": "Al Maadi",  // ok — Maadi area
+  "Al Basātīn": "Cairo",  // ok
+  "Al Baghalah": "Cairo",  // ok
+  "Al Abageyah": "Cairo",  // ok
+  "Al Haram": "Cairo",  // ok
+  "Abdeen": "Cairo",  // ok
+  "Abdin": "Cairo",  // ok
+  "Al Khalīfah": "Cairo",  // ok
+  "Al Qal'ah": "Cairo",  // ok — Cairo Citadel area
+  "Al Qalaa": "Cairo",  // ok
+  "Al Abājīyah": "Cairo",  // ok
+  "Qesm Al Khalifah": "Cairo",  // ok
+  "Misr Al Qadimah": "Cairo",  // ok
+  "Misr El Qaddima": "Cairo",  // ok
+  "Misr al-Qadima": "Cairo",  // ok
+  "Misr Al Qadima": "Cairo",  // ok
+  "Qasr El Dubara": "Cairo",  // ok
+  "Al Mosky": "Cairo",  // ok
+  "Bab El Shaaria": "Cairo",  // ok
+  "Bab Al Shaaria": "Cairo",  // ok
+  "Bab Al Shearia": "Cairo",  // ok
+  "Abbassiya": "Cairo",  // ok
+  "Al Zaher": "Cairo",  // ok
+  "Al 'Ajūzah": "Cairo",  // ok
+  "Gazirat Mit Oqbah": "Cairo",  // ok
+  "Mīt 'Uqbah": "Cairo",  // ok
+  "Al 'Aţţārīn": "Cairo",  // ok
+  "Ramsis": "Cairo",  // ok — Ramses area
+  "El Zabalin": "Cairo",  // ok
+  "El-Darb El-Ahmar": "Cairo",  // ok
+  "Asad": "Cairo",  // ok
+  "Nazlat as Sammān": "Cairo",  // ok — near pyramids
+  "Kafr Nassar": "Cairo",  // ok
+  "Nazlet El-Semman": "Cairo",  // ok
+  "Kafr Ghaţāţī": "Cairo",  // ok
+  "Shabrāmant": "Cairo",  // ok
+  "Al Badrasheen": "Cairo",  // ok
+  "Helwan": "Cairo",  // ok — southern district of Cairo
+  "El Moneeb": "Cairo",  // ok
+  "Saqqara": "Cairo",  // ok — archaeological site, Giza area
+  "Ghayt Al Adah": "Cairo",  // ok
+  "Bulaq": "Cairo",  // ok — district of Cairo
+  "El-Gamaleya": "Cairo",  // ok
+  "Attaba": "Cairo",  // ok
+  "Sheraton Al Matar": "Cairo",  // ok — airport Sheraton area
+  "شيراتون المطار": "Cairo",  // ok — Arabic for Sheraton Airport
+  "El Sharq": "Port Said",  // ok — district of Port Said
+
+  // ══ ESTONIA ══
+  "Tartu Parish": "Tartu",  // ok — parish = city administrative unit
+  "Ивангород / Narva": "Ivangorod",  // ok — Russian border city opposite Narva, tagged as Estonia by Foursquare
+  "Pärnu": "Pärnu",  // ok — canonical, diacritics kept
+  "Parnu": "Pärnu",  // ok — ASCII form
+
+  // ══ FRANCE ══
+  "Tillé": "Tillé",  // ok — canonical (Beauvais airport commune)
+  "Tille": "Tillé",  // ok — ASCII form
+
+  // ══ GEORGIA ══
+  "Батуми": "Batumi",  // ok — Cyrillic
+  "Batum": "Batumi",  // ok — older form
+  "Сигнаги": "Signagi",  // ok — Cyrillic → Signagi
+  "Кутаиси": "Kutaisi",  // ok — Cyrillic
+
+  // ══ GERMANY ══
+  "Tübingen": "Tübingen",  // ok — canonical
+  "Tubingen": "Tübingen",  // ok — ASCII form
+  "Lübeck": "Lübeck",  // ok — canonical
+  "Lubeck": "Lübeck",  // ok — ASCII form
+  "Würenlos": "Würenlos",  // ok — canonical
+  "Wurenlos": "Würenlos",  // ok — ASCII form
+  "Warnemünde": "Warnemünde",  // ok — canonical
+  "Warnemunde": "Warnemünde",  // ok — ASCII form
+  "Schönefeld": "Schönefeld",  // ok — canonical (Berlin airport area)
+  "Schonefeld": "Schönefeld",  // ok — ASCII form
+
+  // ══ GREECE ══
+  "Athina": "Athens",  // ok — Greek name
+  "Athens Center": "Athens",  // ok
+  "Spata": "Athens",  // ok — location of Athens airport
+  "Néa Filadélfeia": "Athens",  // ok — municipality of Athens area
+  "Νέας Φιλαδέλφειας": "Athens",  // ok — Greek form
+  "Nea Ionia": "Athens",  // ok — municipality
+  "Acropolis": "Athens",  // ok — landmark area
+  "Thissio": "Athens",  // ok — neighbourhood
+  "Gyzi": "Athens",  // ok — neighbourhood
+  "Αργυρούπολης": "Athens",  // ok — Greek form of Argyroupoli
+  "Πετράλωνα": "Athens",  // ok — neighbourhood
+  "Ν. Κόσμος": "Athens",  // ok — Neos Kosmos neighbourhood
+  "Paianía": "Athens",  // ok — municipality near Athens
+  "Nea Smyrni": "Athens",  // ok — municipality
+  "Νέας Σμύρνης": "Athens",  // ok — Greek form
+  "Elliniko": "Athens",  // ok — municipality, former airport
+  "Argyroupoli": "Athens",  // ok — municipality
+  "Alimos": "Athens",  // ok — municipality
+  "Voula": "Athens",  // ok — municipality
+  "Pangrati": "Athens",  // ok — neighbourhood
+  "Koukaki": "Athens",  // ok — neighbourhood
+  "Palaio Faliro": "Athens",  // ok — municipality
+
+  // ══ HONG KONG ══
+  "Tsim Sha Tsui": "Hong Kong",  // ok — district
+  "Tsim Sha Tsui East": "Hong Kong",  // ok — district
+  "Kowloon": "Hong Kong",  // ok
+  "Kowloon City": "Hong Kong",  // ok — district
+  "Central": "Hong Kong",  // ok — district
+  "Central and Western District": "Hong Kong",  // ok
+  "Central District": "Hong Kong",  // ok
+  "Mong Kok to Tsim Sha Tsui": "Hong Kong",  // ok — route label
+  "佐敦": "Hong Kong",  // ok — Jordan in Chinese
+  "Diamond Hill": "Hong Kong",  // ok — district
+  "Yau Ma Tei": "Hong Kong",  // ok — district
+  "Sheung Wan": "Hong Kong",  // ok — district
+  "Tamar": "Hong Kong",  // ok — government district
+  "The Peak": "Hong Kong",  // ok — landmark area
+  "Jordan": "Hong Kong",  // ok — district
+
+  // ══ HUNGARY ══
+  "Budapest VIII. kerület": "Budapest",  // ok — 8th district
+  "Budapest V. kerület": "Budapest",  // ok — 5th district
+  "Budapest XIV. kerület": "Budapest",  // ok — 14th district
+  "Óbuda-Békásmegyer": "Budapest",  // ok — district of Budapest
+  "Angyalföld": "Budapest",  // ok — neighbourhood
+
+  // ══ INDIA ══
+  "Āgra": "Agra",  // ok — diacritic form → Agra (common English name)
+  "Delhi": "New Delhi",  // ok — Delhi = New Delhi capital territory
+  "Hāora": "Kolkata",  // ok — Howrah, across river from Kolkata
+  "Uttarpāra": "Kolkata",  // ok — suburb of Kolkata
+  "Thāne": "Mumbai",  // ok — suburb of Mumbai
+  "Borivli": "Mumbai",  // ok — suburb of Mumbai
+
+  // ══ INDONESIA ══
+  "Kecamatan Taman Sari": "Jakarta",  // ok — kecamatan = sub-district of Jakarta
+  "Kecamatan Pademangan": "Jakarta",  // ok
+  "Kecamatan Gambir": "Jakarta",  // ok
+  "Kecamatan Tambora": "Jakarta",  // ok
+  "Kecamatan Penjaringan": "Jakarta",  // ok
+  "Kecamatan Tebet": "Jakarta",  // ok
+  "Kecamatan Menteng": "Jakarta",  // ok
+  "Kecamatan Kramat jati": "Jakarta",  // ok
+  "Kecamatan Sawah Besar": "Jakarta",  // ok
+  "Kecamatan Benda": "Jakarta",  // ok
+  "Jakarta Barat": "Jakarta",  // ok — West Jakarta
+  "Jakarta Pusat": "Jakarta",  // ok — Central Jakarta
+  "Jakarta Utara": "Jakarta",  // ok — North Jakarta
+  "Jakarta Selatan": "Jakarta",  // ok — South Jakarta
+  "Jakarta Timur": "Jakarta",  // ok — East Jakarta
+  "Jakarta Kota": "Jakarta",  // ok — old city area
+  "South Jakarta": "Jakarta",  // ok
+  "West Jakarta": "Jakarta",  // ok
+  "Central Jakarta": "Jakarta",  // ok
+  "Jakarta Selata": "Jakarta",  // ok — typo
+  "Kebayoran Baru": "Jakarta",  // ok — neighbourhood
+  "Sawah Besar": "Jakarta",  // ok — neighbourhood
+  "Menteng": "Jakarta",  // ok — neighbourhood
+  "Pademangan Barat": "Jakarta",  // ok — neighbourhood
+  "Tangerang": "Jakarta",  // ok — suburb in Greater Jakarta
+  "Benda": "Jakarta",  // ok — Tangerang area
+
+  // ══ IRAN ══
+  "Tehrān": "Tehran",  // ok — diacritic → Tehran (common English name)
+  "تهران": "Tehran",  // ok — Arabic/Persian script
+  "Tajrīsh": "Tajrish",  // ok — neighbourhood of Tehran, simplified
+
+  // ══ ITALY ══
+  "Venezia": "Venice",  // ok — Italian name
+  "Burano": "Venice",  // ok — island of Venice lagoon
+  "Murano": "Venice",  // ok — island of Venice lagoon
+  "Lido": "Venice",  // ok — island of Venice
+  "Tessera": "Venice",  // ok — Venice airport area
+  "Mestre": "Venice",  // ok — mainland part of Venice
+  "Borgo Panigale": "Bologna",  // ok — suburb/district of Bologna
+  "Provincia di Vicenza": "Venice",  // ok — checked coords, within Venice province area
+  "Provincia di Verona": "Verona",  // ok — province of Verona
+  "Provincia di Bari": "Bari",  // ok
+  "Provincia di Palermo": "Palermo",  // ok
+
+  // ══ KAZAKHSTAN ══
+  "Алматы": "Almaty",  // ok — Cyrillic
+  "Алма-Ата": "Almaty",  // ok — old Russian name
+  "Астана": "Astana",  // ok — Cyrillic
+  "Нур-сұлтан": "Astana",  // ok — Kazakh Cyrillic form
+  "Nur-Sultan": "Astana",  // ok — Latin form of former name
+  "Бурабай": "Burabay",  // ok — Cyrillic
+  "Щучинск": "Shchuchinsk",  // ok — Cyrillic
+  "Кордай": "Korday",  // ok — Cyrillic
+  "Жанашар": "Zhanashar",  // ok — Cyrillic → Latin
+
+  // ══ KYRGYZSTAN ══
+  "Сары Ой / Sary Oy": "Sary-Oy",  // ok — mixed script → Latin
+  "Сары-Ой": "Sary-Oy",  // ok — Cyrillic
+
+  // ══ LATVIA ══
+  "Rīga": "Riga",  // ok — Latvian form → standard English Riga
+  "Jaunmārupe": "Riga",  // ok — municipality near Riga
+  "Mārupe": "Riga",  // ok — municipality near Riga
+  "Mārupes Novads 10/1": "Riga",  // ok — address-style Marupe
+  "Centrs": "Riga",  // ok — central district of Riga
+  "Lidosta \"Rīga\"": "Riga",  // ok — Riga Airport
+  "Daugavpils municipality": "Daugavpils",  // ok — municipality = city
+  "Jūrmala": "Jūrmala",  // ok — canonical, diacritics kept
+  "Jurmala": "Jūrmala",  // ok — ASCII form
+
+  // ══ LITHUANIA ══
+  "Вильнюс": "Vilnius",  // ok — Cyrillic
+  "Kauno rajonas": "Kaunas",  // ok — rajonas = municipal district
+  "Kauno Rajonas": "Kaunas",  // ok — capitalised variant
+  "Karmėlava": "Kaunas",  // ok — village near Kaunas, Kaunas Rajonas
+  "Vilniaus rajonas": "Vilniaus Rajonas",  // ok — rural district around Vilnius, kept separate from city
+  "Vilniaus Rajonas": "Vilniaus Rajonas",  // ok — canonical for this entry
+  "Šalčininkai": "Šalčininkai",  // ok — canonical
+  "Salcininkai": "Šalčininkai",  // ok — ASCII form
+
+  // ══ MACAU ══
+  "Se": "Macau",  // ok — Sé parish
+  "Macao": "Macau",  // ok — Portuguese name
+  "大堂": "Macau",  // ok — Chinese: Sé parish
+  "望德堂區": "Macau",  // ok — Chinese: Santo António parish
+  "澳門 Macau": "Macau",  // ok — bilingual label
+  "Nossa Senhora do Carmo": "Macau",  // ok — parish on Taipa
+  "Sao Lazaro": "Macau",  // ok — São Lázaro parish
+  "Santo Antonio": "Macau",  // ok — Santo António parish
+  "Sao Lourenco": "Macau",  // ok — São Lourenço parish
+  "Taipa": "Macau",  // ok — island part of Macau
+
+  // ══ MALAYSIA ══
+  "콸라룸푸르": "Kuala Lumpur",  // ok — Korean script (app artefact)
+  "Куала-Лумпур": "Kuala Lumpur",  // ok — Russian Cyrillic
+  "Kuala Lumpur City Center": "Kuala Lumpur",  // ok — KLCC area
+  "Batu Caves": "Kuala Lumpur",  // ok — 13km north, Greater KL
+  "Petaling Jaya": "Kuala Lumpur",  // ok — suburb of KL
+  "Ampang": "Kuala Lumpur",  // ok — suburb of KL
+  "Hulu Klang": "Kuala Lumpur",  // ok — area of Ampang/KL
+  "Gombak": "Kuala Lumpur",  // ok — suburb of KL
+
+  // ══ MALTA ══
+  "Buġibba": "Buġibba",  // ok — canonical
+  "Bugibba": "Buġibba",  // ok — ASCII form
+  "Mellieħa": "Mellieħa",  // ok — canonical
+  "Mellieha": "Mellieħa",  // ok — ASCII form
+  "Żebbuġ": "Żebbuġ",  // ok — canonical (Gozo)
+  "Zebbug Gozo": "Żebbuġ",  // ok — ASCII form
+  "Għajnsielem": "Għajnsielem",  // ok — canonical
+  "Ghajnsielem": "Għajnsielem",  // ok — ASCII form
+  "Imġarr": "Imġarr",  // ok — canonical harbour village Gozo
+  "Mgarr Gozo": "Imġarr",  // ok — alternate name
+  "Żurrieq": "Żurrieq",  // ok — canonical
+  "Zurrieq": "Żurrieq",  // ok — ASCII form
+  "Għasri": "Għasri",  // ok — canonical
+  "Ghasri": "Għasri",  // ok — ASCII form
+  "Mġarr": "Mġarr",  // ok — canonical (Malta mainland)
+  "Mgarr": "Mġarr",  // ok — ASCII form
+  "Ċirkewwa": "Ċirkewwa",  // ok — canonical (ferry terminal)
+  "Cirkewwa": "Ċirkewwa",  // ok — ASCII form
+  "Ir-Rabat Għawdex": "Ir-Rabat Għawdex",  // ok — canonical (Rabat Gozo)
+  "Rabat Gozo": "Ir-Rabat Għawdex",  // ok — common name
+  "Għarb": "Għarb",  // ok — canonical
+  "Gharb": "Għarb",  // ok — ASCII form
+  "Siġġiewi": "Siġġiewi",  // ok — canonical
+  "Siggiewi": "Siġġiewi",  // ok — ASCII form
+  "Żejtun": "Żejtun",  // ok — canonical
+  "Zejtun": "Żejtun",  // ok — ASCII form
+  "Gżira": "Gżira",  // ok — canonical
+  "Gzira": "Gżira",  // ok — ASCII form
+  "San Pawl il-Baħar": "San Pawl il-Baħar",  // ok — canonical (St Paul's Bay)
+  "St Pauls Bay": "San Pawl il-Baħar",  // ok — English common name
+  "Gozo and Comino District": "Victoria",  // ok — district → capital Victoria
+  "Victoria, Gozo": "Victoria",  // ok — Rabat Gozo / Victoria
+  "Виктория": "Victoria",  // ok — Cyrillic → Victoria (Gozo)
+
+  // ══ MISC ══
+  "Garni": "Garni",  // ok — Armenia, already Latin
+  "Garrni": "Garni",  // ok — typo
+  "Slyudyanka": "Slyudyanka",  // ok
+
+  // ══ MOLDOVA ══
+  "Chișinău": "Chișinău",  // ok — canonical
+  "Chişinău": "Chișinău",  // ok — ş variant
+  "Chisinau": "Chișinău",  // ok — ASCII form
+  "Кишинёв": "Chișinău",  // ok — Russian Cyrillic
+  "Bălți": "Bălți",  // ok — canonical
+  "Balti": "Bălți",  // ok — ASCII form
+  "Cimișlia": "Cimișlia",  // ok — canonical
+  "Cimişlia": "Cimișlia",  // ok — ş variant
+  "Cimislia": "Cimișlia",  // ok — ASCII form
+  "Coșnița": "Coșnița",  // ok — canonical
+  "Coşniţa": "Coșnița",  // ok — ş/ţ variant
+  "Cosnita": "Coșnița",  // ok — ASCII form
+  "Cornești": "Cornești",  // ok — canonical
+  "Corneşti": "Cornești",  // ok — ş variant
+  "Cornesti": "Cornești",  // ok — ASCII form
+  "Edineț": "Edineț",  // ok — canonical
+  "Edinet": "Edineț",  // ok — ASCII form
+  "Giurgiulești": "Giurgiulești",  // ok — canonical
+  "Giurgiuleşti": "Giurgiulești",  // ok — ş variant
+  "Giurgiulesti": "Giurgiulești",  // ok — ASCII form
+  "Hîncești": "Hîncești",  // ok — canonical (î form per MD standard)
+  "Hâncești": "Hîncești",  // ok — â variant
+  "Hincesti": "Hîncești",  // ok — ASCII form
+  "Leușeni": "Leușeni",  // ok — canonical
+  "Leuşeni": "Leușeni",  // ok — ş variant
+  "Leuseni": "Leușeni",  // ok — ASCII form
+  "Albița - Leușeni": "Leușeni",  // ok — Romanian side of border crossing
+  "Albița": "Leușeni",  // ok — border crossing village
+  "Tирасполь": "Tiraspol",  // ok — Cyrillic
+  "Бендеры": "Bender",  // ok — Cyrillic
+  "Первомайск": "Pervomaysk",  // ok — Cyrillic → Latin
+  "Мамалига": "Mamalyha",  // ok — Cyrillic
+  "Trușeni": "Trușeni",  // ok — canonical
+  "Truseni": "Trușeni",  // ok — ASCII form
+  "Vadul lui Vodă": "Vadul lui Vodă",  // ok — canonical
+  "Varnița": "Varnița",  // ok — canonical
+  "Varnita": "Varnița",  // ok — ASCII form
+
+  // ══ MONTENEGRO ══
+  "Podgorics": "Podgorica",  // ok — typo
+
+  // ══ NORTH MACEDONIA ══
+  "Скопје": "Skopje",  // ok — Macedonian Cyrillic
+  "Shkupi": "Skopje",  // ok — Albanian name
+  "Dolna Matka": "Skopje",  // ok — gorge/monastery near Skopje
+  "Крушопек": "Krushopek",  // ok — Cyrillic → village near Skopje
+
+  // ══ OMAN / MUSCAT ══
+  "Muţraḩ": "Muscat",  // ok — Muttrah, historic port, part of Muscat Governorate
+  "Muttrah": "Muscat",  // ok — same as above, alternate spelling
+  "As Sīb al Jadīdah": "Muscat",  // ok — Al Seeb, part of Muscat Governorate
+  "Seeb": "Muscat",  // ok — Seeb district of Muscat Governorate
+  "Seeb, Muscat": "Muscat",  // ok — explicit label
+  "Ruwī": "Muscat",  // ok — Ruwi, commercial district of Muscat
+  "Ruwi": "Muscat",  // ok — ASCII form
+  "Bawshar": "Muscat",  // ok — Bawshar, part of Muscat Governorate (5 checkins at 23.60,58.29)
+  "Qurm": "Muscat",  // ok — Qurum, part of Muscat
+  "North Al Hail": "Muscat",  // ok — Al Hail, Seeb area
+  "Muscat Governorate": "Muscat",  // ok — governorate label
+  "Oman": "Muscat",  // ok — single checkin at 23.62,58.56, Muttrah area
+
+  // ══ POLAND ══
+  "Варшава": "Warsaw",  // ok — Cyrillic
+  "Warszawa": "Warsaw",  // ok — Polish name
+  "Warszawa-Praga Północ": "Warsaw",  // ok — district of Warsaw
+  "Mazowieckie": "Warsaw",  // ok — Masovian voivodeship, Warsaw region
+  "Вроцлав": "Wrocław",  // ok — Cyrillic → Wrocław
+  "Wroclaw": "Wrocław",  // ok — ASCII form
+  "Poznań": "Poznań",  // ok — canonical
+  "Poznan": "Poznań",  // ok — ASCII form
+  "Łódź": "Łódź",  // ok — canonical
+  "Lodz": "Łódź",  // ok — ASCII form
+  "Gdańsk": "Gdańsk",  // ok — canonical
+  "Gdansk": "Gdańsk",  // ok — ASCII form
+  "Białystok": "Białystok",  // ok — canonical
+  "Bialystok": "Białystok",  // ok — ASCII form
+  "Toruń": "Toruń",  // ok — canonical
+  "Torun": "Toruń",  // ok — ASCII form
+  "Kraków": "Kraków",  // ok — canonical
+  "Krakow": "Kraków",  // ok — ASCII form
+  "Краків": "Kraków",  // ok — Cyrillic (Ukrainian) → Kraków
+  "Kraków-Śródmieście": "Kraków",  // ok — central district
+  "Oświęcim": "Oświęcim",  // ok — canonical
+  "Оświęcim": "Oświęcim",  // ok — Cyrillic О + Latin
+  "Oswiecim": "Oświęcim",  // ok — ASCII form
+  "Augustów": "Augustów",  // ok — canonical
+  "Augustow": "Augustów",  // ok — ASCII form
+  "Chorzów": "Chorzów",  // ok — canonical
+  "Chorzow": "Chorzów",  // ok — ASCII form
+  "Grójec": "Grójec",  // ok — canonical
+  "Grojec": "Grójec",  // ok — ASCII form
+  "Babięta": "Babięta",  // ok — canonical village
+  "Babieta": "Babięta",  // ok — ASCII form
+  "Szczecin": "Szczecin",  // ok — already Latin, no merge needed
+  "Bydgoszcz": "Bydgoszcz",  // ok — already Latin
+  "Lublin": "Lublin",  // ok — already Latin
+
+  // ══ PORTUGAL / LISBON ══
+  "Moscavide": "Lisbon",  // ok — parish of Lisbon area
+  "Camarate": "Lisbon",  // ok — parish near Lisbon
+  "Algés": "Lisbon",  // ok — parish of Lisbon
+  "Cacilhas": "Lisbon",  // ok — across Tagus from Lisbon
+  "Almada": "Lisbon",  // ok — city across Tagus
+  "Alfama": "Lisbon",  // ok — historic district of Lisbon
+
+  // ══ PORTUGAL / OTHER ══
+  "Coimbrã": "Coimbra",  // ok — variant → Coimbra
+
+  // ══ PORTUGAL / PORTO ══
+  "Vila Nova de Gaia": "Porto",  // ok — city across river from Porto
+  "Matosinhos": "Porto",  // ok — municipality of Greater Porto
+  "Maia": "Porto",  // ok — municipality of Greater Porto
+  "Foz do Douro": "Porto",  // ok — neighbourhood of Porto
+  "Foz do douro": "Porto",  // ok — lowercase variant
+  "Vila Nova Gaia": "Porto",  // ok — shortened form
+
+  // ══ QATAR ══
+  "Доха": "Doha",  // ok — Cyrillic
+  "دوحة": "Doha",  // ok — Arabic script
+
+  // ══ ROMANIA ══
+  "București": "Bucharest",  // ok — Romanian name
+  "Sector  1": "Bucharest",  // ok — sector of Bucharest
+  "Otopeni": "Bucharest",  // ok — Bucharest airport area
+  "Câmpulung": "Câmpulung",  // ok — canonical, standalone city
+  "Giurgiu": "Giurgiu",  // ok — canonical, standalone city
+  "Iași": "Iași",  // ok — canonical
+  "Iaşi": "Iași",  // ok — ş variant
+  "Iasi": "Iași",  // ok — ASCII form
+  "Brașov": "Brașov",  // ok — canonical
+  "Constanța": "Constanța",  // ok — canonical
+  "Bacău": "Bacău",  // ok — canonical
+  "Bacau": "Bacău",  // ok — ASCII form
+  "Galați": "Galați",  // ok — canonical
+  "Galati": "Galați",  // ok — ASCII form
+  "Brăila": "Brăila",  // ok — canonical
+  "Braila": "Brăila",  // ok — ASCII form
+  "Bistrița": "Bistrița",  // ok — canonical
+  "Bistrita": "Bistrița",  // ok — ASCII form
+  "Fetești": "Fetești",  // ok — canonical
+  "Fetesti": "Fetești",  // ok — ASCII form
+  "Borșa": "Borșa",  // ok — canonical
+  "Borşa": "Borșa",  // ok — ş variant
+  "Borsa": "Borșa",  // ok — ASCII form
+  "Vișeu de Sus": "Vișeu de Sus",  // ok — canonical
+  "Viseu de Sus": "Vișeu de Sus",  // ok — ASCII form
+  "Transfăgărășan": "Transfăgărășan",  // ok — canonical mountain road
+  "Transfagarasan": "Transfăgărășan",  // ok — ASCII form
+  "Poiana Brașov": "Poiana Brașov",  // ok — canonical ski resort
+  "Poiana Brasov": "Poiana Brașov",  // ok — ASCII form
+  "Munții Bucegi": "Munții Bucegi",  // ok — canonical mountain area
+  "Muntii Bucegi": "Munții Bucegi",  // ok — ASCII form
+  "Bușteni": "Bușteni",  // ok — canonical
+  "Busteni": "Bușteni",  // ok — ASCII form
+  "Râșnov": "Râșnov",  // ok — canonical
+  "Rasnov": "Râșnov",  // ok — ASCII form
+  "Săpânța": "Săpânța",  // ok — canonical (Merry Cemetery village)
+  "Sapanta": "Săpânța",  // ok — ASCII form
+  "Sighișoara": "Sighișoara",  // ok — canonical
+  "Sighişoara": "Sighișoara",  // ok — ş variant
+  "Sighisoara": "Sighișoara",  // ok — ASCII form
+  "Târgu Mureș": "Târgu Mureș",  // ok — canonical
+  "Târgu Mureş": "Târgu Mureș",  // ok — ş variant
+  "Targu Mures": "Târgu Mureș",  // ok — ASCII form
+  "Curtea de Argeș": "Curtea de Argeș",  // ok — canonical
+  "Curtea de Argeş": "Curtea de Argeș",  // ok — ş variant
+  "Curtea de Arges": "Curtea de Argeș",  // ok — ASCII form
+  "Sighetu Marmației": "Sighetu Marmației",  // ok — canonical
+  "Sighetu Marmaţiei": "Sighetu Marmației",  // ok — ţ variant
+  "Sighetu Marmatiei": "Sighetu Marmației",  // ok — ASCII form
+  "Focșani": "Focșani",  // ok — canonical
+  "Focşani": "Focșani",  // ok — ş variant
+  "Focsani": "Focșani",  // ok — ASCII form
+  "Hârșova": "Hârșova",  // ok — canonical
+  "Hârşova": "Hârșova",  // ok — ş variant
+  "Harsova": "Hârșova",  // ok — ASCII form
+  "Mediaș": "Mediaș",  // ok — canonical
+  "Mediaş": "Mediaș",  // ok — ş variant
+  "Medias": "Mediaș",  // ok — ASCII form
+  "Botoșani": "Botoșani",  // ok — canonical
+  "Botoşani": "Botoșani",  // ok — ş variant
+  "Botosani": "Botoșani",  // ok — ASCII form
+  "Cârțișoara": "Cârțișoara",  // ok — canonical (mountain village)
+  "Cârţişoara": "Cârțișoara",  // ok — ş/ţ variant
+  "Cartisoara": "Cârțișoara",  // ok — ASCII form
+  "Dragomirești": "Dragomirești",  // ok — canonical
+  "Dragomir esti": "Dragomirești",  // ok — erroneous space
+  "Dragomireşti": "Dragomirești",  // ok — ş variant
+  "Gălbiori": "Gălbiori",  // ok — canonical
+  "Galbiori": "Gălbiori",  // ok — ASCII form
+
+  // ══ RUSSIA / KALININGRAD ══
+  "Зеленоградск": "Kaliningrad",  // ok — coastal resort, Kaliningrad oblast
+  "Зеленоград": "Zelenograd",  // ok — separate city near Moscow, NOT Kaliningrad
+  "п. Лесной": "Zelenogradsk",  // ok — settlement Lesnoe 16km from Zelenogradsk, Kaliningrad coast
+
+  // ══ RUSSIA / MOSCOW ══
+  "Москва": "Moscow",  // ok — Cyrillic
+  "город Москва": "Moscow",  // ok — administrative label
+  "Moskva": "Moscow",  // ok — transliteration
+  "Odintsovo": "Moscow",  // ok — suburb of Moscow, 25km west
+  "Vnukovo": "Moscow",  // ok — Vnukovo airport, Moscow
+  "Kommunarka": "Moscow",  // ok — district of Moscow
+  "Bulatnikovskoye": "Moscow",  // ok — settlement near Moscow
+  "Битца": "Moscow",  // ok — Bitsa park district, 20km from Moscow centre
+  "Московский": "Moscow",  // ok — 13 checkins all at Salarevo bus terminal (55.62,37.42) = Moscow oblast but effectively Moscow transport hub
+
+  // ══ RUSSIA / OTHER ══
+  "Казань": "Kazan'",  // ok — Cyrillic
+  "Kazan": "Kazan'",  // ok — without apostrophe
+  "Новосибирск": "Novosibirsk",  // ok — Cyrillic
+  "Красноярск": "Krasnoyarsk",  // ok — Cyrillic
+  "город Красноярск": "Krasnoyarsk",  // ok — administrative label
+  "Дг": "Krasnoyarsk",  // ok — 1 checkin at 55.96,92.38, suburb of Krasnoyarsk
+  "Екатеринбург": "Yekaterinburg",  // ok — Cyrillic
+  "город Омск": "Omsk",  // ok — administrative label
+  "Ярославль": "Yaroslavl",  // ok — Cyrillic
+  "Тверь": "Tver",  // ok — Cyrillic
+  "Нижний Новгород": "Nizhny Novgorod",  // ok — Cyrillic
+  "Смоленск": "Smolensk",  // ok — Cyrillic
+  "Краснинский район": "Krasny District",  // ok — 6 checkins at 54.69,31.12 = Krasny District, Smolensk region, standalone
+  "Химки": "Khimki",  // ok — Cyrillic
+  "Петрозаводск": "Petrozavodsk",  // ok — Cyrillic → Petrozavodsk
+  "Кигисепп": "Kingisepp",  // ok — Cyrillic → Kingisepp
+  "Сергиев Посад": "Sergiyev Posad",  // ok — Cyrillic
+  "Sliznëvo": "Sliznevo",  // ok — ë → e
+  "Коккорево": "Kokkoryevo",  // ok — 16km from Schlisselburg on Lake Ladoga, Road of Life monument, standalone
+  "Слюдянка": "Slyudyanka",  // ok — Cyrillic, Lake Baikal town
+  "Порт Байкал": "Port Baikal",  // ok — Cyrillic
+  "Листвянка (иркутский)": "Listvyanka",  // ok — Cyrillic, Baikal resort
+  "город Великие Луки": "Velikiye Luki",  // ok — Cyrillic
+  "город Невель": "Nevel",  // ok — Cyrillic
+  "Дивногорск": "Divnogorsk",  // ok — Cyrillic
+  "Nevel'": "Nevel",  // ok — apostrophe form
+  "Ob'": "Novosibirsk",  // ok — 2 checkins at 54.99,82.69 = Ob city, right next to Novosibirsk airport
+  "Воскресенское": "Voskresenkoye",  // ok — M-11 highway toll at 56.73,36.26, no major city nearby, standalone
+  "Старомелковское": "Staromelkovskoye",  // ok — highway point 56.60,36.46, standalone
+  "Красноярский край": "Krasnoyarsk Region",  // ok — region label kept distinct from city
+  "Ленинградская обл.": "Leningrad Region",  // ok — region label
+  "Псковская область": "Pskov Region",  // ok — region label
+  "Смоленская обл.": "Smolensk Region",  // ok — region label
+  "Смоленская обл. - республика Беларусь": "Smolensk Region",  // ok — border area label
+  "РФ / РБ": "Smolensk Region",  // ok — Russia/Belarus border label
+  "Skidel'skiy": "Skidel",  // ok — apostrophe district form
+  "Skidzyel'": "Skidel",  // ok — Belarusian Latin apostrophe
+
+  // ══ RUSSIA / SAINT PETERSBURG ══
+  "Санкт-Петербург": "Saint Petersburg",  // ok — Cyrillic
+  "Санкт–Петербург": "Saint Petersburg",  // ok — en-dash variant
+  "Санкт-Петкрбург": "Saint Petersburg",  // ok — typo
+  "Sankt-Peterburg": "Saint Petersburg",  // ok — transliteration
+  "Лахта": "Saint Petersburg",  // ok — Lakhta district, SPb
+  "Лахтинский": "Saint Petersburg",  // ok — Lakhtinsky district
+  "Округ Автово": "Saint Petersburg",  // ok — Avtovo municipal okrug
+  "Купчино Municipal Okrug": "Saint Petersburg",  // ok — Kupchino district
+  "Malaya Okhta Municipal Okrug": "Saint Petersburg",  // ok — Malaya Okhta district
+  "Murino": "Saint Petersburg",  // ok — suburb of SPb
+  "Kudrovo": "Saint Petersburg",  // ok — suburb of SPb
+  "gorod Petrodvorets": "Saint Petersburg",  // ok — Peterhof = part of SPb
+  "Свердловское": "Saint Petersburg",  // ok — 23km south of SPb centre, within SPb agglomeration
+  "Петергоф": "Peterhof",  // ok — kept as Peterhof (palace destination)
+  "Пушкин": "Pushkin",  // ok — kept as Pushkin (Tsarskoye Selo)
+  "город Кронштадт": "Kronshtadt",  // ok — island city of SPb
+  "Кронштадт": "Kronshtadt",  // ok
+
+  // ══ SERBIA ══
+  "Beograd": "Belgrade",  // ok — Serbian name
+  "Belgrad": "Belgrade",  // ok — German form
+  "Beograde": "Belgrade",  // ok — vocative/typo
+  "Zemun": "Belgrade",  // ok — municipality of Belgrade
+  "Opština Beograd-Zemun": "Belgrade",  // ok — Zemun administrative name
+  "Senjak": "Belgrade",  // ok — neighbourhood of Belgrade
+  "Dorćol": "Belgrade",  // ok — historic neighbourhood
+
+  // ══ SINGAPORE ══
+  "Changi Village": "Singapore",  // ok — area near Changi airport
+  "Marina": "Singapore",  // ok — Marina Bay area
+  "Thomson": "Singapore",  // ok — Thomson district
+  "Clarke Quay": "Singapore",  // ok — riverside area
+  "City": "Singapore",  // ok — City Hall area
+  "Jalan Besar": "Singapore",  // ok — neighbourhood
+  "Sentosa Island": "Singapore",  // ok — resort island of Singapore
+
+  // ══ SLOVAKIA ══
+  "Košice": "Košice",  // ok — canonical
+  "Kosice": "Košice",  // ok — ASCII form
+
+  // ══ SLOVENIA ══
+  "Škofja Loka": "Škofja Loka",  // ok — canonical
+  "Skofja Loka": "Škofja Loka",  // ok — ASCII form
+  "Portorož": "Portorož",  // ok — canonical
+  "Portoroz": "Portorož",  // ok — ASCII form
+  "Obrežje": "Obrežje",  // ok — canonical border crossing
+  "Obrezje": "Obrežje",  // ok — ASCII form
+  "Ribčev Laz": "Ribčev Laz",  // ok — canonical (Lake Bohinj)
+  "Ribcev Laz": "Ribčev Laz",  // ok — ASCII form
+  "Stara Fužina": "Stara Fužina",  // ok — canonical village
+  "Stara Fuzina": "Stara Fužina",  // ok — ASCII form
+
+  // ══ SPAIN ══
+  "Madrid City Center": "Madrid",  // ok — label → Madrid
+  "Málaga": "Málaga",  // ok — canonical
+  "Malaga": "Málaga",  // ok — ASCII form
+  "Córdoba": "Córdoba",  // ok — canonical
+  "Cordoba": "Córdoba",  // ok — ASCII form
+  "Álora": "Álora",  // ok — canonical village
+  "Alora": "Álora",  // ok — ASCII form
+
+  // ══ SWEDEN ══
+  "Nyköping": "Nyköping",  // ok — canonical
+  "Nykoping": "Nyköping",  // ok — ASCII form
+
+  // ══ TURKEY / ISTANBUL ══
+  "İstanbul": "Istanbul",  // ok — Turkish name → common English Istanbul
+  "Istanbul Province": "Istanbul",  // ok — province = city here
+  "Fatih": "Istanbul",  // ok — district
+  "Beyoğlu": "Istanbul",  // ok — district
+  "Beşiktaş": "Istanbul",  // ok — district
+  "Kadıköy": "Istanbul",  // ok — district (Asian side)
+  "Üsküdar": "Istanbul",  // ok — district
+  "Şişli": "Istanbul",  // ok — district
+  "Bakırköy": "Istanbul",  // ok — district
+  "Maltepe": "Istanbul",  // ok — district
+  "Eminönü": "Istanbul",  // ok — historic district
+  "Sultanahmet": "Istanbul",  // ok — historic area
+  "Kağıthane": "Istanbul",  // ok — district
+  "Sarıyer": "Istanbul",  // ok — district
+  "Arnavutköy": "Istanbul",  // ok — district
+  "Beykoz": "Istanbul",  // ok — district (Asian side)
+  "Adalar": "Istanbul",  // ok — Princes' Islands
+  "Pendik": "Istanbul",  // ok — district
+  "Ataşehir": "Istanbul",  // ok — district
+  "Bağcılar": "Istanbul",  // ok — district
+  "Esenler": "Istanbul",  // ok — district
+  "Kartal": "Istanbul",  // ok — district
+  "Tuzla": "Istanbul",  // ok — district (Asian)
+  "Ümraniye": "Istanbul",  // ok — district
+  "Sancaktepe": "Istanbul",  // ok — district
+  "Sultangazi": "Istanbul",  // ok — district
+  "Eyüp": "Istanbul",  // ok — district
+  "Zeytinburnu": "Istanbul",  // ok — district
+  "Avcılar": "Istanbul",  // ok — district
+  "Esenyurt": "Istanbul",  // ok — district
+  "Küçükçekmece": "Istanbul",  // ok — district
+  "Büyükçekmece": "Istanbul",  // ok — district
+  "Çekmeköy": "Istanbul",  // ok — district
+  "Sultanbeyli": "Istanbul",  // ok — district
+  "Başakşehir": "Istanbul",  // ok — district
+  "Bayrampaşa": "Istanbul",  // ok — district
+  "Gaziosmanpaşa": "Istanbul",  // ok — district
+  "Güngören": "Istanbul",  // ok — district
+  "Vatan Caddesi,Fatih/İstanbul": "Istanbul",  // ok — address form
+  "İstanbul Beşiktaş": "Istanbul",  // ok — compound label
+  "Beyazit": "Istanbul",  // ok — Beyazıt area
+  "Topkapi": "Istanbul",  // ok — Topkapı area
+  "Cankurtaran": "Istanbul",  // ok — neighbourhood
+  "Çengelköy": "Istanbul",  // ok — district
+
+  // ══ UAE / DUBAI ══
+  "Bur Dubai": "Dubai",  // ok — neighbourhood
+  "Deira": "Dubai",  // ok — neighbourhood
+  "Al Rigga": "Dubai",  // ok — neighbourhood
+  "Al Karama": "Dubai",  // ok — neighbourhood
+  "Palm Jumeirah": "Dubai",  // ok — island development
+  "Dubai International Airport": "Dubai",  // ok — airport
+
+  // ══ UKRAINE ══
+  "Київ": "Kyiv",  // ok — Ukrainian Cyrillic
+  "Ужгород": "Uzhhorod",  // ok — Cyrillic
+  "Uzhhorodskyi raion": "Uzhhorod",  // ok — raion = city district
+  "Львів": "Lviv",  // ok — Ukrainian Cyrillic
+  "Днiпропетровськ": "Dnipro",  // ok — old name in Cyrillic
+  "Днiпро": "Dnipro",  // ok — new name Cyrillic
+  "Днепропетровск": "Dnipro",  // ok — Russian Cyrillic
+  "Запоріжжя": "Zaporizhzhia",  // ok — Ukrainian Cyrillic
+  "Zaporizhia": "Zaporizhzhia",  // ok — alternate Latin
+  "Кривий Рог": "Kryvyi Rih",  // ok — Cyrillic
+  "Здолбунов": "Zdolbuniv",  // ok — Cyrillic
+  "Чернигов": "Chernihiv",  // ok — Russian Cyrillic form
+  "Ильичёвск": "Chornomorsk",  // ok — old Soviet name, now Chornomorsk
+  "Черноморск": "Chornomorsk",  // ok — Russian Cyrillic, now Chornomorsk
+  "Луцк": "Lutsk",  // ok — Cyrillic
+  "Івано-Франківськ": "Ivano-Frankivsk",  // ok — Ukrainian Cyrillic
+  "Iвано-Франківськ": "Ivano-Frankivsk",  // ok — variant (Latin I)
+  "Роздільна": "Rozdilna",  // ok — Cyrillic
+  "пгт. Хлебодарское": "Khlebodarskoye",  // ok — urban settlement
+  "Біла Церква, Закарпатская обл, Украина": "Bila Tserkva",  // ok — Cyrillic with region label
+  "Одесская обл.": "Odesa Region",  // ok — region label
+
+  // ══ UZBEKISTAN ══
+  "Ташкент": "Tashkent",  // ok — Cyrillic
+  "Тошкент": "Tashkent",  // ok — Uzbek Cyrillic
+  "Самарканд": "Samarqand",  // ok — Cyrillic → Samarqand
+  "Samarkand": "Samarqand",  // ok — common English form
+  "Каган": "Kagan",  // ok — Cyrillic, city near Bukhara
+
+  // ══ VATICAN ══
+  "Vatican": "Vatican City",  // ok — tab-stripped, now resolves correctly
+
+  // ══ VIETNAM / HCMC ══
+  "Hồ Chí Minh": "Ho Chi Minh City",  // ok — Vietnamese name
+  "Thành phố Hồ Chí Minh": "Ho Chi Minh City",  // ok — full Vietnamese name
+  "Quận 3": "Ho Chi Minh City",  // ok — District 3
+  "Phường Phạm Ngũ Lão": "Ho Chi Minh City",  // ok — ward in D1
+  "Hcm": "Ho Chi Minh City",  // ok — abbreviation
+  "Ho Chi Minh": "Ho Chi Minh City",  // ok — short form
+  "Hochiminh": "Ho Chi Minh City",  // ok — no space form
+  "Ben Nghe Ward": "Ho Chi Minh City",  // ok — ward in D1
+  "Củ Chi": "Ho Chi Minh City",  // ok — district of HCMC municipality
+  "Tân Bình": "Ho Chi Minh City",  // ok — district of HCMC
+
+  // ══ VIETNAM / HANOI ══
+  "Hoàn Kiếm": "Hanoi",  // ok — central district
+  "Tây Hồ": "Hanoi",  // ok — West Lake district
+  "Hai Bà Trưng": "Hanoi",  // ok — district
+  "Ba Đình": "Hanoi",  // ok — district
+  "Đống Đa": "Hanoi",  // ok — district
+  "Hồ Tây": "Hanoi",  // ok — West Lake area
+  "Hà Nội": "Hanoi",  // ok — Vietnamese name
+  "Hai Ba Trưng": "Hanoi",  // ok — variant without diacritics
+  "Sóc Sơn": "Hanoi",  // ok — district with Noi Bai airport
+  "Thanh Xuân": "Hanoi",  // ok — district
+  "Trúc Bạch": "Hanoi",  // ok — neighbourhood
+
+  // ══ VIETNAM / OTHER ══
+  "Mỹ Tho": "Mỹ Tho",  // ok — canonical
+  "My Tho": "Mỹ Tho",  // ok — ASCII form
 }
