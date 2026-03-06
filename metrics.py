@@ -43,6 +43,21 @@ def _tz_from_lng(lng: float) -> str:
     return f"Etc/GMT{sign}{abs(offset)}"
 
 
+def _localise(d: datetime, lng: float | None) -> datetime:
+    """
+    Shift a UTC datetime to the approximate local time at the given longitude.
+
+    Uses the same ±30 min accuracy as _tz_from_lng.  No external deps —
+    timedelta is part of the stdlib datetime module already imported above.
+    """
+    from datetime import timedelta
+    if lng is None:
+        return d
+    offset_hours = round(lng / 15)
+    offset_hours = max(-12, min(14, offset_hours))
+    return d.astimezone(timezone(timedelta(hours=offset_hours)))
+
+
 # ── Trip detection ─────────────────────────────────────────────────────────────
 
 def detect_trips(
@@ -118,12 +133,13 @@ def detect_trips(
                 lng = round(float(r["lng"]), 5)
             except (ValueError, KeyError, TypeError):
                 lng = None
+            d_local = _localise(d, lng)
             checkins.append(
                 {
                     "ts":       int(r["date"]),
-                    "date":     d.strftime("%Y-%m-%d"),
-                    "time":     d.strftime("%H:%M"),
-                    "datetime": d.strftime("%d %b %Y, %H:%M"),
+                    "date":     d_local.strftime("%Y-%m-%d"),
+                    "time":     d_local.strftime("%H:%M"),
+                    "datetime": d_local.strftime("%d %b %Y, %H:%M"),
                     "venue":    r.get("venue", "").strip(),
                     "venue_id": r.get("venue_id", "").strip(),
                     "city":     r.get("city", "").strip(),
@@ -438,19 +454,18 @@ def process(
             lng = round(float(r["lng"]), 5)
         except (ValueError, KeyError, TypeError):
             lng = None
-        # Derive a best-effort IANA timezone name from longitude so that the
-        # JS weather widget can pass a meaningful timezone to the Open-Meteo
-        # archive API instead of silently falling back to UTC.
-        # Precision: ±1 h in most cases; sufficient for the hourly weather
-        # lookup. Countries with unusual offsets (India +5:30, Nepal +5:45,
-        # etc.) may be slightly off but will at least be in the right ballpark.
+        # Localise the display timestamp to the check-in location's approximate
+        # timezone (longitude-based, ±30 min accuracy).
+        # tz_name (Etc/GMT±N) is also passed to the Open-Meteo archive API so
+        # the weather lookup uses the correct local hour rather than UTC.
         tz_name = _tz_from_lng(lng) if lng is not None else "UTC"
+        d_local = _localise(d, lng)
         recent.append(
             {
                 "ts":       int(r["date"]),
-                "date":     d.strftime("%Y-%m-%d"),
-                "time":     d.strftime("%H:%M"),
-                "datetime": d.strftime("%d %b %Y, %H:%M"),
+                "date":     d_local.strftime("%Y-%m-%d"),
+                "time":     d_local.strftime("%H:%M"),
+                "datetime": d_local.strftime("%d %b %Y, %H:%M"),
                 "venue":    r.get("venue",    "").strip(),
                 "venue_id": r.get("venue_id", "").strip(),
                 "city":     r.get("city",     "").strip(),
