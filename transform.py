@@ -222,7 +222,12 @@ def apply_transforms(
             # Infer city for blank-city rows from coordinates / timestamp
             inferred = blank_city_resolver(row)
             if inferred:
-                row["city"] = inferred
+                # Also run city_merge on the inferred name — the review CSV may
+                # store raw Foursquare values (Cyrillic, RSQM apostrophes, variants)
+                # that still need normalising, e.g. "Мачулищи" → "Machulishchy".
+                inferred_norm = inferred.replace("\u2019", "'")
+                row["city"] = city_merge.get(inferred_norm,
+                              city_merge.get(inferred, inferred))
                 blank_filled += 1
         elif city_normalised in city_merge:
             row["city"] = city_merge[city_normalised]
