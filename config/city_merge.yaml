@@ -51,6 +51,7 @@
   # ══ BELARUS / HRODNA ══
   "Гродна": "Hrodna"  # ok — Belarusian Cyrillic name
   "гродно": "Hrodna"  # ok — Russian lowercase name
+  "Grodno": "Hrodna"  # ok — English/Russian proper-case name
   "Hrodzyenski Rayon": "Lida"  # ⚠️ DECISION NEEDED — 8 checkins at 53.89,25.31 = Lida city centre (Лидское Озеро, Площадь 600-летия Лиды). NOT near Hrodna (53.68,23.84). Change to Lida?
   "Grodno District": "Lida"  # ok — same as above, no direct checkins
 
@@ -134,7 +135,7 @@
   "Крэва": "Krevo"  # ok — Cyrillic
   "Кричев": "Krychaw"  # ok — merged with existing Krychaw entry
   "Крылово": "Krylovo"  # ok
-  "Куропаты": "Kuropaty"  # ok — historical site near Minsk, keep separate
+  "Куропаты": "Minsk"  # ok — Kuropaty historical site, merged to Minsk (Kuropaty→Minsk chain collapsed)
   "Камянец": "Kamyanyets"  # ok — Kamyanyets city
   "Калінкавічы": "Kalinkavichy"  # ok — Belarusian Cyrillic
   "Кальнiкавiчы": "Kalinkavichy"  # ok — mixed script variant
@@ -183,7 +184,7 @@
   "Слуцкі раён": "Slutsk"  # ok — Slutsk district → Slutsk city
   "Слуцк": "Slutsk"  # ok — Cyrillic
   "Солигорск": "Soligorsk"  # ok — Cyrillic
-  "Станьково": "Stankov"  # ok — village
+  "Станьково": "Stan'kovo"  # ok — soft sign retained (ь→')
   "Старое село": "Staroye Selo"  # ok
   "stancyja Hudahaj": "Gudogay"  # ok — station name in Belarusian Latin
   "Stoŭbcy": "Stowbtsy"  # ok — Belarusian Latin
@@ -411,6 +412,9 @@
   "Sheraton Al Matar": "Cairo"  # ok — airport Sheraton area
   "شيراتون المطار": "Cairo"  # ok — Arabic for Sheraton Airport
   "El Sharq": "Port Said"  # ok — district of Port Said
+
+  # ══ EGYPT / PORT SAID ══
+  "PortSaid": "Port Said"  # ok — no-space form
 
   # ══ ESTONIA ══
   "Tartu Parish": "Tartu"  # ok — parish = city administrative unit
@@ -654,6 +658,8 @@
   "Gozo and Comino District": "Victoria"  # ok — district → capital Victoria
   "Victoria, Gozo": "Victoria"  # ok — Rabat Gozo / Victoria
   "Виктория": "Victoria"  # ok — Cyrillic → Victoria (Gozo)
+  "Saint Julian's": "Saint Julian's"  # ok — canonical
+  "St Julian's": "Saint Julian's"  # ok — abbreviated English form
 
   # ══ MISC ══
   "Garni": "Garni"  # ok — Armenia, already Latin
@@ -1136,6 +1142,7 @@
   "Hovhannavank": "Ohanavan"  # approved singleton review rank 826
   "Gjoemri": "Gyumri"  # approved singleton review rank 830
   "Kirovsk": "Shlissel'burg"  # approved singleton review rank 833
+  "Shlissel'burg": "Shlissel'burg"  # ok — self-mapping, apostrophe canonical form
   "El-Nozha": "Cairo"  # approved singleton review rank 836
   "Al Hanafi": "Cairo"  # approved singleton review rank 838
   "Kafr az Zahrā'": "Cairo"  # approved singleton review rank 841
