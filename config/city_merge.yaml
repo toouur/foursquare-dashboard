@@ -1,4 +1,4 @@
-  # ─────────────────────────────────────────────────────────────────────
+﻿  # ─────────────────────────────────────────────────────────────────────
   # city_merge.json — canonical city merge map
   # Format: "raw_foursquare_value" → "canonical_city_name"  # comment
   # Sections sorted alphabetically by country.
@@ -390,7 +390,7 @@
   "Al 'Ajūzah": "Cairo"  # ok
   "Gazirat Mit Oqbah": "Cairo"  # ok
   "Mīt 'Uqbah": "Cairo"  # ok
-  "Al 'Aţţārīn": "Cairo"  # ok
+  "Al 'Aţţārīn": "Alexandria"  # ok
   "Ramsis": "Cairo"  # ok — Ramses area
   "El Zabalin": "Cairo"  # ok
   "El-Darb El-Ahmar": "Cairo"  # ok
@@ -1113,3 +1113,76 @@
   # ══ VIETNAM / OTHER ══
   "Mỹ Tho": "Mỹ Tho"  # ok — canonical
   "My Tho": "Mỹ Tho"  # ok — ASCII form
+
+  # ══ SINGLETON REVIEW 716-999 (APPROVED) ══
+  "Durlești": "Chișinău"  # approved singleton review rank 738
+  "İzmit": "Derince"  # approved singleton review rank 739
+  "Codru": "Chișinău"  # approved singleton review rank 742
+  "Wrzeszcz Górny": "Gdańsk"  # approved singleton review rank 748
+  "Michanavičy": "Mikhanovichi"  # approved singleton review rank 776
+  "Novapolatsk": "Navapolatsk"  # approved singleton review rank 780
+  "Kalodziščy": "Kalodziščy"  # approved singleton review rank 790
+  "Kryvyy Rih": "Kryvyi Rih"  # approved singleton review rank 792
+  "Obišovce": "Košice"  # approved singleton review rank 796
+  "Schwechat": "Vienna"  # approved singleton review rank 797
+  "Sluck": "Slutsk"  # approved singleton review rank 799
+  "Novi Sas": "Novi Sad"  # approved singleton review rank 801
+  "Grochów": "Warsaw"  # approved singleton review rank 803
+  "Città del Vaticano": "Vatican"  # approved singleton review rank 804
+  "Somma Lombardo": "Milan"  # approved singleton review rank 805
+  "Kuropaty": "Minsk"  # approved singleton review rank 806
+  "Kogon": "Bukhara"  # approved singleton review rank 814
+  "Voghjaberd": "Voghjaberd"  # approved singleton review rank 824
+  "Hovhannavank": "Ohanavan"  # approved singleton review rank 826
+  "Gjoemri": "Gyumri"  # approved singleton review rank 830
+  "Kirovsk": "Shlissel'burg"  # approved singleton review rank 833
+  "El-Nozha": "Cairo"  # approved singleton review rank 836
+  "Al Hanafi": "Cairo"  # approved singleton review rank 838
+  "Kafr az Zahrā'": "Cairo"  # approved singleton review rank 841
+  "Sāqiyat Makkī": "Cairo"  # approved singleton review rank 842
+  "Dolinka": "Dolinka"  # approved singleton review rank 845
+  "Larnaka": "Larnaca"  # approved singleton review rank 855
+  "Il- Gżira": "Gżira"  # approved singleton review rank 865
+  "Jawczyce": "Warsaw"  # approved singleton review rank 877
+  "Vidrasău": "Târgu Mureș"  # approved singleton review rank 878
+  "Reichstett": "Strasbourg"  # approved singleton review rank 883
+  "İncirli": "Nicosia"  # approved singleton review rank 886
+  "Engomi": "Nicosia"  # approved singleton review rank 887
+  "Lefkoşa": "Nicosia"  # approved singleton review rank 888
+  "Makhinjauri": "Batumi"  # approved singleton review rank 893
+  "Akhalsopeli": "Kutaisi"  # approved singleton review rank 894
+  "Pahar Ganj": "New Delhi"  # approved singleton review rank 895
+  "New Aruna Nagar": "New Delhi"  # approved singleton review rank 896
+  "Āmer": "Jaipur"  # approved singleton review rank 897
+  "Rostock, Warnemuende": "Rostock"  # approved singleton review rank 901
+  "Biaroza": "Byaroza"  # approved singleton review rank 905
+  "Ilinden": "Skopje"  # approved singleton review rank 909
+  "Krushopek": "Skopje"  # approved singleton review rank 910
+  "Matka": "Skopje"  # approved singleton review rank 911
+  "Glumovo": "Skopje"  # approved singleton review rank 912
+  "Ohër": "Ohrid"  # approved singleton review rank 913
+  "Lin": "Struga"  # approved singleton review rank 915
+  "Drume": "Hani i Hotit"  # approved singleton review rank 916
+  "Bondues": "Lille"  # approved singleton review rank 922
+  "Sint-Kruis": "Bruges"  # approved singleton review rank 924
+  "Bollenar": "Cajon Del Maipo"  # approved singleton review rank 929
+  "Ciudadela": "Buenos Aires"  # approved singleton review rank 937
+  "Ščučyn": "Shchuchyn"  # approved singleton review rank 939
+  "Schlieren": "Zürich"  # approved singleton review rank 947
+  "Evilard": "Biel/Bienne"  # approved singleton review rank 952
+  "Renens": "Lausanne"  # approved singleton review rank 954
+  "Prilly": "Lausanne"  # approved singleton review rank 955
+  "Thônex": "Geneva"  # approved singleton review rank 957
+  "Neydens": "Geneva"  # approved singleton review rank 958
+  "Saint-Vincent": "Chatillon"  # approved singleton review rank 963
+  "Settimo Torinese": "Turin"  # approved singleton review rank 964
+  "Borgaro Torinese": "Turin"  # approved singleton review rank 965
+  "Muggia": "Muggia"  # approved singleton review rank 973
+  "Grignano": "Trieste"  # approved singleton review rank 974
+  "Dhromolaxia": "Larnaca"  # approved singleton review rank 984
+  "Săpânța, Maramureș": "Săpânța"  # approved singleton review rank 987
+  "Sighetul Marmației": "Sighetu Marmației"  # approved singleton review rank 988
+  "Vișeul de Sus": "Vișeu de Sus"  # approved singleton review rank 991
+  "Islamshahr": "Tehran"  # approved singleton review rank 994
+  "یزد،": "Yazd"  # approved singleton review rank 997
+  "Al Wusayl": "Doha"  # approved singleton review rank 998
