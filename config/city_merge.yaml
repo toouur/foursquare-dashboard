@@ -149,7 +149,7 @@
   "Maladziečna": "Maladzyechna"  # ok — Latin
   "Maladzechna": "Maladzyechna"  # ok — variant Latin
   "Мачулищи": "Machulishchy"  # ok — town 15km south of Minsk, kept separate
-  "Миоры": "Miyory"  # ok — Cyrillic
+  "Миоры": "Miory"  # ok — Cyrillic
   "Мокраны": "Mokrany"  # ok — village
   "Могилёв": "Mogilev"  # ok — Russian Cyrillic
   "Могилев": "Mogilev"  # ok — variant
@@ -276,8 +276,8 @@
   "Jing’an": "Shanghai"  # auto-added from city_merge_normalized_by_country.json
 
   # ══ CROATIA ══
-  "Kaštel Štafilić": "Kastel Stafilic"  # ok — keeping simplified form for compatibility
-  "Kastel Stafilic": "Kaštel Štafilić"  # ok — ASCII → proper Croatian
+  "Kaštel Štafilić": "Split"  # user-approved update
+  "Kastel Stafilic": "Split"  # ok — ASCII → proper Croatian
   "Plitvice Lakes": "Plitvička Jezera"  # ok — English → proper Croatian
   "ヴェリカゴリツァ": "Velika Gorica"  # ok — Japanese script
   "メトコビッチ": "Metković"  # ok — Japanese script
@@ -854,7 +854,7 @@
   "Cârţişoara": "Cârțișoara"  # ok — ş/ţ variant
   "Cartisoara": "Cârțișoara"  # ok — ASCII form
   "Dragomirești": "Dragomirești"  # ok — canonical
-  "Dragomir esti": "Dragomirești"  # ok — erroneous space
+  "Dragomir esti": "Dragomirești"  # user-approved update
   "Dragomireşti": "Dragomirești"  # ok — ş variant
   "Gălbiori": "Gălbiori"  # ok — canonical
   "Galbiori": "Gălbiori"  # ok — ASCII form
@@ -1186,3 +1186,35 @@
   "Islamshahr": "Tehran"  # approved singleton review rank 994
   "یزد،": "Yazd"  # approved singleton review rank 997
   "Al Wusayl": "Doha"  # approved singleton review rank 998
+  # USER APPROVED MERGE UPDATES (MANUAL REVIEW)
+  "Mijory": "Miory"  # user-approved merge update
+  "Miyory": "Miory"  # user-approved merge update
+  "Staroje Sialo": "Staroye Selo"  # user-approved merge update
+  "Saint-Denis": "Paris"  # user-approved merge update
+  "Uplistsikhe": "Uplitskhite"  # user-approved merge update
+  "Neu Lindenberg": "Berlin"  # user-approved merge update
+  "Glyfada": "Athens"  # user-approved merge update
+  "Kazan'": "Kazan"  # user-approved merge update
+  "Sevilla": "Seville"  # user-approved merge update
+  "Beckendried": "Beckenried"  # user-approved merge update
+  "Ixelles": "Brussels"  # user-approved merge update
+  "Linkeroever": "Antwerp"  # user-approved merge update
+  "Villejuif": "Paris"  # user-approved merge update
+  "Bordano": "Rome"  # user-approved merge update
+  "San Donato Milanese": "Milan"  # user-approved merge update
+  "Scandicci": "Florence"  # user-approved merge update
+  "Sommacampagna": "Verona"  # user-approved merge update
+  "Trakai Island Castle": "Trakai"  # user-approved merge update
+  "Al Seeb": "Muscat"  # user-approved merge update
+  "Mutrah": "Muscat"  # user-approved merge update
+  "Stettin": "Szczecin"  # user-approved merge update
+  "Lusail": "Doha"  # user-approved merge update
+  "Etterbeek": "Brussels"  # user-approved merge update
+  "Angkor": "Siem Reap"  # user-approved merge update
+  "Zemunik Donji": "Zadar"  # user-approved merge update
+  "Strovolos": "Nicosia"  # user-approved merge update
+  "Noida": "New Delhi"  # user-approved merge update
+  "Paray-Vieille-Poste": "Paris"  # user-approved merge update
+  "Eslamshahr": "Tehran"  # user-approved merge update
+  "Marousi": "Athens"  # user-approved merge update
+  "Caselle Torinese": "Turin"  # user-approved merge update
