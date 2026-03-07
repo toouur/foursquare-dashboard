@@ -216,7 +216,9 @@ def apply_transforms(
         # Foursquare encodes apostrophes as U+2019 (RIGHT SINGLE QUOTATION MARK)
         # but city_merge keys use U+0027 (ASCII apostrophe).  Normalise first so
         # entries like "Kazan'" (167 rows), "Smarhon'" (7), "Nevel'" (8), etc. match.
-        city_normalised = city.replace("\u2019", "'")
+        # Also normalise U+2018 (LEFT SINGLE QUOTATION MARK) used as Arabic ʿayn in
+        # transliterations like "Al Ma'ādī", "Ma'ādī al Khabīrī", etc.
+        city_normalised = city.replace("\u2019", "'").replace("\u2018", "'")
 
         if not city and blank_city_resolver is not None:
             # Infer city for blank-city rows from coordinates / timestamp
@@ -225,7 +227,7 @@ def apply_transforms(
                 # Also run city_merge on the inferred name — the review CSV may
                 # store raw Foursquare values (Cyrillic, RSQM apostrophes, variants)
                 # that still need normalising, e.g. "Мачулищи" → "Machulishchy".
-                inferred_norm = inferred.replace("\u2019", "'")
+                inferred_norm = inferred.replace("\u2019", "'").replace("\u2018", "'")
                 row["city"] = city_merge.get(inferred_norm,
                               city_merge.get(inferred, inferred))
                 blank_filled += 1

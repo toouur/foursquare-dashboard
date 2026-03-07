@@ -1087,7 +1087,7 @@
   "Тошкент": "Tashkent"  # ok — Uzbek Cyrillic
   "Самарканд": "Samarqand"  # ok — Cyrillic → Samarqand
   "Samarkand": "Samarqand"  # ok — common English form
-  "Каган": "Kagan"  # ok — Cyrillic, city near Bukhara
+  "Каган": "Bukhara"  # ok — Cyrillic form of Kagan, railway gateway to Bukhara
 
   # ══ VATICAN ══
   "Vatican": "Vatican City"  # ok — tab-stripped, now resolves correctly
@@ -1135,7 +1135,7 @@
   "Sluck": "Slutsk"  # approved singleton review rank 799
   "Novi Sas": "Novi Sad"  # approved singleton review rank 801
   "Grochów": "Warsaw"  # approved singleton review rank 803
-  "Città del Vaticano": "Vatican"  # approved singleton review rank 804
+  "Città del Vaticano": "Vatican City"  # approved singleton review rank 804
   "Somma Lombardo": "Milan"  # approved singleton review rank 805
   "Kuropaty": "Minsk"  # approved singleton review rank 806
   "Kogon": "Bukhara"  # approved singleton review rank 814
@@ -1314,3 +1314,9 @@
 
   # ══ VIETNAM / BEN CAU ══
   "Bến Cầu": "Bến Cầu"  # ok — standalone — Moc Bai border crossing VN-KH (11.07,106.17)
+
+  # ══ POLAND / SEJNY BORDER ══
+  "Sejny - Lazdijai": "Ogrodniki"  # ok — PL-LT border crossing at Ogrodniki; Sejny is nearest PL town (9.7km)
+
+  # ══ EGYPT / SUEZ CANAL ══
+  "El Qantra Shark, Ismailia": "El-Qantara el-Sharqîya"  # ok — El Qantara East, Suez Canal (30.85,32.31)
