@@ -883,6 +883,7 @@
   "Московский": "Moscow"  # ok — 13 checkins all at Salarevo bus terminal (55.62,37.42) = Moscow oblast but effectively Moscow transport hub
   "д. Черная Грязь": "Chernaya Gryaz'"  # ok — village on M10 at 55.98,37.30 (BP gas station), 20km north of Moscow; Moscow Oblast
   "Domodedovsky Urban Okrug": "Moscow"  # ok — Domodedovo airport district, 1.3km from DME terminal
+  "Domodedovo": "Moscow"  # ok — DME airport, all checkins are airport venues
 
   # ══ RUSSIA / OTHER ══
   "Казань": "Kazan"  # ok — Cyrillic
@@ -990,8 +991,8 @@
   "Malaga": "Málaga"  # ok — ASCII form
   "Córdoba": "Córdoba"  # ok — canonical
   "Cordoba": "Córdoba"  # ok — ASCII form
-  "Álora": "Álora"  # ok — canonical village
-  "Alora": "Álora"  # ok — ASCII form
+  "Álora": "El Chorro"  # ok — all checkins at El Chorro gorge (in Álora municipality)
+  "Alora": "El Chorro"  # ok — ASCII form, same
 
   # ══ SWEDEN ══
   "Nyköping": "Nyköping"  # ok — canonical
@@ -1261,3 +1262,55 @@
   "Mohyliv-Podilskyy": "Mohyliv-Podilskyy"  # ok — ASCII — standalone border crossing
   "Mohyliv-Podil's'kyy": "Mohyliv-Podilskyy"  # ok — ASCII — apostrophe form
   "Myory": "Miory"  # ok — alternate Latin spelling
+
+  # ══ ITALY / BERGAMO AIRPORT ══
+  "Orio al Serio": "Bergamo"  # ok — BGY Bergamo airport commune
+
+  # ══ GREECE / ATHENS SUBURBS ══
+  "Kallithea": "Athens"  # ok — Kallithea district, Athens (Stavros Niarchos Foundation area)
+
+  # ══ CYPRUS / PAPHOS AIRPORT ══
+  "Akhelia": "Paphos"  # ok — Paphos Airport PFO is in Akhelia municipality
+
+  # ══ UZBEKISTAN / SAMARKAND + BUKHARA ══
+  "Samarqand": "Samarkand"  # ok — Uzbek-alphabet spelling; canonical English = Samarkand
+  "Kagan": "Bukhara"  # ok — Kagan railway station 12km from Bukhara — main rail gateway to Bukhara
+  "Kogon": "Bukhara"  # ok — alternative Latin spelling of Kagan/Kogon
+
+  # ══ MALAYSIA / SEPANG (KLIA) ══
+  "Sepang": "Kuala Lumpur"  # ok — KLIA/KLIA2 airport municipality — all checkins are airport venues
+
+  # ══ LATVIA / RIGA AIRPORT ══
+  "Skulte": "Riga"  # ok — RIX Riga Airport area — all checkins are airport/bus terminus venues
+
+  # ══ POLAND / GRODEK ══
+  "Grudki": "Gródek"  # ok — 17/18 checkins in Gródek town; venue names literally say Gródek
+  "Babięta": "Warsaw"  # ok — WAW Warsaw Chopin Airport area (52.16,20.96); venue = Wizz Air flight
+
+  # ══ EGYPT / CAIRO DISTRICTS (Arabic-transliterated) ══
+  "Al 'Ajūzah": "Cairo"  # ok — Agouza district, Cairo (30.04,31.21)
+  "Al 'Abbāsīyah": "Cairo"  # ok — Abbassia district, Cairo (30.07,31.27)
+  "Bāb ash Sha'rīyah": "Cairo"  # ok — Bab El-Sha'reya district, Cairo (30.05,31.25)
+  "Ma'ādī al Khabīrī": "Cairo"  # ok — Maadi district, Cairo (29.95,31.26)
+  "Al Ma'ādī": "Cairo"  # ok — Maadi district, Cairo (29.96,31.25)
+  "Mīt 'Uqbah": "Cairo"  # ok — Mit Okba, Agouza, Cairo (30.06,31.20)
+  "Al Qal'ah": "Cairo"  # ok — Cairo Citadel area (30.02,31.26) — ASCII form
+  "Al ‘Ajūzah": "Cairo"  # ok — RSQM/LSQM form (Foursquare)
+  "Al ‘Abbāsīyah": "Cairo"  # ok — RSQM/LSQM form (Foursquare)
+  "Ma’ādī al Khabīrī": "Cairo"  # ok — RSQM form (Foursquare)
+  "Al Ma’ādī": "Cairo"  # ok — RSQM form (Foursquare)
+  "Mīt ’Uqbah": "Cairo"  # ok — RSQM form (Foursquare)
+  "Al Qal’ah": "Cairo"  # ok — RSQM form (Foursquare)
+  "Bāb ash Sha’rīyah": "Cairo"  # ok — RSQM form (Foursquare)
+
+  # ══ EGYPT / ALEXANDRIA DISTRICTS ══
+  "Al 'Aţţārīn": "Alexandria"  # ok — El-Attarin district, Alexandria (31.20,29.90)
+  "'Izbat al Baḩr": "Alexandria"  # ok — Alexandria coastal area (31.19,29.89)
+  "Al ‘Aţţārīn": "Alexandria"  # ok — LSQM form (Foursquare)
+  "’Izbat al Baḩr": "Alexandria"  # ok — RSQM leading quote (Foursquare)
+
+  # ══ BELARUS / KREVO ══
+  "Kreva": "Krevo"  # ok — Same castle/village as Krevo (Крэва); 1 checkin
+
+  # ══ VIETNAM / BEN CAU ══
+  "Bến Cầu": "Bến Cầu"  # ok — standalone — Moc Bai border crossing VN-KH (11.07,106.17)
