@@ -213,6 +213,10 @@ def apply_transforms(
 
         # City normalisation
         city = row.get("city", "").strip()
+        # Foursquare encodes apostrophes as U+2019 (RIGHT SINGLE QUOTATION MARK)
+        # but city_merge keys use U+0027 (ASCII apostrophe).  Normalise first so
+        # entries like "Kazan'" (167 rows), "Smarhon'" (7), "Nevel'" (8), etc. match.
+        city_normalised = city.replace("\u2019", "'")
 
         if not city and blank_city_resolver is not None:
             # Infer city for blank-city rows from coordinates / timestamp
@@ -220,6 +224,8 @@ def apply_transforms(
             if inferred:
                 row["city"] = inferred
                 blank_filled += 1
+        elif city_normalised in city_merge:
+            row["city"] = city_merge[city_normalised]
         elif city in city_merge:
             row["city"] = city_merge[city]
 

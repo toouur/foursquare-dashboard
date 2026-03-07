@@ -1225,3 +1225,39 @@
   "Eslamshahr": "Tehran"  # user-approved merge update
   "Marousi": "Athens"  # user-approved merge update
   "Caselle Torinese": "Turin"  # user-approved merge update
+
+  # ══ MOLDOVA / TIGHINA ══
+  "Tighina": "Bender"  # ok — Romanian name for Bender (Тигина)
+
+  # ══ RSQM APOSTROPHE FIXES (U+2019 — Foursquare encoding) ══
+  "Kazan’": "Kazan"  # ok — RSQM — 167 checkins in Kazan
+  "Nevel’": "Nevel"  # ok — RSQM — Pskov region city
+  "Shlissel’burg": "Shlissel'burg"  # ok — RSQM — Ladoga fortress city
+  "Skidzyel’": "Skidel"  # ok — RSQM — Belarusian Latin
+  "Valer’yanovo": "Valeryanovo"  # ok — RSQM — village near Minsk
+  "Smarhon’": "Smarhon"  # ok — RSQM — 7 checkins
+  "Lyepyel’": "Lyepyel"  # ok — RSQM — 2 checkins
+  "Valer’yanovo": "Valeryanovo"  # ok — RSQM — already listed above, dedup OK
+  "Krasnosel’tsy": "Krasnosel'tsy"  # ok — RSQM — village, standalone
+  "Ptich’": "Ptich'"  # ok — RSQM — railway halt
+  "Tal’ka": "Tal'ka"  # ok — RSQM — village near Slutsk
+  "Ishkol’d’": "Ishkol'd'"  # ok — RSQM — Trinity Church town
+  "Chervyen’ski Rayon": "Chervyen"  # ok — RSQM — district → city
+  "Mar’’ina Horka": "Maryina Horka"  # ok — RSQM double — Foursquare form of Mar'ina Horka
+  "P’arak’ar": "Yerevan"  # ok — RSQM — Zvartnots airport area
+  "Kech’ut": "Kech'ut"  # ok — RSQM — reservoir, standalone
+  "Shak’i": "Shak'i"  # ok — RSQM — waterfall, standalone
+  "Kafr az Zahrā’": "Cairo"  # ok — RSQM — El Zahraa metro station
+  "Ta’ Xbiex": "Ta' Xbiex"  # ok — RSQM — marina locality
+  "Mohyliv-Podil’s’kyy": "Mohyliv-Podilskyy"  # ok — RSQM — border crossing UA-MD
+  "Arkhangel’skoye": "Arkhangel'skoye"  # ok — RSQM — estate museum 25km W of Moscow
+  "Arkhangel'skoye": "Arkhangel'skoye"  # ok — ASCII — standalone estate museum
+  "Krasnosel'tsy": "Krasnosel'tsy"  # ok — ASCII — standalone village
+  "Ptich'": "Ptich'"  # ok — ASCII — railway halt
+  "Tal'ka": "Tal'ka"  # ok — ASCII — village near Slutsk
+  "Ishkol'd'": "Ishkol'd'"  # ok — ASCII — Trinity Church town
+  "Chervyen'ski Rayon": "Chervyen"  # ok — ASCII — Chervyen district
+  "P'arak'ar": "Yerevan"  # ok — ASCII — Zvartnots airport area
+  "Mohyliv-Podilskyy": "Mohyliv-Podilskyy"  # ok — ASCII — standalone border crossing
+  "Mohyliv-Podil's'kyy": "Mohyliv-Podilskyy"  # ok — ASCII — apostrophe form
+  "Myory": "Miory"  # ok — alternate Latin spelling
