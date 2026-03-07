@@ -232,6 +232,24 @@ def process(
         for cy, ctr in city_country_ctr.items()
     }
 
+    # ── City centroids (average lat/lng per city, for city dot map) ──────────
+    _city_coords: dict[str, list] = defaultdict(list)
+    for r in rows:
+        cy = r.get("city", "").strip()
+        if not cy:
+            continue
+        try:
+            _city_coords[cy].append((float(r["lat"]), float(r["lng"])))
+        except (ValueError, KeyError, TypeError):
+            pass
+    city_centroids: dict[str, list] = {}
+    for cy, pts in _city_coords.items():
+        if pts:
+            city_centroids[cy] = [
+                round(sum(p[0] for p in pts) / len(pts), 3),
+                round(sum(p[1] for p in pts) / len(pts), 3),
+            ]
+
     # ── Country centroids (average lat/lng per country) ───────────────────────
     _cc_coords: dict[str, list] = defaultdict(list)
     for r in rows:
@@ -499,6 +517,7 @@ def process(
         "countries":          [[c, n] for c, n in countries.most_common()],
         "countries_by_venues":countries_by_venues,
         "cities":             [[c, n, city_primary_country.get(c, "")] for c, n in cities.most_common()],
+        "city_centroids":     city_centroids,
         "country_centroids":  country_centroids,
         "venues":             venues_list,
         "cat_groups":         cat_groups.most_common(),

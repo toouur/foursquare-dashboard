@@ -1085,8 +1085,8 @@
   # ══ UZBEKISTAN ══
   "Ташкент": "Tashkent"  # ok — Cyrillic
   "Тошкент": "Tashkent"  # ok — Uzbek Cyrillic
-  "Самарканд": "Samarqand"  # ok — Cyrillic → Samarqand
-  "Samarkand": "Samarqand"  # ok — common English form
+  "Самарканд": "Samarkand"  # ok — Cyrillic → canonical English Samarkand
+  "Samarqand": "Samarkand"  # ok — Uzbek-alphabet spelling; canonical English = Samarkand
   "Каган": "Bukhara"  # ok — Cyrillic form of Kagan, railway gateway to Bukhara
 
   # ══ VATICAN ══
@@ -1273,7 +1273,6 @@
   "Akhelia": "Paphos"  # ok — Paphos Airport PFO is in Akhelia municipality
 
   # ══ UZBEKISTAN / SAMARKAND + BUKHARA ══
-  "Samarqand": "Samarkand"  # ok — Uzbek-alphabet spelling; canonical English = Samarkand
   "Kagan": "Bukhara"  # ok — Kagan railway station 12km from Bukhara — main rail gateway to Bukhara
   "Kogon": "Bukhara"  # ok — alternative Latin spelling of Kagan/Kogon
 
@@ -1316,7 +1315,7 @@
   "Bến Cầu": "Bến Cầu"  # ok — standalone — Moc Bai border crossing VN-KH (11.07,106.17)
 
   # ══ POLAND / SEJNY BORDER ══
-  "Sejny - Lazdijai": "Ogrodniki"  # ok — PL-LT border crossing at Ogrodniki; Sejny is nearest PL town (9.7km)
+  "Sejny - Lazdijai": "Sejny"  # ok — PL-LT border crossing at Ogrodniki; Sejny is nearest PL town (9.7km)
 
   # ══ EGYPT / SUEZ CANAL ══
   "El Qantra Shark, Ismailia": "El-Qantara el-Sharqîya"  # ok — El Qantara East, Suez Canal (30.85,32.31)
