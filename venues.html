@@ -37,12 +37,11 @@ thead th.sorted{color:var(--gold);}
 thead th .sort-ico{margin-left:4px;opacity:.5;font-size:.65rem;}
 thead th.sorted .sort-ico{opacity:1;}
 
-tbody tr{border-bottom:1px solid rgba(34,39,56,.5);transition:background .1s;}
-tbody tr:hover{background:rgba(255,255,255,.025);}
+tbody tr{border-bottom:1px solid rgba(34,39,56,.5);}
 td{padding:10px 16px;vertical-align:middle;}
 
 .rank{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--muted);text-align:right;width:40px;}
-.venue-name a{color:var(--text);text-decoration:none;font-weight:600;font-size:.85rem;}
+.venue-name a,.venue-name a:visited,.venue-name a:link{color:var(--text);text-decoration:none;font-weight:600;font-size:.85rem;}
 .venue-name a:hover{color:var(--gold);}
 .venue-city{font-size:.68rem;color:var(--muted);margin-top:2px;}
 .cat{font-size:.62rem;color:var(--teal);text-transform:uppercase;letter-spacing:.04em;}
@@ -50,7 +49,7 @@ td{padding:10px 16px;vertical-align:middle;}
 .years-cell{max-width:220px;}
 .yr-chips{display:flex;gap:3px;flex-wrap:wrap;}
 .yr{font-family:'DM Mono',monospace;font-size:.52rem;padding:2px 5px;border-radius:4px;background:var(--card2);border:1px solid var(--border);color:var(--muted);}
-.flag{font-size:.85em;}
+.flag{font-size:1.1em;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;line-height:1;}
 
 /* Mobile */
 @media(max-width:700px){
@@ -141,13 +140,12 @@ function render(){
     const vlink=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener">${esc(name)}</a>`:esc(name);
     const loc=[city&&(fl(country)+' '+city),country].filter(Boolean).join(', ');
     const yrs=years.map(y=>`<span class="yr">${y}</span>`).join('');
-    // Original rank position
-    const origRank=VENUES.indexOf(v)+1;
+    const origRank=i+1;  // rank in current sorted order
     return `<tr>
       <td class="rank">${origRank}</td>
       <td class="venue-name">${vlink}${city?`<div class="venue-city">${esc(loc)}</div>`:''}</td>
       <td><span class="cat">${esc(cat)}</span></td>
-      <td><span class="flag">${fl(country)}</span> ${esc(city||country)}</td>
+      <td><span class="flag" style="font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;">${fl(country)}</span> ${esc(city||country)}</td>
       <td class="years-cell"><div class="yr-chips">${yrs}</div></td>
       <td class="count">${count.toLocaleString()}</td>
     </tr>`;
