@@ -370,7 +370,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   </div>
 
   <div class="card">
-    <div class="card-title">Top Companions <em>&middot; check-ins with others</em></div>
+    <div class="card-title">Top Companions <em>&middot; check-ins with others</em> <a href="companions.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗ full list</a></div>
     <div id="companionsList"></div>
   </div>
 
@@ -398,8 +398,8 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   <div class="card full">
     <div class="card-title">Map <em>&middot;</em>
       <div class="tabs">
-        <div class="tab active" id="tabHeat" onclick="switchMap('heat')">Heatmap &middot; 64,561 check-ins</div>
-        <div class="tab" id="tabDots" onclick="switchMap('dots')">Dots &middot; 32,191 unique places</div>
+        <div class="tab active" id="tabHeat" onclick="switchMap('heat')" id="tabHeat">Heatmap</div>
+        <div class="tab" id="tabDots" onclick="switchMap('dots')">Dots</div>
         <div class="tab" id="tabCityMap" onclick="switchMap('citymap')">City Map</div>
         <div class="tab" id="tabCountries" onclick="switchMap('countries')">Countries &middot; flags</div>
       </div>
@@ -415,6 +415,9 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 
 <script>
 const S={{STATS}};
+// Update map tab labels with actual counts
+document.getElementById('tabHeat').textContent='Heatmap · '+S.total.toLocaleString()+' check-ins';
+document.getElementById('tabDots').textContent='Dots · '+S.unique_places_count.toLocaleString()+' unique places';
 // ── XSS-safe string escape ─────────────────────────────────────────────────
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
@@ -1640,6 +1643,23 @@ S.cities.forEach(([name,count])=>{visitedCityMap[name.toLowerCase()]=[name,count
 
 // Fuzzy match world city name against visited cities
 const CITY_ALIASES={
+  'Chisinau':['Chișinău','Chisinau'],
+  'Kishinev':['Chișinău'],
+  'Iasi':['Iași'],
+  'Constanta':['Constanța'],
+  'Brasov':['Brașov'],
+  'Balti':['Bălți'],
+  'Tiraspol':['Tiraspol'],
+  'Krakow':['Kraków','Krakow'],
+  'Wroclaw':['Wrocław'],
+  'Poznan':['Poznań'],
+  'Lodz':['Łódź'],
+  'Bialystok':['Białystok'],
+  'Gdansk':['Gdańsk'],
+  'Kosice':['Košice'],
+  'Torun':['Toruń'],
+  'Malaga':['Málaga'],
+  'Cordoba':['Córdoba'],
   'Delhi':['New Delhi','Delhi'],
   'Odessa':['Odesa','Odessa'],
   'Krakow':['Kraków','Krakow'],
@@ -1761,10 +1781,10 @@ function buildWorldCities(continent){
     const isVisited=!!vm;
     if(isVisited) visitedCount++;
     const popStr=pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K';
-    const contLabel=continent==='ALL'?`<span style="font-size:.58rem;color:var(--muted);opacity:.6">${CONT_NAMES[cont]||cont}</span> `:'' ;
+    const contLabel=continent==='ALL'?` <span style="font-size:.55rem;color:var(--muted);opacity:.5;margin-left:5px">${CONT_NAMES[cont]||cont}</span>`:'' ;
     html+=`<div class="world-city-row${isVisited?' visited':''}" data-name="${name.toLowerCase()}" data-cont="${cont}">
       <span class="world-city-rank">${i+1}</span>
-      <span class="world-city-name">${contLabel}${esc(name)}${isVisited?' ✓':''}</span>
+      <span class="world-city-name">${esc(name)}${isVisited?' ✓':''} ${contLabel}</span>
       <span class="world-city-pop">${popStr}</span>
       <span class="world-city-checkins">${isVisited?vm[1].toLocaleString():''}</span>
     </div>`;
@@ -1796,42 +1816,19 @@ function buildCityMap(){
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:18}).addTo(cityMapInst);
 
-  // Build map: world cities (>10k) as base, overlay visited cities highlighted
+  // Only show visited cities with pop>10k as small blue dots
   const visitedCityCoords=S.city_centroids||{};
-  const cityCounts={};
-  S.cities.forEach(([name,count])=>cityCounts[name]=count);
-
   cityDotLayer=L.layerGroup();
 
-  // Plot world cities from static dataset
-  const worldCitiesForMap=[...WORLD_CITIES].sort((a,b)=>b[3]-a[3]);
+  const worldCitiesForMap=[...WORLD_CITIES].filter(c=>c[3]>=0.01).sort((a,b)=>b[3]-a[3]);
   worldCitiesForMap.forEach(([name,lat,lng,pop,cont])=>{
     const vm=matchVisited(name);
-    const isVisited=!!vm;
-    // Radius proportional to sqrt of population
-    const r=Math.max(3,Math.min(14,Math.sqrt(pop*100)*2.5));
-    const color=isVisited?'#e8b86d':'#3d4966';
-    const fillColor=isVisited?'#e8b86d':'#1a2035';
-    const fillOpacity=isVisited?0.85:0.5;
-    const weight=isVisited?1.5:0.5;
+    if(!vm) return;  // Only visited cities
     const popStr=pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K';
-    const tooltip=`${name} (${popStr})${isVisited?' · '+vm[1].toLocaleString()+' check-ins':''}`;
-    L.circleMarker([lat,lng],{radius:r,color,fillColor,fillOpacity,weight})
-      .bindTooltip(esc(tooltip),{direction:'top',opacity:0.92})
-      .addTo(cityDotLayer);
+    const tooltip=`${name} (${popStr}) · ${vm[1].toLocaleString()} check-ins`;
+    L.circleMarker([lat,lng],{radius:5,color:'#4ec9b0',fillColor:'#4ec9b0',fillOpacity:0.8,weight:1})
+      .bindTooltip(tooltip,{direction:'top',opacity:0.9}).addTo(cityDotLayer);
   });
-
-  // Also add visited cities not in world dataset (rare/small ones)
-  const worldNames=new Set(WORLD_CITIES.map(c=>c[0].toLowerCase()));
-  Object.entries(visitedCityCoords).forEach(([cityName,[lat,lng]])=>{
-    if(worldNames.has(cityName.toLowerCase())) return;
-    const count=cityCounts[cityName]||0;
-    const r=Math.max(4,Math.min(10,Math.sqrt(count)*1.2));
-    L.circleMarker([lat,lng],{radius:r,color:'#e8b86d',fillColor:'#e8b86d',fillOpacity:0.7,weight:1})
-      .bindTooltip(esc(cityName+' · '+count.toLocaleString()+' check-ins'),{direction:'top',opacity:0.92})
-      .addTo(cityDotLayer);
-  });
-
   cityDotLayer.addTo(cityMapInst);
 
   // Legend
