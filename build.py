@@ -44,15 +44,18 @@ def save_category_list(rows: list[dict], out_path: str) -> None:
     log.info("Category list → %s  (%d categories)", out_path, len(cats))
 
 
-# Templates are loaded at import time from the templates/ directory.
-# Edit templates/index.html and templates/trips.html directly;
-# they are proper HTML files, visible to linters and formatters.
+# Templates are loaded from the templates/ directory next to this script.
 _TEMPLATES_DIR = _SCRIPT_DIR / "templates"
-TEMPLATE       = (_TEMPLATES_DIR / "index.html.tmpl").read_text(encoding="utf-8")
-TRIPS_TEMPLATE = (_TEMPLATES_DIR / "trips.html.tmpl").read_text(encoding="utf-8")
 
 def build(data, trips, out_dir='.'):
     import os
+    tmpl_path       = _TEMPLATES_DIR / "index.html.tmpl"
+    trips_tmpl_path = _TEMPLATES_DIR / "trips.html.tmpl"
+    if not tmpl_path.exists():
+        log.error("Template not found: %s", tmpl_path)
+        sys.exit(1)
+    TEMPLATE       = tmpl_path.read_text(encoding="utf-8")
+    TRIPS_TEMPLATE = trips_tmpl_path.read_text(encoding="utf-8")
     # ── index.html ──────────────────────────────────────────────────────────
     html = TEMPLATE
     html = html.replace('{{DATE_MIN}}',  data['date_min'])
