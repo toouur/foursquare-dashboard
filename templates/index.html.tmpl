@@ -52,6 +52,10 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .bar-list{display:flex;flex-direction:column;gap:7px;max-height:520px;overflow-y:auto;padding-right:4px;}
 .bar-list::-webkit-scrollbar{width:3px;}
 .bar-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+#byCountryList::-webkit-scrollbar{width:3px;}
+#byCountryList::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+#worldCitiesList::-webkit-scrollbar{width:3px;}
+#worldCitiesList::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 .bar-row{display:grid;grid-template-columns:28px 1fr 110px 58px;align-items:center;gap:8px;}
 .bar-row .rank{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);text-align:right;}
 .bar-row .name{font-size:0.80rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
@@ -1812,7 +1816,7 @@ function filterWorldCities(q){
 let cityMapInst=null;
 function buildCityMap(){
   if(cityMapInst) return;
-  cityMapInst=L.map('cityMap',{preferCanvas:true,zoomControl:true}).setView([25,20],2);
+  cityMapInst=L.map('cityMap',{preferCanvas:true,zoomControl:false,attributionControl:false}).setView([25,20],2);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:18}).addTo(cityMapInst);
 

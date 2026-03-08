@@ -39,7 +39,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .ci-venue a{color:var(--text);text-decoration:none;font-weight:600;}
 .ci-venue a:hover{color:var(--gold);}
 .ci-cat{font-size:0.68rem;color:var(--teal);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
-.ci-loc{font-size:0.72rem;color:var(--muted);}
+.ci-loc{font-size:0.72rem;color:var(--muted);font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",'DM Sans',sans-serif;}
 @media(max-width:700px){.layout{grid-template-columns:1fr;}.sidebar{max-height:180px;border-right:none;border-bottom:1px solid var(--border);}.main{padding:16px;}}
 </style>
 </head>
@@ -88,8 +88,14 @@ function flag(c){return F[c]||'🌍';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let cur=0;
 
+// Build country→flag from first checkin per companion
+const compFlag=COMP.map(c=>{
+  const ci=c[2]||[];
+  for(const r of ci){const country=r[5];if(country)return flag(country);}
+  return '🌍';
+});
 document.getElementById('sidebar').innerHTML=COMP.map((c,i)=>
-  `<div class="si" id="si${i}" onclick="show(${i})"><span class="si-name" title="${esc(c[0])}">${esc(c[0])}</span><span class="si-cnt">${c[1].toLocaleString()}</span></div>`
+  `<div class="si" id="si${i}" onclick="show(${i})"><span class="si-flag" style="font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;margin-right:5px">${compFlag[i]}</span><span class="si-name" title="${esc(c[0])}">${esc(c[0])}</span><span class="si-cnt">${c[1].toLocaleString()}</span></div>`
 ).join('');
 
 function show(idx,q){
