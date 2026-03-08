@@ -128,7 +128,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .loyalty-row:hover{border-color:rgba(232,184,109,0.4);}
 .lr-rank{font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);text-align:right;}
 .lr-info{min-width:0;}
-.lr-venue{font-size:0.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lr-venue{font-size:0.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.lr-venue-a{color:var(--text);text-decoration:none;}.lr-venue-a:hover{color:var(--gold);text-decoration:underline;}
 .lr-city{font-size:0.62rem;color:var(--muted);}
 .lr-years{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;}
 .lr-yr{font-family:'DM Mono',monospace;font-size:0.52rem;padding:2px 5px;border-radius:3px;background:rgba(232,184,109,0.1);color:var(--gold);border:1px solid rgba(232,184,109,0.2);white-space:nowrap;}
@@ -261,21 +261,21 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 <header>
   <div>
     <h1>Check-in Journal</h1>
-    <p class="sub">Foursquare &nbsp;&middot;&nbsp; 2012-10-13 &ndash; 2026-03-07</p>
-    <p class="updated">Updated 2026-03-07 16:46 UTC</p>
+    <p class="sub">Foursquare &nbsp;&middot;&nbsp; {{DATE_MIN}} &ndash; {{DATE_MAX}}</p>
+    <p class="updated">Updated {{UPDATED}}</p>
   </div>
   <div class="kpis">
-    <div class="kpi"><div class="num">64,561</div><div class="lbl">Check-ins</div></div>
-    <div class="kpi"><div class="num">62</div><div class="lbl">Countries</div></div>
-    <div class="kpi"><div class="num">851</div><div class="lbl">Cities</div></div>
-    <div class="kpi"><div class="num">32,191</div><div class="lbl">Unique Places</div></div>
-    <div class="kpi"><div class="num">156</div><div class="lbl">Trips</div></div>
+    <div class="kpi"><div class="num">{{TOTAL}}</div><div class="lbl">Check-ins</div></div>
+    <div class="kpi"><div class="num">{{COUNTRIES}}</div><div class="lbl">Countries</div></div>
+    <div class="kpi"><div class="num">{{CITIES}}</div><div class="lbl">Cities</div></div>
+    <div class="kpi"><div class="num">{{PLACES}}</div><div class="lbl">Unique Places</div></div>
+    <div class="kpi"><div class="num">{{TRIPS}}</div><div class="lbl">Trips</div></div>
   </div>
 </header>
 
 <div class="recent-section">
   <div class="recent-header">
-    <span class="recent-title">Recent Check-ins</span>
+    <a class="recent-title" href="feed.html" style="text-decoration:none;color:inherit;cursor:pointer;" title="View full check-in feed">Recent Check-ins ↗</a>
   </div>
   <div class="recent-scroll" id="recentScroll">
     <div class="recent-loading">Loading…</div>
@@ -368,7 +368,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     </div>
   </div>
   <div class="card">
-    <div class="card-title">Top 500 Venues <em>&middot;&nbsp;unique by venue&nbsp;&middot;&nbsp; scroll &amp; search</em></div>
+    <div class="card-title">Top 500 Venues <em>&middot;&nbsp;unique by venue&nbsp;&middot;&nbsp; scroll &amp; search</em>&nbsp;<a href="venues.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗</a></div>
     <input class="search-box" type="text" placeholder="Search venues..." oninput="filterList('venuesList',this.value)">
     <div class="bar-list" id="venuesList"></div>
   </div>
@@ -602,7 +602,7 @@ new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:S.cat_gro
     `<div class="companion-bar">
       <span class="companion-name" title="${esc(n)}">${esc(n)}</span>
       <div class="companion-track"><div class="companion-fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
-      <a class="companion-cnt" href="companions.html?person=${encodeURIComponent(n)}" target="_blank">${c.toLocaleString()}</a>
+      <a class="companion-cnt" href="companions.html?person=${encodeURIComponent(n)}" target="_blank" style="text-decoration:none">${c.toLocaleString()}</a>
     </div>`
   ).join('');
 })();
@@ -622,17 +622,20 @@ new Chart(document.getElementById('discoveryChart'),{type:'bar',
 // ── Venue Loyalty ──────────────────────────────────────────────────────────
 (function(){
   const data=S.venue_loyalty;
-  document.getElementById('loyaltyGrid').innerHTML=data.map(([name,city,years,total],i)=>
-    `<div class="loyalty-row">
+  document.getElementById('loyaltyGrid').innerHTML=data.map(([name,city,years,total,vid],i)=>{
+    const vname=vid
+      ?`<a class="lr-venue-a" href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" title="${esc(name)}">${esc(name)}</a>`
+      :esc(name);
+    return `<div class="loyalty-row">
       <span class="lr-rank">#${i+1}</span>
       <div class="lr-info">
-        <div class="lr-venue" title="${esc(name)}">${esc(name)}</div>
+        <div class="lr-venue">${vname}</div>
         <div class="lr-city">${esc(city||'')}</div>
       </div>
       <div class="lr-years">${years.map(y=>`<span class="lr-yr">${y}</span>`).join('')}</div>
       <span class="lr-count">${total}</span>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 })();
 
 
@@ -736,32 +739,20 @@ function filterList(id,q){
   // ── OSM tile mini-map helper ──
   function tileBlock(lat,lng){
     if(!lat||!lng) return '';
-    const z=14, n=1<<z;
-    const xf=(lng+180)/360*n;
-    const latr=lat*Math.PI/180;
+    const z=14,n=1<<z;
+    const xf=(lng+180)/360*n,latr=lat*Math.PI/180;
     const yf=(1-Math.log(Math.tan(latr)+1/Math.cos(latr))/Math.PI)/2*n;
-    const xt=Math.floor(xf), yt=Math.floor(yf);
-    const fx=(xf-xt)*256, fy=(yf-yt)*256;
-    // Card rc-map: 220px wide, 90px tall. Venue centered at (110, 43).
-    const L0=Math.round(110-fx), T0=Math.round(43-fy);
-    const url=(dx,dy)=>`https://tile.openstreetmap.org/${z}/${xt+dx}/${yt+dy}.png`;
-    const img=(dx,dy,l,t)=>`<img src="${url(dx,dy)}" width="256" height="256" `+
-      `style="left:${l}px;top:${t}px;" loading="lazy" crossorigin="anonymous">`;
-    // Determine which neighbours are needed (edge + corner gaps)
-    const needR=L0+256<220, needL=L0>0;
-    const needT=T0>0,        needB=T0+256<90;
-    let tiles=img(0,0,L0,T0);
-    if(needR) tiles+=img(+1,0,L0+256,T0);
-    if(needL) tiles+=img(-1,0,L0-256,T0);
-    if(needT) tiles+=img(0,-1,L0,T0-256);
-    if(needB) tiles+=img(0,+1,L0,T0+256);
-    // Corner tiles to fill diagonal gaps
-    if(needR&&needT) tiles+=img(+1,-1,L0+256,T0-256);
-    if(needL&&needT) tiles+=img(-1,-1,L0-256,T0-256);
-    if(needR&&needB) tiles+=img(+1,+1,L0+256,T0+256);
-    if(needL&&needB) tiles+=img(-1,+1,L0-256,T0+256);
-    return `<div class="rc-map">${tiles}`+
-      `<div class="rc-map-fade"></div><div class="rc-map-pin">📍</div></div>`;
+    const xt=Math.floor(xf),yt=Math.floor(yf);
+    const L0=Math.round(110-(xf-xt)*256),T0=Math.round(43-(yf-yt)*256);
+    const u=(dx,dy)=>`https://tile.openstreetmap.org/${z}/${xt+dx}/${yt+dy}.png`;
+    const im=(dx,dy,l,t)=>`<img src="${u(dx,dy)}" width="256" height="256" style="left:${l}px;top:${t}px;" loading="lazy" crossorigin="anonymous">`;
+    const nR=L0+256<220,nL=L0>0,nT=T0>0,nB=T0+256<90;
+    let t=im(0,0,L0,T0);
+    if(nR)t+=im(1,0,L0+256,T0);   if(nL)t+=im(-1,0,L0-256,T0);
+    if(nT)t+=im(0,-1,L0,T0-256);  if(nB)t+=im(0,1,L0,T0+256);
+    if(nR&&nT)t+=im(1,-1,L0+256,T0-256); if(nL&&nT)t+=im(-1,-1,L0-256,T0-256);
+    if(nR&&nB)t+=im(1,1,L0+256,T0+256);  if(nL&&nB)t+=im(-1,1,L0-256,T0+256);
+    return `<div class="rc-map">${t}<div class="rc-map-fade"></div><div class="rc-map-pin">📍</div></div>`;
   }
 
   // ── Foursquare app URL ──
@@ -1654,12 +1645,29 @@ const visitedCityMap={};
 S.cities.forEach(([name,count])=>{visitedCityMap[name.toLowerCase()]=[name,count];});
 
 // Fuzzy match world city name against visited cities
-const CITY_ALIASES={'Delhi':['New Delhi','Delhi'],'Odessa':['Odesa','Odessa'],'Krakow':['Kraków','Krakow'],'Mumbai':['Mumbai','Bombay'],'Kolkata':['Kolkata','Calcutta'],'Chennai':['Chennai','Madras'],'Bangalore':['Bangalore','Bengaluru'],'Yangon':['Yangon','Rangoon'],'Hamilton NZ':['Hamilton'],'London ON':['London'],'Victoria BC':['Victoria'],'San José CR':['San José','San Jose'],'San Juan PR':['San Juan'],'Hyderabad PK':['Hyderabad']};
+const CITY_ALIASES={
+  'Delhi':['New Delhi','Delhi'],
+  'Odessa':['Odesa','Odessa'],
+  'Krakow':['Kraków','Krakow'],
+  'Molodechno':['Maladzyechna','Molodechno'],
+  'Baranavichy':['Baranovichi','Baranavichy'],
+  'Yangon':['Yangon','Rangoon'],
+  'Mumbai':['Mumbai','Bombay'],
+  'Kolkata':['Kolkata','Calcutta'],
+  'Chennai':['Chennai','Madras'],
+  'Bangalore':['Bangalore','Bengaluru'],
+  'Hamilton NZ':['Hamilton'],
+  'London ON':['London'],
+  'Victoria BC':['Victoria'],
+  'San José CR':['San José','San Jose'],
+};
 function matchVisited(worldName){
   const wl=worldName.toLowerCase();
   if(visitedCityMap[wl]) return visitedCityMap[wl];
-  const aliases=CITY_ALIASES[worldName]||[];
-  for(const alias of aliases){if(visitedCityMap[alias.toLowerCase()]) return visitedCityMap[alias.toLowerCase()];}
+  for(const a of (CITY_ALIASES[worldName]||[])){
+    const v=visitedCityMap[a.toLowerCase()];
+    if(v) return v;
+  }
   return null;
 }
 
@@ -1688,19 +1696,13 @@ function sortByCountry(mode, el){
 }
 
 function buildByCountry(sort){
-  const _knownCities=new Set([...WORLD_CITIES,...WORLD_CITIES_100K].map(c=>c[0].toLowerCase()));
-  const _regionWords=['region','oblast','rayon','district','province','county',' area'];
-  const _microStates=new Set(['Holy See (Vatican City State)','Liechtenstein','Monaco','San Marino','Andorra','Malta','Luxembourg','Singapore','Bahrain','Maldives','Nauru','Tuvalu','Palau','Marshall Islands','Saint Kitts and Nevis','Brunei']);
-  function _isBigCity(name,count,country){
-    if(_microStates.has(country)) return true;
-    const nl=name.toLowerCase();
-    if(_regionWords.some(w=>nl.includes(w))) return false;
-    return _knownCities.has(nl)||count>=3;
-  }
+  const _kc=new Set([...WORLD_CITIES,...WORLD_CITIES_100K].map(c=>c[0].toLowerCase()));
+  const _rw=['region','oblast','rayon','district','province','county',' area'];
+  const _ms=new Set(['Holy See (Vatican City State)','Liechtenstein','Monaco','San Marino','Andorra','Malta','Luxembourg','Singapore','Bahrain','Maldives','Brunei']);
+  function _ok(n,c,co){if(_ms.has(co))return true;const nl=n.toLowerCase();if(_rw.some(w=>nl.includes(w)))return false;return _kc.has(nl)||c>=3;}
   const byCountry={};
   S.cities.forEach(([name,count,country])=>{
-    if(!country) return;
-    if(!_isBigCity(name,count,country)) return;
+    if(!country||!_ok(name,count,country)) return;
     if(!byCountry[country]) byCountry[country]={cities:[],total:0};
     byCountry[country].cities.push([name,count]);
     byCountry[country].total+=count;
@@ -1757,6 +1759,7 @@ function buildWorldCities(continent){
   // Sort by population desc
   cities=[...cities].sort((a,b)=>b[3]-a[3]);
 
+  // Group by continent
   let html='';
   let visitedCount=0, totalCount=cities.length;
 
@@ -1801,22 +1804,20 @@ function buildCityMap(){
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:18}).addTo(cityMapInst);
   const coords=S.city_centroids||{};
-  const cityCounts={};
-  S.cities.forEach(([name,cnt])=>cityCounts[name]=cnt);
-  const _knownBig=new Set([...WORLD_CITIES,...WORLD_CITIES_100K].map(c=>c[0].toLowerCase()));
+  const cc={};S.cities.forEach(([n,c])=>cc[n]=c);
+  const _kb=new Set([...WORLD_CITIES,...WORLD_CITIES_100K].map(c=>c[0].toLowerCase()));
   const _rw=['region','oblast','rayon','district','province','county',' area'];
-  function _isBig(n){const nl=n.toLowerCase();if(_rw.some(w=>nl.includes(w)))return false;return _knownBig.has(nl)||(cityCounts[n]||0)>=3;}
+  function _ok(n){const nl=n.toLowerCase();if(_rw.some(w=>nl.includes(w)))return false;return _kb.has(nl)||(cc[n]||0)>=3;}
   cityDotLayer=L.layerGroup();
   Object.entries(coords).forEach(([city,[lat,lng]])=>{
-    if(!_isBig(city)) return;
-    const cnt=cityCounts[city]||0;
+    if(!_ok(city))return;
     L.circleMarker([lat,lng],{radius:4,color:'#e8b86d',fillColor:'#e8b86d',fillOpacity:0.9,weight:1})
-      .bindTooltip(esc(city+' · '+cnt.toLocaleString()+' check-ins'),{direction:'top',opacity:0.92})
+      .bindTooltip(esc(city+' · '+(cc[city]||0).toLocaleString()+' check-ins'),{direction:'top',opacity:0.92})
       .addTo(cityDotLayer);
   });
   cityDotLayer.addTo(cityMapInst);
   const leg=L.control({position:'bottomright'});
-  leg.onAdd=function(){const d=L.DomUtil.create('div');d.style.cssText='background:rgba(12,14,20,0.85);padding:8px 12px;border-radius:6px;font-size:11px;color:#aaa;border:1px solid #222738;';d.innerHTML='<span style="color:#e8b86d">●</span> Visited cities (10k+ pop)';return d;};
+  leg.onAdd=function(){const d=L.DomUtil.create('div');d.style.cssText='background:rgba(12,14,20,.85);padding:8px 12px;border-radius:6px;font-size:11px;color:#aaa;border:1px solid #222738;';d.innerHTML='<span style="color:#e8b86d">●</span> Visited cities';return d;};
   leg.addTo(cityMapInst);
 }
 

@@ -44,18 +44,15 @@ def save_category_list(rows: list[dict], out_path: str) -> None:
     log.info("Category list → %s  (%d categories)", out_path, len(cats))
 
 
-# Templates are loaded from the templates/ directory next to this script.
+# Templates are loaded at import time from the templates/ directory.
+# Edit templates/index.html and templates/trips.html directly;
+# they are proper HTML files, visible to linters and formatters.
 _TEMPLATES_DIR = _SCRIPT_DIR / "templates"
+TEMPLATE       = (_TEMPLATES_DIR / "index.html.tmpl").read_text(encoding="utf-8")
+TRIPS_TEMPLATE = (_TEMPLATES_DIR / "trips.html.tmpl").read_text(encoding="utf-8")
 
 def build(data, trips, out_dir='.'):
     import os
-    tmpl_path       = _TEMPLATES_DIR / "index.html.tmpl"
-    trips_tmpl_path = _TEMPLATES_DIR / "trips.html.tmpl"
-    if not tmpl_path.exists():
-        log.error("Template not found: %s", tmpl_path)
-        sys.exit(1)
-    TEMPLATE       = tmpl_path.read_text(encoding="utf-8")
-    TRIPS_TEMPLATE = trips_tmpl_path.read_text(encoding="utf-8")
     # ── index.html ──────────────────────────────────────────────────────────
     html = TEMPLATE
     html = html.replace('{{DATE_MIN}}',  data['date_min'])
@@ -132,6 +129,31 @@ if __name__ == "__main__":
 
     if args.cat_list:
         save_category_list(rows, os.path.join(args.output_dir, "category_list.txt"))
+
+    # ── Generate companion, feed, and world-cities pages ──
+    _here = _SCRIPT_DIR
+    for gen_script, gen_out in [
+        (_here / "gen_companions.py", "companions.html"),
+        (_here / "gen_feed.py",        "feed.html"),
+        (_here / "gen_worldcities.py", "world_cities.html"),
+        (_here / "gen_venues.py",      "venues.html"),
+    ]:
+        if gen_script.exists():
+            import importlib.util as _ilu, importlib as _il
+            _spec = _ilu.spec_from_file_location(f"_gen_{gen_script.stem}", gen_script)
+            _mod  = _ilu.module_from_spec(_spec)
+            try:
+                _spec.loader.exec_module(_mod)
+                _mod.build_page(
+                    csv_path   = args.input,
+                    config_dir = str(_SCRIPT_DIR / "config"),
+                    out_path   = os.path.join(args.output_dir, gen_out),
+                    tmpl_path  = str(_TEMPLATES_DIR / "index.html.tmpl"),
+                )
+            except Exception as _e:
+                log.warning("Generator %s failed: %s", gen_script.name, _e)
+        else:
+            log.warning("Generator not found: %s", gen_script)
 
     log.info("Done!")
 

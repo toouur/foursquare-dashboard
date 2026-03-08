@@ -440,9 +440,9 @@ def process(
     for vid, yrs in _vy.items():
         if len(yrs) >= 3:
             nm, cy = _vi[vid]
-            loyal.append([nm, cy, sorted(yrs), _vc[vid]])
+            loyal.append([nm, cy, sorted(yrs), _vc[vid], vid])
     loyal.sort(key=lambda x: (-len(x[2]), -x[3]))
-    venue_loyalty = loyal[:100]
+    venue_loyalty = loyal[:500]
 
     # ── Trips ─────────────────────────────────────────────────────────────────
     trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins)
