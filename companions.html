@@ -111,7 +111,7 @@ function show(idx,q){
   const rows=ci.map(r=>{
     const [ts,date,time,venue,city,country,cat,vid]=r;
     const loc=[city,country].filter(Boolean);
-    const locHtml=loc.length?`${flag(country)} ${esc(loc.join(', ')))}`:'';
+    const locHtml=loc.length?`${flag(country)} ${esc(loc.join(', '))}`:'';
     const vname=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener">${esc(venue||'—')}</a>`:esc(venue||'—');
     return `<tr><td><div class="ci-date">${date}</div><div class="ci-time">${time}</div></td>`+
       `<td><div class="ci-venue">${vname}</div><div class="ci-cat">${esc(cat)}</div></td>`+

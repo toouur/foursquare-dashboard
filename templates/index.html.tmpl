@@ -17,7 +17,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 
 /* ── HEADER ── */
 header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:28px;}
-header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);font-weight:900;line-height:1.1;letter-spacing:-0.02em;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.12em 0 .2em;overflow:visible;display:inline-block;}
+header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);font-weight:900;line-height:1;letter-spacing:-0.02em;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.12em 0 .08em;overflow:visible;display:inline-block;}
 header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
 .updated{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px;}
 .kpis{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end;}
@@ -128,7 +128,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .loyalty-row:hover{border-color:rgba(232,184,109,0.4);}
 .lr-rank{font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);text-align:right;}
 .lr-info{min-width:0;}
-.lr-venue{font-size:0.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.lr-venue-a{color:var(--text);text-decoration:none;}.lr-venue-a:hover{color:var(--gold);text-decoration:underline;}
+.lr-venue{font-size:0.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .lr-city{font-size:0.62rem;color:var(--muted);}
 .lr-years{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;}
 .lr-yr{font-family:'DM Mono',monospace;font-size:0.52rem;padding:2px 5px;border-radius:3px;background:rgba(232,184,109,0.1);color:var(--gold);border:1px solid rgba(232,184,109,0.2);white-space:nowrap;}
@@ -202,11 +202,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .world-city-pop{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);}
 .world-city-checkins{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--teal);text-align:right;}
 #worldCitiesList{max-height:620px;overflow-y:auto;padding-right:4px;}
-#worldCitiesList::-webkit-scrollbar{width:3px;}
-#worldCitiesList::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 #byCountryList{max-height:620px;overflow-y:auto;padding-right:4px;}
-#byCountryList::-webkit-scrollbar{width:3px;}
-#byCountryList::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 .rc-map img{position:absolute;image-rendering:auto;opacity:.82;}
 .rc-map-fade{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 35%,var(--card) 100%);}
 .rc-map-pin{position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);font-size:1.25rem;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.8));pointer-events:none;}
@@ -275,7 +271,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 
 <div class="recent-section">
   <div class="recent-header">
-    <a class="recent-title" href="feed.html" style="text-decoration:none;color:inherit;cursor:pointer;" title="View full check-in feed">Recent Check-ins ↗</a>
+    <a class="recent-title" href="feed.html" style="text-decoration:none;color:inherit;">Check-ins Feed ↗</a>
   </div>
   <div class="recent-scroll" id="recentScroll">
     <div class="recent-loading">Loading…</div>
@@ -320,7 +316,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   </div>
 
   <div class="card full cities-card">
-    <div class="card-title">Cities
+    <div class="card-title">Cities <a href="world_cities.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;float:right;margin-top:2px;">↗ world cities</a>
       <div class="tabs" style="margin-top:6px;">
         <div class="tab active" id="tabCityCheckins" onclick="switchCityTab('checkins',this)">By Check-ins</div>
         <div class="tab" id="tabCityCountry" onclick="switchCityTab('country',this)">By Country</div>
@@ -364,11 +360,11 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
       <div style="font-size:0.7rem;color:var(--muted);margin-bottom:8px;">
         <span id="worldVisitedCount" style="color:var(--gold)"></span>
       </div>
-      <div id="worldCitiesList"></div>
+      <div id="worldCitiesList" style="max-height:620px;overflow-y:auto;padding-right:4px;"></div>
     </div>
   </div>
   <div class="card">
-    <div class="card-title">Top 500 Venues <em>&middot;&nbsp;unique by venue&nbsp;&middot;&nbsp; scroll &amp; search</em>&nbsp;<a href="venues.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗</a></div>
+    <div class="card-title">Top 500 Venues <em>&middot;&nbsp;unique by venue&nbsp;&middot;&nbsp; scroll &amp; search</em> <a href="venues.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗ full list</a></div>
     <input class="search-box" type="text" placeholder="Search venues..." oninput="filterList('venuesList',this.value)">
     <div class="bar-list" id="venuesList"></div>
   </div>
@@ -602,7 +598,7 @@ new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:S.cat_gro
     `<div class="companion-bar">
       <span class="companion-name" title="${esc(n)}">${esc(n)}</span>
       <div class="companion-track"><div class="companion-fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
-      <a class="companion-cnt" href="companions.html?person=${encodeURIComponent(n)}" target="_blank" style="text-decoration:none">${c.toLocaleString()}</a>
+      <span class="companion-cnt">${c.toLocaleString()}</span>
     </div>`
   ).join('');
 })();
@@ -622,20 +618,17 @@ new Chart(document.getElementById('discoveryChart'),{type:'bar',
 // ── Venue Loyalty ──────────────────────────────────────────────────────────
 (function(){
   const data=S.venue_loyalty;
-  document.getElementById('loyaltyGrid').innerHTML=data.map(([name,city,years,total,vid],i)=>{
-    const vname=vid
-      ?`<a class="lr-venue-a" href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" title="${esc(name)}">${esc(name)}</a>`
-      :esc(name);
-    return `<div class="loyalty-row">
+  document.getElementById('loyaltyGrid').innerHTML=data.map(([name,city,years,total],i)=>
+    `<div class="loyalty-row">
       <span class="lr-rank">#${i+1}</span>
       <div class="lr-info">
-        <div class="lr-venue">${vname}</div>
+        <div class="lr-venue" title="${esc(name)}">${esc(name)}</div>
         <div class="lr-city">${esc(city||'')}</div>
       </div>
       <div class="lr-years">${years.map(y=>`<span class="lr-yr">${y}</span>`).join('')}</div>
       <span class="lr-count">${total}</span>
-    </div>`;
-  }).join('');
+    </div>`
+  ).join('');
 })();
 
 
@@ -703,14 +696,15 @@ barList('citiesList',S.cities);
 // Venues: data is [name, count, city]
 (function(){
   const data=S.venues, max=data[0][1];
-  document.getElementById('venuesList').innerHTML=data.map(([n,c,city],i)=>
-    `<div class="bar-row" data-name="${n.toLowerCase().replace(/"/g,'')}${city?' '+city.toLowerCase():''}">
+  document.getElementById('venuesList').innerHTML=data.map(([n,c,city,vid],i)=>{
+    const vname=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color=''">${esc(n)}</a>`:esc(n);
+    return `<div class="bar-row" data-name="${n.toLowerCase().replace(/"/g,'')}${city?' '+city.toLowerCase():''}">
       <span class="rank">#${i+1}</span>
-      <span class="name" title="${esc(n)}${city?' · '+esc(city):''}">  ${esc(n)}<span class="city-tag">${esc(city||'')} </span></span>
+      <span class="name" title="${esc(n)}${city?' · '+esc(city):''}">  ${vname}<span class="city-tag">${esc(city||'')} </span></span>
       <div class="track"><div class="fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
       <span class="cnt">${c.toLocaleString()}</span>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 })();
 function filterList(id,q){
   document.getElementById(id).querySelectorAll('.bar-row').forEach(r=>
@@ -1535,7 +1529,7 @@ heatLayer=L.heatLayer(S.venues_heatmap,{
   radius:14, blur:10, maxZoom:18, max:1.0, minOpacity:0.3,
   gradient:{'0.0':'#0a1628','0.2':'#0d3b6e','0.4':'#1a6b9a','0.65':'#e8b86d','0.85':'#ff7700','1.0':'#ff2200'}
 }).addTo(map);
-status.textContent='Heatmap · '+S.venues_heatmap.length.toLocaleString()+' unique locations';
+status.textContent='Heatmap · '+S.unique_places.length.toLocaleString()+' unique places';
 setTimeout(()=>status.style.opacity='0',2800);
 
 function buildDots(){
@@ -1620,7 +1614,7 @@ function switchMap(mode){
     if(dotLayer)map.removeLayer(dotLayer);
     if(cityDotLayer)map.removeLayer(cityDotLayer);
     heatLayer.addTo(map);
-    status.textContent='Heatmap · '+S.venues_heatmap.length.toLocaleString()+' unique locations';
+    status.textContent='Heatmap · '+S.unique_places.length.toLocaleString()+' unique places';
     status.style.opacity='1';setTimeout(()=>status.style.opacity='0',2500);
   } else if(mode==='dots'){
     map.removeLayer(heatLayer);
@@ -1651,11 +1645,14 @@ const CITY_ALIASES={
   'Krakow':['Kraków','Krakow'],
   'Molodechno':['Maladzyechna','Molodechno'],
   'Baranavichy':['Baranovichi','Baranavichy'],
+  'Novopolotsk':['Navapolatsk','Novopolotsk'],
   'Yangon':['Yangon','Rangoon'],
   'Mumbai':['Mumbai','Bombay'],
   'Kolkata':['Kolkata','Calcutta'],
   'Chennai':['Chennai','Madras'],
   'Bangalore':['Bangalore','Bengaluru'],
+  'Grodno':['Hrodna','Grodno'],
+  'Brest':['Brest','Brest (Брэст)'],
   'Hamilton NZ':['Hamilton'],
   'London ON':['London'],
   'Victoria BC':['Victoria'],
@@ -1696,13 +1693,9 @@ function sortByCountry(mode, el){
 }
 
 function buildByCountry(sort){
-  const _kc=new Set([...WORLD_CITIES,...WORLD_CITIES_100K].map(c=>c[0].toLowerCase()));
-  const _rw=['region','oblast','rayon','district','province','county',' area'];
-  const _ms=new Set(['Holy See (Vatican City State)','Liechtenstein','Monaco','San Marino','Andorra','Malta','Luxembourg','Singapore','Bahrain','Maldives','Brunei']);
-  function _ok(n,c,co){if(_ms.has(co))return true;const nl=n.toLowerCase();if(_rw.some(w=>nl.includes(w)))return false;return _kc.has(nl)||c>=3;}
   const byCountry={};
   S.cities.forEach(([name,count,country])=>{
-    if(!country||!_ok(name,count,country)) return;
+    if(!country) return;
     if(!byCountry[country]) byCountry[country]={cities:[],total:0};
     byCountry[country].cities.push([name,count]);
     byCountry[country].total+=count;
@@ -1759,7 +1752,6 @@ function buildWorldCities(continent){
   // Sort by population desc
   cities=[...cities].sort((a,b)=>b[3]-a[3]);
 
-  // Group by continent
   let html='';
   let visitedCount=0, totalCount=cities.length;
 
@@ -1768,11 +1760,11 @@ function buildWorldCities(continent){
     const vm=matchVisited(name);
     const isVisited=!!vm;
     if(isVisited) visitedCount++;
-    const flag=cont; // not used here
     const popStr=pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K';
+    const contLabel=continent==='ALL'?`<span style="font-size:.58rem;color:var(--muted);opacity:.6">${CONT_NAMES[cont]||cont}</span> `:'' ;
     html+=`<div class="world-city-row${isVisited?' visited':''}" data-name="${name.toLowerCase()}" data-cont="${cont}">
       <span class="world-city-rank">${i+1}</span>
-      <span class="world-city-name">${esc(name)}${isVisited?' ✓':''}</span>
+      <span class="world-city-name">${contLabel}${esc(name)}${isVisited?' ✓':''}</span>
       <span class="world-city-pop">${popStr}</span>
       <span class="world-city-checkins">${isVisited?vm[1].toLocaleString():''}</span>
     </div>`;
@@ -1803,22 +1795,57 @@ function buildCityMap(){
   cityMapInst=L.map('cityMap',{preferCanvas:true,zoomControl:true}).setView([25,20],2);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:18}).addTo(cityMapInst);
-  const coords=S.city_centroids||{};
-  const cc={};S.cities.forEach(([n,c])=>cc[n]=c);
-  const _kb=new Set([...WORLD_CITIES,...WORLD_CITIES_100K].map(c=>c[0].toLowerCase()));
-  const _rw=['region','oblast','rayon','district','province','county',' area'];
-  function _ok(n){const nl=n.toLowerCase();if(_rw.some(w=>nl.includes(w)))return false;return _kb.has(nl)||(cc[n]||0)>=3;}
+
+  // Build map: world cities (>10k) as base, overlay visited cities highlighted
+  const visitedCityCoords=S.city_centroids||{};
+  const cityCounts={};
+  S.cities.forEach(([name,count])=>cityCounts[name]=count);
+
   cityDotLayer=L.layerGroup();
-  Object.entries(coords).forEach(([city,[lat,lng]])=>{
-    if(!_ok(city))return;
-    L.circleMarker([lat,lng],{radius:4,color:'#e8b86d',fillColor:'#e8b86d',fillOpacity:0.9,weight:1})
-      .bindTooltip(esc(city+' · '+(cc[city]||0).toLocaleString()+' check-ins'),{direction:'top',opacity:0.92})
+
+  // Plot world cities from static dataset
+  const worldCitiesForMap=[...WORLD_CITIES].sort((a,b)=>b[3]-a[3]);
+  worldCitiesForMap.forEach(([name,lat,lng,pop,cont])=>{
+    const vm=matchVisited(name);
+    const isVisited=!!vm;
+    // Radius proportional to sqrt of population
+    const r=Math.max(3,Math.min(14,Math.sqrt(pop*100)*2.5));
+    const color=isVisited?'#e8b86d':'#3d4966';
+    const fillColor=isVisited?'#e8b86d':'#1a2035';
+    const fillOpacity=isVisited?0.85:0.5;
+    const weight=isVisited?1.5:0.5;
+    const popStr=pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K';
+    const tooltip=`${name} (${popStr})${isVisited?' · '+vm[1].toLocaleString()+' check-ins':''}`;
+    L.circleMarker([lat,lng],{radius:r,color,fillColor,fillOpacity,weight})
+      .bindTooltip(esc(tooltip),{direction:'top',opacity:0.92})
       .addTo(cityDotLayer);
   });
+
+  // Also add visited cities not in world dataset (rare/small ones)
+  const worldNames=new Set(WORLD_CITIES.map(c=>c[0].toLowerCase()));
+  Object.entries(visitedCityCoords).forEach(([cityName,[lat,lng]])=>{
+    if(worldNames.has(cityName.toLowerCase())) return;
+    const count=cityCounts[cityName]||0;
+    const r=Math.max(4,Math.min(10,Math.sqrt(count)*1.2));
+    L.circleMarker([lat,lng],{radius:r,color:'#e8b86d',fillColor:'#e8b86d',fillOpacity:0.7,weight:1})
+      .bindTooltip(esc(cityName+' · '+count.toLocaleString()+' check-ins'),{direction:'top',opacity:0.92})
+      .addTo(cityDotLayer);
+  });
+
   cityDotLayer.addTo(cityMapInst);
-  const leg=L.control({position:'bottomright'});
-  leg.onAdd=function(){const d=L.DomUtil.create('div');d.style.cssText='background:rgba(12,14,20,.85);padding:8px 12px;border-radius:6px;font-size:11px;color:#aaa;border:1px solid #222738;';d.innerHTML='<span style="color:#e8b86d">●</span> Visited cities';return d;};
-  leg.addTo(cityMapInst);
+
+  // Legend
+  const legend=L.control({position:'bottomright'});
+  legend.onAdd=function(){
+    const div=L.DomUtil.create('div');
+    div.style.cssText='background:rgba(12,14,20,0.85);padding:8px 12px;border-radius:6px;font-size:11px;color:#aaa;line-height:1.8;border:1px solid #222738;';
+    div.innerHTML='<div style="color:#e8b86d;margin-bottom:4px;font-weight:600">CITY MAP</div>'+
+      '<div><span style="color:#e8b86d">●</span> Visited city</div>'+
+      '<div><span style="color:#3d4966">●</span> Not visited</div>'+
+      '<div style="margin-top:4px;font-size:10px">Dot size = population</div>';
+    return div;
+  };
+  legend.addTo(cityMapInst);
 }
 
 // ── City pane initialisation ─────────────────────────────────────────────────

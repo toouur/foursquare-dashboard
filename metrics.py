@@ -282,10 +282,10 @@ def process(
         if not (vid and name):
             continue
         if vid not in venue_by_id:
-            venue_by_id[vid] = {"name": name, "city": city, "count": 0}
+            venue_by_id[vid] = {"name": name, "city": city, "count": 0, "id": vid}
         venue_by_id[vid]["count"] += 1
     venues_top500 = sorted(venue_by_id.values(), key=lambda x: -x["count"])[:500]
-    venues_list   = [[v["name"], v["count"], v["city"]] for v in venues_top500]
+    venues_list   = [[v["name"], v["count"], v["city"], v.get("id","")] for v in venues_top500]
 
     # ── Category groups ───────────────────────────────────────────────────────
     cat_groups: Counter = Counter()
@@ -369,17 +369,22 @@ def process(
     # ── Venues heatmap: one point per ~111m cell, weight = log(visit count) ──
     # Grouping at 3dp merges GPS micro-jitter; log dampens Minsk dominance.
     import math as _math
-    _vh: dict = {}
+    _vh: dict = {}  # venue_id → (lat, lng, count)
     for r in rows:
+        vid = r.get("venue_id", "").strip()
+        if not vid:
+            continue
         try:
-            k = f"{float(r['lat']):.3f}|{float(r['lng']):.3f}"
-            _vh[k] = _vh.get(k, 0) + 1
+            lat_f, lng_f = float(r["lat"]), float(r["lng"])
         except (ValueError, KeyError, TypeError):
-            pass
-    _vh_max = _math.log1p(max(_vh.values())) if _vh else 1.0
+            continue
+        if vid not in _vh:
+            _vh[vid] = [lat_f, lng_f, 0]
+        _vh[vid][2] += 1
+    _vh_max = _math.log1p(max(v[2] for v in _vh.values())) if _vh else 1.0
     venues_heatmap: list = [
-        [float(k.split("|")[0]), float(k.split("|")[1]), round(_math.log1p(cnt) / _vh_max, 4)]
-        for k, cnt in _vh.items()
+        [v[0], v[1], round(_math.log1p(v[2]) / _vh_max, 4)]
+        for v in _vh.values()
     ]
 
     # ── Companions ────────────────────────────────────────────────────────────
@@ -440,9 +445,9 @@ def process(
     for vid, yrs in _vy.items():
         if len(yrs) >= 3:
             nm, cy = _vi[vid]
-            loyal.append([nm, cy, sorted(yrs), _vc[vid], vid])
+            loyal.append([nm, cy, sorted(yrs), _vc[vid]])
     loyal.sort(key=lambda x: (-len(x[2]), -x[3]))
-    venue_loyalty = loyal[:500]
+    venue_loyalty = loyal[:100]
 
     # ── Trips ─────────────────────────────────────────────────────────────────
     trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins)

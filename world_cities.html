@@ -93,19 +93,16 @@ function render(){
   const total=data.length, vis=data.filter(c=>getVisitCount(c[0])).length;
   document.getElementById('countBadge').textContent=`${vis} visited / ${total.toLocaleString()} cities`;
   
-  let html='', lastCont='';
+  let html='';
   if(curCont==='ALL'){
     data.sort((a,b)=>{if(a[4]!==b[4])return a[4].localeCompare(b[4]);return b[3]-a[3];});
   }
   data.forEach(([name,lat,lng,pop,cont])=>{
-    if(curCont==='ALL'&&cont!==lastCont){
-      html+=`<div class="cont-header">${CONT_NAMES[cont]||cont}</div>`;
-      lastCont=cont;
-    }
+    const contTag=curCont==='ALL'?`<span style='font-size:.56rem;color:var(--muted);opacity:.55;'>${CONT_NAMES[cont]||cont} · </span>`:'';
     const cnt=getVisitCount(name);
     const popStr=pop>=1?`${pop.toFixed(1)}M`:`${Math.round(pop*1000)}k`;
     html+=`<div class="city-card${cnt?' visited':''}">
-      <div class="city-name">${name}</div>
+      <div class="city-name">${contTag}${name}</div>
       ${cnt?`<div class="city-cnt">✓ ${cnt.toLocaleString()} check-ins</div>`:''}
       <div class="city-pop">${popStr} pop</div>
     </div>`;
