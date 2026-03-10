@@ -53,9 +53,68 @@ except ImportError:
         return f"Etc/GMT{sign}{abs(offset)}"
 
 
-def _localise(d: datetime, lat: float | None, lng: float | None) -> datetime:
-    """Shift a UTC datetime to local time at the given coordinates."""
+# Country → IANA timezone for countries with a single timezone (no DST surprises).
+# Belarus stays at UTC+3 year-round (Europe/Minsk); longitude-based fallback gives UTC+2.
+_COUNTRY_TZ: dict[str, str] = {
+    'Belarus': 'Europe/Minsk', 'Moldova': 'Europe/Chisinau', 'Poland': 'Europe/Warsaw',
+    'Ukraine': 'Europe/Kyiv', 'Italy': 'Europe/Rome', 'Romania': 'Europe/Bucharest',
+    'Lithuania': 'Europe/Vilnius', 'Germany': 'Europe/Berlin',
+    'Türkiye': 'Europe/Istanbul', 'Turkey': 'Europe/Istanbul',
+    'China': 'Asia/Shanghai', 'Spain': 'Europe/Madrid', 'Georgia': 'Asia/Tbilisi',
+    'France': 'Europe/Paris', 'India': 'Asia/Kolkata', 'Latvia': 'Europe/Riga',
+    'Portugal': 'Europe/Lisbon', 'Iran': 'Asia/Tehran', 'Egypt': 'Africa/Cairo',
+    'Japan': 'Asia/Tokyo', 'United Kingdom': 'Europe/London',
+    'Czechia': 'Europe/Prague', 'Czech Republic': 'Europe/Prague',
+    'Hungary': 'Europe/Budapest', 'Austria': 'Europe/Vienna',
+    'Switzerland': 'Europe/Zurich', 'Netherlands': 'Europe/Amsterdam',
+    'Belgium': 'Europe/Brussels', 'Slovakia': 'Europe/Bratislava',
+    'Bulgaria': 'Europe/Sofia', 'Greece': 'Europe/Athens', 'Croatia': 'Europe/Zagreb',
+    'Serbia': 'Europe/Belgrade', 'Estonia': 'Europe/Tallinn',
+    'Finland': 'Europe/Helsinki', 'Sweden': 'Europe/Stockholm',
+    'Norway': 'Europe/Oslo', 'Denmark': 'Europe/Copenhagen',
+    'Kazakhstan': 'Asia/Almaty', 'Uzbekistan': 'Asia/Tashkent',
+    'Azerbaijan': 'Asia/Baku', 'Armenia': 'Asia/Yerevan',
+    'Israel': 'Asia/Jerusalem', 'Jordan': 'Asia/Amman',
+    'Thailand': 'Asia/Bangkok', 'Vietnam': 'Asia/Ho_Chi_Minh',
+    'Indonesia': 'Asia/Jakarta', 'South Korea': 'Asia/Seoul', 'Taiwan': 'Asia/Taipei',
+    'Singapore': 'Asia/Singapore', 'Malaysia': 'Asia/Kuala_Lumpur',
+    'Pakistan': 'Asia/Karachi', 'Nepal': 'Asia/Kathmandu',
+    'Mongolia': 'Asia/Ulaanbaatar', 'Morocco': 'Africa/Casablanca',
+    'Tunisia': 'Africa/Tunis', 'South Africa': 'Africa/Johannesburg',
+    'New Zealand': 'Pacific/Auckland', 'Holy See (Vatican City State)': 'Europe/Rome',
+    'San Marino': 'Europe/Rome', 'Monaco': 'Europe/Monaco', 'Malta': 'Europe/Malta',
+    'Cyprus': 'Asia/Nicosia', 'Iceland': 'Atlantic/Reykjavik', 'Ireland': 'Europe/Dublin',
+    'Slovenia': 'Europe/Ljubljana', 'North Macedonia': 'Europe/Skopje',
+    'Albania': 'Europe/Tirane', 'Montenegro': 'Europe/Podgorica',
+    'Bosnia and Herzegovina': 'Europe/Sarajevo', 'Kosovo': 'Europe/Belgrade',
+    'Tajikistan': 'Asia/Dushanbe', 'Kyrgyzstan': 'Asia/Bishkek',
+    'Turkmenistan': 'Asia/Ashgabat', 'Oman': 'Asia/Muscat',
+    'Saudi Arabia': 'Asia/Riyadh', 'United Arab Emirates': 'Asia/Dubai',
+    'Qatar': 'Asia/Qatar', 'Kuwait': 'Asia/Kuwait', 'Bahrain': 'Asia/Bahrain',
+    'Iraq': 'Asia/Baghdad', 'Lebanon': 'Asia/Beirut', 'Myanmar': 'Asia/Rangoon',
+    'Cambodia': 'Asia/Phnom_Penh', 'Philippines': 'Asia/Manila',
+    'Bangladesh': 'Asia/Dhaka', 'Sri Lanka': 'Asia/Colombo',
+    'Chile': 'America/Santiago', 'Argentina': 'America/Argentina/Buenos_Aires',
+    'Uruguay': 'America/Montevideo', 'Bolivia': 'America/La_Paz',
+    'Peru': 'America/Lima', 'Ecuador': 'America/Guayaquil',
+    'Colombia': 'America/Bogota', 'Venezuela': 'America/Caracas',
+    'Panama': 'America/Panama', 'Costa Rica': 'America/Costa_Rica',
+    'Cuba': 'America/Havana', 'Jamaica': 'America/Jamaica',
+}
+
+
+def _localise(d: datetime, lat: float | None, lng: float | None, country: str = '') -> datetime:
+    """Shift a UTC datetime to local time at the given coordinates.
+
+    Uses country name first (accurate for countries without DST surprises, e.g. Belarus),
+    then falls back to coordinate-based timezone resolution.
+    """
     from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    if country and country in _COUNTRY_TZ:
+        try:
+            return d.astimezone(ZoneInfo(_COUNTRY_TZ[country]))
+        except Exception:
+            pass
     try:
         return d.astimezone(ZoneInfo(_tz_at(lat, lng)))
     except (ZoneInfoNotFoundError, Exception):
@@ -137,7 +196,7 @@ def detect_trips(
                 lng = round(float(r["lng"]), 5)
             except (ValueError, KeyError, TypeError):
                 lng = None
-            d_local = _localise(d, lat, lng)
+            d_local = _localise(d, lat, lng, r.get("country", "").strip())
             checkins.append(
                 {
                     "ts":       int(r["date"]),
@@ -481,12 +540,13 @@ def process(
             lng = round(float(r["lng"]), 5)
         except (ValueError, KeyError, TypeError):
             lng = None
-        # Localise the display timestamp to the check-in location's approximate
-        # timezone (longitude-based, ±30 min accuracy).
-        # tz_name (Etc/GMT±N) is also passed to the Open-Meteo archive API so
-        # the weather lookup uses the correct local hour rather than UTC.
-        tz_name = _tz_at(lat, lng)
-        d_local = _localise(d, lat, lng)
+        # Localise the display timestamp to the check-in location's timezone.
+        # Country lookup takes priority (handles DST-exempt countries like Belarus),
+        # falling back to coordinate-based resolution.
+        # tz_name is also passed to the Open-Meteo archive API for correct local hour.
+        country_str = r.get("country", "").strip()
+        tz_name = _COUNTRY_TZ.get(country_str) or _tz_at(lat, lng)
+        d_local = _localise(d, lat, lng, country_str)
         recent.append(
             {
                 "ts":       int(r["date"]),
