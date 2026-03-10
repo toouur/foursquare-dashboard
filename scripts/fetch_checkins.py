@@ -3,8 +3,8 @@ fetch_checkins.py  –  Fetch check-ins from Foursquare/Swarm API and merge into
 checkins.csv. Designed for GitHub Actions and local manual runs.
 
 Usage examples:
-    python fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv checkins.csv
-    python fetch_checkins.py --full
+    python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv
+    python scripts/fetch_checkins.py --full
 
 Token resolution order:
     1) --token
@@ -248,7 +248,7 @@ def max_timestamp(rows: list[dict]) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--token", default="", help="Foursquare OAuth token")
-    parser.add_argument("--csv", default="checkins.csv", help="Path to checkins CSV")
+    parser.add_argument("--csv", default="data/checkins.csv", help="Path to checkins CSV")
     parser.add_argument("--full", action="store_true", help="Force full re-fetch")
     args = parser.parse_args()
 

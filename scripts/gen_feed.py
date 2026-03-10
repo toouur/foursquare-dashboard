@@ -68,4 +68,4 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
     ym_json = json.dumps(ym_index, ensure_ascii=False, separators=(',',':'))
     html = TEMPLATE.replace('FEED_DATA_PLACEHOLDER', feed_json).replace('YM_INDEX_PLACEHOLDER', ym_json)
     Path(out_path).write_text(html, encoding='utf-8')
-    print(f"feed.html → {out_path}  ({Path(out_path).stat().st_size//1024}KB, {len(feed):,} check-ins)")
+    print(f"feed.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB, {len(feed):,} check-ins)")
