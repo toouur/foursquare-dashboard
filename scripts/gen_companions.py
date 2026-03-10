@@ -33,7 +33,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
     comp_json = json.dumps(comp_data, ensure_ascii=False, separators=(',',':'))
     html = TEMPLATE.replace('COMP_DATA_PLACEHOLDER', comp_json)
     Path(out_path).write_text(html, encoding='utf-8')
-    print(f"companions.html → {out_path}  ({Path(out_path).stat().st_size//1024}KB)")
+    print(f"companions.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB)")
 
 if __name__ == '__main__':
     import argparse
