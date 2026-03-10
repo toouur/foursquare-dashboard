@@ -33,4 +33,4 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
     vj = json.dumps(vout, ensure_ascii=False, separators=(',',':'))
     html = TEMPLATE.replace('VENUES_DATA_PLACEHOLDER', vj)
     Path(out_path).write_text(html, encoding='utf-8')
-    print(f"venues.html → {out_path}  ({Path(out_path).stat().st_size//1024}KB, {len(venues)} venues)")
+    print(f"venues.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB, {len(venues)} venues)")

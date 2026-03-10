@@ -1,6 +1,6 @@
 """
 build.py  –  CLI entry point. Reads checkins.csv → index.html + trips.html
-Run:  python build.py [--input checkins.csv] [--config-dir config]
+Run:  python scripts/build.py [--input data/checkins.csv] [--config-dir config]
              [--home-city Minsk] [--min-checkins 5] [--output-dir .]
 """
 import argparse
@@ -20,8 +20,9 @@ from metrics import process
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger(__name__)
 
-# Directory that contains this script — used as base for default paths
+# Directory that contains this script (scripts/) and the project root (one level up)
 _SCRIPT_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _SCRIPT_DIR.parent
 
 
 def load_settings(config_dir: Path) -> dict:
@@ -47,7 +48,7 @@ def save_category_list(rows: list[dict], out_path: str) -> None:
 # Templates are loaded at import time from the templates/ directory.
 # Edit templates/index.html and templates/trips.html directly;
 # they are proper HTML files, visible to linters and formatters.
-_TEMPLATES_DIR = _SCRIPT_DIR / "templates"
+_TEMPLATES_DIR = _PROJECT_ROOT / "templates"
 TEMPLATE       = (_TEMPLATES_DIR / "index.html.tmpl").read_text(encoding="utf-8")
 TRIPS_TEMPLATE = (_TEMPLATES_DIR / "trips.html.tmpl").read_text(encoding="utf-8")
 
@@ -66,7 +67,7 @@ def build(data, trips, out_dir='.'):
     html = html.replace('{{STATS}}',     json.dumps(data, ensure_ascii=False))
     idx_path = os.path.join(out_dir, 'index.html')
     with open(idx_path, 'w', encoding='utf-8') as f: f.write(html)
-    print(f"Built → {idx_path}  ({len(html)//1024:,} KB)")
+    print(f"Built ->{idx_path}  ({len(html)//1024:,} KB)")
 
     # ── trips.html ──────────────────────────────────────────────────────────
     trips_html = TRIPS_TEMPLATE
@@ -75,18 +76,18 @@ def build(data, trips, out_dir='.'):
     trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     trips_path = os.path.join(out_dir, 'trips.html')
     with open(trips_path, 'w', encoding='utf-8') as f: f.write(trips_html)
-    print(f"Built → {trips_path}  ({len(trips_html)//1024:,} KB)")
+    print(f"Built ->{trips_path}  ({len(trips_html)//1024:,} KB)")
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build Foursquare check-in dashboard")
-    parser.add_argument("--input",       default=str(_SCRIPT_DIR / "checkins.csv"),
-                        help="Input CSV file (default: checkins.csv next to build.py)")
-    parser.add_argument("--config-dir",  default=str(_SCRIPT_DIR / "config"),
-                        help="Directory with config JSON/YAML files (default: config/ next to build.py)")
-    parser.add_argument("--output-dir",  default=str(_SCRIPT_DIR),
-                        help="Output directory for HTML files (default: same dir as build.py)")
+    parser.add_argument("--input",       default=str(_PROJECT_ROOT / "data" / "checkins.csv"),
+                        help="Input CSV file (default: data/checkins.csv)")
+    parser.add_argument("--config-dir",  default=str(_PROJECT_ROOT / "config"),
+                        help="Directory with config JSON/YAML files (default: config/)")
+    parser.add_argument("--output-dir",  default=str(_PROJECT_ROOT),
+                        help="Output directory for HTML files (default: project root)")
     parser.add_argument("--home-city",   default=None,
                         help="Override home city (default: from settings.yaml, fallback Minsk)")
     parser.add_argument("--min-checkins",type=int, default=None,
@@ -146,7 +147,7 @@ if __name__ == "__main__":
                 _spec.loader.exec_module(_mod)
                 _mod.build_page(
                     csv_path   = args.input,
-                    config_dir = str(_SCRIPT_DIR / "config"),
+                    config_dir = str(config_dir),
                     out_path   = os.path.join(args.output_dir, gen_out),
                     tmpl_path  = str(_TEMPLATES_DIR / "index.html.tmpl"),
                 )

@@ -1,4 +1,4 @@
-# 📍 Foursquare Check-in Dashboard
+# Foursquare Check-in Dashboard
 
 A self-updating personal dashboard for your Foursquare/Swarm check-in history.
 
@@ -12,21 +12,36 @@ searchable cities & venues · venue loyalty · category explorer · recent check
 
 ```
 .
-├── fetch_checkins.py     # Fetch check-ins from Foursquare API → checkins.csv
-├── transform.py          # Data cleaning: country fixes, city normalisation
-├── metrics.py            # All aggregation + trip-detection logic
-├── build.py              # CLI entry point: checkins.csv → index.html + trips.html
-├── checkins.csv          # Your check-in data (committed by CI)
-├── index.html            # Main dashboard (built by CI, committed)
-├── trips.html            # Trip journal (built by CI, committed)
-├── requirements.txt      # Python deps (requests, pyyaml)
-├── netlify.toml          # Netlify config (builds disabled — CI-only deploys)
-├── wrangler.jsonc        # Cloudflare Pages config
-└── config/
-    ├── settings.yaml     # home_city, trip_detection thresholds
-    ├── city_merge.yaml   # Raw Foursquare city names → canonical names
-    ├── country_fixes.json# Per-timestamp country overrides
-    └── categories.json   # Category groupings for charts + explorer
+├── scripts/
+│   ├── fetch_checkins.py     # Fetch check-ins from Foursquare API → data/checkins.csv
+│   ├── transform.py          # Data cleaning: country fixes, city normalisation
+│   ├── metrics.py            # All aggregation + trip-detection logic
+│   ├── build.py              # CLI entry point: checkins.csv → index.html + trips.html
+│   ├── gen_companions.py     # Generates companions.html
+│   ├── gen_feed.py           # Generates feed.html (infinite-scroll with weather)
+│   ├── gen_venues.py         # Generates venues.html (top 500 venues)
+│   └── gen_worldcities.py    # Generates world_cities.html
+├── data/
+│   └── checkins.csv          # Your check-in data (committed by CI)
+├── config/
+│   ├── settings.yaml         # home_city, trip_detection thresholds
+│   ├── city_merge.yaml       # Raw Foursquare city names → canonical names
+│   ├── categories.json       # Category groupings for charts + explorer
+│   ├── city_fixes.json       # Per-timestamp city overrides
+│   ├── country_fixes.json    # Per-timestamp country overrides
+│   └── city_merge_normalized_review.csv  # Blank city inference reference
+├── templates/
+│   ├── index.html.tmpl       # Template for index.html
+│   └── trips.html.tmpl       # Template for trips.html
+├── index.html                # Main dashboard (built by CI, committed)
+├── trips.html                # Trip journal (built by CI, committed)
+├── companions.html           # Companions page (built by CI)
+├── feed.html                 # Check-in feed (built by CI)
+├── venues.html               # Top venues (built by CI)
+├── world_cities.html         # World cities explorer (built by CI)
+├── requirements.txt          # Python deps (requests, pyyaml, timezonefinder)
+├── netlify.toml              # Netlify config (builds disabled — CI-only deploys)
+└── wrangler.jsonc            # Cloudflare Pages config
 ```
 
 ---
@@ -75,9 +90,9 @@ Make it **private** if you don't want your check-in history public.
 ### 5. Run the first build
 
 1. Go to the **Actions** tab
-2. Click **Weekly Dashboard Update** → **Run workflow**
+2. Click **Update check-in dashboard** → **Run workflow**
 3. Wait ~2 minutes
-4. Visit your live URL 🎉
+4. Visit your live URL
 
 ---
 
@@ -88,26 +103,26 @@ pip install -r requirements.txt
 
 # Fetch check-ins
 export FOURSQUARE_TOKEN=your_token_here
-python fetch_checkins.py
+python scripts/fetch_checkins.py
 
 # Build dashboard
-python build.py
+python scripts/build.py
 
-# Open in browser
-open index.html
+# Preview in browser
+python -m http.server 8000
 ```
 
 **Common CLI options:**
 
 ```bash
 # Force full re-fetch (ignore existing CSV)
-python fetch_checkins.py --full
+python scripts/fetch_checkins.py --full
 
 # Custom paths / home city
-python build.py --input checkins.csv --home-city "Minsk" --config-dir config
+python scripts/build.py --input data/checkins.csv --home-city "Minsk" --config-dir config
 
 # Dump a full list of raw Foursquare categories seen in your data
-python build.py --cat-list
+python scripts/build.py --cat-list
 ```
 
 ---
@@ -151,21 +166,42 @@ category chart and the Category Explorer widget.
 
 ---
 
+## Data flow
+
+```
+data/checkins.csv
+  → transform.py (city_merge.yaml, city_fixes.json, country_fixes.json)
+  → metrics.py (categories.json, settings.yaml)
+  → build.py (templates/*.tmpl → *.html)
+  → gen_*.py (embedded templates → *.html)
+```
+
+## Dependencies
+
+- **Python 3.9+** (uses `zoneinfo` from stdlib)
+- `requests>=2.31` — HTTP requests for Foursquare API
+- `pyyaml>=6.0` — YAML config parsing
+- `timezonefinder>=6.2` — Lat/lng to timezone resolution
+- **Front-end** (loaded via CDN): Leaflet, Chart.js, Twemoji
+
+---
+
 ## Changing the update schedule
 
-Edit `.github/workflows/update.yml`, the `cron` line:
+Edit `.github/workflows/update-dashboard.yml`, the `cron` line:
 
 ```yaml
-- cron: '0 8 * * 1'   # Every Monday at 08:00 UTC (default)
-- cron: '0 8 1 * *'   # 1st of every month
-- cron: '0 8 * * *'   # Daily
+- cron: '0 */1 * * *'  # Every hour (default)
+- cron: '0 8 * * 1'    # Every Monday at 08:00 UTC
+- cron: '0 8 1 * *'    # 1st of every month
+- cron: '0 8 * * *'    # Daily
 ```
 
 ---
 
 ## How trip detection works
 
-A **trip** is any consecutive sequence of check-ins where `city ≠ home_city`,
+A **trip** is any consecutive sequence of check-ins where `city != home_city`,
 provided the sequence contains at least `min_checkins` entries. The trip name
 is auto-generated from the most-visited countries/cities in that sequence.
 Each trip gets a detail page in `trips.html` with a heatmap, timeline, and

@@ -27,7 +27,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
 
     html = TEMPLATE.replace('WC_DATA_PLACEHOLDER', wc_data).replace('VISITED_DATA_PLACEHOLDER', visited_json)
     Path(out_path).write_text(html, encoding='utf-8')
-    print(f"world_cities.html → {out_path}  ({Path(out_path).stat().st_size//1024}KB)")
+    print(f"world_cities.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB)")
 
 if __name__ == '__main__':
     import argparse
