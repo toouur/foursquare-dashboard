@@ -171,7 +171,8 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .rc-venue-row{display:flex;align-items:flex-start;gap:6px;justify-content:space-between;}
 .rc-cat-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px;}
 .rc-venue{font-size:0.88rem;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1;min-height:2.5em;}
-.rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);margin-top:2px;}
+.rc-cat-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px;}
+.rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);}
 .rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
 .rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);padding-top:4px;}
 .rc-weather{display:flex;align-items:center;gap:6px;margin-top:auto;}
@@ -210,8 +211,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .rc-map img{position:absolute;image-rendering:pixelated;opacity:.82;display:block;transform:translateZ(0);}
 .rc-map-fade{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 35%,var(--card) 100%);}
 .rc-map-pin{position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);font-size:1.25rem;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.8));pointer-events:none;}
-.rc-streak-wrap{min-height:1.5rem;display:flex;align-items:center;}
-.rc-streak{display:inline-flex;align-items:center;gap:3px;background:rgba(232,184,109,0.12);border:1px solid rgba(232,184,109,0.35);color:var(--gold);border-radius:4px;padding:2px 7px;font-family:'DM Mono',monospace;font-size:0.54rem;letter-spacing:.05em;}
+.rc-streak{display:inline-flex;align-items:center;gap:3px;background:rgba(232,184,109,0.12);border:1px solid rgba(232,184,109,0.35);color:var(--gold);border-radius:4px;padding:2px 7px;font-family:'DM Mono',monospace;font-size:0.54rem;letter-spacing:.05em;flex-shrink:0;}
 
 
 
@@ -1498,10 +1498,9 @@ function filterList(id,q){
     return `<${tag}${href} class="recent-card" id="rc_${i}" style="${url?'text-decoration:none;cursor:pointer;':''}">
       ${tileBlock(r.lat,r.lng)}
       <div class="rc-venue-row"><div class="rc-venue">${esc(r.venue)||'Unknown venue'}</div>${catIcon(r.category)}</div>
-      <div class="rc-cat">${esc(r.category||'')}</div>
+      <div class="rc-cat-row"><div class="rc-cat">${esc(r.category||'')}</div>${streak}</div>
       <div class="rc-location">${f} ${esc(locStr)}</div>
       <div class="rc-weather" id="rcw_${i}"><span class="rc-weather-loading">fetching weather…</span></div>
-      <div class="rc-streak-wrap">${streak}</div>
       <div class="rc-date">${r.datetime}</div>
     </${tag}>`;
   }).join('');
