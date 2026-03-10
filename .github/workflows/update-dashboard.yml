@@ -56,14 +56,14 @@ jobs:
             echo "   Add it and re-run this workflow. Skipping fetch for now."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
-            python fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv checkins.csv >> "$GITHUB_OUTPUT"
+            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv >> "$GITHUB_OUTPUT"
           fi
 
       # ── 4. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
         run: |
-          python build.py \
-            --input checkins.csv \
+          python scripts/build.py \
+            --input data/checkins.csv \
             --config-dir config \
             --output-dir .
 
@@ -73,13 +73,13 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add checkins.csv index.html trips.html
+          git add data/checkins.csv index.html trips.html
 
           if git diff --cached --quiet; then
             echo "Nothing to commit."
           else
             TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-            NEW_ROWS=$(git diff --cached --stat checkins.csv | grep -oP '\d+ insertion' | grep -oP '\d+' || echo "0")
+            NEW_ROWS=$(git diff --cached --stat data/checkins.csv | grep -oP '\d+ insertion' | grep -oP '\d+' || echo "0")
             git commit -m "chore: auto-update dashboard [${TIMESTAMP}] (+${NEW_ROWS} check-ins)"
             git push
           fi
