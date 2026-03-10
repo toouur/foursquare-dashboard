@@ -63,7 +63,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .bar-row .track{height:5px;background:var(--card2);border-radius:3px;overflow:hidden;}
 .bar-row .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--teal));}
 .bar-row .cnt{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--muted);text-align:right;}
-.bar-row.hidden{display:none;}
+.bar-row.hidden,.country-city-row.hidden,.country-group.hidden,.world-city-row.hidden{display:none;}
 
 /* ── COUNTRIES GRID ── */
 .country-table{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
@@ -1742,7 +1742,7 @@ function switchCityTab(tab, el){
   document.getElementById('paneCityCheckins').style.display='none';
   document.getElementById('paneCityCountry').style.display='none';
   document.getElementById('paneCityWorld').style.display='none';
-  document.getElementById('paneCityc'+tab[0].toUpperCase()+tab.slice(1)).style.display='block';
+  document.getElementById('paneCity'+tab[0].toUpperCase()+tab.slice(1)).style.display='block';
   document.querySelectorAll('#tabCityCheckins,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   if(tab==='country' && !document.getElementById('byCountryList').innerHTML) buildByCountry('cities');
