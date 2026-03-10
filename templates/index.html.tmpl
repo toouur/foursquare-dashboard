@@ -172,7 +172,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .rc-cat-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px;}
 .rc-venue{font-size:0.88rem;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1;min-height:2.5em;}
 .rc-cat-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px;}
-.rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);}
+.rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
 .rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
 .rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);padding-top:4px;}
 .rc-weather{display:flex;align-items:center;gap:6px;margin-top:auto;}
@@ -1491,7 +1491,7 @@ function filterList(id,q){
     const url=fsUrl(r);
     const tag=url?'a':'div', href=url?` href="${url}" target="_blank" rel="noopener"`:'';
     const streak=r.venue_id&&venueCounts[r.venue_id]>1
-      ? `<div class="rc-streak">🔁 ${venueCounts[r.venue_id]}× in recent</div>` : '';
+      ? `<div class="rc-streak">🔁 ${venueCounts[r.venue_id]}×</div>` : '';
     const f=r.country?flagHtml(r.country,'1em'):'';
     const loc=[r.city,r.country].filter(Boolean);
     const locStr=loc.join(', ');
