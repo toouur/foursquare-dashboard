@@ -174,7 +174,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);margin-top:2px;}
 .rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
 .rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);margin-top:auto;padding-top:8px;}
-.rc-weather{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.rc-weather{display:flex;align-items:center;gap:6px;margin-top:auto;}
 .rc-weather-icon{font-size:1.3rem;line-height:1;}
 .rc-weather-temp{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--gold);}
 .rc-weather-desc{font-size:0.65rem;color:var(--muted);}
@@ -1497,10 +1497,10 @@ function filterList(id,q){
     return `<${tag}${href} class="recent-card" id="rc_${i}" style="${url?'text-decoration:none;cursor:pointer;':''}">
       ${tileBlock(r.lat,r.lng)}
       <div class="rc-venue-row"><div class="rc-venue">${esc(r.venue)||'Unknown venue'}</div>${catIcon(r.category)}</div>
-      ${streak}
       <div class="rc-cat">${esc(r.category||'')}</div>
       <div class="rc-location">${f} ${esc(locStr)}</div>
       <div class="rc-weather" id="rcw_${i}"><span class="rc-weather-loading">fetching weather…</span></div>
+      ${streak}
       <div class="rc-date">${r.datetime}</div>
     </${tag}>`;
   }).join('');
