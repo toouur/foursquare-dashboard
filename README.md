@@ -22,7 +22,11 @@ searchable cities & venues · venue loyalty · category explorer · recent check
 │   ├── gen_venues.py         # Generates venues.html (top 500 venues)
 │   └── gen_worldcities.py    # Generates world_cities.html
 ├── data/
-│   └── checkins.csv          # Your check-in data (committed by CI)
+│   └── checkins.csv          # Your check-in data — gitignored, lives in private repo
+├── workers/
+│   └── checkin-poller/       # Cloudflare Worker: polls Foursquare every minute,
+│       ├── worker.js         #   triggers GitHub Actions on new check-in
+│       └── wrangler.toml
 ├── config/
 │   ├── settings.yaml         # home_city, trip_detection thresholds
 │   ├── city_merge.yaml       # Raw Foursquare city names → canonical names
@@ -50,7 +54,7 @@ searchable cities & venues · venue loyalty · category explorer · recent check
 
 ### 1. Fork or clone this repo
 
-Make it **private** if you don't want your check-in history public.
+The dashboard repo can be **public** — check-in data is stored separately in a private repo (see step 3).
 
 ### 2. Get your Foursquare OAuth token
 
@@ -63,11 +67,15 @@ Make it **private** if you don't want your check-in history public.
    ```
 5. After approving, copy the `access_token` from the redirect URL
 
-### 3. Add token as a GitHub Secret
+### 3. Create a private data repo
 
-1. Repo → **Settings** → **Secrets and variables** → **Actions**
-2. Click **New repository secret**
-3. Name: `FOURSQUARE_TOKEN`, Value: your token from step 2
+1. Create a **private** GitHub repo named `foursquare-data` (or any name)
+2. Create a fine-grained PAT: GitHub → Settings → Developer settings → Fine-grained tokens
+   - Repository access: only `foursquare-data`
+   - Permissions → Contents: **Read and write**
+3. Add secrets to this repo → **Settings** → **Secrets and variables** → **Actions**:
+   - `FOURSQUARE_TOKEN` — your Foursquare OAuth token
+   - `DATA_REPO_PAT` — the fine-grained PAT from step 2
 
 ### 4. Choose a deploy target
 
@@ -89,10 +97,21 @@ Make it **private** if you don't want your check-in history public.
 
 ### 5. Run the first build
 
-1. Go to the **Actions** tab
-2. Click **Update check-in dashboard** → **Run workflow**
+1. Push your `checkins.csv` to the private data repo
+2. Go to the **Actions** tab → **Update check-in dashboard** → **Run workflow**
 3. Wait ~2 minutes
 4. Visit your live URL
+
+### 6. (Optional) Near-instant updates via Cloudflare Worker
+
+The `workers/checkin-poller/` directory contains a Cloudflare Worker that polls Foursquare every minute and triggers a GitHub Actions build within ~1 minute of a new check-in. Deploy it once with:
+
+```bash
+cd workers/checkin-poller
+wrangler deploy --config wrangler.toml
+wrangler secret put FOURSQUARE_TOKEN --config wrangler.toml
+wrangler secret put GITHUB_TOKEN --config wrangler.toml   # PAT with workflow scope
+```
 
 ---
 
