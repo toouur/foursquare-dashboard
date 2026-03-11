@@ -591,8 +591,14 @@ function toggleCal(e){
   const drop=document.getElementById('calDrop');
   if(!drop.classList.contains('open')){
     const r=e.currentTarget.getBoundingClientRect();
+    const feed=document.querySelector('.feed-col');
+    const feedRight=feed?feed.getBoundingClientRect().right:0;
+    const dropW=280;
+    let left=r.left;
+    if(left<feedRight) left=feedRight+4;
+    if(left+dropW>window.innerWidth) left=window.innerWidth-dropW-8;
     drop.style.top=(r.bottom+6)+'px';
-    drop.style.left=r.left+'px';
+    drop.style.left=left+'px';
   }
   drop.classList.toggle('open');
 }

@@ -473,7 +473,7 @@ new Chart(document.getElementById('hourChart'),{type:'bar',data:{labels:S.by_hou
 const DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 new Chart(document.getElementById('dowChart'),{type:'bar',data:{labels:S.by_dow.map(x=>DOW[x[0]]),datasets:[{data:S.by_dow.map(x=>x[1]),backgroundColor:S.by_dow.map(x=>x[0]>=4?'rgba(78,205,196,0.75)':'rgba(232,184,109,0.55)'),borderRadius:4,borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'}}}}});
 const CC=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f','#96ceb4'];
-new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:S.cat_groups.map(x=>x[0]),datasets:[{data:S.cat_groups.map(x=>x[1]),backgroundColor:S.cat_groups.map((_,i)=>CC[i%CC.length]),borderRadius:5,borderWidth:0}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.x.toLocaleString()+' check-ins'}}},scales:{x:{grid:{color:'#1a1e2e'}},y:{grid:{display:false}}}}});
+new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:S.cat_groups.map(x=>x[0]),datasets:[{data:S.cat_groups.map(x=>x[1]),backgroundColor:S.cat_groups.map((_,i)=>CC[i%CC.length]),borderRadius:5,borderWidth:0}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.x.toLocaleString()+' check-ins'}}},scales:{x:{grid:{color:'#1a1e2e'}},y:{grid:{display:false},afterFit:s=>{s.width=Math.max(s.width,140);}}}}});
 
 // ── GitHub Heatmap ─────────────────────────────────────────────────────────
 (function(){
@@ -656,14 +656,15 @@ explorerCats.forEach(cat=>{
 function renderExplorer(cat){
   const data=explorerData[cat]||[];
   const max=data.length?data[0][2]:1;
-  document.getElementById('explorerList').innerHTML=data.map(([name,city,count],i)=>
-    `<div class="bar-row">
+  document.getElementById('explorerList').innerHTML=data.map(([name,city,count,vid],i)=>{
+    const vname=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(name)}</a>`:esc(name);
+    return `<div class="bar-row">
       <span class="rank">#${i+1}</span>
-      <span class="name" title="${esc(name)} · ${esc(city)}">${esc(name)}<span class="city-tag">${esc(city||'')} </span></span>
+      <span class="name" title="${esc(name)} · ${esc(city)}">${vname}<span class="city-tag">${esc(city||'')} </span></span>
       <div class="track"><div class="fill" style="width:${(count/max*100).toFixed(1)}%"></div></div>
       <span class="cnt">${count.toLocaleString()}</span>
-    </div>`
-  ).join('')||'<div style="color:var(--muted);padding:8px;font-size:0.85rem">No data</div>';
+    </div>`;
+  }).join('')||'<div style="color:var(--muted);padding:8px;font-size:0.85rem">No data</div>';
 }
 renderExplorer(activeCat);
 
@@ -1768,6 +1769,8 @@ function sortByCountry(mode, el){
 }
 
 function buildByCountry(sort){
+  const countryTotals={};
+  S.countries.forEach(([c,n])=>{ countryTotals[c]=n; });
   const byCountry={};
   S.cities.forEach(([name,count,country])=>{
     if(!country) return;
@@ -1777,7 +1780,7 @@ function buildByCountry(sort){
   });
   let countries=Object.entries(byCountry);
   if(sort==='alpha') countries.sort((a,b)=>a[0].localeCompare(b[0]));
-  else if(sort==='checkins') countries.sort((a,b)=>b[1].total-a[1].total);
+  else if(sort==='checkins') countries.sort((a,b)=>(countryTotals[b[0]]||b[1].total)-(countryTotals[a[0]]||a[1].total));
   else countries.sort((a,b)=>b[1].cities.length-a[1].cities.length);
 
   const container=document.getElementById('byCountryList');
@@ -1792,7 +1795,7 @@ function buildByCountry(sort){
     return `<div class="country-group" data-country="${esc(country).toLowerCase()}">
       <div class="country-group-header">
         <span class="country-group-name">${f} ${esc(country)}</span>
-        <span class="country-group-meta">${data.cities.length} cities · ${data.total.toLocaleString()}</span>
+        <span class="country-group-meta">${data.cities.length} cities · ${(countryTotals[country]||data.total).toLocaleString()}</span>
       </div>
       <div class="country-city-list">${cityRows}</div>
     </div>`;
@@ -1871,33 +1874,26 @@ function buildCityMap(){
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:18}).addTo(cityMapInst);
 
-  // Only show visited cities with pop>10k as small blue dots
-  const visitedCityCoords=S.city_centroids||{};
+  // Draw all visited cities with ≥5 check-ins using S.city_centroids for coords
+  const centroids=S.city_centroids||{};
   cityDotLayer=L.layerGroup();
 
-  const worldCitiesForMap=[...WORLD_CITIES].filter(c=>c[3]>=0.01).sort((a,b)=>b[3]-a[3]);
-  worldCitiesForMap.forEach(([name,lat,lng,pop,cont])=>{
-    const vm=matchVisited(name,cont);
-    if(!vm) return;  // Only visited cities
-    const popStr=pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K';
-    const tooltip=`${name} (${popStr}) · ${vm[1].toLocaleString()} check-ins`;
-    L.circleMarker([lat,lng],{radius:5,color:'#4ec9b0',fillColor:'#4ec9b0',fillOpacity:0.8,weight:1})
+  // Build population lookup from WORLD_CITIES for tooltip enrichment
+  const worldPopMap={};
+  WORLD_CITIES.forEach(([n,,,pop])=>{ worldPopMap[n.toLowerCase()]=pop; });
+
+  S.cities.forEach(([name,count])=>{
+    if(count<5) return;
+    const coords=centroids[name];
+    if(!coords) return;
+    const pop=worldPopMap[name.toLowerCase()];
+    const popStr=pop?(pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K'):'';
+    const tooltip=popStr?`${name} (${popStr}) · ${count.toLocaleString()} check-ins`
+                        :`${name} · ${count.toLocaleString()} check-ins`;
+    L.circleMarker([coords[0],coords[1]],{radius:5,color:'#4ec9b0',fillColor:'#4ec9b0',fillOpacity:0.8,weight:1})
       .bindTooltip(tooltip,{direction:'top',opacity:0.9}).addTo(cityDotLayer);
   });
   cityDotLayer.addTo(cityMapInst);
-
-  // Legend
-  const legend=L.control({position:'bottomright'});
-  legend.onAdd=function(){
-    const div=L.DomUtil.create('div');
-    div.style.cssText='background:rgba(12,14,20,0.85);padding:8px 12px;border-radius:6px;font-size:11px;color:#aaa;line-height:1.8;border:1px solid #222738;';
-    div.innerHTML='<div style="color:#e8b86d;margin-bottom:4px;font-weight:600">CITY MAP</div>'+
-      '<div><span style="color:#e8b86d">●</span> Visited city</div>'+
-      '<div><span style="color:#3d4966">●</span> Not visited</div>'+
-      '<div style="margin-top:4px;font-size:10px">Dot size = population</div>';
-    return div;
-  };
-  legend.addTo(cityMapInst);
 }
 
 // ── City pane initialisation ─────────────────────────────────────────────────
