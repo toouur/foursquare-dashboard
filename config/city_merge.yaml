@@ -554,6 +554,10 @@
   "Provincia di Palermo": "Palermo"  # ok
   "FIorence": "Florence"  # ok — capital-I typo (I not l)
   "Nápoles": "Naples"  # ok — Spanish name, 3km from Naples center
+  "Katanya": "Catania"  # ok — Foursquare venue misspelling (coords confirm Catania)
+  "Ferno": "Milan"  # ok — all check-ins at Milan Malpensa Airport (MXP), coords confirm
+  "Fiumicino": "Rome"  # ok — all check-ins at Rome Fiumicino Airport (FCO), coords confirm
+  "Ciampino": "Rome"  # ok — check-ins at Rome Ciampino Airport (CIA), coords confirm
   "Bergamo Città Alta": "Bergamo"  # ok — historic upper-town district
   "Provincia di Bergamo": "Bergamo"  # ok — province label
   "Provincia di Bologna": "Bologna"  # ok — province label
