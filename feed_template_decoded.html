@@ -119,14 +119,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <button class="nav-btn" onclick="jumpTo(DATA.length-1)">↓ Oldest</button>
       <div class="cal-wrap">
         <button class="cal-btn" id="calBtn" onclick="toggleCal(event)">📅 Jump to…</button>
-        <div class="cal-drop" id="calDrop">
-          <div class="cal-hdr">
-            <button class="cal-yrb" onclick="calPY()">◀</button>
-            <span class="cal-yr" id="calYrLbl"></span>
-            <button class="cal-yrb" onclick="calNY()">▶</button>
-          </div>
-          <div class="cal-grid" id="calGrid"></div>
-        </div>
       </div>
     </div>
     <div class="tb-right">
@@ -148,6 +140,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="prog"><div class="prog-fill" id="progFill"></div></div>
     </div>
   </div>
+</div>
+<div class="cal-drop" id="calDrop">
+  <div class="cal-hdr">
+    <button class="cal-yrb" onclick="calPY()">◀</button>
+    <span class="cal-yr" id="calYrLbl"></span>
+    <button class="cal-yrb" onclick="calNY()">▶</button>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
