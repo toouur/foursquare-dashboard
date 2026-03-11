@@ -16,7 +16,10 @@
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 
 /* ── HEADER ── */
-header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:28px;}
+header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:28px;position:relative;}
+.solution-link{position:absolute;top:20px;right:56px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);text-decoration:none;border:1px solid rgba(232,184,109,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;}
+.solution-link:hover{border-color:var(--gold);background:rgba(232,184,109,0.08);}
+@media(max-width:600px){.solution-link{top:12px;right:16px;font-size:0.54rem;padding:5px 10px;}}
 header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);font-weight:900;line-height:1;letter-spacing:-0.02em;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.12em .15em .35em;overflow:visible;display:inline-block;}
 header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
 .updated{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px;}
@@ -260,6 +263,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 </head>
 <body>
 <header>
+  <a href="solution.html" class="solution-link">Dashboard Solution Description</a>
   <div>
     <h1>Check-in Journal</h1>
     <p class="sub">Foursquare &nbsp;&middot;&nbsp; {{DATE_MIN}} &ndash; {{DATE_MAX}}</p>
