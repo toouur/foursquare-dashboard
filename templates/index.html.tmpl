@@ -1526,7 +1526,7 @@ function filterList(id,q){
       const temp=d.hourly?.temperature_2m?.[hour], code=d.hourly?.weather_code?.[hour];
       const [icon,desc]=wmoByTime(code,hour);
       const el=document.getElementById('rcw_'+i);
-      if(el) el.innerHTML=`<span class="rc-weather-icon">${icon}</span><span class="rc-weather-temp">${temp!=null?Math.round(temp)+'°C':'—'}</span><span class="rc-weather-desc">${desc}</span>`;
+      if(el){if(temp==null&&code==null){el.innerHTML='';}else{el.innerHTML=`<span class="rc-weather-icon">${icon}</span><span class="rc-weather-temp">${temp!=null?Math.round(temp)+'°C':'—'}</span><span class="rc-weather-desc">${desc}</span>`;}}
     }catch(e){const el=document.getElementById('rcw_'+i);if(el)el.innerHTML='';}
   }
   recent.forEach((r,i)=>setTimeout(()=>fetchWeather(r,i),i*120));
