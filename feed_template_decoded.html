@@ -34,7 +34,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .cal-wrap{position:relative;}
 .cal-btn{background:var(--card2);border:1px solid var(--border);border-radius:7px;color:var(--muted);padding:4px 10px;cursor:pointer;font-size:.70rem;font-family:'DM Sans',sans-serif;transition:all .12s;}
 .cal-btn:hover{border-color:var(--gold);color:var(--gold);}
-.cal-drop{display:none;position:fixed;top:0;left:0;z-index:9999;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;min-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.7);}
+.cal-drop{display:none;position:fixed;top:0;left:0;z-index:9999;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px;min-width:280px;box-shadow:0 4px 6px -2px rgba(0,0,0,.5),0 12px 40px rgba(0,0,0,.85);}
 .cal-drop.open{display:block;}
 .cal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .cal-yr{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--gold);font-weight:700;letter-spacing:.05em;}
@@ -119,14 +119,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <button class="nav-btn" onclick="jumpTo(DATA.length-1)">↓ Oldest</button>
       <div class="cal-wrap">
         <button class="cal-btn" id="calBtn" onclick="toggleCal(event)">📅 Jump to…</button>
-        <div class="cal-drop" id="calDrop">
-          <div class="cal-hdr">
-            <button class="cal-yrb" onclick="calPY()">◀</button>
-            <span class="cal-yr" id="calYrLbl"></span>
-            <button class="cal-yrb" onclick="calNY()">▶</button>
-          </div>
-          <div class="cal-grid" id="calGrid"></div>
-        </div>
       </div>
     </div>
     <div class="tb-right">
@@ -148,6 +140,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="prog"><div class="prog-fill" id="progFill"></div></div>
     </div>
   </div>
+</div>
+<div class="cal-drop" id="calDrop">
+  <div class="cal-hdr">
+    <button class="cal-yrb" onclick="calPY()">◀</button>
+    <span class="cal-yr" id="calYrLbl"></span>
+    <button class="cal-yrb" onclick="calNY()">▶</button>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
