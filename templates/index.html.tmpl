@@ -1840,9 +1840,10 @@ function buildWorldCities(continent){
     if(isVisited) visitedCount++;
     const popStr=pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K';
     const contLabel=continent==='ALL'?` <span style="font-size:.55rem;color:var(--muted);opacity:.5;margin-left:5px">${CONT_NAMES[cont]||cont}</span>`:'' ;
-    html+=`<div class="world-city-row${isVisited?' visited':''}" data-name="${name.toLowerCase()}" data-cont="${cont}">
+    const displayName=isVisited?vm[0]:name;
+    html+=`<div class="world-city-row${isVisited?' visited':''}" data-name="${displayName.toLowerCase()}" data-cont="${cont}">
       <span class="world-city-rank">${i+1}</span>
-      <span class="world-city-name">${esc(name)}${isVisited?' ✓':''} ${contLabel}</span>
+      <span class="world-city-name">${esc(displayName)}${isVisited?' ✓':''} ${contLabel}</span>
       <span class="world-city-pop">${popStr}</span>
       <span class="world-city-checkins">${isVisited?vm[1].toLocaleString():''}</span>
     </div>`;
