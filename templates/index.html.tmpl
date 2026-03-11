@@ -1768,6 +1768,8 @@ function sortByCountry(mode, el){
 }
 
 function buildByCountry(sort){
+  const countryTotals={};
+  S.countries.forEach(([c,n])=>{ countryTotals[c]=n; });
   const byCountry={};
   S.cities.forEach(([name,count,country])=>{
     if(!country) return;
@@ -1777,7 +1779,7 @@ function buildByCountry(sort){
   });
   let countries=Object.entries(byCountry);
   if(sort==='alpha') countries.sort((a,b)=>a[0].localeCompare(b[0]));
-  else if(sort==='checkins') countries.sort((a,b)=>b[1].total-a[1].total);
+  else if(sort==='checkins') countries.sort((a,b)=>(countryTotals[b[0]]||b[1].total)-(countryTotals[a[0]]||a[1].total));
   else countries.sort((a,b)=>b[1].cities.length-a[1].cities.length);
 
   const container=document.getElementById('byCountryList');
@@ -1792,7 +1794,7 @@ function buildByCountry(sort){
     return `<div class="country-group" data-country="${esc(country).toLowerCase()}">
       <div class="country-group-header">
         <span class="country-group-name">${f} ${esc(country)}</span>
-        <span class="country-group-meta">${data.cities.length} cities · ${data.total.toLocaleString()}</span>
+        <span class="country-group-meta">${data.cities.length} cities · ${(countryTotals[country]||data.total).toLocaleString()}</span>
       </div>
       <div class="country-city-list">${cityRows}</div>
     </div>`;
