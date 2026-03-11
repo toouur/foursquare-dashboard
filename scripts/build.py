@@ -64,14 +64,14 @@ def build(data, trips, out_dir='.'):
     html = html.replace('{{PLACES}}',    f"{data['unique_places_count']:,}")
     html = html.replace('{{UPDATED}}',   datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     html = html.replace('{{TRIPS}}',     str(data['trips_count']))
-    html = html.replace('{{STATS}}',     json.dumps(data, ensure_ascii=False))
+    html = html.replace('{{STATS}}',     json.dumps(data, ensure_ascii=False).replace('</', '<\\/'))
     idx_path = os.path.join(out_dir, 'index.html')
     with open(idx_path, 'w', encoding='utf-8') as f: f.write(html)
     print(f"Built ->{idx_path}  ({len(html)//1024:,} KB)")
 
     # ── trips.html ──────────────────────────────────────────────────────────
     trips_html = TRIPS_TEMPLATE
-    trips_html = trips_html.replace('{{TRIPS_JSON}}', json.dumps(trips, ensure_ascii=False))
+    trips_html = trips_html.replace('{{TRIPS_JSON}}', json.dumps(trips, ensure_ascii=False).replace('</', '<\\/'))
     trips_html = trips_html.replace('{{TOTAL_TRIPS}}', str(len(trips)))
     trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     trips_path = os.path.join(out_dir, 'trips.html')

@@ -59,10 +59,7 @@ export default {
 
     log(`New check-in detected: ts=${newestTs} (previous=${lastTs}). Triggering build…`);
 
-    // ── 3. Persist new timestamp before triggering (idempotent on retry) ──────
-    await env.POLLER_KV.put(KV_KEY, String(newestTs));
-
-    // ── 4. Trigger GitHub Actions workflow_dispatch ───────────────────────────
+    // ── 3. Trigger GitHub Actions workflow_dispatch ───────────────────────────
     const ghUrl =
       `https://api.github.com/repos/${env.GITHUB_REPO}` +
       `/actions/workflows/${WORKFLOW_FILE}/dispatches`;
@@ -81,6 +78,8 @@ export default {
       });
 
       if (ghResp.status === 204) {
+        // ── 4. Persist new timestamp only after successful dispatch ──────────
+        await env.POLLER_KV.put(KV_KEY, String(newestTs));
         log("workflow_dispatch triggered successfully.");
       } else {
         const body = await ghResp.text();
