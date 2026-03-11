@@ -90,7 +90,16 @@ The `header h1` gradient text uses `-webkit-text-fill-color:transparent` + `back
 ### CSS: `:visited` link colors
 Browsers silently ignore `var()` CSS custom properties inside `:visited` rules (security restriction). Use **literal hex values** (e.g., `#e0e2ec`) in `:visited` selectors, not `var(--text)`.
 
+## Data storage
+
+`data/checkins.csv` is **not committed** to this public repo. It lives in the private repo `toouur/foursquare-data` and is checked out during CI via `DATA_REPO_PAT`. Locally the file lives at `data/checkins.csv` (gitignored). To sync a full re-fetch:
+
+```bash
+python scripts/fetch_checkins.py --full --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv
+```
+
 ## Deployment
 - **Cloudflare Pages:** Auto-deploys on every push to `main` (no build step needed)
 - **Netlify:** Manual deploys only on last day of month (free tier limit); `netlify.toml` has empty build command
-- **GitHub Actions:** Runs every hour to fetch new check-ins and rebuild; secrets needed: `FOURSQUARE_TOKEN`, `NETLIFY_SITE_ID`, `NETLIFY_AUTH_TOKEN`
+- **GitHub Actions:** Runs every hour to fetch new check-ins and rebuild; secrets needed: `FOURSQUARE_TOKEN`, `DATA_REPO_PAT`, `NETLIFY_SITE_ID`, `NETLIFY_AUTH_TOKEN`
+- **Cloudflare Worker (`workers/checkin-poller/`):** Polls Foursquare every minute; triggers `workflow_dispatch` on new check-in for near-instant deploys (~4–5 min latency). Secrets: `FOURSQUARE_TOKEN`, `GITHUB_TOKEN` (set via `wrangler secret put`)
