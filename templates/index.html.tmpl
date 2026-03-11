@@ -1519,8 +1519,9 @@ function filterList(id,q){
   async function fetchWeather(r,i){
     if(!r.lat||!r.lng){document.getElementById('rcw_'+i).innerHTML='';return;}
     try{
+      const utcDate=new Date(r.ts*1000).toISOString().slice(0,10);
       const url=`https://archive-api.open-meteo.com/v1/archive?latitude=${r.lat}&longitude=${r.lng}`+
-        `&start_date=${r.date}&end_date=${r.date}&hourly=temperature_2m,weather_code&timezone=${encodeURIComponent(r.tz_name||'UTC')}`;
+        `&start_date=${utcDate}&end_date=${utcDate}&hourly=temperature_2m,weather_code&timezone=auto`;
       const res=await fetch(url); const d=await res.json();
       const hour=parseInt(r.time.split(':')[0]);
       const temp=d.hourly?.temperature_2m?.[hour], code=d.hourly?.weather_code?.[hour];
