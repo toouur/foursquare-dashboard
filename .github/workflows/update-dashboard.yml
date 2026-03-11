@@ -16,6 +16,9 @@
 
 name: Update check-in dashboard
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   schedule:
     - cron: "0 */1  * * *"   # every hour
