@@ -705,7 +705,7 @@ barList('citiesList',S.cities);
 (function(){
   const data=S.venues, max=data[0][1];
   document.getElementById('venuesList').innerHTML=data.map(([n,c,city,vid],i)=>{
-    const vname=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color=''">${esc(n)}</a>`:esc(n);
+    const vname=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(n)}</a>`:esc(n);
     return `<div class="bar-row" data-name="${n.toLowerCase().replace(/"/g,'')}${city?' '+city.toLowerCase():''}">
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(n)}${city?' · '+esc(city):''}">  ${vname}<span class="city-tag">${esc(city||'')} </span></span>
@@ -732,6 +732,15 @@ function filterList(id,q){
     85:['🌨️','Snow showers'],86:['❄️','Heavy snow showers'],
     95:['⛈️','Thunderstorm'],96:['⛈️','Thunderstorm+hail'],99:['⛈️','Thunderstorm+hail'],
   };
+  function wmoByTime(code,hour){
+    const[em,desc]=WMO[code]||['🌡️',''];
+    if(code===0||code===1){
+      if(hour<6||hour>=22) return['🌙',desc];
+      if(hour<9) return[code===0?'🌅':'🌤️',desc];
+      if(hour>=18) return[code===0?'🌇':'🌤️',desc];
+    }
+    return[em,desc];
+  }
   const scrollEl=document.getElementById('recentScroll');
 
   // ── Streak: count each venue_id in the recent 30 ──
@@ -1514,7 +1523,7 @@ function filterList(id,q){
       const res=await fetch(url); const d=await res.json();
       const hour=parseInt(r.time.split(':')[0]);
       const temp=d.hourly?.temperature_2m?.[hour], code=d.hourly?.weather_code?.[hour];
-      const [icon,desc]=WMO[code]||['🌡️',''];
+      const [icon,desc]=wmoByTime(code,hour);
       const el=document.getElementById('rcw_'+i);
       if(el) el.innerHTML=`<span class="rc-weather-icon">${icon}</span><span class="rc-weather-temp">${temp!=null?Math.round(temp)+'°C':'—'}</span><span class="rc-weather-desc">${desc}</span>`;
     }catch(e){const el=document.getElementById('rcw_'+i);if(el)el.innerHTML='';}
