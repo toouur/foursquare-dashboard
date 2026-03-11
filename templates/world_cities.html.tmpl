@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>World Cities · Check-in Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+header{padding:20px 36px 14px;border-bottom:1px solid var(--border);}
+.back-link{color:var(--gold);text-decoration:none;font-size:.75rem;font-weight:600;opacity:.8;letter-spacing:.04em;display:inline-block;margin-bottom:6px;}
+.back-link:hover{opacity:1;}
+header h1{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:900;line-height:1.1;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .15em;display:inline-block;}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 36px;border-bottom:1px solid var(--border);background:var(--card);position:sticky;top:0;z-index:50;}
+.pill{background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s;color:var(--muted);letter-spacing:.04em;}
+.pill.active{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
+.pill:hover{border-color:rgba(232,184,109,.4);color:var(--text);}
+.visited-tog{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:.72rem;font-weight:600;color:var(--muted);padding:5px 13px;border:1px solid var(--border);border-radius:20px;background:var(--card2);transition:all .15s;}
+.visited-tog.on{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
+.search-box{background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;color:var(--text);font-size:.72rem;outline:none;margin-left:auto;width:180px;}
+.search-box:focus{border-color:var(--gold);}
+.count-badge{font-size:.68rem;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:20px 36px 40px;}
+.city-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:border-color .15s;}
+.city-card.visited{background:rgba(232,184,109,.04);border-color:rgba(232,184,109,.25);}
+.city-card:hover{border-color:rgba(232,184,109,.5);}
+.city-name{font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:2px;}
+.city-country{font-size:.64rem;color:var(--muted);}
+.city-pop{font-size:.60rem;font-family:'DM Mono',monospace;color:var(--muted);margin-top:4px;}
+.city-cnt{font-size:.68rem;font-family:'DM Mono',monospace;color:var(--gold);margin-top:2px;}
+.cont-header{grid-column:1/-1;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);padding:8px 0 4px;border-bottom:1px solid var(--border);margin-top:8px;}
+.no-results{grid-column:1/-1;text-align:center;padding:60px;color:var(--muted);font-size:.85rem;}
+@media(max-width:600px){.grid{padding:12px;gap:8px;}.controls{padding:10px 12px;}}
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" href="index.html">← Back to Journal</a>
+  <h1>World Cities</h1>
+</header>
+<div class="controls" id="controls">
+  <div class="pill active" onclick="filterCont('ALL',this)">All</div>
+  <div class="pill" onclick="filterCont('EU',this)">Europe</div>
+  <div class="pill" onclick="filterCont('AS',this)">Asia</div>
+  <div class="pill" onclick="filterCont('AF',this)">Africa</div>
+  <div class="pill" onclick="filterCont('NA',this)">N. America</div>
+  <div class="pill" onclick="filterCont('SA',this)">S. America</div>
+  <div class="pill" onclick="filterCont('OC',this)">Oceania</div>
+  <div class="visited-tog" id="visitedTog" onclick="toggleVisited(this)">✓ Visited</div>
+  <input class="search-box" id="srch" type="text" placeholder="Search cities…" oninput="doSearch(this.value)">
+  <span class="count-badge" id="countBadge"></span>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+const WC=WC_DATA_PLACEHOLDER;
+const VISITED=VISITED_DATA_PLACEHOLDER;
+const CONT_NAMES={EU:'Europe',AS:'Asia',AF:'Africa',NA:'North America',SA:'South America',OC:'Oceania'};
+// Country → continent for disambiguation (same as index.html)
+const CTRY_CONT={
+  'Belarus':'EU','Moldova':'EU','Poland':'EU','Ukraine':'EU','Italy':'EU','Romania':'EU',
+  'Lithuania':'EU','Germany':'EU','Türkiye':'EU','Turkey':'EU','Spain':'EU','France':'EU',
+  'Latvia':'EU','Portugal':'EU','United Kingdom':'EU','Czechia':'EU','Czech Republic':'EU',
+  'Hungary':'EU','Austria':'EU','Switzerland':'EU','Netherlands':'EU','Belgium':'EU',
+  'Slovakia':'EU','Bulgaria':'EU','Greece':'EU','Croatia':'EU','Serbia':'EU',
+  'Estonia':'EU','Finland':'EU','Sweden':'EU','Norway':'EU','Denmark':'EU',
+  'Iceland':'EU','Ireland':'EU','Slovenia':'EU','North Macedonia':'EU','Albania':'EU',
+  'Montenegro':'EU','Bosnia and Herzegovina':'EU','Kosovo':'EU','Malta':'EU',
+  'Holy See (Vatican City State)':'EU','San Marino':'EU','Monaco':'EU',
+  'Georgia':'AS','China':'AS','India':'AS','Japan':'AS','South Korea':'AS','Taiwan':'AS',
+  'Singapore':'AS','Malaysia':'AS','Thailand':'AS','Vietnam':'AS','Indonesia':'AS',
+  'Philippines':'AS','Myanmar':'AS','Cambodia':'AS','Bangladesh':'AS','Pakistan':'AS',
+  'Nepal':'AS','Sri Lanka':'AS','Kazakhstan':'AS','Uzbekistan':'AS','Tajikistan':'AS',
+  'Kyrgyzstan':'AS','Azerbaijan':'AS','Armenia':'AS','Israel':'AS','Jordan':'AS',
+  'Lebanon':'AS','Iraq':'AS','Iran':'AS','Oman':'AS','Saudi Arabia':'AS',
+  'United Arab Emirates':'AS','Qatar':'AS','Kuwait':'AS','Bahrain':'AS',
+  'Cyprus':'EU','Mongolia':'AS','Hong Kong':'AS',
+  'Morocco':'AF','Tunisia':'AF','Egypt':'AF','Libya':'AF','Algeria':'AF',
+  'Sudan':'AF','Ethiopia':'AF','Kenya':'AF','Tanzania':'AF','South Africa':'AF',
+  'Russia':'EU','United States':'NA','Canada':'NA','Mexico':'NA',
+  'Cuba':'NA','Jamaica':'NA','Dominican Republic':'NA',
+  'Brazil':'SA','Argentina':'SA','Chile':'SA','Colombia':'SA','Peru':'SA',
+  'Venezuela':'SA','Ecuador':'SA','Bolivia':'SA','Uruguay':'SA','Paraguay':'SA',
+  'New Zealand':'OC','Australia':'OC',
+};
+const CITY_ALIASES={
+  'Salihorsk':['Soligorsk'],'Delhi':['New Delhi'],'Odessa':['Odesa'],
+  'Krakow':['Kraków'],'Molodechno':['Maladzyechna'],'Baranavichy':['Baranovichi'],
+  'Yangon':['Yangon','Rangoon'],'Mumbai':['Mumbai','Bombay'],
+  'Kolkata':['Kolkata','Calcutta'],'Chennai':['Chennai','Madras'],
+  'Bangalore':['Bangalore','Bengaluru'],'Grodno':['Hrodna'],
+  'Chisinau':['Chișinău','Chisinau'],'Kishinev':['Chișinău'],
+  'Wroclaw':['Wrocław'],'Poznan':['Poznań'],'Gdansk':['Gdańsk'],
+  'Brest':['Brest','Brest (Брэст)'],
+  'Soligorsk':['Salihorsk'],'Novopolotsk':['Navapolatsk'],
+};
+// VISITED: {cityName: [count, country]} — country enables continent disambiguation
+// Returns {cnt, displayName} — displayName is the normalized name from index.html for visited cities
+function getVisitInfo(worldName, worldCont){
+  function continentOk(country){
+    if(!worldCont||!country) return true;
+    const vc=CTRY_CONT[country];
+    return !vc||vc===worldCont;
+  }
+  const v=VISITED[worldName];
+  if(v){const [cnt,ctry]=v;if(continentOk(ctry)) return {cnt, displayName:worldName};}
+  for(const alias of (CITY_ALIASES[worldName]||[])){
+    const va=VISITED[alias];
+    if(va){const [cnt,ctry]=va;if(continentOk(ctry)) return {cnt, displayName:alias};}
+  }
+  return {cnt:0, displayName:worldName};
+}
+function getVisitCount(worldName,worldCont){return getVisitInfo(worldName,worldCont).cnt;}
+
+let curCont='ALL', visitedOnly=false, searchQ='';
+function filterCont(c,el){
+  curCont=c;
+  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+function toggleVisited(el){
+  visitedOnly=!visitedOnly;
+  el.classList.toggle('on',visitedOnly);
+  render();
+}
+function doSearch(q){searchQ=q.toLowerCase().trim();render();}
+
+function render(){
+  let data=WC.filter(c=>{
+    if(curCont!=='ALL'&&c[4]!==curCont) return false;
+    if(visitedOnly&&!getVisitCount(c[0],c[4])) return false;
+    if(searchQ&&!c[0].toLowerCase().includes(searchQ)&&!getVisitInfo(c[0],c[4]).displayName.toLowerCase().includes(searchQ)&&!(CONT_NAMES[c[4]]||c[4]).toLowerCase().includes(searchQ)) return false;
+    return true;
+  });
+  data.sort((a,b)=>b[3]-a[3]);
+  const total=data.length, vis=data.filter(c=>getVisitCount(c[0],c[4])).length;
+  document.getElementById('countBadge').textContent=`${vis} visited / ${total.toLocaleString()} cities`;
+
+  let html='';
+  data.forEach(([name,lat,lng,pop,cont])=>{
+    const contTag=curCont==='ALL'?`<span style='font-size:.55rem;color:var(--muted);opacity:.5;margin-left:5px;'>${CONT_NAMES[cont]||cont}</span>`:'';
+    const {cnt,displayName}=getVisitInfo(name,cont);
+    const popStr=pop>=1?`${pop.toFixed(1)}M`:`${Math.round(pop*1000)}k`;
+    html+=`<div class="city-card${cnt?' visited':''}">
+      <div class="city-name">${displayName}${contTag}</div>
+      ${cnt?`<div class="city-cnt">✓ ${cnt.toLocaleString()} check-ins</div>`:''}
+      <div class="city-pop">${popStr} pop</div>
+    </div>`;
+  });
+  document.getElementById('grid').innerHTML=html||'<div class="no-results">No cities found</div>';
+}
+render();
+</script>
+</body>
+</html>
