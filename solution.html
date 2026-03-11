@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard Solution Description — Foursquare Check-in Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.6;}
+
+/* ── HEADER ── */
+header{padding:52px 56px 44px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);position:relative;}
+header h1{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3.8rem);font-weight:900;line-height:1.05;letter-spacing:-0.02em;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.1em 0 .3em;display:inline-block;}
+.header-sub{font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-top:6px;}
+.back-link{position:absolute;top:24px;right:56px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);text-decoration:none;border:1px solid rgba(232,184,109,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;}
+.back-link:hover{border-color:var(--gold);background:rgba(232,184,109,0.08);}
+
+/* ── LAYOUT ── */
+.page{max-width:1100px;margin:0 auto;padding:56px 56px 100px;}
+@media(max-width:900px){.page{padding:36px 28px 80px;}header{padding:40px 28px 36px;}.back-link{top:16px;right:20px;}}
+
+/* ── SECTION ── */
+.section{margin-bottom:72px;}
+.section-label{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.22em;color:var(--gold);margin-bottom:10px;}
+.section-title{font-family:'Playfair Display',serif;font-size:clamp(1.5rem,3vw,2.2rem);font-weight:700;color:var(--text);margin-bottom:18px;line-height:1.2;}
+.section-body{font-size:0.95rem;color:var(--text2);line-height:1.8;max-width:760px;}
+.section-body p{margin-bottom:14px;}
+.section-body p:last-child{margin-bottom:0;}
+.section-body strong{color:var(--text);}
+
+/* ── PIPELINE DIAGRAM ── */
+.pipeline{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin:32px 0;row-gap:12px;}
+.pipe-step{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 20px;position:relative;}
+.pipe-step::after{content:'';position:absolute;top:0;left:16px;right:16px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.3;}
+.pipe-step .ps-label{font-family:'DM Mono',monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-bottom:4px;}
+.pipe-step .ps-name{font-size:0.85rem;font-weight:600;color:var(--text);}
+.pipe-step .ps-time{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--teal);margin-top:3px;}
+.pipe-arrow{font-family:'DM Mono',monospace;color:var(--muted);padding:0 10px;font-size:1rem;flex-shrink:0;}
+
+/* ── CARDS GRID ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;margin-top:28px;}
+.c-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 28px;position:relative;overflow:hidden;}
+.c-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.35;}
+.c-card .c-icon{font-size:1.4rem;margin-bottom:14px;display:block;}
+.c-card .c-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--gold);margin-bottom:10px;}
+.c-card .c-body{font-size:0.85rem;color:var(--text2);line-height:1.75;}
+.c-card .c-body strong{color:var(--text);}
+
+/* ── CHALLENGE / SOLUTION BLOCKS ── */
+.cs-block{border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px;}
+.cs-challenge{background:var(--card);padding:20px 26px;border-bottom:1px solid var(--border);}
+.cs-solution{background:var(--card2);padding:20px 26px;}
+.cs-label{font-family:'DM Mono',monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:8px;}
+.cs-label.ch{color:#e06b6b;}
+.cs-label.sol{color:var(--teal);}
+.cs-text{font-size:0.88rem;color:var(--text2);line-height:1.75;}
+.cs-text strong{color:var(--text);}
+
+/* ── CODE BLOCK ── */
+.code-block{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:16px 20px;margin:18px 0;font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--text2);overflow-x:auto;line-height:1.8;}
+.code-block .hl{color:var(--gold);}
+.code-block .hl2{color:var(--teal);}
+.code-block .cm{color:var(--muted);}
+
+/* ── STAT STRIP ── */
+.stat-strip{display:flex;gap:0;flex-wrap:wrap;margin:32px 0;border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.stat-item{flex:1;min-width:140px;padding:22px 26px;border-right:1px solid var(--border);position:relative;}
+.stat-item:last-child{border-right:none;}
+.stat-item::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gold),var(--teal));opacity:0.5;}
+.stat-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);line-height:1;}
+.stat-lbl{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-top:6px;}
+
+/* ── STACK TABLE ── */
+.stack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:24px;}
+.stack-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;display:flex;flex-direction:column;gap:4px;}
+.si-layer{font-family:'DM Mono',monospace;font-size:0.55rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);}
+.si-tech{font-size:0.85rem;color:var(--text);font-weight:600;}
+.si-role{font-size:0.78rem;color:var(--text2);}
+
+/* ── DIVIDER ── */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:56px 0;}
+
+/* ── FOOTER ── */
+footer{text-align:center;padding:32px 20px;font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);border-top:1px solid var(--border);}
+footer a{color:var(--gold);text-decoration:none;}
+footer a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="back-link">← Dashboard</a>
+  <div class="header-sub">Engineering Case Study</div>
+  <h1>Dashboard Solution<br>Description</h1>
+  <p style="font-size:0.90rem;color:var(--text2);max-width:640px;margin-top:16px;line-height:1.7;">
+    A self-updating personal geolocation intelligence dashboard built on a fully static architecture —
+    no server, no database, no runtime. From a Foursquare check-in to a live deployed dashboard in under 5 minutes.
+  </p>
+</header>
+
+<div class="page">
+
+  <!-- ── OVERVIEW ── -->
+  <div class="section">
+    <div class="section-label">Overview</div>
+    <div class="section-title">What Was Built</div>
+    <div class="section-body">
+      <p>
+        A personal analytics dashboard that ingests every Foursquare/Swarm check-in and renders it into
+        <strong>six interactive pages</strong>: a main analytics dashboard, a trip journal with per-trip maps,
+        a companions tracker, a full check-in feed with historical weather, a venue loyalty explorer,
+        and a world cities map — all generated as pre-built static HTML, committed to git, and served
+        via Cloudflare Pages CDN.
+      </p>
+      <p>
+        The entire system runs on <strong>free-tier infrastructure</strong>: Cloudflare Pages, Cloudflare Workers,
+        Cloudflare KV, and GitHub Actions. There is no backend, no database, no containers. The build pipeline
+        is 100% Python 3.9+, the frontend is vanilla JS with Leaflet and Chart.js.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── STAT STRIP ── -->
+  <div class="stat-strip">
+    <div class="stat-item">
+      <div class="stat-num">~5 min</div>
+      <div class="stat-lbl">Check-in → Live Deploy</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">6</div>
+      <div class="stat-lbl">Generated HTML Pages</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">3-layer</div>
+      <div class="stat-lbl">City Normalisation</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">$0</div>
+      <div class="stat-lbl">Monthly Infrastructure Cost</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">1 min</div>
+      <div class="stat-lbl">Polling Interval</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── PIPELINE ── -->
+  <div class="section">
+    <div class="section-label">Architecture</div>
+    <div class="section-title">The Deployment Pipeline</div>
+    <div class="section-body">
+      <p>
+        The system is designed around a <strong>push-on-change</strong> philosophy: nothing runs unless
+        there is new data. A Cloudflare Worker acts as the real-time sensor, keeping the whole pipeline
+        reactive while consuming negligible resources when idle.
+      </p>
+    </div>
+
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="ps-label">Trigger</div>
+        <div class="ps-name">Swarm Check-in</div>
+        <div class="ps-time">T+0</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="ps-label">Cloudflare Worker</div>
+        <div class="ps-name">KV Timestamp Poll</div>
+        <div class="ps-time">T+0–60s</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="ps-label">GitHub API</div>
+        <div class="ps-name">workflow_dispatch</div>
+        <div class="ps-time">T+1 min</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="ps-label">GitHub Actions</div>
+        <div class="ps-name">Fetch → Build → Push</div>
+        <div class="ps-time">T+1–3 min</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="ps-label">Cloudflare Pages</div>
+        <div class="ps-name">CDN Deploy</div>
+        <div class="ps-time">T+4–5 min</div>
+      </div>
+    </div>
+
+    <div class="section-body">
+      <p>
+        The Worker runs on a <strong>1-minute cron trigger</strong>, fetching the most recent check-in from
+        the Foursquare API and comparing its Unix timestamp against the last-seen value stored in
+        <strong>Cloudflare KV</strong>. If the timestamp is newer, the Worker writes the new value to KV
+        (idempotent — prevents double-triggering on retries) and fires a <code>workflow_dispatch</code>
+        event to GitHub Actions via the REST API.
+      </p>
+      <p>
+        GitHub Actions then fetches the updated check-in data from the private data repository,
+        rebuilds all six HTML pages, commits and pushes to <code>main</code>. Cloudflare Pages
+        detects the push and deploys automatically — no build command needed, since the HTML is
+        already pre-built.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── CHALLENGES ── -->
+  <div class="section">
+    <div class="section-label">Engineering Decisions</div>
+    <div class="section-title">Challenges &amp; Solutions</div>
+
+    <!-- C1 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 01 — Real-Time vs. Static</div>
+        <div class="cs-text">
+          Personal dashboards typically require a backend to serve dynamic data on request.
+          Running a server 24/7 for occasional check-in reads is wasteful and introduces
+          ongoing cost and maintenance burden.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Pre-built Static with Event-Driven Rebuild</div>
+        <div class="cs-text">
+          All HTML is generated at build time and committed directly to the git repository.
+          Cloudflare Pages serves these files from a global CDN with zero cold-start latency.
+          The "backend" is replaced by a <strong>63-line Cloudflare Worker</strong> that only
+          activates when a new check-in is detected — consuming microseconds of CPU per minute
+          versus a server running continuously.
+        </div>
+      </div>
+    </div>
+
+    <!-- C2 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 02 — Data Quality from Third-Party API</div>
+        <div class="cs-text">
+          Foursquare returns city and country names inconsistently: Cyrillic spellings
+          (<em>Минск</em>), transliterations (<em>Minski Rayon</em>), district sub-names
+          that don't match any canonical city, and outright wrong country assignments for
+          check-ins near border crossings.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Three-Layer Normalisation Pipeline</div>
+        <div class="cs-text">
+          A layered override system processes every check-in through three passes, each with higher
+          precedence than the last:
+        </div>
+        <div class="code-block">
+<span class="cm"># Layer 1 — Bulk rename (city_merge.yaml)</span>
+<span class="hl">"Минск"</span>         → <span class="hl2">"Minsk"</span>
+<span class="hl">"Minski Rayon"</span>  → <span class="hl2">"Minsk"</span>
+
+<span class="cm"># Layer 2 — Per-timestamp city override (city_fixes.json)</span>
+<span class="hl">"1706738400"</span>   → <span class="hl2">"Brest"</span>   <span class="cm"># border crossing mis-tagged</span>
+
+<span class="cm"># Layer 3 — Per-timestamp country override (country_fixes.json)</span>
+<span class="hl">"1706738400"</span>   → <span class="hl2">"Belarus"</span>  <span class="cm"># Foursquare returned Poland</span>
+        </div>
+        <div class="cs-text">
+          This gives operators surgical control: bulk rules handle the common case,
+          while per-timestamp overrides handle specific data anomalies without touching the raw API data.
+        </div>
+      </div>
+    </div>
+
+    <!-- C3 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 03 — Timezone Correctness for DST-Free Countries</div>
+        <div class="cs-text">
+          Resolving timezone from lat/lng coordinates (via <code>timezonefinder</code>) fails for
+          countries that don't observe Daylight Saving Time. For example, Belarus geographically
+          maps to UTC+2 in summer, but politically observes UTC+3 year-round. This causes
+          check-in local times to be off by one hour for half the year.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Explicit Country → IANA Timezone Dict</div>
+        <div class="cs-text">
+          <code>metrics.py</code> maintains a <strong><code>_COUNTRY_TZ</code></strong> dictionary mapping
+          country names to authoritative IANA timezone IDs. This takes precedence over the
+          coordinate-based lookup. <code>Europe/Minsk</code> is always UTC+3, regardless of what
+          the geometric timezone boundary says — because that's what the clocks actually show.
+        </div>
+      </div>
+    </div>
+
+    <!-- C4 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 04 — Weather Data Date Mismatch</div>
+        <div class="cs-text">
+          The recent check-ins feed shows historical weather for each location. Check-ins made
+          in the early hours of the morning in UTC+3 timezones (e.g., 01:14 Minsk time)
+          correspond to 22:14 UTC the previous day — but the dashboard was requesting weather
+          using the <em>local</em> date ("March 12"), not the UTC date ("March 11").
+          The archive API had no data for March 12 yet, so weather was silently absent.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Derive Date from Unix Timestamp via UTC</div>
+        <div class="cs-text">
+          All Open Meteo archive API requests now derive the date from the raw Unix timestamp:
+        </div>
+        <div class="code-block">
+<span class="cm">// Before (broken): uses pre-computed local date field</span>
+const url = <span class="hl">`...&start_date=${r.date}...&timezone=${r.tz_name}`</span>;
+
+<span class="cm">// After (correct): derive UTC date from timestamp</span>
+const utcDate = new Date(r.ts * <span class="hl2">1000</span>).toISOString().slice(<span class="hl2">0</span>, <span class="hl2">10</span>);
+const url = <span class="hl">`...&start_date=${utcDate}...&timezone=auto`</span>;
+        </div>
+        <div class="cs-text">
+          The fix aligned the dashboard's weather fetch strategy with the feed page, which had
+          always used the UTC-based approach. One source of truth, zero silent failures.
+        </div>
+      </div>
+    </div>
+
+    <!-- C5 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 05 — Private Data in a Public Repository</div>
+        <div class="cs-text">
+          The raw <code>checkins.csv</code> contains full location history: GPS coordinates,
+          venue IDs, timestamps, and companion names across years of travel. Committing this
+          to a public repo exposes structured personal data to anyone crawling GitHub.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Separated Private Data Repository</div>
+        <div class="cs-text">
+          The CSV lives in a <strong>separate private GitHub repository</strong>
+          (<code>foursquare-data</code>). A fine-grained Personal Access Token scoped
+          exclusively to that repository allows GitHub Actions to check it out at build time.
+          The public repository never sees the raw CSV — only the generated HTML output, which
+          contains only the aggregated, display-ready data already visible on the site.
+          The PAT has <em>Contents: read/write</em> and nothing else.
+        </div>
+      </div>
+    </div>
+
+    <!-- C6 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 06 — City Name Collisions Across Continents</div>
+        <div class="cs-text">
+          "Rabat" is the capital of Morocco and also a city in Malta. When rendering the
+          world cities map, a naive name-match would mark Morocco's Rabat as visited when
+          only Malta's was, or vice versa — silently inflating the visited cities count.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Continent-Aware City Matching</div>
+        <div class="cs-text">
+          Both <code>index.html.tmpl</code> and <code>gen_worldcities.py</code> implement a
+          <strong><code>CTRY_CONT</code></strong> JavaScript dictionary mapping every country
+          to its continent. The <code>matchVisited()</code> function rejects a world-cities
+          database match unless the candidate city's country falls on the same continent as
+          the visited check-in's country. This guard is maintained in sync across both files —
+          a documented invariant noted in <code>CLAUDE.md</code>.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── BUILD SYSTEM ── -->
+  <div class="section">
+    <div class="section-label">Build System</div>
+    <div class="section-title">Zero-Dependency Static Generation</div>
+    <div class="section-body">
+      <p>
+        The build system is intentionally minimal. <code>build.py</code> is the single orchestrator:
+        it loads YAML/JSON config, calls <code>transform.py</code> to normalise city and country names,
+        calls <code>metrics.py</code> to compute all aggregations and trip detection, then renders
+        two Jinja-free template files using simple <code>{{PLACEHOLDER}}</code> substitution.
+      </p>
+      <p>
+        The four generator scripts (<code>gen_companions.py</code>, <code>gen_feed.py</code>,
+        <code>gen_venues.py</code>, <code>gen_worldcities.py</code>) each embed their complete
+        HTML template as a <strong>base64-encoded string</strong> (<code>_TMPL_B64</code>).
+        This makes each generator fully self-contained — no external template files, no path
+        resolution issues regardless of working directory. To modify a page's design, you
+        base64-decode the string, edit the HTML/CSS/JS, re-encode.
+      </p>
+      <p>
+        Trip detection in <code>metrics.py</code> runs a single-pass scan over the sorted
+        check-in sequence: any consecutive run of check-ins where <code>city ≠ home_city</code>
+        and the run length exceeds <code>min_checkins</code> (configurable) is declared a trip.
+        Trip names are auto-generated from the most-visited countries and cities in that sequence.
+      </p>
+    </div>
+
+    <div class="code-block">
+<span class="cm"># Data flow — single build command</span>
+python scripts/build.py \
+    --input   <span class="hl">data/checkins.csv</span>   \
+    --config-dir <span class="hl2">config</span>            \
+    --output-dir <span class="hl2">.</span>
+
+<span class="cm">
+# Internal execution order:
+#  1. transform.py  — apply 3-layer city/country normalisation
+#  2. metrics.py    — compute aggregations, trip detection, centroids
+#  3. index.html    — rendered from templates/index.html.tmpl
+#  4. trips.html    — rendered from templates/trips.html.tmpl
+#  5. gen_companions.py  → companions.html
+#  6. gen_feed.py        → feed.html
+#  7. gen_venues.py      → venues.html
+#  8. gen_worldcities.py → world_cities.html</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── TECH STACK ── -->
+  <div class="section">
+    <div class="section-label">Stack</div>
+    <div class="section-title">Technology Choices</div>
+    <div class="section-body">
+      <p>Every choice optimises for <strong>zero operational overhead</strong> and <strong>long-term maintainability</strong>
+      — no framework churn, no node_modules in the build pipeline, no containers to patch.</p>
+    </div>
+
+    <div class="stack-grid">
+      <div class="stack-item">
+        <div class="si-layer">Build Pipeline</div>
+        <div class="si-tech">Python 3.9+</div>
+        <div class="si-role">zoneinfo · requests · pyyaml · timezonefinder</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Real-Time Poller</div>
+        <div class="si-tech">Cloudflare Worker</div>
+        <div class="si-role">ES module · 1-min cron · KV timestamp store</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">CI/CD</div>
+        <div class="si-tech">GitHub Actions</div>
+        <div class="si-role">schedule + workflow_dispatch · 2-repo checkout</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Hosting &amp; CDN</div>
+        <div class="si-tech">Cloudflare Pages</div>
+        <div class="si-role">Auto-deploy on push · global CDN · free tier</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Maps</div>
+        <div class="si-tech">Leaflet 1.9 + leaflet.heat</div>
+        <div class="si-role">Heatmap · dot map · trip maps · country flags</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Charts</div>
+        <div class="si-tech">Chart.js 4.4</div>
+        <div class="si-role">Bar · line · doughnut · polar area</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Data Source</div>
+        <div class="si-tech">Foursquare API v2</div>
+        <div class="si-role">Incremental fetch · full re-fetch mode</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Weather</div>
+        <div class="si-tech">Open-Meteo Archive</div>
+        <div class="si-role">Historical weather per check-in · free · no key</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Data Privacy</div>
+        <div class="si-tech">Private GitHub Repo</div>
+        <div class="si-role">Fine-grained PAT · Contents scope only</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── KEY DESIGN PRINCIPLES ── -->
+  <div class="section">
+    <div class="section-label">Design Philosophy</div>
+    <div class="section-title">What Matters and Why</div>
+
+    <div class="cards">
+      <div class="c-card">
+        <span class="c-icon">⚡</span>
+        <div class="c-title">Correctness over convenience</div>
+        <div class="c-body">
+          Every timestamp is processed in the <strong>observer's local time</strong> using
+          authoritative IANA timezone IDs, not browser-inferred offsets. DST transitions,
+          political timezone changes, and UTC vs. local date edge cases are all handled explicitly.
+        </div>
+      </div>
+      <div class="c-card">
+        <span class="c-icon">🔒</span>
+        <div class="c-title">Least-privilege by default</div>
+        <div class="c-body">
+          The data PAT has <strong>Contents read/write on one repo only</strong>.
+          The Worker's GitHub token has <strong>workflow scope only</strong>. No secret
+          has broader permissions than its single job requires.
+        </div>
+      </div>
+      <div class="c-card">
+        <span class="c-icon">🪶</span>
+        <div class="c-title">No framework lock-in</div>
+        <div class="c-body">
+          No React, no Next.js, no bundler, no transpiler. The build is pure Python.
+          The frontend is plain HTML + vanilla JS. In five years, the dashboard will still
+          build with <code>python scripts/build.py</code> and serve from any static host.
+        </div>
+      </div>
+      <div class="c-card">
+        <span class="c-icon">🔁</span>
+        <div class="c-title">Idempotent pipeline</div>
+        <div class="c-body">
+          The KV timestamp is written <strong>before</strong> the GitHub dispatch, not after.
+          If the dispatch fails and the Worker retries, it won't trigger a double build.
+          Every stage is designed to be safely re-runnable.
+        </div>
+      </div>
+      <div class="c-card">
+        <span class="c-icon">🧠</span>
+        <div class="c-title">LLM-assisted development</div>
+        <div class="c-body">
+          The entire system was architected and built using <strong>Claude Code</strong> as an
+          active pair programmer — from data pipeline design to CSS rendering edge cases.
+          Architecture decisions, debug sessions, and normalisation logic were all developed
+          in iterative dialogue with the model, with the human providing domain knowledge
+          (geography, timezone rules, data quality patterns) and the LLM translating them
+          into correct, maintainable code.
+        </div>
+      </div>
+      <div class="c-card">
+        <span class="c-icon">📐</span>
+        <div class="c-title">Sync invariants are documented</div>
+        <div class="c-body">
+          Where two files must stay in sync (e.g., the continent-aware city matching logic
+          shared between <code>index.html.tmpl</code> and <code>gen_worldcities.py</code>),
+          the constraint is explicitly documented in <code>CLAUDE.md</code> — so future
+          AI-assisted edits know to update both files together.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <a href="index.html">← Back to Dashboard</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  Built with <a href="https://claude.ai/code" target="_blank">Claude Code</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  Deployed on <a href="https://pages.cloudflare.com" target="_blank">Cloudflare Pages</a>
+</footer>
+
+</body>
+</html>
