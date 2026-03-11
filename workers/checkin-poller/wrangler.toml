@@ -1,0 +1,17 @@
+name              = "foursquare-checkin-poller"
+main              = "worker.js"
+compatibility_date = "2025-09-27"
+
+[vars]
+# Public variable — set to "owner/repo" for your repository.
+# Example: GITHUB_REPO = "alice/foursquare-dashboard"
+GITHUB_REPO = "toouur/foursquare-dashboard"
+
+[triggers]
+crons = ["* * * * *"]   # every minute
+
+# KV namespace — run `wrangler kv namespace create POLLER_KV` to create,
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "POLLER_KV"
+id      = "768683f5960249edb6ef20961eb7072c"
