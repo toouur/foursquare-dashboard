@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Top Venues · Check-in Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<style>
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+
+header{padding:22px 40px 14px;border-bottom:1px solid var(--border);}
+.back-link{color:var(--gold);text-decoration:none;font-size:.76rem;font-weight:600;opacity:.8;letter-spacing:.04em;display:inline-block;margin-bottom:7px;}
+.back-link:hover{opacity:1;}
+header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;line-height:1.1;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .16em;display:inline-block;}
+.hdr-sub{font-size:.74rem;color:var(--muted);margin-top:2px;}
+
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 40px;border-bottom:1px solid var(--border);background:var(--card);position:sticky;top:0;z-index:50;}
+.search-box{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text);font-size:.78rem;outline:none;width:240px;transition:border-color .15s;}
+.search-box:focus{border-color:var(--gold);}
+.count-lbl{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--muted);margin-left:auto;}
+
+/* Sort pills */
+.pill{background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:.68rem;font-weight:600;cursor:pointer;color:var(--muted);transition:all .15s;letter-spacing:.04em;}
+.pill.active{background:rgba(232,184,109,.1);border-color:var(--gold);color:var(--gold);}
+.pill:hover:not(.active){border-color:rgba(232,184,109,.3);color:var(--text);}
+.lbl-sm{font-size:.62rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+
+/* Table */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;min-width:640px;}
+thead th{padding:10px 16px;text-align:left;font-size:.60rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--card);position:sticky;top:49px;z-index:40;cursor:pointer;user-select:none;white-space:nowrap;}
+thead th:hover{color:var(--text);}
+thead th.sorted{color:var(--gold);}
+thead th .sort-ico{margin-left:4px;opacity:.5;font-size:.65rem;}
+thead th.sorted .sort-ico{opacity:1;}
+
+tbody tr{border-bottom:1px solid rgba(34,39,56,.5);}
+td{padding:10px 16px;vertical-align:middle;}
+
+.rank{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--muted);text-align:right;width:40px;}
+.venue-name a,.venue-name a:link{color:#e0e2ec;text-decoration:none;font-weight:600;font-size:.85rem;}
+.venue-name a:visited{color:#e0e2ec !important;text-decoration:none;font-weight:600;font-size:.85rem;}
+.venue-name a:hover,.venue-name a:visited:hover{color:var(--gold) !important;}
+.venue-city{font-size:.68rem;color:var(--muted);margin-top:2px;}
+.cat{font-size:.62rem;color:var(--teal);text-transform:uppercase;letter-spacing:.04em;}
+.count{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--gold);font-weight:600;text-align:right;}
+.years-cell{max-width:220px;}
+.yr-chips{display:flex;gap:3px;flex-wrap:wrap;}
+.yr{font-family:'DM Mono',monospace;font-size:.52rem;padding:2px 5px;border-radius:4px;background:var(--card2);border:1px solid var(--border);color:var(--muted);}
+.fi{border-radius:2px;vertical-align:middle;margin-right:3px;}
+
+/* Mobile */
+@media(max-width:700px){
+  header{padding:14px 16px 10px;}
+  .controls{padding:8px 12px;}
+  .search-box{width:160px;}
+  td,th{padding:8px 10px;}
+}
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" href="index.html">← Back to Journal</a>
+  <h1>Top 500 Venues</h1>
+  <div class="hdr-sub">Unique places · sorted by check-in count · click to open on Foursquare</div>
+</header>
+<div class="controls">
+  <span class="lbl-sm">Sort:</span>
+  <div class="pill active" id="sort-count" onclick="setSort('count',this)">Most visited</div>
+  <div class="pill" id="sort-years" onclick="setSort('years',this)">Years loyal</div>
+  <div class="pill" id="sort-name" onclick="setSort('name',this)">A–Z</div>
+  <input class="search-box" id="srch" type="text" placeholder="Search venues, cities, categories…" oninput="doSearch(this.value)">
+  <span class="count-lbl" id="countLbl"></span>
+</div>
+<div class="tbl-wrap">
+<table>
+  <thead>
+    <tr>
+      <th class="sorted" id="th-count" onclick="setSort('count',null)">#  <span class="sort-ico">▼</span></th>
+      <th id="th-name" onclick="setSort('name',null)">Venue <span class="sort-ico">↕</span></th>
+      <th id="th-cat">Category</th>
+      <th id="th-loc">Location</th>
+      <th id="th-years" onclick="setSort('years',null)">Years <span class="sort-ico">↕</span></th>
+      <th id="th-ci" onclick="setSort('count',null)">Check-ins <span class="sort-ico">↕</span></th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+<script>
+// [name, city, country, category, count, [years], vid]
+const VENUES=VENUES_DATA_PLACEHOLDER;
+const ISO2={'Belarus':'by','Russia':'ru','Ukraine':'ua','Georgia':'ge','Moldova':'md','Poland':'pl','Lithuania':'lt','Latvia':'lv','Estonia':'ee','Germany':'de','France':'fr','Italy':'it','Spain':'es','Portugal':'pt','Netherlands':'nl','Belgium':'be','Switzerland':'ch','Austria':'at','Czechia':'cz','Slovakia':'sk','Hungary':'hu','Romania':'ro','Bulgaria':'bg','Serbia':'rs','Croatia':'hr','Slovenia':'si','Greece':'gr','Türkiye':'tr','Turkey':'tr','Armenia':'am','Azerbaijan':'az','Kazakhstan':'kz','Sweden':'se','Denmark':'dk','Norway':'no','Finland':'fi','Malta':'mt','Cyprus':'cy','Luxembourg':'lu','Ireland':'ie','United Kingdom':'gb','Israel':'il','Egypt':'eg','Morocco':'ma','Japan':'jp','China':'cn','India':'in','Thailand':'th','Vietnam':'vn','Indonesia':'id','Singapore':'sg','Malaysia':'my','Philippines':'ph','South Korea':'kr','Uzbekistan':'uz','Iran':'ir','Saudi Arabia':'sa','UAE':'ae','United Arab Emirates':'ae','United States':'us','Canada':'ca','Mexico':'mx','Brazil':'br','Argentina':'ar','Chile':'cl','Colombia':'co','Peru':'pe','Australia':'au','New Zealand':'nz','Holy See (Vatican City State)':'va','North Macedonia':'mk','Bosnia and Herzegovina':'ba','Montenegro':'me','Albania':'al','Andorra':'ad','Monaco':'mc','San Marino':'sm','Liechtenstein':'li','Pakistan':'pk','Bangladesh':'bd','Nepal':'np','Myanmar':'mm','Taiwan':'tw','Hong Kong':'hk','Macao':'mo','Macau':'mo'};
+function fi(c){const code=ISO2[c];return code?`<span class="fi fi-${code}"></span>`:'';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+let sortKey='count', sortDir=1, searchQ='';
+
+function setSort(k, pillEl){
+  if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=k==='name'?1:-1;}
+  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('thead th').forEach(th=>{
+    th.classList.remove('sorted');
+    const ico=th.querySelector('.sort-ico');
+    if(ico) ico.textContent='↕';
+  });
+  if(pillEl) pillEl.classList.add('active');
+  const sortPill=document.getElementById('sort-'+k);
+  if(sortPill) sortPill.classList.add('active');
+  const sortTh=document.getElementById('th-'+k);
+  if(sortTh){sortTh.classList.add('sorted');const ico=sortTh.querySelector('.sort-ico');if(ico)ico.textContent=sortDir>0?'▲':'▼';}
+  render();
+}
+
+function doSearch(q){searchQ=q.toLowerCase().trim();render();}
+
+function render(){
+  let data=[...VENUES];
+  if(searchQ) data=data.filter(v=>
+    v[0].toLowerCase().includes(searchQ)||
+    v[1].toLowerCase().includes(searchQ)||
+    v[2].toLowerCase().includes(searchQ)||
+    v[3].toLowerCase().includes(searchQ)
+  );
+  data.sort((a,b)=>{
+    if(sortKey==='count') return sortDir*(b[4]-a[4]);
+    if(sortKey==='years') return sortDir*(b[5].length-a[5].length)||(b[4]-a[4]);
+    return sortDir*a[0].localeCompare(b[0]);
+  });
+
+  document.getElementById('countLbl').textContent=`${data.length} venues`;
+  const tbody=document.getElementById('tbody');
+  if(data.length===0){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:50px;color:var(--muted)">No venues found</td></tr>';return;}
+
+  // Render all rows (500 is fine)
+  tbody.innerHTML=data.map((v,i)=>{
+    const [name,city,country,cat,count,years,vid]=v;
+    const vlink=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener">${esc(name)}</a>`:esc(name);
+    const yrs=years.map(y=>`<span class="yr">${y}</span>`).join('');
+    const origRank=i+1;  // rank in current sorted order
+    return `<tr>
+      <td class="rank">${origRank}</td>
+      <td class="venue-name">${vlink}${city?`<div class="venue-city">${fi(country)}${esc(city)}, ${esc(country)}</div>`:''}</td>
+      <td><span class="cat">${esc(cat)}</span></td>
+      <td>${fi(country)}${esc(city||country)}</td>
+      <td class="years-cell"><div class="yr-chips">${yrs}</div></td>
+      <td class="count">${count.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+
+render();
+// Fix sticky thead top to match actual controls bar height
+const ctrlH=document.querySelector('.controls').offsetHeight;
+document.querySelectorAll('thead th').forEach(th=>th.style.top=ctrlH+'px');
+</script>
+</body>
+</html>
