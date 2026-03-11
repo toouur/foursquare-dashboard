@@ -374,11 +374,11 @@ def process(
         for rc in raw_cats:
             for vid, d in cat_vid.get(rc, {}).items():
                 if vid not in combined:
-                    combined[vid] = {"name": d["name"], "city": d["city"], "count": 0}
+                    combined[vid] = {"name": d["name"], "city": d["city"], "count": 0, "vid": vid}
                 combined[vid]["count"] += d["count"]
         top50 = sorted(combined.values(), key=lambda x: -x["count"])[:50]
         if top50:
-            explorer[display_name] = [[d["name"], d["city"], d["count"]] for d in top50]
+            explorer[display_name] = [[d["name"], d["city"], d["count"], d["vid"]] for d in top50]
     explorer_cats = [k for k in explorer_groups if k in explorer]
 
     # ── Unique places ─────────────────────────────────────────────────────────
