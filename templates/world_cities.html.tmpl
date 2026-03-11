@@ -132,7 +132,7 @@ function render(){
   let data=WC.filter(c=>{
     if(curCont!=='ALL'&&c[4]!==curCont) return false;
     if(visitedOnly&&!getVisitCount(c[0],c[4])) return false;
-    if(searchQ&&!c[0].toLowerCase().includes(searchQ)&&!(CONT_NAMES[c[4]]||c[4]).toLowerCase().includes(searchQ)) return false;
+    if(searchQ&&!c[0].toLowerCase().includes(searchQ)&&!getVisitInfo(c[0],c[4]).displayName.toLowerCase().includes(searchQ)&&!(CONT_NAMES[c[4]]||c[4]).toLowerCase().includes(searchQ)) return false;
     return true;
   });
   data.sort((a,b)=>b[3]-a[3]);

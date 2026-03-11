@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Companions · Check-in Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+header{padding:24px 40px 16px;border-bottom:1px solid var(--border);}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--gold);text-decoration:none;font-size:0.78rem;font-weight:600;letter-spacing:.04em;opacity:.8;margin-bottom:8px;}
+.back-link:hover{opacity:1;}
+header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;line-height:1.1;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.1em 0 .18em;display:inline-block;}
+.layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 110px);}
+.sidebar{border-right:1px solid var(--border);overflow-y:auto;max-height:calc(100vh - 110px);position:sticky;top:0;}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.si{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
+.si:hover{background:var(--card2);}
+.si.active{background:var(--card2);border-left-color:var(--gold);}
+.si-name{font-size:0.82rem;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}a.si-name{color:var(--text);text-decoration:none;}a.si-name:hover{color:var(--gold);}
+.si-cnt{font-size:0.72rem;font-family:'DM Mono',monospace;color:var(--gold);}
+.main{padding:28px 36px;overflow-y:auto;}
+.person-name{font-family:'Playfair Display',serif;font-size:2rem;font-weight:900;color:var(--gold);}
+.person-meta{font-size:0.78rem;color:var(--muted);margin-top:6px;}
+.search-row{display:flex;gap:10px;align-items:center;margin:18px 0;}
+.search-box{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-size:0.82rem;outline:none;width:260px;}
+.search-box:focus{border-color:var(--gold);}
+.shown-count{font-size:.75rem;color:var(--muted);}
+table{width:100%;border-collapse:collapse;}
+th{font-size:0.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 12px 10px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:9px 12px;font-size:0.80rem;border-bottom:1px solid rgba(34,39,56,.45);vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.ci-date{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted);white-space:nowrap;}
+.ci-time{font-family:'DM Mono',monospace;font-size:0.67rem;color:var(--muted);opacity:.65;}
+.ci-venue a{color:var(--text);text-decoration:none;font-weight:600;}
+.ci-venue a:hover{color:var(--gold);}
+.ci-cat{font-size:0.68rem;color:var(--teal);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+.person-name[href]{text-decoration:none;color:var(--gold);}.person-name[href]:hover{opacity:.8;}.ci-loc{font-size:0.72rem;color:var(--muted);font-family:"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",'DM Sans',sans-serif;}
+@media(max-width:700px){.layout{grid-template-columns:1fr;}.sidebar{max-height:180px;border-right:none;border-bottom:1px solid var(--border);}.main{padding:16px;}}
+</style>
+</head>
+<body>
+<header>
+  <a class="back-link" href="index.html">← Back to Journal</a>
+  <h1>Companions</h1>
+</header>
+<div class="layout">
+  <div class="sidebar" id="sidebar"></div>
+  <div class="main" id="main"></div>
+</div>
+<script>
+const COMP=COMP_DATA_PLACEHOLDER;
+
+const COMPANION_COUNTRIES={'Joanna K.':'Poland','Alex Potemkin':'Belarus','Bojan Bačević':'Serbia','Artemiy Nikitenko':'Belarus','Artemiy Nikitenko (Wellwod)':'Belarus','Tuğba Yoldaş':'Turkey','Тимур -':'Moldova'};
+
+// Country → flag emoji map (inline, no fetch needed)
+const F={
+  'Albania':'🇦🇱','Andorra':'🇦🇩','Armenia':'🇦🇲','Australia':'🇦🇺','Austria':'🇦🇹',
+  'Azerbaijan':'🇦🇿','Bahrain':'🇧🇭','Bangladesh':'🇧🇩','Belarus':'🇧🇾','Belgium':'🇧🇪',
+  'Bolivia':'🇧🇴','Bosnia and Herzegovina':'🇧🇦','Brazil':'🇧🇷','Brunei':'🇧🇳',
+  'Bulgaria':'🇧🇬','Cambodia':'🇰🇭','Canada':'🇨🇦','Chile':'🇨🇱','China':'🇨🇳',
+  'Colombia':'🇨🇴','Costa Rica':'🇨🇷','Croatia':'🇭🇷','Cuba':'🇨🇺','Cyprus':'🇨🇾',
+  'Czechia':'🇨🇿','Czech Republic':'🇨🇿','Denmark':'🇩🇰','Ecuador':'🇪🇨','Egypt':'🇪🇬',
+  'El Salvador':'🇸🇻','Estonia':'🇪🇪','Ethiopia':'🇪🇹','Finland':'🇫🇮','France':'🇫🇷',
+  'Georgia':'🇬🇪','Germany':'🇩🇪','Ghana':'🇬🇭','Greece':'🇬🇷','Guatemala':'🇬🇹',
+  'Holy See (Vatican City State)':'🇻🇦','Honduras':'🇭🇳','Hong Kong':'🇭🇰',
+  'Hungary':'🇭🇺','Iceland':'🇮🇸','India':'🇮🇳','Indonesia':'🇮🇩','Iran':'🇮🇷',
+  'Iraq':'🇮🇶','Ireland':'🇮🇪','Israel':'🇮🇱','Italy':'🇮🇹','Japan':'🇯🇵',
+  'Jordan':'🇯🇴','Kazakhstan':'🇰🇿','Kenya':'🇰🇪','Kosovo':'🇽🇰','Kuwait':'🇰🇼',
+  'Kyrgyzstan':'🇰🇬','Laos':'🇱🇦','Latvia':'🇱🇻','Lebanon':'🇱🇧','Liechtenstein':'🇱🇮',
+  'Lithuania':'🇱🇹','Luxembourg':'🇱🇺','Macao':'🇲🇴','Macau':'🇲🇴','Malaysia':'🇲🇾',
+  'Maldives':'🇲🇻','Malta':'🇲🇹','Mexico':'🇲🇽','Moldova':'🇲🇩','Monaco':'🇲🇨',
+  'Mongolia':'🇲🇳','Montenegro':'🇲🇪','Morocco':'🇲🇦','Myanmar':'🇲🇲','Nepal':'🇳🇵',
+  'Netherlands':'🇳🇱','New Zealand':'🇳🇿','Nigeria':'🇳🇬','North Macedonia':'🇲🇰',
+  'Norway':'🇳🇴','Oman':'🇴🇲','Pakistan':'🇵🇰','Panama':'🇵🇦','Paraguay':'🇵🇾',
+  'Peru':'🇵🇪','Philippines':'🇵🇭','Poland':'🇵🇱','Portugal':'🇵🇹','Qatar':'🇶🇦',
+  'Romania':'🇷🇴','Russia':'🇷🇺','Saudi Arabia':'🇸🇦','Serbia':'🇷🇸','Singapore':'🇸🇬',
+  'Slovakia':'🇸🇰','Slovenia':'🇸🇮','South Africa':'🇿🇦','South Korea':'🇰🇷',
+  'Spain':'🇪🇸','Sri Lanka':'🇱🇰','Sweden':'🇸🇪','Switzerland':'🇨🇭','Syria':'🇸🇾',
+  'Taiwan':'🇹🇼','Tajikistan':'🇹🇯','Tanzania':'🇹🇿','Thailand':'🇹🇭',
+  'Türkiye':'🇹🇷','Turkey':'🇹🇷','Turkmenistan':'🇹🇲','Uganda':'🇺🇬','Ukraine':'🇺🇦',
+  'United Arab Emirates':'🇦🇪','UAE':'🇦🇪','United Kingdom':'🇬🇧','United States':'🇺🇸',
+  'Uruguay':'🇺🇾','Uzbekistan':'🇺🇿','Venezuela':'🇻🇪','Vietnam':'🇻🇳','Zimbabwe':'🇿🇼'
+};
+function flag(c){return F[c]||'🌍';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+let cur=0;
+
+const compFlag=COMP.map(c=>{
+  if(COMPANION_COUNTRIES[c[0]])return flag(COMPANION_COUNTRIES[c[0]]);
+  const ci=c[2]||[];
+  for(const r of ci){const country=r[5];if(country)return flag(country);}
+  return '🌍';
+});
+document.getElementById('sidebar').innerHTML=COMP.map((c,i)=>
+  `<div class="si" id="si${i}" onclick="show(${i})"><span class="si-flag" style="font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif;margin-right:5px">${compFlag[i]}</span>${c[3]?`<a class="si-name" href="https://foursquare.com/user/${c[3]}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${esc(c[0])}">${esc(c[0])}</a>`:`<span class="si-name" title="${esc(c[0])}">${esc(c[0])}</span>`}<span class="si-cnt">${c[1].toLocaleString()}</span></div>`
+).join('');
+
+function buildRows(ci){
+  return ci.map(r=>{
+    const [ts,date,time,venue,city,country,cat,vid]=r;
+    const loc=[city,country].filter(Boolean);
+    const locHtml=loc.length?`${flag(country)} ${esc(loc.join(', '))}`:'';
+    const vname=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener">${esc(venue||'—')}</a>`:esc(venue||'—');
+    return `<tr><td><div class="ci-date">${date}</div><div class="ci-time">${time}</div></td>`+
+      `<td><div class="ci-venue">${vname}</div><div class="ci-cat">${esc(cat)}</div></td>`+
+      `<td class="ci-loc">${locHtml}</td></tr>`;
+  }).join('')||'<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--muted)">No results</td></tr>';
+}
+
+function filterRows(q){
+  const [,,all]=COMP[cur];
+  const ql=(q||'').toLowerCase();
+  const ci=ql?all.filter(r=>(r[3]||'').toLowerCase().includes(ql)||(r[4]||'').toLowerCase().includes(ql)||(r[5]||'').toLowerCase().includes(ql)||(r[6]||'').toLowerCase().includes(ql)):all;
+  const bodyEl=document.getElementById('compBody');
+  if(bodyEl)bodyEl.innerHTML=buildRows(ci);
+  const shownEl=document.getElementById('compShown');
+  if(shownEl)shownEl.textContent=ci.length.toLocaleString()+' shown';
+}
+
+function show(idx){
+  cur=idx;
+  document.querySelectorAll('.si').forEach(e=>e.classList.remove('active'));
+  const el=document.getElementById('si'+idx);
+  el.classList.add('active');
+  el.scrollIntoView({block:'nearest'});
+  history.replaceState(null,'','?person='+encodeURIComponent(COMP[idx][0]));
+  const [name,count,all,uid]=COMP[cur];
+  const cities={};
+  all.forEach(r=>{const k=r[4]||(r[5]||'');cities[k]=(cities[k]||0)+1;});
+  const top=Object.entries(cities).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([k])=>k).join(' · ');
+  document.getElementById('main').innerHTML=`
+    ${uid?`<a class="person-name" href="https://foursquare.com/user/${uid}" target="_blank" rel="noopener">${esc(name)}</a>`:`<div class="person-name">${esc(name)}</div>`}
+    <div class="person-meta">${count.toLocaleString()} check-ins · ${esc(top)}</div>
+    <div class="search-row">
+      <input class="search-box" type="text" placeholder="Search venues, cities…" oninput="filterRows(this.value)">
+      <span class="shown-count" id="compShown">${all.length.toLocaleString()} shown</span>
+    </div>
+    <table><thead><tr><th>Date</th><th>Venue</th><th>Location</th></tr></thead>
+    <tbody id="compBody">${buildRows(all)}</tbody></table>`;
+}
+const p=new URLSearchParams(location.search).get('person');
+const idx=p?COMP.findIndex(c=>c[0]===p):0;
+show(idx>=0?idx:0);
+</script>
+</body>
+</html>
