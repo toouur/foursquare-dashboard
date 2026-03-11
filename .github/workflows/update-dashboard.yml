@@ -11,6 +11,7 @@
 #
 # Required repository secrets:
 #   FOURSQUARE_TOKEN   — Foursquare OAuth token
+#   DATA_REPO_PAT      — Fine-grained PAT with Contents read/write on toouur/foursquare-data
 #   NETLIFY_SITE_ID    — found in Netlify site settings → General → Site ID
 #   NETLIFY_AUTH_TOKEN — personal access token from app.netlify.com/user/applications
 
@@ -39,6 +40,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ── Checkout private data repo ────────────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -50,7 +58,7 @@ jobs:
       - name: Build dashboard (verify only — no commit or deploy)
         run: |
           python scripts/build.py \
-            --input data/checkins.csv \
+            --input private-data/checkins.csv \
             --config-dir config \
             --output-dir .
 
@@ -60,12 +68,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      # ── 1. Checkout public repo ───────────────────────────────────────────────
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ── 2. Python setup ──────────────────────────────────────────────────────
+      # ── 2. Checkout private data repo ────────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 3. Python setup ──────────────────────────────────────────────────────
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -74,7 +89,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ── 3. Fetch new check-ins ───────────────────────────────────────────────
+      # ── 4. Fetch new check-ins ───────────────────────────────────────────────
       - name: Fetch new Swarm check-ins
         id: fetch
         env:
@@ -84,40 +99,56 @@ jobs:
             echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping fetch."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
-            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv >> "$GITHUB_OUTPUT"
+            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 4. Exit gracefully if no new check-ins ───────────────────────────────
+      # ── 5. Exit gracefully if no new check-ins ───────────────────────────────
       - name: Skip if no new check-ins
         if: steps.fetch.outputs.CHANGED != 'true'
         run: |
           echo "No new check-ins — nothing to rebuild or deploy."
           exit 0
 
-      # ── 5. Rebuild dashboard ─────────────────────────────────────────────────
+      # ── 6. Commit updated CSV to private data repo ───────────────────────────
+      - name: Commit updated CSV to data repo
+        if: steps.fetch.outputs.CHANGED == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add checkins.csv
+          if git diff --cached --quiet; then
+            echo "Nothing to commit in data repo."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "chore: update checkins.csv [${TIMESTAMP}]"
+            git push
+          fi
+          cd ..
+
+      # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
         if: steps.fetch.outputs.CHANGED == 'true'
         run: |
           python scripts/build.py \
-            --input data/checkins.csv \
+            --input private-data/checkins.csv \
             --config-dir config \
             --output-dir .
 
-      # ── 6. Commit & push → Cloudflare Pages auto-deploys on every push ───────
-      - name: Commit updated files
+      # ── 8. Commit HTML to public repo → Cloudflare Pages auto-deploys ────────
+      - name: Commit updated HTML files
         if: steps.fetch.outputs.CHANGED == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add data/checkins.csv index.html trips.html feed.html companions.html world_cities.html venues.html
+          git add index.html trips.html feed.html companions.html world_cities.html venues.html
 
           if git diff --cached --quiet; then
             echo "Nothing to commit."
           else
             TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-            NEW_ROWS=$(git diff --cached --stat data/checkins.csv | grep -oP '\d+ insertion' | grep -oP '\d+' || echo "0")
-            git commit -m "chore: auto-update dashboard [${TIMESTAMP}] (+${NEW_ROWS} check-ins)"
+            git commit -m "chore: auto-update dashboard [${TIMESTAMP}]"
             git push
           fi
 
