@@ -1,15 +1,16 @@
 # .github/workflows/update-dashboard.yml
 #
-# Runs every hour (and on every push to main).
-# 1. Fetches new Swarm check-ins via the Foursquare v2 API.
-# 2. Rebuilds index.html + trips.html.
-# 3. Commits and pushes updated files back to the repo.
-#    → Cloudflare Pages picks up every commit automatically (connected via Git).
-#    → Netlify is triggered manually only on the last day of each month via
-#      a separate scheduled job (netlify-monthly), to stay within free tier.
+# Two separate jobs depending on trigger:
+#
+# [push to main]  → verify: checkout → build only (no fetch, no commit, no Cloudflare deploy)
+#                   Guards against broken builds being merged.
+#
+# [hourly schedule / manual dispatch]
+#                 → update: fetch check-ins → if no new check-ins, exit gracefully.
+#                   If new check-ins: rebuild → commit & push → Cloudflare Pages auto-deploys.
 #
 # Required repository secrets:
-#   FOURSQUARE_TOKEN        — Foursquare OAuth token
+#   FOURSQUARE_TOKEN   — Foursquare OAuth token
 #   NETLIFY_SITE_ID    — found in Netlify site settings → General → Site ID
 #   NETLIFY_AUTH_TOKEN — personal access token from app.netlify.com/user/applications
 
@@ -19,15 +20,40 @@ on:
   schedule:
     - cron: "0 */1  * * *"   # every hour
   push:
-    branches: [main]         # rebuild on every push
+    branches: [main]         # verify build on every push (no deploy)
   workflow_dispatch:         # manual trigger button in GitHub UI
 
 permissions:
   contents: write
 
 jobs:
-  # ── Main job: fetch → rebuild → commit (Cloudflare deploys on every push) ──
+
+  # ── Verify: build-only check on every push to main (no Cloudflare deploy) ──
+  verify:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build dashboard (verify only — no commit or deploy)
+        run: |
+          python scripts/build.py \
+            --input data/checkins.csv \
+            --config-dir config \
+            --output-dir .
+
+  # ── Update: fetch → skip if no new check-ins → rebuild → commit → deploy ──
   update:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -52,23 +78,31 @@ jobs:
           FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |
           if [ -z "$FOURSQUARE_TOKEN" ]; then
-            echo "⚠️  FOURSQUARE_TOKEN secret is not set in repository Settings → Secrets and variables → Actions."
-            echo "   Add it and re-run this workflow. Skipping fetch for now."
+            echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping fetch."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
             python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 4. Rebuild dashboard ─────────────────────────────────────────────────
+      # ── 4. Exit gracefully if no new check-ins ───────────────────────────────
+      - name: Skip if no new check-ins
+        if: steps.fetch.outputs.CHANGED != 'true'
+        run: |
+          echo "No new check-ins — nothing to rebuild or deploy."
+          exit 0
+
+      # ── 5. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
+        if: steps.fetch.outputs.CHANGED == 'true'
         run: |
           python scripts/build.py \
             --input data/checkins.csv \
             --config-dir config \
             --output-dir .
 
-      # ── 5. Commit & push → Cloudflare Pages auto-deploys on every push ───────
+      # ── 6. Commit & push → Cloudflare Pages auto-deploys on every push ───────
       - name: Commit updated files
+        if: steps.fetch.outputs.CHANGED == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -87,8 +121,6 @@ jobs:
   # ── Monthly job: deploy to Netlify on the last day of each month ────────────
   netlify-monthly:
     runs-on: ubuntu-latest
-    # Run at 23:00 UTC on the 28th, 29th, 30th, and 31st — but only proceed
-    # if today is actually the last day of the month (checked in the step below).
     if: github.event_name == 'schedule'
     needs: update
 
