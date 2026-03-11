@@ -1873,17 +1873,23 @@ function buildCityMap(){
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:18}).addTo(cityMapInst);
 
-  // Only show visited cities with pop>10k as small blue dots
-  const visitedCityCoords=S.city_centroids||{};
+  // Draw all visited cities with ≥5 check-ins using S.city_centroids for coords
+  const centroids=S.city_centroids||{};
   cityDotLayer=L.layerGroup();
 
-  const worldCitiesForMap=[...WORLD_CITIES].filter(c=>c[3]>=0.01).sort((a,b)=>b[3]-a[3]);
-  worldCitiesForMap.forEach(([name,lat,lng,pop,cont])=>{
-    const vm=matchVisited(name,cont);
-    if(!vm || vm[1]<5) return;  // Only visited cities with ≥5 check-ins
-    const popStr=pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K';
-    const tooltip=`${name} (${popStr}) · ${vm[1].toLocaleString()} check-ins`;
-    L.circleMarker([lat,lng],{radius:5,color:'#4ec9b0',fillColor:'#4ec9b0',fillOpacity:0.8,weight:1})
+  // Build population lookup from WORLD_CITIES for tooltip enrichment
+  const worldPopMap={};
+  WORLD_CITIES.forEach(([n,,,pop])=>{ worldPopMap[n.toLowerCase()]=pop; });
+
+  S.cities.forEach(([name,count])=>{
+    if(count<5) return;
+    const coords=centroids[name];
+    if(!coords) return;
+    const pop=worldPopMap[name.toLowerCase()];
+    const popStr=pop?(pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K'):'';
+    const tooltip=popStr?`${name} (${popStr}) · ${count.toLocaleString()} check-ins`
+                        :`${name} · ${count.toLocaleString()} check-ins`;
+    L.circleMarker([coords[0],coords[1]],{radius:5,color:'#4ec9b0',fillColor:'#4ec9b0',fillOpacity:0.8,weight:1})
       .bindTooltip(tooltip,{direction:'top',opacity:0.9}).addTo(cityDotLayer);
   });
   cityDotLayer.addTo(cityMapInst);
