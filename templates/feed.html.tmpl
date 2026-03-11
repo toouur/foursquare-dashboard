@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Check-in Feed · Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+.page{display:flex;flex-direction:column;height:100vh;}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* ── Top bar ── */
+.topbar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;z-index:200;flex-wrap:wrap;min-height:48px;position:relative;}
+.topbar h1{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d 50%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .12em;display:inline-block;white-space:nowrap;}
+.back-link{color:var(--gold);text-decoration:none;font-size:.72rem;font-weight:600;opacity:.8;white-space:nowrap;}
+.back-link:hover{opacity:1;}
+.tb-nav{display:flex;align-items:center;gap:6px;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.srch{background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--text);font-size:.73rem;outline:none;width:165px;}
+.srch:focus{border-color:var(--gold);}
+.badge{font-size:.63rem;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap;}
+
+/* Nav buttons */
+.nav-btn{background:var(--card2);border:1px solid var(--border);border-radius:7px;color:var(--muted);padding:4px 9px;cursor:pointer;font-size:.70rem;transition:all .12s;white-space:nowrap;font-family:'DM Sans',sans-serif;}
+.nav-btn:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ── Calendar picker ── */
+.cal-wrap{position:relative;}
+.cal-btn{background:var(--card2);border:1px solid var(--border);border-radius:7px;color:var(--muted);padding:4px 10px;cursor:pointer;font-size:.70rem;font-family:'DM Sans',sans-serif;transition:all .12s;}
+.cal-btn:hover{border-color:var(--gold);color:var(--gold);}
+.cal-drop{display:none;position:fixed;top:0;left:0;z-index:9999;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px;min-width:280px;box-shadow:0 4px 6px -2px rgba(0,0,0,.5),0 12px 40px rgba(0,0,0,.85);}
+.cal-drop.open{display:block;}
+.cal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.cal-yr{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--gold);font-weight:700;letter-spacing:.05em;}
+.cal-yrb{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.85rem;padding:2px 8px;transition:color .1s;}
+.cal-yrb:hover{color:var(--gold);}
+.cal-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
+.cal-mo{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:5px 3px;text-align:center;font-size:.58rem;font-family:'DM Mono',monospace;cursor:pointer;color:var(--muted);transition:all .1s;letter-spacing:.01em;}
+.cal-mo.has{color:var(--text);}
+.cal-mo.has:hover{border-color:rgba(232,184,109,.4);color:var(--gold);}
+.cal-mo.cur{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
+.cal-mo.empty{opacity:.2;cursor:default;pointer-events:none;}
+.cal-mo .cnt{display:block;font-size:.44rem;color:var(--muted);margin-top:1px;}
+
+/* ── Layout ── */
+.content{display:flex;flex:1;overflow:hidden;}
+
+/* Feed column */
+.feed-col{width:380px;flex-shrink:0;overflow:hidden;display:flex;flex-direction:column;border-right:1px solid var(--border);}
+.feed-scroll{flex:1;overflow-y:auto;position:relative;scroll-behavior:auto;}
+.feed-scroll::-webkit-scrollbar{width:3px;}
+.feed-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
+.vs-sizer{position:relative;}
+.vs-win{position:absolute;top:0;left:0;right:0;}
+
+/* ── Gap indicators ── */
+.gap-row{position:absolute;left:10px;right:10px;display:flex;align-items:center;gap:7px;pointer-events:none;}
+.gap-line{flex:1;height:1px;}
+.gap-lbl{font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;}
+.g-sm .gap-line{background:rgba(255,255,255,.055);}
+.g-sm .gap-lbl{font-size:.50rem;color:rgba(255,255,255,.18);}
+.g-md .gap-line{background:rgba(232,184,109,.18);}
+.g-md .gap-lbl{font-size:.56rem;color:rgba(232,184,109,.55);}
+.g-lg .gap-line{background:rgba(232,184,109,.45);height:2px;}
+.g-lg .gap-lbl{font-size:.62rem;color:var(--gold);}
+
+/* ── Card ── */
+.fcard{
+  position:absolute;left:8px;right:8px;
+  background:var(--card);border:1px solid var(--border);border-radius:11px;
+  overflow:hidden;cursor:pointer;
+  padding:11px 14px 10px;
+  display:flex;flex-direction:column;gap:3px;
+  transition:border-color .12s,box-shadow .12s;
+}
+.fcard:hover{border-color:rgba(232,184,109,.3);}
+.fcard.active{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,184,109,.12),0 2px 16px rgba(232,184,109,.08);}
+
+/* Venue row with icon */
+.fc-venue-row{display:flex;align-items:flex-start;gap:6px;justify-content:space-between;}
+.fc-cat-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px;}
+.fc-venue{font-size:.86rem;font-weight:700;line-height:1.28;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1;min-height:2.2em;}
+.fc-venue a{color:var(--text);text-decoration:none;}
+.fc-venue a:hover{color:var(--gold);}
+
+/* Category, location, weather, time */
+.fc-cat{font-family:'DM Mono',monospace;font-size:.57rem;text-transform:uppercase;letter-spacing:.06em;color:var(--teal);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fc-loc{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.fc-loc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fc-weather-row{font-size:.60rem;color:var(--muted);min-height:.85rem;display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:auto;}
+.fc-weather-loading{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);animation:pulse 1.5s infinite;}
+.fc-time{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);white-space:nowrap;}
+
+/* ── Map side ── */
+.map-col{flex:1;position:relative;min-width:0;}
+#map{position:absolute;inset:0;}
+.leaflet-container{background:#0c0e14;}
+
+/* Progress strip */
+.prog{position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,.04);z-index:400;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--gold),#b97c30);transition:width .06s linear;width:0%;}
+
+@media(max-width:700px){.feed-col{width:100%;border-right:none;}.map-col{display:none;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <a class="back-link" href="index.html">← Journal</a>
+    <h1>Check-in Feed</h1>
+    <div class="tb-nav">
+      <button class="nav-btn" onclick="jumpTo(0)">↑ Latest</button>
+      <button class="nav-btn" onclick="jumpTo(DATA.length-1)">↓ Oldest</button>
+      <div class="cal-wrap">
+        <button class="cal-btn" id="calBtn" onclick="toggleCal(event)">📅 Jump to…</button>
+      </div>
+    </div>
+    <div class="tb-right">
+      <input class="srch" id="srch" type="text" placeholder="Search venues, cities…" oninput="onSearch(this.value)">
+      <span class="badge" id="badge"></span>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="feed-col">
+      <div class="feed-scroll" id="feedScroll">
+        <div class="vs-sizer" id="vsSizer">
+          <div class="vs-win" id="vsWin"></div>
+        </div>
+      </div>
+    </div>
+    <div class="map-col">
+      <div id="map"></div>
+      <div class="prog"><div class="prog-fill" id="progFill"></div></div>
+    </div>
+  </div>
+</div>
+<div class="cal-drop" id="calDrop">
+  <div class="cal-hdr">
+    <button class="cal-yrb" onclick="calPY()">◀</button>
+    <span class="cal-yr" id="calYrLbl"></span>
+    <button class="cal-yrb" onclick="calNY()">▶</button>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// [ts, date, time, venue, city, country, cat, vid, lat, lng]
+const ALL=FEED_DATA_PLACEHOLDER;
+const YM_IDX=YM_INDEX_PLACEHOLDER;
+
+// ── Country → ISO 3166-1 alpha-2 ──
+const ISO2={
+  'Afghanistan':'af','Albania':'al','Algeria':'dz','Angola':'ao','Argentina':'ar',
+  'Armenia':'am','Australia':'au','Austria':'at','Azerbaijan':'az',
+  'Belarus':'by','Belgium':'be','Bolivia':'bo','Bosnia and Herzegovina':'ba',
+  'Brazil':'br','Bulgaria':'bg','Cambodia':'kh','Canada':'ca','Chile':'cl',
+  'China':'cn','Colombia':'co','Croatia':'hr','Cyprus':'cy','Czech Republic':'cz',
+  'Denmark':'dk','Ecuador':'ec','Egypt':'eg','Estonia':'ee','Finland':'fi',
+  'France':'fr','Georgia':'ge','Germany':'de','Greece':'gr','Hungary':'hu',
+  'Hong Kong':'hk','India':'in','Indonesia':'id','Iran':'ir','Iraq':'iq',
+  'Ireland':'ie','Israel':'il','Italy':'it','Japan':'jp','Kazakhstan':'kz',
+  'Kosovo':'xk','Kyrgyzstan':'kg','Latvia':'lv','Lithuania':'lt','Luxembourg':'lu',
+  'Macao':'mo','Malaysia':'my','Malta':'mt','Mexico':'mx','Moldova':'md',
+  'Montenegro':'me','Morocco':'ma','Myanmar':'mm','Netherlands':'nl',
+  'New Zealand':'nz','North Macedonia':'mk','Norway':'no','Oman':'om',
+  'Pakistan':'pk','Peru':'pe','Philippines':'ph','Poland':'pl','Portugal':'pt',
+  'Qatar':'qa','Romania':'ro','Russia':'ru','Serbia':'rs','Singapore':'sg',
+  'Slovakia':'sk','Slovenia':'si','South Korea':'kr','Spain':'es','Sweden':'se',
+  'Switzerland':'ch','Taiwan':'tw','Thailand':'th','Tunisia':'tn',
+  'Turkey':'tr','Türkiye':'tr','Ukraine':'ua','United Arab Emirates':'ae',
+  'United Kingdom':'gb','United States':'us','Uruguay':'uy','Uzbekistan':'uz',
+  'Venezuela':'ve','Vietnam':'vn','Holy See (Vatican City State)':'va','Vatican City':'va',
+  'North Korea':'kp','Cuba':'cu','Iceland':'is','Sri Lanka':'lk',
+  'Liechtenstein':'li','San Marino':'sm','Andorra':'ad','Monaco':'mc',
+  'Tajikistan':'tj','Turkmenistan':'tm',
+};
+function flagHtml(country){
+  const code=ISO2[(country||'').trim()];
+  if(!code) return '';
+  return `<span class="fi fi-${code}" style="font-size:1em;border-radius:2px;vertical-align:middle;flex-shrink:0"></span>`;
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── Category icons: emoji + vivid colour ──
+const CAT_ICON={
+  'Coffee Shop':['☕','#6F4E37'],'Café':['☕','#6F4E37'],'Bakery':['🥐','#C8860A'],
+  'Restaurant':['🍽️','#C0392B'],'Fast Food Restaurant':['🍔','#E67E22'],'Pizzeria':['🍕','#E74C3C'],
+  'Burger Joint':['🍔','#D35400'],'Italian Restaurant':['🍝','#C0392B'],'Kebab Restaurant':['🌯','#E67E22'],
+  'Cafeteria':['🥣','#D4A017'],'Corporate Cafeteria':['🥣','#D4A017'],'Food Court':['🍱','#E67E22'],
+  'Grocery Store':['🛒','#27AE60'],'Supermarket':['🛒','#219A52'],'Convenience Store':['🏪','#2ECC71'],
+  'Market':['🛒','#27AE60'],'Gourmet Store':['🧀','#F39C12'],'Candy Store':['🍬','#F06292'],
+  'Farmers Market':['🥦','#27AE60'],
+  'Bar':['🍺','#F39C12'],'Beer Bar':['🍺','#E67E22'],'Pub':['🍻','#D4A017'],
+  'Hookah Bar':['💨','#8E44AD'],'Cocktail Bar':['🍸','#E74C3C'],'Wine Bar':['🍷','#922B21'],
+  'Wine Store':['🍷','#7B241C'],'Liquor Store':['🥃','#784212'],'Lounge':['🛋️','#5D6D7E'],
+  'Gastropub':['🍖','#CA6F1E'],'Brewery':['🍻','#BA4A00'],'Nightclub':['🎵','#6C3483'],
+  'Night Club':['🎵','#6C3483'],'Karaoke Bar':['🎤','#7D3C98'],'Beer Garden':['🍻','#D4A017'],
+  'Beach Bar':['🍹','#2980B9'],'Dive Bar':['🍺','#7B241C'],'Sports Bar':['📺','#2C3E50'],
+  'Rock Club':['🎸','#6C3483'],'Hotel Bar':['🍸','#2C3E50'],'Irish Pub':['🍀','#27AE60'],
+  'Beer Store':['🍺','#D4A017'],'Speakeasy':['🥃','#4A235A'],'Whisky Bar':['🥃','#784212'],
+  'Buffet':['🍱','#E67E22'],'Brasserie':['🍺','#D4A017'],
+  'Hotel':['🏨','#2C3E50'],'Hostel':['🛏️','#34495E'],'Bed and Breakfast':['🛏️','#4A235A'],
+  'Inn':['🏠','#2E4053'],'Apartment or Condo':['🏠','#1A5276'],'Home (private)':['🏠','#17202A'],
+  'Resort':['🏖️','#2980B9'],'Lodging':['🛏️','#5D6D7E'],
+  'Metro Station':['🚇','#2980B9'],'Rail Station':['🚉','#1A5276'],'Train':['🚂','#E74C3C'],
+  'Tram Station':['🚃','#2471A3'],'Light Rail Station':['🚈','#2980B9'],'Platform':['🚉','#1F618D'],
+  'Bus Line':['🚌','#27AE60'],'Bus Station':['🚌','#1E8449'],'Bus Stop':['🚏','#239B56'],
+  'Airport Terminal':['✈️','#2471A3'],'International Airport':['✈️','#154360'],'Airport Gate':['✈️','#1A5276'],
+  'Airport':['✈️','#154360'],'Airport Lounge':['🛋️','#21618C'],'Travel Lounge':['🛋️','#21618C'],
+  'Plane':['✈️','#2980B9'],'Boat or Ferry':['⛴️','#117A65'],'Border Crossing':['🛂','#717D7E'],
+  'Taxi':['🚕','#F4D03F'],'Parking':['🅿️','#2980B9'],'Fuel Station':['⛽','#E67E22'],
+  'Cable Car':['🚡','#8E44AD'],'Ski Chairlift':['🚡','#2980B9'],'Marine Terminal':['⚓','#1A5276'],
+  'Port':['🚢','#154360'],'Harbor or Marina':['⛵','#2980B9'],'Pier':['🎣','#2471A3'],
+  'Travel and Transportation':['✈️','#2980B9'],'Transportation Service':['🚐','#27AE60'],
+  'Park':['🌳','#1E8449'],'Plaza':['🏛️','#2E86C1'],'Pedestrian Plaza':['🚶','#2E86C1'],
+  'Beach':['🏖️','#F39C12'],'Mountain':['⛰️','#7F8C8D'],'Hiking Trail':['🥾','#6E2F1A'],
+  'Garden':['🌸','#1E8449'],'Scenic Lookout':['🔭','#1A5276'],'Waterfront':['🌊','#2471A3'],
+  'River':['🌊','#2980B9'],'Lake':['🏞️','#2471A3'],'Island':['🏝️','#27AE60'],
+  'Bike Trail':['🚴','#E67E22'],'Other Great Outdoors':['🌲','#186A3B'],
+  'Cemetery':['🪦','#5D6D7E'],'Ski Area':['⛷️','#85C1E9'],'Bridge':['🌉','#626567'],
+  'Fountain':['⛲','#5DADE2'],'National Park':['🌲','#186A3B'],'Nature Preserve':['🌿','#1E8449'],
+  'Forest':['🌲','#186A3B'],'Botanical Garden':['🌺','#1E8449'],'Waterfall':['💦','#2980B9'],
+  'Canal':['🚤','#2471A3'],'Bay':['🌊','#2980B9'],'Campground':['⛺','#186A3B'],
+  'Playground':['🛝','#E74C3C'],'Tree':['🌳','#1E8449'],'Lighthouse':['🔦','#F39C12'],
+  'Volcano':['🌋','#E74C3C'],'Cave':['🦇','#616A6B'],'Field':['🌾','#27AE60'],
+  'Hill':['⛰️','#784212'],'Vineyard':['🍇','#922B21'],'Farm':['🚜','#27AE60'],
+  'Museum':['🏛️','#7D3C98'],'Art Museum':['🎨','#884EA0'],'History Museum':['📜','#6E2F1A'],
+  'Art Gallery':['🖼️','#7D3C98'],'Monument':['🗽','#626567'],'Historic and Protected Site':['🏰','#784212'],
+  'Castle':['🏰','#6E2F1A'],'Palace':['🏯','#784212'],'Public Art':['🎨','#7D3C98'],
+  'Street Art':['🎨','#8E44AD'],'Theater':['🎭','#922B21'],'Concert Hall':['🎼','#922B21'],
+  'Movie Theater':['🎬','#C0392B'],'Cultural Center':['🎭','#7D3C98'],'Exhibit':['🖼️','#7D3C98'],
+  'Exhibition':['🖼️','#8E44AD'],'Science Museum':['🔬','#1A5276'],'Amusement Park':['🎡','#E74C3C'],
+  'Memorial Site':['🕯️','#626567'],'Library':['📚','#1A5276'],'Amphitheater':['🎭','#8E44AD'],
+  'Music Venue':['🎸','#8E44AD'],'Opera House':['🎭','#6C3483'],'Attraction':['⭐','#D4A017'],
+  'Zoo':['🦁','#D4A017'],'Aquarium':['🐠','#2980B9'],'Casino':['🎲','#C0392B'],
+  'Escape Room':['🔐','#8E44AD'],'Event Space':['🎪','#C0392B'],
+  'Church':['⛪','#7D3C98'],'Mosque':['🕌','#117A65'],'Temple':['🛕','#B9770E'],
+  'Monastery':['🙏','#6E2F1A'],'Synagogue':['✡️','#1A5276'],'Shrine':['⛩️','#C0392B'],
+  'Buddhist Temple':['☸️','#D4A017'],'Hindu Temple':['🛕','#E67E22'],
+  'Shopping Mall':['🛍️','#E91E63'],'Department Store':['🏬','#C0392B'],'Clothing Store':['👔','#8E44AD'],
+  'Shoe Store':['👟','#D35400'],'Electronics Store':['💻','#2471A3'],'Mobile Phone Store':['📱','#2E86C1'],
+  'Bookstore':['📚','#1A5276'],'Furniture and Home Store':['🛋️','#784212'],'Cosmetics Store':['💄','#F06292'],
+  'Bicycle Store':['🚲','#27AE60'],'Big Box Store':['📦','#7F8C8D'],'Flea Market':['🏷️','#D35400'],
+  'Hardware Store':['🔧','#7F8C8D'],'Miscellaneous Store':['🏪','#E67E22'],'Souvenir Store':['🛍️','#D4A017'],
+  'Gift Store':['🎁','#E91E8C'],'Jewelry Store':['💍','#D4A017'],'Antique Store':['🏺','#D4A017'],
+  'Outdoor Supply Store':['⛺','#27AE60'],'Sporting Goods Retail':['⚽','#27AE60'],
+  'Fruit and Vegetable Store':['🥦','#27AE60'],'Butcher':['🥩','#C0392B'],'Fish Market':['🐟','#2980B9'],
+  'Pharmacy':['💊','#27AE60'],'Drugstore':['💊','#27AE60'],'Health Food Store':['🥗','#1E8449'],
+  'Gym':['💪','#E74C3C'],'Bath House':['♨️','#1ABC9C'],'Spa':['💆','#1ABC9C'],
+  'Medical Center':['🏥','#E74C3C'],'Hospital':['🏥','#E74C3C'],'Yoga Studio':['🧘','#27AE60'],
+  'Hair Salon':['✂️','#F06292'],'Swimming Pool':['🏊','#2980B9'],'Sauna':['♨️','#E74C3C'],
+  'Bank':['🏦','#1A5276'],'Office':['🏢','#2C3E50'],'Post Office':['📮','#E74C3C'],
+  'Police Station':['👮','#2471A3'],'City Hall':['🏛️','#1A5276'],'Government Building':['🏛️','#154360'],
+  'University':['🎓','#154360'],'Business Center':['🏢','#2C3E50'],'Coworking Space':['💻','#2C3E50'],
+  'Embassy or Consulate':['🏛️','#1A5276'],'Non-Profit Organization':['🤝','#1E8449'],
+  'City':['🏙️','#2E86C1'],'Town':['🏘️','#5D6D7E'],'Village':['🏡','#5D6D7E'],
+  'Neighborhood':['🏘️','#5D6D7E'],'Residential Building':['🏠','#2C3E50'],
+  'Chinese Restaurant':['🥢','#C0392B'],'Japanese Restaurant':['🍱','#C0392B'],
+  'Korean Restaurant':['🍚','#E74C3C'],'Vietnamese Restaurant':['🍜','#27AE60'],
+  'Thai Restaurant':['🍛','#F39C12'],'Indian Restaurant':['🍛','#E67E22'],
+  'Turkish Restaurant':['🌯','#C0392B'],'Greek Restaurant':['🫒','#27AE60'],
+  'French Restaurant':['🥐','#2980B9'],'Spanish Restaurant':['🥘','#E74C3C'],
+  'German Restaurant':['🍺','#C8860A'],'Mexican Restaurant':['🌮','#27AE60'],
+  'American Restaurant':['🍔','#E67E22'],'Middle Eastern Restaurant':['🧆','#D35400'],
+  'Russian Restaurant':['🥟','#C0392B'],'Ukrainian Restaurant':['🌻','#F39C12'],
+  'Belarusian Restaurant':['🥟','#27AE60'],'Eastern European Restaurant':['🍲','#C0392B'],
+  'Diner':['🍳','#E67E22'],'Bistro':['🍽️','#C0392B'],'Dessert Shop':['🍰','#F06292'],
+  'Ice Cream Parlor':['🍦','#F06292'],'Pastry Shop':['🥐','#C8860A'],
+  'Coffee Roaster':['☕','#4A235A'],'Cafe, Coffee, and Tea House':['☕','#6F4E37'],
+  'Blini House':['🫓','#C8860A'],'Pelmeni House':['🥟','#C8860A'],'Dumpling Restaurant':['🥟','#E67E22'],
+  'Ramen Restaurant':['🍜','#E74C3C'],'Sushi Restaurant':['🍣','#C0392B'],'Steak House':['🥩','#922B21'],
+  'Steakhouse':['🥩','#922B21'],'Seafood Restaurant':['🦐','#2980B9'],'Food Truck':['🚚','#E67E22'],
+  'BBQ Joint':['🔥','#C0392B'],'Vegan and Vegetarian Restaurant':['🥦','#27AE60'],
+  'Breakfast Spot':['🥞','#F39C12'],'Tea Room':['🫖','#27AE60'],'Bubble Tea Shop':['🧋','#8E44AD'],
+  'Hot Dog Joint':['🌭','#E67E22'],'Taco Restaurant':['🌮','#27AE60'],
+  'Trattoria':['🍝','#C0392B'],'Deli':['🥪','#D4A017'],'Sandwich Spot':['🥪','#D4A017'],
+  'Education':['🎓','#1A5276'],'Language School':['📝','#2980B9'],'Planetarium':['🌌','#2C3E50'],
+  'Tennis Court':['🎾','#27AE60'],'Soccer Field':['⚽','#27AE60'],'Basketball Court':['🏀','#E67E22'],
+  'Skate Park':['🛹','#5D6D7E'],'Skating Rink':['⛸️','#2980B9'],'Rock Climbing Spot':['🧗','#784212'],
+  'Dog Park':['🐕','#D4A017'],'Sports Club':['🏅','#E67E22'],'Gym and Studio':['💪','#E74C3C'],
+  'Dance Studio':['💃','#E91E8C'],'Pool Hall':['🎱','#2C3E50'],
+  // Roads & transport infrastructure
+  'Road':['🛣️','#7F8C8D'],'Intersection':['🔀','#7F8C8D'],'Tunnel':['🚇','#626567'],
+  'Rest Area':['🛑','#E67E22'],'Toll Plaza':['🚧','#D4A017'],'Toll Booth':['🚧','#E67E22'],
+  'Airport Service':['🛠️','#2471A3'],'Airport Ticket Counter':['🎫','#2471A3'],
+  'Airport Tram Station':['🚈','#2471A3'],'Baggage Claim':['🧳','#2471A3'],
+  'Baggage Locker':['🔒','#2471A3'],'Airfield':['✈️','#154360'],
+  'Bike Rental':['🚲','#27AE60'],'Boat Launch':['⛵','#2980B9'],
+  'Canal Lock':['🔒','#2471A3'],'Dam':['💧','#2471A3'],'Reservoir':['💧','#2980B9'],
+  'Shipping, Freight, and Material Transportation Service':['📦','#7F8C8D'],
+  // Geographic/admin
+  'Country':['🌍','#2E86C1'],'County':['🌄','#5D6D7E'],'State':['🗺️','#5D6D7E'],
+  'Landmarks and Outdoors':['🗺️','#27AE60'],
+  // Arts & outdoor
+  'Outdoor Sculpture':['🗿','#7D3C98'],'Sculpture Garden':['🗿','#626567'],
+  'Arts and Entertainment':['🎭','#8E44AD'],'Public Art':['🎨','#7D3C98'],
+  'Art Studio':['🎨','#8E44AD'],'Auditorium':['🎭','#8E44AD'],'Ballroom':['💃','#8E44AD'],
+  'Outdoor Event Space':['🎪','#27AE60'],'Circus':['🎪','#E74C3C'],
+  // College
+  'College Arts Building':['🎨','#8E44AD'],'College Academic Building':['🏫','#1A5276'],
+  'College Administrative Building':['🏛️','#1A5276'],'College Auditorium':['🎭','#8E44AD'],
+  'College Cafeteria':['🍽️','#D4A017'],'College Gym':['💪','#E74C3C'],
+  'College Library':['📚','#1A5276'],'College Quad':['🌳','#1E8449'],
+  'College Residence Hall':['🏠','#2C3E50'],'College Science Building':['🔬','#1A5276'],
+  'College Stadium':['🏟️','#E67E22'],'College Technology Building':['💻','#2471A3'],
+  'College Theater':['🎭','#8E44AD'],'College and University':['🎓','#154360'],
+  'Community College':['🎓','#1A5276'],'Language School':['📝','#2980B9'],
+  // Food
+  'Caucasian Restaurant':['🍖','#C0392B'],'Shawarma Restaurant':['🌯','#D35400'],
+  'Doner Restaurant':['🌯','#E67E22'],'Souvlaki Shop':['🍢','#27AE60'],
+  'Romanian Restaurant':['🥘','#C0392B'],'Polish Restaurant':['🥟','#C0392B'],
+  'Modern European Restaurant':['🍽️','#C0392B'],'Asian Restaurant':['🥢','#C0392B'],
+  'Noodle Restaurant':['🍜','#E67E22'],'Bagel Shop':['🥯','#C8860A'],
+  'Pie Shop':['🥧','#C8860A'],'Fried Chicken Joint':['🍗','#E67E22'],
+  'Comfort Food Restaurant':['🥘','#D4A017'],'Burrito Restaurant':['🌯','#27AE60'],
+  'Food and Beverage Retail':['🏪','#E67E22'],'Chocolate Store':['🍫','#6F4E37'],
+  'Christmas Market':['🎄','#27AE60'],'Farmers Market':['🥦','#27AE60'],
+  'Israeli Restaurant':['🧆','#D4A017'],'African Restaurant':['🌍','#D35400'],
+  'Argentinian Restaurant':['🥩','#C0392B'],'Australian Restaurant':['🦘','#D4A017'],
+  'Belgian Restaurant':['🍺','#C8860A'],'Bosnian Restaurant':['🥘','#C0392B'],
+  'Brazilian Restaurant':['🥩','#E67E22'],'Bulgarian Restaurant':['🥘','#C0392B'],
+  'Cambodian Restaurant':['🍜','#27AE60'],'Campanian Restaurant':['🍝','#C0392B'],
+  // Shopping & services
+  'Tech Startup':['💻','#2980B9'],'Convention Center':['🏢','#2C3E50'],
+  'Community Center':['🏘️','#27AE60'],'Tourist Information and Service':['ℹ️','#2E86C1'],
+  'Currency Exchange':['💱','#27AE60'],'ATM':['🏧','#1A5276'],
+  'Duty-free Store':['🛍️','#1A5276'],'Discount Store':['🏷️','#E74C3C'],
+  'Shopping Plaza':['🛍️','#E91E63'],'Vintage and Thrift Store':['🏷️','#8E44AD'],
+  'Arts and Crafts Store':['✂️','#8E44AD'],'Flower Store':['🌸','#F06292'],
+  'Leather Goods Store':['👜','#784212'],'Watch Store':['⌚','#2C3E50'],
+  'Eyecare Store':['👓','#2471A3'],'Newsstand':['📰','#2C3E50'],
+  'Tailor':['🧵','#8E44AD'],'Print Store':['🖨️','#2C3E50'],
+  'Repair Service':['🔧','#7F8C8D'],'Home Service':['🔧','#7F8C8D'],
+  'Rental Service':['🔑','#E67E22'],'Automotive Repair Shop':['🔧','#7F8C8D'],
+  'Computers and Electronics Retail':['💻','#2471A3'],'Boutique':['👗','#F06292'],
+  'Costume Store':['🎭','#8E44AD'],'Board Store':['🏄','#2980B9'],
+  'Bicycle Store':['🚲','#27AE60'],
+  // Structure / industrial
+  'Structure':['🏗️','#626567'],'Factory':['🏭','#626567'],
+  'Housing Development':['🏘️','#2C3E50'],'Boarding House':['🛏️','#4A235A'],
+  'Assisted Living':['🏥','#E74C3C'],'Military Base':['🪖','#5D6D7E'],
+  'Gun Range':['🎯','#E74C3C'],'Construction':['🏗️','#E67E22'],
+  'Capitol Building':['🏛️','#1A5276'],'Well':['💧','#2471A3'],
+  // Sports & recreation
+  'Sports and Recreation':['🏅','#E67E22'],'Tennis Stadium':['🎾','#27AE60'],
+  'Soccer Stadium':['⚽','#27AE60'],'Basketball Stadium':['🏀','#E67E22'],
+  'Bowling Alley':['🎳','#2C3E50'],'Ski Resort and Area':['⛷️','#85C1E9'],
+  'Bathing Area':['🏊','#2980B9'],'Arcade':['🕹️','#8E44AD'],
+  'Pool Hall':['🎱','#2C3E50'],'Comedy Club':['😄','#8E44AD'],
+  // Business & professional
+  'Banking and Finance':['🏦','#1A5276'],'Business and Professional Services':['🏢','#2C3E50'],
+  'Business Service':['💼','#2C3E50'],'Campaign Office':['🗳️','#2E86C1'],
+  'Conference Room':['🤝','#2C3E50'],
+  // Other
+  'Moving Target':['🎯','#E74C3C'],'Animal Shelter':['🐾','#D4A017'],
+  'Winery':['🍇','#922B21'],'Spiritual Center':['🕯️','#8E44AD'],
+  'Confucian Temple':['⛩️','#D4A017'],'Adult Store':['🔞','#C0392B'],
+};
+function catIcon(cat){
+  const entry=CAT_ICON[cat];
+  if(!entry) return '';
+  const [emoji,bg]=entry;
+  return `<div class="fc-cat-icon" style="background:${bg}22;border:1px solid ${bg}66" title="${esc(cat)}">${emoji}</div>`;
+}
+
+const WMO={0:['☀️','Clear'],1:['🌤️','Mainly clear'],2:['⛅','Partly cloudy'],3:['☁️','Overcast'],45:['🌫️','Fog'],48:['🌫️','Icy fog'],51:['🌦️','Light drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy drizzle'],61:['🌧️','Light rain'],63:['🌧️','Rain'],65:['🌧️','Heavy rain'],71:['🌨️','Light snow'],73:['❄️','Snow'],75:['❄️','Heavy snow'],80:['🌦️','Showers'],82:['⛈️','Showers'],95:['⛈️','Thunderstorm']};
+function wmoByTime(code,hour){
+  const[em,desc]=WMO[code]||['',''];
+  if(!em) return['',desc];
+  if(code===0||code===1){
+    if(hour<6||hour>=22) return['🌙',desc];
+    if(hour<9) return[code===0?'🌅':'🌤️',desc];
+    if(hour>=18) return[code===0?'🌇':'🌤️',desc];
+  }
+  return[em,desc];
+}
+
+// ── Leaflet ──
+const map=L.map('map',{preferCanvas:true,zoomControl:false,attributionControl:false}).setView([53.9,27.5],4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,pane:'shadowPane'}).addTo(map);
+L.control.zoom({position:'bottomright'}).addTo(map);
+const pinIcon=L.divIcon({className:'',html:'<div style="font-size:20px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.9));line-height:1;">📍</div>',iconAnchor:[10,20]});
+let curMark=null;
+
+// Weather cache — hourly arrays keyed by lat,lng,date (matches index.html)
+const wCache={};
+async function fetchWeather(lat,lng,ts){
+  if(!lat||!lng) return null;
+  const d=new Date(ts*1000).toISOString().slice(0,10);
+  const k=`${lat.toFixed(1)},${lng.toFixed(1)},${d}`;
+  if(k in wCache) return wCache[k];
+  wCache[k]=null;
+  try{
+    const j=await(await fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}&start_date=${d}&end_date=${d}&hourly=temperature_2m,weather_code&timezone=auto`)).json();
+    wCache[k]={temps:j.hourly?.temperature_2m||[],codes:j.hourly?.weather_code||[]};
+  }catch(e){}
+  return wCache[k];
+}
+
+// ── Virtual scroll ──
+const CARD_H=120;
+const GAP_PAD=8;
+const ITEM_STEP=CARD_H+6;
+const G={sm:14,md:22,lg:32};
+
+function haversine(lat1,lng1,lat2,lng2){
+  if(!lat1||!lng1||!lat2||!lng2) return null;
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  const d=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return d<1?`${Math.round(d*1000)}m`:d<10?`${d.toFixed(1)}km`:`${Math.round(d)}km`;
+}
+function gapFor(sec){
+  const h=sec/3600;
+  if(h<0.5) return null;
+  if(h<8)  return{g:'sm',h:G.sm,t:h<2?`${Math.round(h*60)}m later`:`${Math.round(h)}h later`};
+  if(h<36) return{g:'md',h:G.md,t:`${Math.round(h)}h later`};
+  return{g:'lg',h:G.lg,t:`${Math.round(h/24)}d later`};
+}
+
+let DATA=ALL, pos=[], totalH=0;
+function buildPos(data){
+  pos=new Array(data.length);
+  let y=GAP_PAD;
+  for(let i=0;i<data.length;i++){
+    if(i>0){const gp=gapFor(data[i-1][0]-data[i][0]);if(gp)y+=gp.h;}
+    pos[i]=y; y+=ITEM_STEP;
+  }
+  totalH=y+40;
+}
+
+const OVER=5;
+let lastR=[-1,-1];
+function renderVis(){
+  const sc=document.getElementById('feedScroll');
+  const st=sc.scrollTop, sh=sc.clientHeight;
+  let lo=0,hi=DATA.length-1,s0=0;
+  while(lo<=hi){const m=(lo+hi)>>1;pos[m]+ITEM_STEP<st?lo=m+1:(hi=m-1,s0=m);}
+  const start=Math.max(0,s0-OVER);
+  let end=start; while(end<DATA.length&&pos[end]<st+sh)end++; end=Math.min(DATA.length-1,end+OVER);
+  if(start===lastR[0]&&end===lastR[1]) return;
+  lastR=[start,end];
+  let html='';
+  for(let i=start;i<=end;i++){
+    if(i>0){
+      const gp=gapFor(DATA[i-1][0]-DATA[i][0]);
+      if(gp){
+        const ci0=DATA[i-1],ci1=DATA[i];
+        const dist=(ci0&&ci1)?haversine(ci0[8],ci0[9],ci1[8],ci1[9]):null;
+        const distStr=dist?` · ↔ ${dist}`:'';
+        html+=`<div class="gap-row g-${gp.g}" style="top:${pos[i]-gp.h+1}px;height:${gp.h-2}px;"><div class="gap-line"></div><span class="gap-lbl">${gp.t}${distStr}</span><div class="gap-line"></div></div>`;
+      }
+    }
+    html+=mkCard(i);
+  }
+  document.getElementById('vsWin').innerHTML=html;
+  for(let i=start;i<=end;i++) injectW(i);
+}
+
+const wPend=new Set();
+function fillW(i,w){
+  const wrow=document.getElementById(`wrow${i}`);
+  if(!wrow) return;
+  if(!w){wrow.innerHTML='';return;}
+  const hour=DATA[i]?parseInt((DATA[i][2]||'12:00').split(':')[0]):12;
+  const t=w.temps[hour],code=w.codes[hour];
+  const[ic,desc]=wmoByTime(code,hour);
+  const tStr=t!=null?`${Math.round(t)}°C`:'';
+  if(ic||tStr) wrow.innerHTML=`<span>${ic}</span><span>${tStr}</span>${desc?`<span style="opacity:.7">${desc}</span>`:''}`;
+  else wrow.innerHTML='';
+}
+function injectW(i){
+  const ci=DATA[i]; if(!ci) return;
+  const [ts,,,,,,cat,vid,lat,lng]=ci;
+  if(!lat||!lng){const el=document.getElementById(`wrow${i}`);if(el)el.innerHTML='';return;}
+  const d=new Date(ts*1000).toISOString().slice(0,10);
+  const k=`${lat.toFixed(1)},${lng.toFixed(1)},${d}`;
+  if(k in wCache&&wCache[k]!==null){fillW(i,wCache[k]);}
+  else if(!(k in wCache)&&!wPend.has(k)){
+    wPend.add(k);
+    fetchWeather(lat,lng,ts).then(w=>{fillW(i,w);});
+  }
+}
+
+function mkCard(i){
+  const ci=DATA[i];
+  const [ts,date,time,venue,city,country,cat,vid,lat,lng]=ci;
+  const vn=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(venue||'—')}</a>`:esc(venue||'—');
+  const ico=catIcon(cat);
+  const flag=flagHtml(country);
+  const locStr=[city,country].filter(Boolean).join(', ');
+  const isActive=i===activeIdx;
+  // Pre-render from cache if already available
+  const d_=new Date(ts*1000).toISOString().slice(0,10);
+  const wk_=lat&&lng?`${lat.toFixed(1)},${lng.toFixed(1)},${d_}`:'';
+  const wc_=wk_&&(wk_ in wCache)&&wCache[wk_]!==null?wCache[wk_]:null;
+  let wHtml;
+  if(!wk_) wHtml='';
+  else if(wc_){const hr_=parseInt((time||'12:00').split(':')[0]);const t_=wc_.temps[hr_],code_=wc_.codes[hr_];const[ic_,desc_]=wmoByTime(code_,hr_);const tStr_=t_!=null?`${Math.round(t_)}°C`:'';wHtml=(ic_||tStr_)?`<span>${ic_}</span><span>${tStr_}</span>${desc_?`<span style="opacity:.7">${desc_}</span>`:''}`:'';}
+  else wHtml='<span class="fc-weather-loading">fetching weather…</span>';
+  return `<div class="fcard${isActive?' active':''}" id="fc${i}" onclick="onCardClick(${i})" style="top:${pos[i]}px;height:${CARD_H}px;">
+    <div class="fc-venue-row"><div class="fc-venue">${vn}</div>${ico}</div>
+    <div class="fc-cat">${esc(cat)}</div>
+    <div class="fc-loc">${flag}<span>${esc(locStr)}</span></div>
+    <div class="fc-weather-row" id="wrow${i}">${wHtml}</div>
+    <div class="fc-time">${esc(date)}&nbsp;${esc(time)}</div>
+  </div>`;
+}
+
+// ── Active index ──
+let activeIdx=0;
+let manualClick=false, manualTimer=null;
+
+function onCardClick(i){
+  manualClick=true;
+  clearTimeout(manualTimer);
+  manualTimer=setTimeout(()=>{manualClick=false;},1200);
+  activate(i, false);
+}
+
+async function activate(i, doScroll=true){
+  activeIdx=i;
+  document.querySelectorAll('.fcard.active').forEach(e=>e.classList.remove('active'));
+  const el=document.getElementById('fc'+i);
+  if(el) el.classList.add('active');
+  document.getElementById('progFill').style.width=DATA.length>1?((i/(DATA.length-1))*100).toFixed(2)+'%':'0%';
+  if(doScroll){
+    const sc=document.getElementById('feedScroll');
+    const target=pos[i]||0;
+    const sh=sc.clientHeight;
+    if(target<sc.scrollTop+40||target+CARD_H>sc.scrollTop+sh-40)
+      sc.scrollTop=Math.max(0,target-sh/3);
+    lastR=[-1,-1];
+    setTimeout(renderVis,60);
+  }
+  const ci=DATA[i]; if(!ci) return;
+  const [ts,date,time,venue,city,country,cat,vid,lat,lng]=ci;
+  if(lat&&lng){
+    map.flyTo([lat,lng],15,{animate:true,duration:0.35});
+    if(curMark)map.removeLayer(curMark);
+    curMark=L.marker([lat,lng],{icon:pinIcon}).addTo(map);
+  }
+}
+
+function jumpTo(i){
+  i=Math.max(0,Math.min(DATA.length-1,Math.round(i)));
+  activate(i, true);
+}
+
+let scrollTmr=null;
+document.getElementById('feedScroll').addEventListener('scroll',()=>{
+  renderVis();
+  if(!manualClick){
+    clearTimeout(scrollTmr);
+    scrollTmr=setTimeout(()=>{
+      if(manualClick) return;
+      const sc=document.getElementById('feedScroll');
+      const target=sc.scrollTop+sc.clientHeight*0.2;
+      let lo=0,hi=DATA.length-1,best=0;
+      while(lo<=hi){const m=(lo+hi)>>1;pos[m]<=target?(best=m,lo=m+1):hi=m-1;}
+      if(best!==activeIdx) activate(best, false);
+    },150);
+  }
+},{passive:true});
+
+// ── Calendar ──
+let calYr=new Date().getFullYear();
+const MOS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const ymCnts={};
+ALL.forEach(r=>{
+  // r[1] is local date string like "03 Mar 2025" — use it for calendar so counts match displayed dates
+  const parts=(r[1]||'').split(' ');
+  if(parts.length===3){
+    const mo=MOS.indexOf(parts[1])+1;
+    if(mo>0){const ym=`${parts[2]}-${String(mo).padStart(2,'0')}`;ymCnts[ym]=(ymCnts[ym]||0)+1;}
+  }
+});
+
+function toggleCal(e){
+  e.stopPropagation();
+  const drop=document.getElementById('calDrop');
+  if(!drop.classList.contains('open')){
+    const r=e.currentTarget.getBoundingClientRect();
+    const feed=document.querySelector('.feed-col');
+    const feedRight=feed?feed.getBoundingClientRect().right:0;
+    const dropW=280;
+    let left=r.left;
+    if(left<feedRight) left=feedRight+4;
+    if(left+dropW>window.innerWidth) left=window.innerWidth-dropW-8;
+    drop.style.top=(r.bottom+6)+'px';
+    drop.style.left=left+'px';
+  }
+  drop.classList.toggle('open');
+}
+document.getElementById('calDrop').addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('click',()=>document.getElementById('calDrop').classList.remove('open'));
+function calPY(){calYr--;renderCal();}
+function calNY(){calYr++;renderCal();}
+function renderCal(){
+  document.getElementById('calYrLbl').textContent=calYr;
+  const curYM=DATA[activeIdx]?new Date(DATA[activeIdx][0]*1000).toISOString().slice(0,7):'';
+  document.getElementById('calGrid').innerHTML=MOS.map((m,i)=>{
+    const ym=`${calYr}-${String(i+1).padStart(2,'0')}`;
+    const has=ym in YM_IDX;
+    const cur=ym===curYM.slice(0,7);
+    const n=ymCnts[ym]||0;
+    const cnt=n>=1000?Math.round(n/100)/10+'k':n||'';
+    return `<div class="cal-mo${has?' has':''}${cur?' cur':''}" onclick="${has?`goYM('${ym}')`:''}">${m}<span class="cnt">${cnt||''}</span></div>`;
+  }).join('');
+}
+function goYM(ym){
+  document.getElementById('calDrop').classList.remove('open');
+  const idx=YM_IDX[ym];
+  if(idx!=null) jumpTo(idx);
+}
+
+// ── Search ──
+function onSearch(q){
+  const ql=q.trim().toLowerCase();
+  DATA=ql?ALL.filter(r=>(r[3]||'').toLowerCase().includes(ql)||(r[4]||'').toLowerCase().includes(ql)||(r[5]||'').toLowerCase().includes(ql)||(r[6]||'').toLowerCase().includes(ql)):ALL;
+  lastR=[-1,-1];
+  buildPos(DATA);
+  document.getElementById('vsSizer').style.height=totalH+'px';
+  document.getElementById('feedScroll').scrollTop=0;
+  document.getElementById('badge').textContent=DATA.length.toLocaleString()+' check-ins';
+  renderVis();
+  if(DATA.length>0) activate(0,false);
+}
+
+// ── Init ──
+buildPos(ALL);
+document.getElementById('vsSizer').style.height=totalH+'px';
+document.getElementById('badge').textContent=ALL.length.toLocaleString()+' check-ins';
+renderCal();
+renderVis();
+activate(0, false);
+window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
+</script>
+</body>
+</html>

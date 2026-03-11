@@ -133,11 +133,11 @@ if __name__ == "__main__":
 
     # ── Generate companion, feed, and world-cities pages ──
     _here = _SCRIPT_DIR
-    for gen_script, gen_out, gen_kwargs in [
-        (_here / "gen_companions.py", "companions.html", {}),
-        (_here / "gen_feed.py",        "feed.html",       {}),
-        (_here / "gen_worldcities.py", "world_cities.html", {"cities_data": data.get("cities")}),
-        (_here / "gen_venues.py",      "venues.html",     {}),
+    for gen_script, gen_out, gen_tmpl, gen_kwargs in [
+        (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {}),
+        (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {}),
+        (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities")}),
+        (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il
@@ -149,7 +149,7 @@ if __name__ == "__main__":
                     csv_path   = args.input,
                     config_dir = str(config_dir),
                     out_path   = os.path.join(args.output_dir, gen_out),
-                    tmpl_path  = str(_TEMPLATES_DIR / "index.html.tmpl"),
+                    tmpl_path  = str(_TEMPLATES_DIR / gen_tmpl),
                     **gen_kwargs,
                 )
             except Exception as _e:
