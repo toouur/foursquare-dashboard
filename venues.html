@@ -10,15 +10,15 @@
 <style>
 :root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
 
-header{padding:22px 40px 14px;border-bottom:1px solid var(--border);}
+header{padding:22px 40px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .back-link{color:var(--gold);text-decoration:none;font-size:.76rem;font-weight:600;opacity:.8;letter-spacing:.04em;display:inline-block;margin-bottom:7px;}
 .back-link:hover{opacity:1;}
 header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;line-height:1.1;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .16em;display:inline-block;}
 .hdr-sub{font-size:.74rem;color:var(--muted);margin-top:2px;}
 
-.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 40px;border-bottom:1px solid var(--border);background:var(--card);position:sticky;top:0;z-index:50;}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 40px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;z-index:50;}
 .search-box{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text);font-size:.78rem;outline:none;width:240px;transition:border-color .15s;}
 .search-box:focus{border-color:var(--gold);}
 .count-lbl{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--muted);margin-left:auto;}
@@ -30,9 +30,9 @@ header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3.5vw,2.8r
 .lbl-sm{font-size:.62rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
 
 /* Table */
-.tbl-wrap{overflow-x:auto;}
+.tbl-wrap{flex:1;overflow-y:auto;overflow-x:auto;}
 table{width:100%;border-collapse:collapse;min-width:640px;}
-thead th{padding:10px 16px;text-align:left;font-size:.60rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--card);position:sticky;top:49px;z-index:40;cursor:pointer;user-select:none;white-space:nowrap;}
+thead th{padding:10px 16px;text-align:left;font-size:.60rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--card);position:sticky;top:0;z-index:40;cursor:pointer;user-select:none;white-space:nowrap;}
 thead th:hover{color:var(--text);}
 thead th.sorted{color:var(--gold);}
 thead th .sort-ico{margin-left:4px;opacity:.5;font-size:.65rem;}
@@ -154,9 +154,6 @@ function render(){
 }
 
 render();
-// Fix sticky thead top to match actual controls bar height
-const ctrlH=document.querySelector('.controls').offsetHeight;
-document.querySelectorAll('thead th').forEach(th=>th.style.top=ctrlH+'px');
 </script>
 </body>
 </html>
