@@ -97,20 +97,22 @@ const CITY_ALIASES={
   'Soligorsk':['Salihorsk'],'Novopolotsk':['Navapolatsk'],
 };
 // VISITED: {cityName: [count, country]} — country enables continent disambiguation
-function getVisitCount(worldName, worldCont){
+// Returns {cnt, displayName} — displayName is the normalized name from index.html for visited cities
+function getVisitInfo(worldName, worldCont){
   function continentOk(country){
     if(!worldCont||!country) return true;
     const vc=CTRY_CONT[country];
     return !vc||vc===worldCont;
   }
   const v=VISITED[worldName];
-  if(v){const [cnt,ctry]=v;if(continentOk(ctry)) return cnt;}
+  if(v){const [cnt,ctry]=v;if(continentOk(ctry)) return {cnt, displayName:worldName};}
   for(const alias of (CITY_ALIASES[worldName]||[])){
     const va=VISITED[alias];
-    if(va){const [cnt,ctry]=va;if(continentOk(ctry)) return cnt;}
+    if(va){const [cnt,ctry]=va;if(continentOk(ctry)) return {cnt, displayName:alias};}
   }
-  return 0;
+  return {cnt:0, displayName:worldName};
 }
+function getVisitCount(worldName,worldCont){return getVisitInfo(worldName,worldCont).cnt;}
 
 let curCont='ALL', visitedOnly=false, searchQ='';
 function filterCont(c,el){
@@ -140,10 +142,10 @@ function render(){
   let html='';
   data.forEach(([name,lat,lng,pop,cont])=>{
     const contTag=curCont==='ALL'?`<span style='font-size:.55rem;color:var(--muted);opacity:.5;margin-left:5px;'>${CONT_NAMES[cont]||cont}</span>`:'';
-    const cnt=getVisitCount(name,cont);
+    const {cnt,displayName}=getVisitInfo(name,cont);
     const popStr=pop>=1?`${pop.toFixed(1)}M`:`${Math.round(pop*1000)}k`;
     html+=`<div class="city-card${cnt?' visited':''}">
-      <div class="city-name">${name}${contTag}</div>
+      <div class="city-name">${displayName}${contTag}</div>
       ${cnt?`<div class="city-cnt">✓ ${cnt.toLocaleString()} check-ins</div>`:''}
       <div class="city-pop">${popStr} pop</div>
     </div>`;
