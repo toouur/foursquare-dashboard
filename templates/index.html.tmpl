@@ -1880,26 +1880,13 @@ function buildCityMap(){
   const worldCitiesForMap=[...WORLD_CITIES].filter(c=>c[3]>=0.01).sort((a,b)=>b[3]-a[3]);
   worldCitiesForMap.forEach(([name,lat,lng,pop,cont])=>{
     const vm=matchVisited(name,cont);
-    if(!vm) return;  // Only visited cities
+    if(!vm || vm[1]<5) return;  // Only visited cities with ≥5 check-ins
     const popStr=pop>=1?pop.toFixed(1)+'M':(pop*1000).toFixed(0)+'K';
     const tooltip=`${name} (${popStr}) · ${vm[1].toLocaleString()} check-ins`;
     L.circleMarker([lat,lng],{radius:5,color:'#4ec9b0',fillColor:'#4ec9b0',fillOpacity:0.8,weight:1})
       .bindTooltip(tooltip,{direction:'top',opacity:0.9}).addTo(cityDotLayer);
   });
   cityDotLayer.addTo(cityMapInst);
-
-  // Legend
-  const legend=L.control({position:'bottomright'});
-  legend.onAdd=function(){
-    const div=L.DomUtil.create('div');
-    div.style.cssText='background:rgba(12,14,20,0.85);padding:8px 12px;border-radius:6px;font-size:11px;color:#aaa;line-height:1.8;border:1px solid #222738;';
-    div.innerHTML='<div style="color:#e8b86d;margin-bottom:4px;font-weight:600">CITY MAP</div>'+
-      '<div><span style="color:#e8b86d">●</span> Visited city</div>'+
-      '<div><span style="color:#3d4966">●</span> Not visited</div>'+
-      '<div style="margin-top:4px;font-size:10px">Dot size = population</div>';
-    return div;
-  };
-  legend.addTo(cityMapInst);
 }
 
 // ── City pane initialisation ─────────────────────────────────────────────────
