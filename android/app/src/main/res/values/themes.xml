@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Edge-to-edge base theme; actual theming is handled by Compose -->
+    <style name="Theme.FoursquareDashboard" parent="android:Theme.Material.NoTitleBar">
+        <item name="android:windowBackground">#FF1C1B22</item>
+        <item name="android:statusBarColor">#FF1C1B22</item>
+        <item name="android:navigationBarColor">#FF1C1B22</item>
+    </style>
+</resources>
