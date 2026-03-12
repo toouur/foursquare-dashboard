@@ -104,7 +104,7 @@ jobs:
 
       # ── 5. Exit gracefully if no new check-ins ───────────────────────────────
       - name: Skip if no new check-ins
-        if: steps.fetch.outputs.CHANGED != 'true'
+        if: steps.fetch.outputs.CHANGED != 'true' && github.event_name != 'workflow_dispatch'
         run: |
           echo "No new check-ins — nothing to rebuild or deploy."
           exit 0
@@ -128,7 +128,7 @@ jobs:
 
       # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
-        if: steps.fetch.outputs.CHANGED == 'true'
+        if: steps.fetch.outputs.CHANGED == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           python scripts/build.py \
             --input private-data/checkins.csv \
@@ -137,7 +137,7 @@ jobs:
 
       # ── 8. Commit HTML to public repo → Cloudflare Pages auto-deploys ────────
       - name: Commit updated HTML files
-        if: steps.fetch.outputs.CHANGED == 'true'
+        if: steps.fetch.outputs.CHANGED == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
