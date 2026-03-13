@@ -129,8 +129,15 @@ if __name__ == "__main__":
             trip_names = json.load(fh)
         log.info("Loaded %d trip name override(s) from %s", len(trip_names), trip_names_path)
 
+    trip_exclude_path = config_dir / "trip_exclude.json"
+    trip_exclude: set[int] = set()
+    if trip_exclude_path.exists():
+        with open(trip_exclude_path, encoding="utf-8") as fh:
+            trip_exclude = set(json.load(fh))
+        log.info("Loaded %d trip exclusion(s) from %s", len(trip_exclude), trip_exclude_path)
+
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
-    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names)
+    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude)
 
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir)
