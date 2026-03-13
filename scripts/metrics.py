@@ -143,6 +143,7 @@ def detect_trips(
     home_city: str = "Minsk",
     min_checkins: int = 5,
     trip_names: dict[str, str] | None = None,
+    trip_exclude: set[int] | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
@@ -370,6 +371,8 @@ def detect_trips(
         )
 
     result.sort(key=lambda t: t["start_ts"])
+    if trip_exclude:
+        result = [t for t in result if t["start_ts"] not in trip_exclude]
     for i, t in enumerate(result):
         t["id"] = i + 1
     return result
@@ -383,6 +386,7 @@ def process(
     home_city: str = "Minsk",
     min_trip_checkins: int = 5,
     trip_names: dict[str, str] | None = None,
+    trip_exclude: set[int] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
     Compute all dashboard metrics from pre-transformed rows.
@@ -631,7 +635,7 @@ def process(
     venue_loyalty = loyal[:100]
 
     # ── Trips ─────────────────────────────────────────────────────────────────
-    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names)
+    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude)
     timeline = [
         {
             "id":       t["id"],
