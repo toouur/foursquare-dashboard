@@ -156,7 +156,7 @@ a{color:inherit;}
 <script>
 const TRIPS = {{TRIPS_JSON}};
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-let activeMap = null;
+let activeMap = null, activeObserver = null;
 
 // ── Build the grid ──────────────────────────────────────────────────────────
 function renderGrid(trips){
@@ -245,7 +245,7 @@ function showTrip(id){
       <div class="tl-day-header">${day} &nbsp;·&nbsp; ${byDay[day].length} check-ins</div>
       ${byDay[day].map(c=>{
         const fsUrl = c.venue_id ? `https://app.foursquare.com/v/${encodeURIComponent(c.venue.toLowerCase().replace(/\s+/g,'-'))}/${c.venue_id}` : null;
-        return `<div class="tl-checkin">
+        return `<div class="tl-checkin" data-ts="${c.ts}">
           <div class="tl-checkin-time">${c.time}</div>
           <div class="tl-checkin-info">
             <div class="tl-checkin-venue">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}</div>
@@ -267,6 +267,33 @@ function showTrip(id){
       const lats=coords.map(c=>c[0]), lngs=coords.map(c=>c[1]);
       activeMap.fitBounds([[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]],{padding:[20,20]});
     }
+    // ── Scroll-driven route polyline ─────────────────────────────────────────
+    const routePts = t.checkins.filter(c=>c.lat&&c.lng).map(c=>({ts:c.ts,ll:[c.lat,c.lng]}));
+    const tsToIdx = {};
+    routePts.forEach((p,i)=>{ tsToIdx[p.ts]=i; });
+    let routeFull=null, routeActive=null, routeMarker=null, maxRouteIdx=-1;
+    if(routePts.length>1){
+      routeFull  = L.polyline(routePts.map(p=>p.ll),{color:'#e8b86d',weight:1.5,opacity:0.18}).addTo(activeMap);
+      routeActive= L.polyline([],{color:'#e8b86d',weight:2.5,opacity:0.9}).addTo(activeMap);
+      routeMarker= L.circleMarker(routePts[0].ll,{radius:5,fillColor:'#e8b86d',color:'#fff',weight:1.5,fillOpacity:1}).addTo(activeMap);
+    }
+    function advanceRoute(idx){
+      if(!routeActive||idx<=maxRouteIdx) return;
+      maxRouteIdx=idx;
+      const pts=routePts.slice(0,idx+1).map(p=>p.ll);
+      routeActive.setLatLngs(pts);
+      routeMarker.setLatLng(pts[pts.length-1]);
+    }
+    if(activeObserver){activeObserver.disconnect();activeObserver=null;}
+    const tlEl=document.getElementById('detailTimeline');
+    activeObserver=new IntersectionObserver(entries=>{
+      entries.forEach(e=>{
+        if(!e.isIntersecting) return;
+        const ts=parseInt(e.target.dataset.ts);
+        if(ts in tsToIdx) advanceRoute(tsToIdx[ts]);
+      });
+    },{root:tlEl,threshold:0.1});
+    tlEl.querySelectorAll('.tl-checkin[data-ts]').forEach(el=>activeObserver.observe(el));
   },50);
   window.scrollTo(0,0);
 }
@@ -275,6 +302,7 @@ function showList(){
   document.getElementById('detailView').style.display = 'none';
   document.getElementById('listView').style.display = 'block';
   if(activeMap){ activeMap.remove(); activeMap=null; }
+  if(activeObserver){ activeObserver.disconnect(); activeObserver=null; }
   history.pushState({},'','trips.html');
   window.scrollTo(0,0);
 }
