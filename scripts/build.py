@@ -122,8 +122,15 @@ if __name__ == "__main__":
 
     rows = apply_transforms(rows, mappings, blank_city_resolver=blank_resolver)
 
+    trip_names_path = config_dir / "trip_names.json"
+    trip_names: dict = {}
+    if trip_names_path.exists():
+        with open(trip_names_path, encoding="utf-8") as fh:
+            trip_names = json.load(fh)
+        log.info("Loaded %d trip name override(s) from %s", len(trip_names), trip_names_path)
+
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
-    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins)
+    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names)
 
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir)

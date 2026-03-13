@@ -123,13 +123,33 @@ def _localise(d: datetime, lat: float | None, lng: float | None, country: str = 
 
 # ── Trip detection ─────────────────────────────────────────────────────────────
 
+# Home-city venue categories that mark the start/end of a journey.
+# A check-in at one of these immediately before or after a trip is included
+# as the departure / arrival leg even though it's in the home city.
+_TRANSPORT_CATEGORIES: frozenset[str] = frozenset({
+    "Rail Station", "Train Station", "Airport", "Light Rail Station",
+    "Bus Station", "Bus Terminal", "Ferry Terminal",
+})
+
+def _is_home_transport(row: dict, home_city: str) -> bool:
+    return (
+        row.get("city", "").strip() == home_city
+        and row.get("category", "").strip() in _TRANSPORT_CATEGORIES
+    )
+
+
 def detect_trips(
     rows: list[dict],
     home_city: str = "Minsk",
     min_checkins: int = 5,
+    trip_names: dict[str, str] | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
+
+    trip_names: optional dict mapping str(start_ts) → custom trip name.
+    Each trip is extended by one check-in on each side if the immediately
+    adjacent home-city check-in is at a transport hub (station / airport).
 
     Returns a list of trip dicts sorted chronologically, each containing:
     id, name, start_date, end_date, duration, countries, cities,
@@ -151,6 +171,21 @@ def detect_trips(
             current = []
     if current:
         raw_trips.append(current)
+
+    # Extend trip boundaries: include the immediately adjacent home-city
+    # transport hub check-in as the departure / arrival leg.
+    pos = {id(r): i for i, r in enumerate(valid)}
+    extended: list[list[dict]] = []
+    for trip_rows in raw_trips:
+        ext = list(trip_rows)
+        fp = pos[id(trip_rows[0])]
+        lp = pos[id(trip_rows[-1])]
+        if fp > 0 and _is_home_transport(valid[fp - 1], home_city):
+            ext = [valid[fp - 1]] + ext
+        if lp < len(valid) - 1 and _is_home_transport(valid[lp + 1], home_city):
+            ext = ext + [valid[lp + 1]]
+        extended.append(ext)
+    raw_trips = extended
 
     result: list[dict] = []
     for trip_rows in raw_trips:
@@ -180,6 +215,11 @@ def detect_trips(
             name = " & ".join(top_countries[:2])
         else:
             name = f"{top_countries[0]} + {top_countries[1]} + {len(top_countries) - 2} more"
+
+        # Apply custom name override (keyed by start_ts of first check-in)
+        start_ts_key = str(int(trip_rows[0]["date"]))
+        if trip_names and start_ts_key in trip_names:
+            name = trip_names[start_ts_key]
 
         duration = (dates[-1].date() - dates[0].date()).days + 1
 
@@ -261,6 +301,7 @@ def process(
     mappings: dict[str, Any],
     home_city: str = "Minsk",
     min_trip_checkins: int = 5,
+    trip_names: dict[str, str] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
     Compute all dashboard metrics from pre-transformed rows.
@@ -509,7 +550,7 @@ def process(
     venue_loyalty = loyal[:100]
 
     # ── Trips ─────────────────────────────────────────────────────────────────
-    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins)
+    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names)
     timeline = [
         {
             "id":       t["id"],
