@@ -210,8 +210,14 @@ def detect_trips(
         # --- Departure ---
         # Scan backward through home-city AND blank-city rows within 24 h.
         # Stop at any non-blank non-home-city row (reached a different city →
-        # either previous trip or unrelated check-in).  Track the EARLIEST hub
-        # so Bus Station → Airport chains start at the Bus Station.
+        # either previous trip or unrelated check-in).
+        # Rules for hub chaining:
+        #   • Different venue (e.g. Bus Station → Airport): extend further back
+        #     so the chain starts at the earlier/outer hub.
+        #   • Same venue ID repeated (e.g. Railway Station visited twice — once
+        #     for ticket buying, once for actual departure): keep only the LATER
+        #     occurrence (nearest to the trip start).  Going back to the earlier
+        #     duplicate would incorrectly include inter-visit home activity.
         trip_start_ts = int(trip_rows[0]["date"])
         dep_hub: int | None = None
         i = fp - 1
@@ -221,7 +227,15 @@ def detect_trips(
                 break
             if row_city == home_city:
                 if _is_home_transport(valid[i], home_city):
-                    dep_hub = i  # keep scanning for an even earlier hub
+                    if dep_hub is None:
+                        dep_hub = i  # first hub found (nearest to trip start)
+                    else:
+                        cur_vid  = valid[dep_hub].get("venue_id", "").strip()
+                        new_vid  = valid[i].get("venue_id", "").strip()
+                        if new_vid and cur_vid and new_vid == cur_vid:
+                            pass  # same venue repeated — keep the later one
+                        else:
+                            dep_hub = i  # different venue → extend chain earlier
             elif row_city != "":
                 break  # different non-blank city → stop (avoid previous trips)
             i -= 1
