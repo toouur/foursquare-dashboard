@@ -172,18 +172,39 @@ def detect_trips(
     if current:
         raw_trips.append(current)
 
-    # Extend trip boundaries: include the immediately adjacent home-city
-    # transport hub check-in as the departure / arrival leg.
+    # Extend trip boundaries: include the nearest home-city transport hub
+    # check-in within 24 h as the departure / arrival leg.
+    # Scans back/forward through consecutive home-city check-ins so that
+    # intermediate Minsk check-ins (e.g. a "Train" moving-target row)
+    # don't block detection of the Railway Station / Airport.
+    _24H = 86_400
     pos = {id(r): i for i, r in enumerate(valid)}
     extended: list[list[dict]] = []
     for trip_rows in raw_trips:
         ext = list(trip_rows)
         fp = pos[id(trip_rows[0])]
         lp = pos[id(trip_rows[-1])]
-        if fp > 0 and _is_home_transport(valid[fp - 1], home_city):
-            ext = [valid[fp - 1]] + ext
-        if lp < len(valid) - 1 and _is_home_transport(valid[lp + 1], home_city):
-            ext = ext + [valid[lp + 1]]
+
+        trip_start_ts = int(trip_rows[0]["date"])
+        i = fp - 1
+        while i >= 0 and valid[i].get("city", "").strip() == home_city:
+            if trip_start_ts - int(valid[i]["date"]) > _24H:
+                break
+            if _is_home_transport(valid[i], home_city):
+                ext = [valid[i]] + ext
+                break
+            i -= 1
+
+        trip_end_ts = int(trip_rows[-1]["date"])
+        i = lp + 1
+        while i < len(valid) and valid[i].get("city", "").strip() == home_city:
+            if int(valid[i]["date"]) - trip_end_ts > _24H:
+                break
+            if _is_home_transport(valid[i], home_city):
+                ext = ext + [valid[i]]
+                break
+            i += 1
+
         extended.append(ext)
     raw_trips = extended
 
