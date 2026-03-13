@@ -172,38 +172,65 @@ def detect_trips(
     if current:
         raw_trips.append(current)
 
-    # Extend trip boundaries: include the nearest home-city transport hub
-    # check-in within 24 h as the departure / arrival leg.
-    # Scans back/forward through consecutive home-city check-ins so that
-    # intermediate Minsk check-ins (e.g. a "Train" moving-target row)
-    # don't block detection of the Railway Station / Airport.
+    # Extend trip boundaries to include departure / arrival legs in home city.
+    #
+    # Departure (backward scan):
+    #   Scan through all consecutive home-city check-ins within 24 h before the
+    #   trip's first non-home check-in.  Track the EARLIEST transport hub found
+    #   (so a bus-station→airport chain picks up the bus station, not just the
+    #   airport).  Then include *all* home-city check-ins from that hub up to
+    #   the trip start — so a "Bus Station → Bus Line" sequence is fully captured.
+    #
+    # Arrival (forward scan):
+    #   Find the NEAREST (first) transport hub within 24 h after the last non-home
+    #   check-in and include all home-city rows from trip end up to that hub.
+    #   Using nearest (not latest) avoids accidentally pulling in home activity
+    #   that precedes a later, unrelated departure.
+    #
+    # min_checkins is applied to the raw (non-home-only) trip before extension so
+    # that hub / intermediate rows cannot manufacture trips from trivial outings.
     _24H = 86_400
     pos = {id(r): i for i, r in enumerate(valid)}
+
+    # Pre-filter: drop trips that are too short even before hub extension.
+    # Allow trips that are one check-in short of the threshold — a single hub
+    # extension may legitimately push them over (e.g. 4 non-home + 1 hub = 5).
+    raw_trips = [t for t in raw_trips if len(t) >= max(1, min_checkins - 1)]
+
     extended: list[list[dict]] = []
     for trip_rows in raw_trips:
         ext = list(trip_rows)
         fp = pos[id(trip_rows[0])]
         lp = pos[id(trip_rows[-1])]
 
+        # --- Departure ---
         trip_start_ts = int(trip_rows[0]["date"])
+        dep_hub: int | None = None
         i = fp - 1
         while i >= 0 and valid[i].get("city", "").strip() == home_city:
             if trip_start_ts - int(valid[i]["date"]) > _24H:
                 break
             if _is_home_transport(valid[i], home_city):
-                ext = [valid[i]] + ext
-                break
+                dep_hub = i  # keep scanning for an even earlier hub
             i -= 1
+        if dep_hub is not None:
+            # Include hub + all home-city check-ins between hub and trip start
+            ext = valid[dep_hub:fp] + ext
 
+        # --- Arrival ---
         trip_end_ts = int(trip_rows[-1]["date"])
+        arr_hub: int | None = None
         i = lp + 1
         while i < len(valid) and valid[i].get("city", "").strip() == home_city:
             if int(valid[i]["date"]) - trip_end_ts > _24H:
                 break
             if _is_home_transport(valid[i], home_city):
-                ext = ext + [valid[i]]
+                arr_hub = i  # nearest hub — stop here
                 break
             i += 1
+        if arr_hub is not None:
+            # Include all home-city check-ins between trip end and hub (inclusive)
+            ext = ext + valid[lp + 1 : arr_hub + 1]
 
         extended.append(ext)
     raw_trips = extended
