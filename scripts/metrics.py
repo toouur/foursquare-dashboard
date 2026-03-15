@@ -144,6 +144,7 @@ def detect_trips(
     min_checkins: int = 5,
     trip_names: dict[str, str] | None = None,
     trip_exclude: set[int] | None = None,
+    trip_end_overrides: dict[int, int] | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
@@ -244,6 +245,46 @@ def detect_trips(
             # Include hub + all rows between hub and trip start
             ext = valid[dep_hub:fp] + ext
 
+        # --- Departure same-day extension (car/marshrutka — no transport hub found) ---
+        # If no transport hub was found, scan backward through home-city and
+        # blank-city rows on the SAME UTC date as the first trip check-in for:
+        #   • "Transportation Service" (marshrutka, taxi app, etc.) — preferred;
+        #     keep scanning to find the earliest occurrence (the departure vehicle)
+        #   • "Fuel Station" — fallback; take the nearest one (closest to departure)
+        # Blank-city rows are included because marshrutka check-ins are often made
+        # en route with no city assigned yet.
+        if dep_hub is None:
+            trip_start_utc_date = datetime.fromtimestamp(trip_start_ts, tz=timezone.utc).date()
+            fuel_dep: int | None = None          # nearest Fuel Station
+            transport_svc_dep: int | None = None  # earliest Transportation Service
+            i = fp - 1
+            while i >= 0:
+                row_ts = int(valid[i]["date"])
+                if trip_start_ts - row_ts > _24H:
+                    break
+                row_city = valid[i].get("city", "").strip()
+                if row_city == home_city or row_city == "":
+                    cat = valid[i].get("category", "").strip()
+                    row_date = datetime.fromtimestamp(row_ts, tz=timezone.utc).date()
+                    if row_date == trip_start_utc_date:
+                        if cat == "Transportation Service":
+                            transport_svc_dep = i  # keep going — want earliest
+                        elif cat == "Fuel Station" and fuel_dep is None:
+                            fuel_dep = i  # nearest fuel station
+                elif row_city != "":
+                    break
+                i -= 1
+            # Transportation Service wins over Fuel Station when both present.
+            # Gap filter: if chosen departure is more than 4 h before the first
+            # trip check-in, it's a previous-day activity (e.g. Uber home at
+            # midnight), not a trip departure — discard it.
+            _MAX_DEP_GAP = 4 * 3600
+            chosen_dep = transport_svc_dep if transport_svc_dep is not None else fuel_dep
+            if chosen_dep is not None:
+                dep_gap = trip_start_ts - int(valid[chosen_dep]["date"])
+                if dep_gap <= _MAX_DEP_GAP:
+                    ext = valid[chosen_dep:fp] + ext
+
         # --- Arrival ---
         # Scan ALL rows within 24 h after the trip's last check-in for the first
         # home-city transport hub.  We intentionally do NOT stop at intermediate
@@ -265,6 +306,64 @@ def detect_trips(
         if arr_hub is not None:
             # Include all rows between trip end and hub (inclusive)
             ext = ext + valid[lp + 1 : arr_hub + 1]
+
+        # --- Forced end override ---
+        # If this trip's (post-extension) start_ts is in trip_end_overrides,
+        # include all rows up to (and including) the specified end timestamp.
+        if trip_end_overrides:
+            ext_start_ts = int(ext[0]["date"])
+            if ext_start_ts in trip_end_overrides:
+                force_end_ts = trip_end_overrides[ext_start_ts]
+                cur_lp = pos[id(ext[-1])]
+                j = cur_lp + 1
+                while j < len(valid) and int(valid[j]["date"]) <= force_end_ts:
+                    ext.append(valid[j])
+                    j += 1
+
+        # --- Home arrival extension ---
+        # Scan forward from the current trip end (arr_hub or last non-home check-in)
+        # looking for a Home (private) check-in in home_city.
+        #
+        # Rules (checked per row):
+        #   • Non-home, non-blank city → new trip territory; stop, don't extend.
+        #   • Nightlife category (bar, pub, etc.) → afterparty; stop, don't extend.
+        #     The trip already ends safely at the transport hub (arr_hub) or the
+        #     last non-home check-in — nothing after the nightlife is included.
+        #   • Home (private) in home_city → found; extend to here and stop.
+        #   • Anything else (metro, road, grocery, blank) → mundane return; keep scanning.
+        #   • Hard cap: 12 h after current trip end.
+        #
+        # This handles both patterns:
+        #   transit:  arr_hub → [metro, road] → Home (private)        ✓ extends
+        #   car trip: last non-home → [long Minsk commute] → Home (private)  ✓ extends (Lepel)
+        #   afterparty: arr_hub → bar → Home (private)                ✗ stops at arr_hub
+        _NIGHTLIFE_CATS = frozenset({
+            "Bar", "Beach Bar", "Beer Bar", "Brewery", "Cocktail Bar",
+            "Dive Bar", "Gastropub", "Hookah Bar", "Hotel Bar", "Irish Pub",
+            "Karaoke Bar", "Lounge", "Night Club", "Pub", "Rock Club",
+            "Sports Bar", "Whisky Bar", "Wine Bar",
+        })
+        _MAX_HOME_ARRIVAL = 12 * 3600
+        cur_end_ts = int(ext[-1]["date"])
+        cur_end_idx = pos[id(ext[-1])]
+        home_idx: int | None = None
+        j = cur_end_idx + 1
+        while j < len(valid):
+            row_ts = int(valid[j]["date"])
+            if row_ts - cur_end_ts > _MAX_HOME_ARRIVAL:
+                break
+            row_city = valid[j].get("city", "").strip()
+            row_cat  = valid[j].get("category", "").strip()
+            if row_city and row_city != home_city:
+                break  # non-home city → new trip
+            if row_cat in _NIGHTLIFE_CATS:
+                break  # afterparty → stop before it
+            if row_city == home_city and row_cat == "Home (private)":
+                home_idx = j
+                break
+            j += 1
+        if home_idx is not None:
+            ext = ext + valid[cur_end_idx + 1 : home_idx + 1]
 
         extended.append(ext)
     raw_trips = extended
@@ -387,6 +486,7 @@ def process(
     min_trip_checkins: int = 5,
     trip_names: dict[str, str] | None = None,
     trip_exclude: set[int] | None = None,
+    trip_end_overrides: dict[int, int] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
     Compute all dashboard metrics from pre-transformed rows.
@@ -635,7 +735,7 @@ def process(
     venue_loyalty = loyal[:100]
 
     # ── Trips ─────────────────────────────────────────────────────────────────
-    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude)
+    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides)
     timeline = [
         {
             "id":       t["id"],
