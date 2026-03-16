@@ -44,6 +44,7 @@ a{color:inherit;}
 .trip-card.hidden{display:none;}
 .tc-num{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);margin-bottom:6px;}
 .tc-name{font-size:1rem;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:8px;}
+.tc-tag{display:inline-block;font-size:.68rem;margin-left:6px;vertical-align:middle;opacity:.85;}
 .tc-dates{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);margin-bottom:10px;}
 .tc-countries{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
 .tc-country{font-family:'DM Mono',monospace;font-size:.56rem;padding:3px 8px;border-radius:4px;background:rgba(78,205,196,.1);color:var(--teal);border:1px solid rgba(78,205,196,.2);}
@@ -164,7 +165,7 @@ function renderGrid(trips){
   grid.innerHTML = trips.map(t => `
     <a class="trip-card" id="card-trip-${t.id}" href="#trip-${t.id}" onclick="showTrip(${t.id});return false;">
       <div class="tc-num">Trip #${t.id}</div>
-      <div class="tc-name">${esc(t.name)}</div>
+      <div class="tc-name">${esc(t.name)}${(t.tags||[]).includes('bicycle')?'<span class="tc-tag" title="Bicycle trip">🚲</span>':''}</div>
       <div class="tc-dates">${t.start_date} &nbsp;–&nbsp; ${t.end_date}</div>
       <div class="tc-countries">${t.countries.slice(0,5).map(c=>`<span class="tc-country">${c}</span>`).join('')}</div>
       <div class="tc-stats">

@@ -145,6 +145,8 @@ def detect_trips(
     trip_names: dict[str, str] | None = None,
     trip_exclude: set[int] | None = None,
     trip_end_overrides: dict[int, int] | None = None,
+    trip_start_overrides: dict[int, int] | None = None,
+    trip_tags: dict[int, list[str]] | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
@@ -237,7 +239,14 @@ def detect_trips(
                         if new_vid and cur_vid and new_vid == cur_vid:
                             pass  # same venue repeated — keep the later one
                         else:
-                            dep_hub = i  # different venue → extend chain earlier
+                            # Only chain to an earlier hub if it's within 3 h of
+                            # the current dep_hub.  A larger gap means the earlier
+                            # Rail Station visit was an unrelated activity (e.g. a
+                            # local bike-tour check-in the day before departure).
+                            _MAX_HUB_CHAIN_GAP = 3 * 3600
+                            hub_gap = int(valid[dep_hub]["date"]) - int(valid[i]["date"])
+                            if hub_gap <= _MAX_HUB_CHAIN_GAP:
+                                dep_hub = i  # different venue → extend chain earlier
             elif row_city != "":
                 break  # different non-blank city → stop (avoid previous trips)
             i -= 1
@@ -319,6 +328,23 @@ def detect_trips(
                 while j < len(valid) and int(valid[j]["date"]) <= force_end_ts:
                     ext.append(valid[j])
                     j += 1
+
+        # --- Forced start override ---
+        # If this trip's (post-extension) start_ts is in trip_start_overrides,
+        # prepend all rows from the specified start timestamp up to the current
+        # trip start.  Useful when the real departure has no transport hub but
+        # the home-city morning check-ins should still be included.
+        if trip_start_overrides:
+            ext_start_ts = int(ext[0]["date"])
+            if ext_start_ts in trip_start_overrides:
+                force_start_ts = trip_start_overrides[ext_start_ts]
+                cur_fp = pos[id(ext[0])]
+                prepend = []
+                j = cur_fp - 1
+                while j >= 0 and int(valid[j]["date"]) >= force_start_ts:
+                    prepend.insert(0, valid[j])
+                    j -= 1
+                ext = prepend + ext
 
         # --- Home arrival extension ---
         # Scan forward from the current trip end (arr_hub or last non-home check-in)
@@ -471,6 +497,7 @@ def detect_trips(
                 "coords":         [[c["lat"], c["lng"]] for c in checkins if c["lat"] and c["lng"]],
                 "unique_pts":     unique_pts,
                 "top_cats":       [[c, n] for c, n in trip_cats.most_common(10)],
+                "tags":           (trip_tags or {}).get(int(trip_rows[0]["date"]), []),
             }
         )
 
@@ -492,6 +519,8 @@ def process(
     trip_names: dict[str, str] | None = None,
     trip_exclude: set[int] | None = None,
     trip_end_overrides: dict[int, int] | None = None,
+    trip_start_overrides: dict[int, int] | None = None,
+    trip_tags: dict[int, list[str]] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
     Compute all dashboard metrics from pre-transformed rows.
@@ -740,7 +769,7 @@ def process(
     venue_loyalty = loyal[:100]
 
     # ── Trips ─────────────────────────────────────────────────────────────────
-    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides)
+    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags)
     timeline = [
         {
             "id":       t["id"],
