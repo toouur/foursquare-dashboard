@@ -145,6 +145,7 @@ def detect_trips(
     trip_names: dict[str, str] | None = None,
     trip_exclude: set[int] | None = None,
     trip_end_overrides: dict[int, int] | None = None,
+    trip_start_overrides: dict[int, int] | None = None,
     trip_tags: dict[int, list[str]] | None = None,
 ) -> list[dict]:
     """
@@ -328,6 +329,23 @@ def detect_trips(
                     ext.append(valid[j])
                     j += 1
 
+        # --- Forced start override ---
+        # If this trip's (post-extension) start_ts is in trip_start_overrides,
+        # prepend all rows from the specified start timestamp up to the current
+        # trip start.  Useful when the real departure has no transport hub but
+        # the home-city morning check-ins should still be included.
+        if trip_start_overrides:
+            ext_start_ts = int(ext[0]["date"])
+            if ext_start_ts in trip_start_overrides:
+                force_start_ts = trip_start_overrides[ext_start_ts]
+                cur_fp = pos[id(ext[0])]
+                prepend = []
+                j = cur_fp - 1
+                while j >= 0 and int(valid[j]["date"]) >= force_start_ts:
+                    prepend.insert(0, valid[j])
+                    j -= 1
+                ext = prepend + ext
+
         # --- Home arrival extension ---
         # Scan forward from the current trip end (arr_hub or last non-home check-in)
         # looking for a Home (private) check-in in home_city.
@@ -501,6 +519,7 @@ def process(
     trip_names: dict[str, str] | None = None,
     trip_exclude: set[int] | None = None,
     trip_end_overrides: dict[int, int] | None = None,
+    trip_start_overrides: dict[int, int] | None = None,
     trip_tags: dict[int, list[str]] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
@@ -750,7 +769,7 @@ def process(
     venue_loyalty = loyal[:100]
 
     # ── Trips ─────────────────────────────────────────────────────────────────
-    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_tags=trip_tags)
+    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags)
     timeline = [
         {
             "id":       t["id"],
