@@ -238,7 +238,14 @@ def detect_trips(
                         if new_vid and cur_vid and new_vid == cur_vid:
                             pass  # same venue repeated — keep the later one
                         else:
-                            dep_hub = i  # different venue → extend chain earlier
+                            # Only chain to an earlier hub if it's within 3 h of
+                            # the current dep_hub.  A larger gap means the earlier
+                            # Rail Station visit was an unrelated activity (e.g. a
+                            # local bike-tour check-in the day before departure).
+                            _MAX_HUB_CHAIN_GAP = 3 * 3600
+                            hub_gap = int(valid[dep_hub]["date"]) - int(valid[i]["date"])
+                            if hub_gap <= _MAX_HUB_CHAIN_GAP:
+                                dep_hub = i  # different venue → extend chain earlier
             elif row_city != "":
                 break  # different non-blank city → stop (avoid previous trips)
             i -= 1
