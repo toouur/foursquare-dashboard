@@ -145,6 +145,7 @@ def detect_trips(
     trip_names: dict[str, str] | None = None,
     trip_exclude: set[int] | None = None,
     trip_end_overrides: dict[int, int] | None = None,
+    trip_tags: dict[int, list[str]] | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
@@ -471,6 +472,7 @@ def detect_trips(
                 "coords":         [[c["lat"], c["lng"]] for c in checkins if c["lat"] and c["lng"]],
                 "unique_pts":     unique_pts,
                 "top_cats":       [[c, n] for c, n in trip_cats.most_common(10)],
+                "tags":           (trip_tags or {}).get(int(trip_rows[0]["date"]), []),
             }
         )
 
@@ -492,6 +494,7 @@ def process(
     trip_names: dict[str, str] | None = None,
     trip_exclude: set[int] | None = None,
     trip_end_overrides: dict[int, int] | None = None,
+    trip_tags: dict[int, list[str]] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
     Compute all dashboard metrics from pre-transformed rows.
@@ -740,7 +743,7 @@ def process(
     venue_loyalty = loyal[:100]
 
     # ── Trips ─────────────────────────────────────────────────────────────────
-    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides)
+    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_tags=trip_tags)
     timeline = [
         {
             "id":       t["id"],

@@ -136,8 +136,22 @@ if __name__ == "__main__":
             trip_exclude = set(json.load(fh))
         log.info("Loaded %d trip exclusion(s) from %s", len(trip_exclude), trip_exclude_path)
 
+    trip_end_overrides_path = config_dir / "trip_end_overrides.json"
+    trip_end_overrides: dict[int, int] = {}
+    if trip_end_overrides_path.exists():
+        with open(trip_end_overrides_path, encoding="utf-8") as fh:
+            trip_end_overrides = {int(k): v for k, v in json.load(fh).items()}
+        log.info("Loaded %d trip end override(s) from %s", len(trip_end_overrides), trip_end_overrides_path)
+
+    trip_tags_path = config_dir / "trip_tags.json"
+    trip_tags: dict[int, list[str]] = {}
+    if trip_tags_path.exists():
+        with open(trip_tags_path, encoding="utf-8") as fh:
+            trip_tags = {int(k): v for k, v in json.load(fh).items()}
+        log.info("Loaded %d trip tag(s) from %s", len(trip_tags), trip_tags_path)
+
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
-    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude)
+    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_tags=trip_tags)
 
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir)
