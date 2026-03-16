@@ -131,6 +131,16 @@ _TRANSPORT_CATEGORIES: frozenset[str] = frozenset({
     "Bus Station", "Bus Terminal", "Ferry Terminal",
 })
 
+# Categories that, when a bicycle trip is in progress, should NOT act as a
+# home signal.  On departure-day, blank-city check-ins at bike paths, roads,
+# parks etc. GPS-resolve to the home city — but they belong to the ride, not
+# to "being at home".  Only applied to trips tagged "bicycle".
+_BICYCLE_PASSTHROUGH_CATS: frozenset[str] = frozenset({
+    "Sports and Recreation", "Road", "Bridge", "River", "Lake",
+    "Waterfall", "Park", "Trail", "Bike Trail", "Other Great Outdoors",
+    "Beach", "Reservoir",
+})
+
 def _is_home_transport(row: dict, home_city: str) -> bool:
     return (
         row.get("city", "").strip() == home_city
@@ -346,6 +356,31 @@ def detect_trips(
                     j -= 1
                 ext = prepend + ext
 
+        # --- Bicycle departure extension ---
+        # For trips tagged "bicycle", scan backwards from the current trip start
+        # and prepend check-ins in outdoor/sports categories that have city ==
+        # home_city (blank-city bike-path check-ins that GPS-resolved to home).
+        # Stops at the first non-outdoor home check-in or after 24 h lookback.
+        current_start_ts = int(ext[0]["date"])
+        current_tags = (trip_tags or {}).get(current_start_ts, [])
+        if "bicycle" in current_tags:
+            cur_fp = pos[id(ext[0])]
+            prepend_bike: list[dict] = []
+            j = cur_fp - 1
+            while j >= 0:
+                row = valid[j]
+                row_ts = int(row["date"])
+                if current_start_ts - row_ts > 24 * 3600:
+                    break
+                if (row.get("city", "").strip() == home_city
+                        and row.get("category", "").strip() in _BICYCLE_PASSTHROUGH_CATS):
+                    prepend_bike.insert(0, row)
+                    j -= 1
+                else:
+                    break
+            if prepend_bike:
+                ext = prepend_bike + ext
+
         # --- Home arrival extension ---
         # Scan forward from the current trip end (arr_hub or last non-home check-in)
         # looking for a Home (private) check-in in home_city.
@@ -396,11 +431,11 @@ def detect_trips(
         if home_idx is not None:
             ext = ext + valid[cur_end_idx + 1 : home_idx + 1]
 
-        extended.append(ext)
+        extended.append((ext, current_tags, current_start_ts))
     raw_trips = extended
 
     result: list[dict] = []
-    for trip_rows in raw_trips:
+    for trip_rows, _resolved_tags, _name_ts in raw_trips:
         if len(trip_rows) < min_checkins:
             continue
 
@@ -429,7 +464,9 @@ def detect_trips(
             name = f"{top_countries[0]} + {top_countries[1]} + {len(top_countries) - 2} more"
 
         # Apply custom name override (keyed by start_ts of first check-in)
-        start_ts_key = str(int(trip_rows[0]["date"]))
+        # Use the pre-extension start_ts for name lookup so bicycle departure
+        # extension (which prepends outdoor home check-ins) doesn't break names.
+        start_ts_key = str(_name_ts)
         if trip_names and start_ts_key in trip_names:
             name = trip_names[start_ts_key]
 
@@ -497,7 +534,7 @@ def detect_trips(
                 "coords":         [[c["lat"], c["lng"]] for c in checkins if c["lat"] and c["lng"]],
                 "unique_pts":     unique_pts,
                 "top_cats":       [[c, n] for c, n in trip_cats.most_common(10)],
-                "tags":           (trip_tags or {}).get(int(trip_rows[0]["date"]), []),
+                "tags":           _resolved_tags if _resolved_tags else (trip_tags or {}).get(int(trip_rows[0]["date"]), []),
             }
         )
 
