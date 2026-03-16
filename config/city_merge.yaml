@@ -104,6 +104,7 @@
   "Viciebsk": "Vitebsk"  # ok — Belarusian Latin
   "Vitsyebsk": "Vitebsk"  # ok — alternate Latin
   "Гомель": "Gomel"  # ok — Cyrillic
+  "Homel": "Gomel"   # ok — English variant
   "Homieĺ": "Gomel"  # ok — Belarusian Latin
   "Городище": "Haradzishcha"  # ok — Cyrillic
   "Haradzišča": "Haradzishcha"  # ok — Belarusian Latin
