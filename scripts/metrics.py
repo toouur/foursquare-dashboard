@@ -333,17 +333,22 @@ def detect_trips(
         #   • Anything else (metro, road, grocery, blank) → mundane return; keep scanning.
         #   • Hard cap: 12 h after current trip end.
         #
-        # This handles both patterns:
-        #   transit:  arr_hub → [metro, road] → Home (private)        ✓ extends
-        #   car trip: last non-home → [long Minsk commute] → Home (private)  ✓ extends (Lepel)
-        #   afterparty: arr_hub → bar → Home (private)                ✗ stops at arr_hub
+        # Window depends on whether a transport hub was found on arrival:
+        #   transit return (arr_hub found): 5 h — user is already in the city;
+        #     a direct home journey should complete quickly.  Longer gaps mean
+        #     the user did a full day of activities before going home (e.g.
+        #     returned from Moscow on a weekday morning and went straight to
+        #     work) — in that case the trip ends at the hub.
+        #   car / local return (no arr_hub): 12 h — the last non-home check-in
+        #     can be far from home (e.g. a lake near Lepel at 09:05, arriving
+        #     home at 15:55 after the minibus + Minsk commute).
         _NIGHTLIFE_CATS = frozenset({
             "Bar", "Beach Bar", "Beer Bar", "Brewery", "Cocktail Bar",
             "Dive Bar", "Gastropub", "Hookah Bar", "Hotel Bar", "Irish Pub",
             "Karaoke Bar", "Lounge", "Night Club", "Pub", "Rock Club",
             "Sports Bar", "Whisky Bar", "Wine Bar",
         })
-        _MAX_HOME_ARRIVAL = 12 * 3600
+        _MAX_HOME_ARRIVAL = 5 * 3600 if arr_hub is not None else 12 * 3600
         cur_end_ts = int(ext[-1]["date"])
         cur_end_idx = pos[id(ext[-1])]
         home_idx: int | None = None
