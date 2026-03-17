@@ -138,7 +138,7 @@ _TRANSPORT_CATEGORIES: frozenset[str] = frozenset({
 _BICYCLE_PASSTHROUGH_CATS: frozenset[str] = frozenset({
     "Sports and Recreation", "Road", "Bridge", "River", "Lake",
     "Waterfall", "Park", "Trail", "Bike Trail", "Other Great Outdoors",
-    "Beach", "Reservoir",
+    "Beach", "Reservoir", "Bike Rental",
 })
 
 def _is_home_transport(row: dict, home_city: str) -> bool:
@@ -282,7 +282,7 @@ def detect_trips(
         if dep_hub is None:
             trip_start_utc_date = datetime.fromtimestamp(trip_start_ts, tz=timezone.utc).date()
             fuel_dep: int | None = None          # nearest Fuel Station
-            transport_svc_dep: int | None = None  # earliest Transportation Service / Bus Line
+            transport_svc_dep: int | None = None  # earliest Transportation Service / Bus Line / Parking
             i = fp - 1
             while i >= 0:
                 if i <= prev_end_idx:
@@ -295,7 +295,7 @@ def detect_trips(
                     cat = valid[i].get("category", "").strip()
                     row_date = datetime.fromtimestamp(row_ts, tz=timezone.utc).date()
                     if row_date == trip_start_utc_date:
-                        if cat in ("Transportation Service", "Bus Line"):
+                        if cat in ("Transportation Service", "Bus Line", "Parking"):
                             transport_svc_dep = i  # keep going — want earliest
                         elif cat == "Fuel Station" and fuel_dep is None:
                             fuel_dep = i  # nearest fuel station
@@ -334,6 +334,30 @@ def detect_trips(
         if arr_hub is not None:
             # Include all rows between trip end and hub (inclusive)
             ext = ext + valid[lp + 1 : arr_hub + 1]
+        else:
+            # Fallback: if no transport hub found, look for a Neighborhood
+            # check-in in the home city (e.g. car trip arriving back in a
+            # residential area with no fuel stop).
+            # Abort if a "Home (private)" check-in is found first — already
+            # home, no need to extend.  Also stop at any non-home, non-blank
+            # city to avoid absorbing the start of a subsequent trip.
+            i = lp + 1
+            while i < len(valid):
+                if int(valid[i]["date"]) - trip_end_ts > _24H:
+                    break
+                row_city = valid[i].get("city", "").strip()
+                if row_city not in ("", home_city):
+                    break  # hit a different city — stop
+                if row_city == home_city:
+                    cat = valid[i].get("category", "").strip()
+                    if cat == "Home (private)":
+                        break  # already home — no Neighborhood extension needed
+                    if cat == "Neighborhood":
+                        arr_hub = i
+                        break
+                i += 1
+            if arr_hub is not None:
+                ext = ext + valid[lp + 1 : arr_hub + 1]
 
         # --- Forced end override ---
         # If this trip's (post-extension) start_ts is in trip_end_overrides,
@@ -374,21 +398,39 @@ def detect_trips(
         current_tags = (trip_tags or {}).get(current_start_ts, [])
         if "bicycle" in current_tags:
             cur_fp = pos[id(ext[0])]
-            prepend_bike: list[dict] = []
+            _BIKE_DEP_WINDOW = 4 * 3600  # max seconds before trip start to look for departure
+            # Scan backward through home-city rows within the departure window,
+            # collecting them regardless of category (intermediate check-ins
+            # like sculptures or plazas passed while cycling are fine).
+            # Stop at: non-home non-blank city, >4 h gap, or prev_end_idx.
+            bike_window: list[int] = []  # indices in valid, chronological order
             j = cur_fp - 1
             while j >= 0:
+                if j <= prev_end_idx:
+                    break
                 row = valid[j]
                 row_ts = int(row["date"])
-                if current_start_ts - row_ts > 24 * 3600:
+                if current_start_ts - row_ts > _BIKE_DEP_WINDOW:
                     break
-                if (row.get("city", "").strip() == home_city
-                        and row.get("category", "").strip() in _BICYCLE_PASSTHROUGH_CATS):
-                    prepend_bike.insert(0, row)
+                row_city = row.get("city", "").strip()
+                if row_city == home_city:
+                    bike_window.insert(0, j)  # keep in chronological order
                     j -= 1
+                elif row_city == "":
+                    j -= 1  # skip blank-city rows silently
                 else:
+                    break  # different non-blank city — stop
+            # Find the earliest home-city row in the window that is a passthrough
+            # category (Road, Park, Trail, …).  Include all rows from that anchor
+            # to the trip start — intermediate non-passthrough categories (e.g.
+            # sculptures, plazas encountered while cycling) are fine.
+            anchor: int | None = None
+            for idx in bike_window:
+                if valid[idx].get("category", "").strip() in _BICYCLE_PASSTHROUGH_CATS:
+                    anchor = idx
                     break
-            if prepend_bike:
-                ext = prepend_bike + ext
+            if anchor is not None:
+                ext = list(valid[anchor:cur_fp]) + ext
 
         # --- Home arrival extension ---
         # Scan forward from the current trip end (arr_hub or last non-home check-in)
