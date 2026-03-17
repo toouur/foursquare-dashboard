@@ -138,7 +138,7 @@ _TRANSPORT_CATEGORIES: frozenset[str] = frozenset({
 _BICYCLE_PASSTHROUGH_CATS: frozenset[str] = frozenset({
     "Sports and Recreation", "Road", "Bridge", "River", "Lake",
     "Waterfall", "Park", "Trail", "Bike Trail", "Other Great Outdoors",
-    "Beach", "Reservoir",
+    "Beach", "Reservoir", "Bike Rental",
 })
 
 def _is_home_transport(row: dict, home_city: str) -> bool:
