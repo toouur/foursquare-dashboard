@@ -78,6 +78,7 @@
   "Minsk District": "Minsk District"  # ok — no checkins in CSV, keep as safety merge
   "Minsk Region": "Minsk Region"  # ok — no checkins in CSV, keep as safety merge
   "Прилуки": "Pryluky"  # ok
+  "Priluki": "Pryluky"  # ok — latin transliteration variant
   "Прилукская Слобода": "Minsk"  # ok — village adjacent to Pryluky, within Minsk orbit
 
   # ══ BELARUS / OTHER ══
