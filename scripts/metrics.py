@@ -409,6 +409,13 @@ def detect_trips(
             "Karaoke Bar", "Lounge", "Night Club", "Pub", "Rock Club",
             "Sports Bar", "Whisky Bar", "Wine Bar",
         })
+        # Transit check-ins that are clearly part of a return drive home.
+        # Allow these even when their city is non-blank and non-home —
+        # they don't signal new-trip territory.
+        _ROADSIDE_CATS = frozenset({
+            "Fuel Station", "Gas Station", "Rest Stop", "Truck Stop",
+            "Road", "Highway",
+        })
         _MAX_HOME_ARRIVAL = 5 * 3600 if arr_hub is not None else 12 * 3600
         cur_end_ts = int(ext[-1]["date"])
         cur_end_idx = pos[id(ext[-1])]
@@ -420,7 +427,7 @@ def detect_trips(
                 break
             row_city = valid[j].get("city", "").strip()
             row_cat  = valid[j].get("category", "").strip()
-            if row_city and row_city != home_city:
+            if row_city and row_city != home_city and row_cat not in _ROADSIDE_CATS:
                 break  # non-home city → new trip
             if row_cat in _NIGHTLIFE_CATS:
                 break  # afterparty → stop before it
