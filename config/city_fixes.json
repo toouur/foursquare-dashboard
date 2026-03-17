@@ -133,5 +133,10 @@
   "1772496574": "Vitebsk Region",
 
   "_comment_muravnichi": "АЗС Белнефтехим (deep Belarus, misassigned to Smolensk Region) → Muravnichi",
-  "1772141805": "Muravnichi"
+  "1772141805": "Muravnichi",
+
+  "_comment_lahoysk": "3 blank-city Lahoysk check-ins GPS-resolved to wrong centroid → Lahoysk",
+  "1618746061": "Lahoysk",
+  "1618746174": "Lahoysk",
+  "1618747809": "Lahoysk"
 }
