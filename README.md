@@ -28,12 +28,16 @@ searchable cities & venues · venue loyalty · category explorer · recent check
 │       ├── worker.js         #   triggers GitHub Actions on new check-in
 │       └── wrangler.toml
 ├── config/
-│   ├── settings.yaml         # home_city, trip_detection thresholds
-│   ├── city_merge.yaml       # Raw Foursquare city names → canonical names
-│   ├── categories.json       # Category groupings for charts + explorer
-│   ├── city_fixes.json       # Per-timestamp city overrides
-│   ├── country_fixes.json    # Per-timestamp country overrides
-│   └── city_merge_normalized_review.csv  # Blank city inference reference
+│   ├── settings.yaml              # home_city, trip_detection thresholds
+│   ├── city_merge.yaml            # Raw Foursquare city names → canonical names
+│   ├── categories.json            # Category groupings for charts + explorer
+│   ├── city_fixes.json            # Per-timestamp city overrides
+│   ├── country_fixes.json         # Per-timestamp country overrides
+│   ├── trip_names.json            # Trip name overrides (keyed by _name_ts)
+│   ├── trip_tags.json             # Trip tags, e.g. ["bicycle"] (keyed by _name_ts)
+│   ├── trip_exclude.json          # Trip start timestamps to exclude entirely
+│   ├── trip_start_overrides.json  # Force trip start at an earlier timestamp
+│   └── trip_end_overrides.json    # Force trip end at a specific timestamp
 ├── templates/
 │   ├── index.html.tmpl       # Template for index.html
 │   └── trips.html.tmpl       # Template for trips.html
@@ -225,3 +229,16 @@ provided the sequence contains at least `min_checkins` entries. The trip name
 is auto-generated from the most-visited countries/cities in that sequence.
 Each trip gets a detail page in `trips.html` with a heatmap, timeline, and
 category breakdown.
+
+After the raw sequence is found, several extension passes run in order:
+
+1. **Transport hub departure** — scans backward for Rail/Train/Bus Station or Airport within 24h; chains multiple hubs (e.g. Bus Station → Airport) up to 3h apart.
+2. **Same-day departure** (if no hub found) — finds earliest `Transportation Service`, `Bus Line`, or `Parking`, or nearest `Fuel Station`, on the same UTC day.
+3. **Arrival hub scan** — scans forward up to 24h for the first home-city transport hub.
+4. **Neighborhood arrival fallback** — if no hub, extends to a `Neighborhood` check-in in home city within 24h.
+5. **Home arrival extension** — extends to a `Home (private)` check-in within 5h (transit return) or 12h (car/local return).
+6. **Forced end override** (`trip_end_overrides.json`) — manually extend a trip's end.
+7. **Forced start override** (`trip_start_overrides.json`) — manually prepend earlier rows.
+8. **Bicycle departure extension** — for trips tagged `"bicycle"` in `trip_tags.json`, scans backward up to 4h for outdoor/road check-ins (parks, trails, roads, etc.) belonging to the departure ride.
+
+Trip names and tags are looked up by `_name_ts` — the timestamp of the first extended check-in, evaluated after steps 1–7 but before step 8.
