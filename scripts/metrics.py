@@ -282,7 +282,7 @@ def detect_trips(
         if dep_hub is None:
             trip_start_utc_date = datetime.fromtimestamp(trip_start_ts, tz=timezone.utc).date()
             fuel_dep: int | None = None          # nearest Fuel Station
-            transport_svc_dep: int | None = None  # earliest Transportation Service / Bus Line
+            transport_svc_dep: int | None = None  # earliest Transportation Service / Bus Line / Parking
             i = fp - 1
             while i >= 0:
                 if i <= prev_end_idx:
@@ -295,7 +295,7 @@ def detect_trips(
                     cat = valid[i].get("category", "").strip()
                     row_date = datetime.fromtimestamp(row_ts, tz=timezone.utc).date()
                     if row_date == trip_start_utc_date:
-                        if cat in ("Transportation Service", "Bus Line"):
+                        if cat in ("Transportation Service", "Bus Line", "Parking"):
                             transport_svc_dep = i  # keep going — want earliest
                         elif cat == "Fuel Station" and fuel_dep is None:
                             fuel_dep = i  # nearest fuel station
@@ -334,6 +334,30 @@ def detect_trips(
         if arr_hub is not None:
             # Include all rows between trip end and hub (inclusive)
             ext = ext + valid[lp + 1 : arr_hub + 1]
+        else:
+            # Fallback: if no transport hub found, look for a Neighborhood
+            # check-in in the home city (e.g. car trip arriving back in a
+            # residential area with no fuel stop).
+            # Abort if a "Home (private)" check-in is found first — already
+            # home, no need to extend.  Also stop at any non-home, non-blank
+            # city to avoid absorbing the start of a subsequent trip.
+            i = lp + 1
+            while i < len(valid):
+                if int(valid[i]["date"]) - trip_end_ts > _24H:
+                    break
+                row_city = valid[i].get("city", "").strip()
+                if row_city not in ("", home_city):
+                    break  # hit a different city — stop
+                if row_city == home_city:
+                    cat = valid[i].get("category", "").strip()
+                    if cat == "Home (private)":
+                        break  # already home — no Neighborhood extension needed
+                    if cat == "Neighborhood":
+                        arr_hub = i
+                        break
+                i += 1
+            if arr_hub is not None:
+                ext = ext + valid[lp + 1 : arr_hub + 1]
 
         # --- Forced end override ---
         # If this trip's (post-extension) start_ts is in trip_end_overrides,
