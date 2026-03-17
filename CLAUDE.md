@@ -71,6 +71,32 @@ All HTML output is **pre-built and committed** — the site is purely static wit
 | `city_fixes.json` | Per Unix-timestamp city overrides (highest priority, wins over city_merge) |
 | `country_fixes.json` | Per Unix-timestamp country overrides |
 | `categories.json` | Two-level grouping: raw category → `category_groups` → `explorer_groups` |
+| `trip_names.json` | Trip name overrides, keyed by `_name_ts` (see below) |
+| `trip_tags.json` | Trip tags (e.g. `["bicycle"]`), keyed by `_name_ts` |
+| `trip_exclude.json` | Set of trip start timestamps to exclude entirely |
+| `trip_end_overrides.json` | Force a trip to end at a specific timestamp; key = `ext_start_ts` |
+| `trip_start_overrides.json` | Force a trip to start at an earlier timestamp; key = `ext_start_ts` |
+
+### `_name_ts` key — how trip config files are keyed
+
+All five `trip_*.json` files use the same key: **`_name_ts`**.
+
+`_name_ts` = `int(ext[0]["date"])` — the timestamp of the **first check-in in the extended trip** — evaluated AFTER all departure/arrival extension passes (transport hub, same-day departure, arrival hub, neighborhood fallback, forced end override, forced start override) but **BEFORE** the bicycle departure extension.
+
+In other words, the ordering is:
+1. Transport hub departure scan
+2. Same-day departure extension (if no hub found)
+3. Arrival hub scan + neighborhood fallback
+4. Home arrival extension
+5. Forced end override (`trip_end_overrides`)
+6. Forced start override (`trip_start_overrides`) — **`_name_ts` is read here**
+7. Bicycle departure extension (reads `trip_tags` using `_name_ts` from step 6)
+
+So:
+- If a `trip_start_override` prepends earlier rows, `_name_ts` shifts to the new first row's timestamp. Keys in `trip_names.json` and `trip_tags.json` must use that shifted timestamp.
+- `trip_start_overrides.json` key = `ext_start_ts` (the trip's first-row timestamp AFTER departure extension, BEFORE the override). Value = the timestamp to prepend from.
+- `trip_end_overrides.json` key = `ext_start_ts` (same post-departure-extension start). Value = timestamp to extend to.
+- Trip names can include emoji icons (✈️ 🚂 🚌 🚗 ⛺ 🛁) as suffixes.
 
 ### City/country name normalization pattern
 Canonical city names flow through three layers (each overrides the previous):
@@ -80,6 +106,41 @@ Canonical city names flow through three layers (each overrides the previous):
 
 ### Timezone handling
 `metrics.py` has a `_COUNTRY_TZ` dict mapping country names to IANA timezone IDs. This takes priority over lat/lng-based lookup (`timezonefinder`) and is necessary for countries that don't observe DST (e.g., Belarus → `Europe/Minsk` = UTC+3 year-round, not UTC+2 from coordinates).
+
+### Trip detection logic (`metrics.py` — `detect_trips()`)
+
+Trips are consecutive non-home-city check-in sequences. After the raw sequence is found, several extension passes are applied in order:
+
+**1. Transport hub departure (backward scan)**
+Scans backward from the first non-home row through home-city and blank-city rows within 24h. Finds the **earliest** transport hub (`_TRANSPORT_CATEGORIES`: Rail Station, Train Station, Airport, Light Rail Station, Bus Station, Bus Terminal, Ferry Terminal) — chaining multiple different hubs (e.g. Bus Station → Airport) up to 3h apart. Same venue repeated keeps only the later occurrence. Respects `prev_end_idx` (won't scan into the previous trip's arrival rows).
+
+**2. Same-day departure extension (if no hub found)**
+Scans backward on the same UTC day as trip start through home-city and blank-city rows:
+- `Transportation Service`, `Bus Line`, `Parking`: find **earliest** (keep scanning)
+- `Fuel Station`: find **nearest** (stop at first)
+Transportation Service/Bus Line/Parking wins over Fuel Station. Gap filter: if chosen departure is >4h before trip start, it's a previous-day activity — discarded.
+
+**3. Arrival hub scan (forward scan)**
+Scans forward up to 24h after last trip check-in through all rows (including intermediate non-home cities — e.g. fuel stops on the return leg). Finds the **nearest** (first) home-city transport hub and includes all rows up to it.
+
+**4. Neighborhood arrival fallback**
+If no transport hub found on arrival, looks for a `Neighborhood` check-in in home city within 24h. Aborts if `Home (private)` is found first. Also stops at any non-home, non-blank city.
+
+**5. Home arrival extension**
+Scans forward from the current trip end (after hub/neighborhood extension) looking for a `Home (private)` check-in in home_city. Window: 5h if an arrival hub was found, 12h otherwise. Stops at: non-home non-blank city (unless it's a `_ROADSIDE_CATS` category: Fuel Station, Gas Station, Rest Stop, Truck Stop, Road, Highway), or a `_NIGHTLIFE_CATS` category (bar, pub, etc.), or the time cap.
+
+**6. Forced end override** (`trip_end_overrides`)
+Key = `ext_start_ts` (post-departure-extension start). Value = timestamp to extend to.
+
+**7. Forced start override** (`trip_start_overrides`)
+Key = `ext_start_ts`. Value = earlier timestamp to prepend from. After applying, `_name_ts` = new `ext[0]["date"]`.
+
+**`_name_ts` is recorded here** (= `int(ext[0]["date"])`) — used as key in `trip_names.json` and `trip_tags.json`.
+
+**8. Bicycle departure extension**
+For trips where `trip_tags[_name_ts]` contains `"bicycle"`: scans backward up to 4h from the current trip start through home-city rows (blank-city rows are skipped silently). Finds the **earliest** row with a `_BICYCLE_PASSTHROUGH_CATS` category as anchor, then includes all rows from anchor to trip start (including non-passthrough intermediates like sculptures or plazas passed en route).
+
+`_BICYCLE_PASSTHROUGH_CATS`: Sports and Recreation, Road, Bridge, River, Lake, Waterfall, Park, Trail, Bike Trail, Other Great Outdoors, Beach, Reservoir, Bike Rental.
 
 ### World-cities continent-aware matching
 `index.html.tmpl` and `gen_worldcities.py` both have a `CTRY_CONT` JavaScript dict and a `matchVisited`/`getVisitCount` function that guards against false city matches across continents (e.g., Malta's "Rabat" ≠ Morocco's "Rabat"). Any change to this logic must be kept in sync between both files.

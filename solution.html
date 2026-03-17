@@ -373,6 +373,55 @@ const url = <span class="hl">`...&start_date=${utcDate}...&timezone=auto`</span>
       </div>
     </div>
 
+    <!-- C7 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 07 — Automatically Detecting Trip Boundaries</div>
+        <div class="cs-text">
+          A raw check-in stream has no concept of "trip". A journey from home to another city
+          and back is just a sequence of venue visits — with no explicit departure event, no
+          arrival marker, and often a trail of in-transit check-ins (train stations, fuel
+          stops, border crossings) that belong to the trip but fall <em>before</em> the first
+          non-home city check-in and <em>after</em> the last. A naïve "city ≠ home" window
+          misses the journey itself and produces ragged trip boundaries.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Multi-Pass Extension Pipeline</div>
+        <div class="cs-text">
+          <code>metrics.py</code> runs an 8-pass pipeline over each candidate trip window
+          to progressively widen its boundaries until they reflect the actual journey:
+        </div>
+        <div class="code-block">
+<span class="cm"># Pass 1 — Seed: consecutive non-home city rows (≥ min_checkins)</span>
+<span class="cm"># Pass 2 — Same-day departure: scan backward for Transportation/Bus/Parking</span>
+<span class="cm">#           on departure date; fuel stops absorbed if nearest to seed</span>
+<span class="cm"># Pass 3 — Arrival hub: scan forward for train station / airport on return day</span>
+<span class="cm"># Pass 4 — Intermediate home-city rows absorbed if flanked by trip cities</span>
+<span class="cm"># Pass 5 — Repeat passes 2–4 until stable (up to 5 iterations)</span>
+<span class="cm"># Pass 6 — trip_start_overrides: prepend rows from a specific timestamp</span>
+<span class="cm"># Pass 7 — Bicycle extension: 4 h window, earliest passthrough category</span>
+<span class="cm">#           as anchor (Road, Bridge, Park, Bike Rental…), include all</span>
+<span class="cm">#           intervening rows between anchor and trip seed</span>
+<span class="cm"># Pass 8 — Neighbourhood fallback: absorb a single home-city neighbourhood</span>
+<span class="cm">#           check-in as arrival if no transport hub was found</span>
+        </div>
+        <div class="cs-text">
+          Airport detection uses a <strong>substring match</strong>
+          (<code>"airport" in cat.lower()</code>) rather than an exact string, catching all
+          variants emitted by Foursquare: <em>International Airport</em>, <em>Airport
+          Terminal</em>, <em>Airport Gate</em>, <em>Airport Service</em>. A
+          <code>prev_end_idx</code> guard prevents the backward scan from crossing into a
+          preceding trip's arrival rows. Where the heuristics fall short, three JSON config
+          files provide surgical overrides: <strong><code>trip_start_overrides</code></strong>
+          and <strong><code>trip_end_overrides</code></strong> pin exact boundary timestamps,
+          and <strong><code>trip_names.json</code></strong> / <strong><code>trip_tags.json</code></strong>
+          attach human-readable names and activity tags (bicycle, camping, etc.) keyed by the
+          final resolved start timestamp.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>
