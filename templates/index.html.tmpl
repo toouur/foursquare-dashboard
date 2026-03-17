@@ -328,6 +328,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="card-title">Cities <a href="world_cities.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;float:right;margin-top:2px;">↗ world cities</a>
       <div class="tabs" style="margin-top:6px;">
         <div class="tab active" id="tabCityCheckins" onclick="switchCityTab('checkins',this)">By Check-ins</div>
+        <div class="tab" id="tabCityPlaces" onclick="switchCityTab('places',this)">By Unique Places</div>
         <div class="tab" id="tabCityCountry" onclick="switchCityTab('country',this)">By Country</div>
         <div class="tab" id="tabCityWorld" onclick="switchCityTab('world',this)">World Cities</div>
       </div>
@@ -337,6 +338,12 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div id="paneCityCheckins" class="city-pane">
       <input class="search-box" type="text" placeholder="Search cities..." oninput="filterList('citiesList',this.value)">
       <div class="bar-list" id="citiesList"></div>
+    </div>
+
+    <!-- Tab: By unique places -->
+    <div id="paneCityPlaces" class="city-pane" style="display:none">
+      <input class="search-box" type="text" placeholder="Search cities..." oninput="filterList('citiesPlacesList',this.value)">
+      <div class="bar-list" id="citiesPlacesList"></div>
     </div>
 
     <!-- Tab: By country -->
@@ -706,6 +713,7 @@ function barList(id,data){
   }).join('');
 }
 barList('citiesList',S.cities);
+barList('citiesPlacesList',S.cities_by_venues);
 // Venues: data is [name, count, city]
 (function(){
   const data=S.venues, max=data[0][1];
@@ -1909,9 +1917,10 @@ function buildCityMap(){
   // Patch switchCityTab for correct pane IDs
   window.switchCityTab=function(tab,el){
     document.getElementById('paneCityCheckins').style.display=tab==='checkins'?'':'none';
+    document.getElementById('paneCityPlaces').style.display=tab==='places'?'':'none';
     document.getElementById('paneCityCountry').style.display=tab==='country'?'':'none';
     document.getElementById('paneCityWorld').style.display=tab==='world'?'':'none';
-    document.querySelectorAll('#tabCityCheckins,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('#tabCityCheckins,#tabCityPlaces,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));
     el.classList.add('active');
     if(tab==='country' && !document.getElementById('byCountryList').innerHTML) buildByCountry(_byCountrySort);
     if(tab==='world' && !document.getElementById('worldCitiesList').innerHTML) buildWorldCities('ALL');
