@@ -233,9 +233,15 @@ def detect_trips(
         #     occurrence (nearest to the trip start).  Going back to the earlier
         #     duplicate would incorrectly include inter-visit home activity.
         trip_start_ts = int(trip_rows[0]["date"])
+        # Index of the last row included in the previous extended trip.
+        # A transport hub at or before this index was already consumed as an
+        # arrival leg — don't reuse it as a departure hub for this trip.
+        prev_end_idx = pos[id(extended[-1][0][-1])] if extended else -1
         dep_hub: int | None = None
         i = fp - 1
         while i >= 0:
+            if i <= prev_end_idx:
+                break  # reached rows already owned by the previous trip
             row_city = valid[i].get("city", "").strip()
             if trip_start_ts - int(valid[i]["date"]) > _24H:
                 break
@@ -267,17 +273,20 @@ def detect_trips(
         # --- Departure same-day extension (car/marshrutka — no transport hub found) ---
         # If no transport hub was found, scan backward through home-city and
         # blank-city rows on the SAME UTC date as the first trip check-in for:
-        #   • "Transportation Service" (marshrutka, taxi app, etc.) — preferred;
-        #     keep scanning to find the earliest occurrence (the departure vehicle)
+        #   • "Transportation Service" or "Bus Line" (marshrutka, taxi app, etc.) —
+        #     preferred; keep scanning to find the earliest occurrence (the departure
+        #     vehicle)
         #   • "Fuel Station" — fallback; take the nearest one (closest to departure)
         # Blank-city rows are included because marshrutka check-ins are often made
         # en route with no city assigned yet.
         if dep_hub is None:
             trip_start_utc_date = datetime.fromtimestamp(trip_start_ts, tz=timezone.utc).date()
             fuel_dep: int | None = None          # nearest Fuel Station
-            transport_svc_dep: int | None = None  # earliest Transportation Service
+            transport_svc_dep: int | None = None  # earliest Transportation Service / Bus Line
             i = fp - 1
             while i >= 0:
+                if i <= prev_end_idx:
+                    break  # don't scan into rows already owned by previous trip's arrival
                 row_ts = int(valid[i]["date"])
                 if trip_start_ts - row_ts > _24H:
                     break
@@ -286,7 +295,7 @@ def detect_trips(
                     cat = valid[i].get("category", "").strip()
                     row_date = datetime.fromtimestamp(row_ts, tz=timezone.utc).date()
                     if row_date == trip_start_utc_date:
-                        if cat == "Transportation Service":
+                        if cat in ("Transportation Service", "Bus Line"):
                             transport_svc_dep = i  # keep going — want earliest
                         elif cat == "Fuel Station" and fuel_dep is None:
                             fuel_dep = i  # nearest fuel station
