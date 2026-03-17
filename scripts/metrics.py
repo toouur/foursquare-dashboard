@@ -374,21 +374,39 @@ def detect_trips(
         current_tags = (trip_tags or {}).get(current_start_ts, [])
         if "bicycle" in current_tags:
             cur_fp = pos[id(ext[0])]
-            prepend_bike: list[dict] = []
+            _BIKE_DEP_WINDOW = 4 * 3600  # max seconds before trip start to look for departure
+            # Scan backward through home-city rows within the departure window,
+            # collecting them regardless of category (intermediate check-ins
+            # like sculptures or plazas passed while cycling are fine).
+            # Stop at: non-home non-blank city, >4 h gap, or prev_end_idx.
+            bike_window: list[int] = []  # indices in valid, chronological order
             j = cur_fp - 1
             while j >= 0:
+                if j <= prev_end_idx:
+                    break
                 row = valid[j]
                 row_ts = int(row["date"])
-                if current_start_ts - row_ts > 24 * 3600:
+                if current_start_ts - row_ts > _BIKE_DEP_WINDOW:
                     break
-                if (row.get("city", "").strip() == home_city
-                        and row.get("category", "").strip() in _BICYCLE_PASSTHROUGH_CATS):
-                    prepend_bike.insert(0, row)
+                row_city = row.get("city", "").strip()
+                if row_city == home_city:
+                    bike_window.insert(0, j)  # keep in chronological order
                     j -= 1
+                elif row_city == "":
+                    j -= 1  # skip blank-city rows silently
                 else:
+                    break  # different non-blank city — stop
+            # Find the earliest home-city row in the window that is a passthrough
+            # category (Road, Park, Trail, …).  Include all rows from that anchor
+            # to the trip start — intermediate non-passthrough categories (e.g.
+            # sculptures, plazas encountered while cycling) are fine.
+            anchor: int | None = None
+            for idx in bike_window:
+                if valid[idx].get("category", "").strip() in _BICYCLE_PASSTHROUGH_CATS:
+                    anchor = idx
                     break
-            if prepend_bike:
-                ext = prepend_bike + ext
+            if anchor is not None:
+                ext = list(valid[anchor:cur_fp]) + ext
 
         # --- Home arrival extension ---
         # Scan forward from the current trip end (arr_hub or last non-home check-in)
