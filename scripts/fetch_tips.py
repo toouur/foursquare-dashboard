@@ -13,6 +13,7 @@ Usage:
     python scripts/fetch_tips.py --full --sweep      # full re-fetch + venue sweep
     python scripts/fetch_tips.py --sweep             # venue sweep only (extend existing tips)
     python scripts/fetch_tips.py --csv data/checkins.csv --sweep  # explicit CSV path
+    python scripts/fetch_tips.py --add-tip-id 645265a53112b8775c114ecb  # fetch one tip by ID (marks closed=True)
 
 Outputs:
   - Prints CHANGED=true/false to stdout (for GitHub Actions >> $GITHUB_OUTPUT).
@@ -34,6 +35,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 
 TIPS_API   = "https://api.foursquare.com/v2/users/self/tips"
 VENUE_API  = "https://api.foursquare.com/v2/venues/{vid}/tips"
+TIP_API    = "https://api.foursquare.com/v2/tips/{tid}"
 API_V      = "20231201"
 LIMIT      = 500
 SLEEP      = 0.35
@@ -205,13 +207,32 @@ def fetch_venue_sweep(token: str, venue_ids: list[str], known_ids: set[str]) -> 
     return new_tips
 
 
+def fetch_tip_by_id(token: str, tip_id: str) -> dict | None:
+    """Fetch a single tip via /v2/tips/{tipId} — free, no credit cost."""
+    try:
+        resp = requests.get(
+            TIP_API.format(tid=tip_id),
+            params={"oauth_token": token, "v": API_V},
+            timeout=20,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("meta", {}).get("code") != 200:
+            return None
+        return data.get("response", {}).get("tip")
+    except Exception as exc:
+        log.debug("Failed to fetch tip %s: %s", tip_id, exc)
+        return None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--token", default="",               help="Foursquare OAuth token")
-    parser.add_argument("--out",   default="data/tips.json", help="Output JSON path")
-    parser.add_argument("--csv",   default="",               help="checkins.csv path for venue sweep")
-    parser.add_argument("--full",  action="store_true",      help="Force full re-fetch via users endpoint")
-    parser.add_argument("--sweep", action="store_true",      help="Also sweep per-venue for hidden tips")
+    parser.add_argument("--token",      default="",               help="Foursquare OAuth token")
+    parser.add_argument("--out",        default="data/tips.json", help="Output JSON path")
+    parser.add_argument("--csv",        default="",               help="checkins.csv path for venue sweep")
+    parser.add_argument("--full",       action="store_true",      help="Force full re-fetch via users endpoint")
+    parser.add_argument("--sweep",      action="store_true",      help="Also sweep per-venue for hidden tips")
+    parser.add_argument("--add-tip-id", default="",               help="Fetch a single tip by ID and add it as closed=True")
     args = parser.parse_args()
 
     token = resolve_token(args.token)
@@ -223,6 +244,30 @@ def main() -> None:
     out_path = Path(args.out)
     existing = load_existing(out_path)
     existing_ids = {t["id"] for t in existing if t.get("id")}
+
+    # ── --add-tip-id: fetch one tip by ID and add it as closed=True ──────────
+    if args.add_tip_id:
+        tip_id = args.add_tip_id.strip()
+        if tip_id in existing_ids:
+            log.info("Tip %s is already in tips.json — nothing to do.", tip_id)
+            print("CHANGED=false")
+            return
+        raw = fetch_tip_by_id(token, tip_id)
+        if not raw:
+            log.error("Could not fetch tip %s — check the ID and token.", tip_id)
+            print("CHANGED=false")
+            return
+        tip = api_tip_to_dict(raw)
+        tip["closed"] = True
+        by_id = {t["id"]: t for t in existing if t.get("id")}
+        by_id[tip["id"]] = tip
+        all_tips = sorted(by_id.values(), key=lambda t: -t.get("ts", 0))
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(all_tips, ensure_ascii=False, indent=2), encoding="utf-8")
+        log.info("Added tip %s — %s @ %s", tip["id"], tip["venue"], tip["city"])
+        print("CHANGED=true")
+        return
+
     max_ts = max((t.get("ts", 0) for t in existing), default=0)
     do_full = args.full or not out_path.exists() or not existing
 
