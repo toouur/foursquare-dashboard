@@ -1556,12 +1556,15 @@ function filterList(id,q){
     }catch(e){const el=document.getElementById('rcw_'+i);if(el)el.innerHTML='';}
   }
   recent.forEach((r,i)=>setTimeout(()=>fetchWeather(r,i),i*120));
+  // Expose for tips section
+  window._catIcon=catIcon;
 })();
 
 // ── Tips recent section ──────────────────────────────────────────────────────
 (function(){
   const tips={{TIPS_RECENT}};
   if(!tips||!tips.items||!tips.items.length)return;
+  const catIcon=window._catIcon||(()=>'');
   document.getElementById('tipsFeedSection').style.display='';
   document.getElementById('tipsSub').textContent=tips.total.toLocaleString()+' tips total';
   const scroll=document.getElementById('tipsScroll');
@@ -1569,11 +1572,11 @@ function filterList(id,q){
     const tUrl=t.id?`https://foursquare.com/item/${t.id}`:'';
     const vUrl=t.venue_id?`https://foursquare.com/v/${t.venue_id}`:'';
     const tag=tUrl?'a':'div', href=tUrl?` href="${tUrl}" target="_blank" rel="noopener"`:'';
-    const f=t.country?flagHtml(t.country):'';
-    const loc=[t.city,t.country].filter(Boolean).join(', ');
+    const f=(t.nc||t.country)?flagHtml(t.nc||t.country):'';
+    const loc=[(t.nci||t.city),(t.nc||t.country)].filter(Boolean).join(', ');
     const agree=t.agree_count>0?`<div class="rc-agree">👍 ${t.agree_count}</div>`:'';
     return `<${tag}${href} class="recent-card tip-card" style="${tUrl?'text-decoration:none;cursor:pointer;':''}">
-      <div class="rc-venue-row"><div class="rc-venue">${esc(t.venue||'Unknown venue')}</div></div>
+      <div class="rc-venue-row"><div class="rc-venue">${esc(t.venue||'Unknown venue')}</div>${catIcon(t.category||'')}</div>
       <div class="rc-tip-text">${esc(t.text||'')}</div>
       <div class="rc-location">${f}${esc(loc)}</div>
       ${agree}
