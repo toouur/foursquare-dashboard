@@ -270,8 +270,9 @@ def main() -> None:
     all_tips = sorted(by_id.values(), key=lambda t: -t.get("ts", 0))
     changed = len(all_tips) != len(existing) or new_from_users > 0 or new_from_sweep > 0
 
-    if do_full:
-        # For full re-fetch, always check if content actually changed
+    # Always do a content comparison so manual patches to existing tips
+    # (e.g. setting closed=True) are detected and trigger a rebuild.
+    if not changed:
         changed = all_tips != existing
 
     if changed:
