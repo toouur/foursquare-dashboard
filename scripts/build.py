@@ -164,7 +164,9 @@ if __name__ == "__main__":
     data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags)
 
     # ── Load tips for recent section ─────────────────────────────────────────
-    tips_path = _PROJECT_ROOT / "data" / "tips.json"
+    # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
+    # private-data/tips.json) and local (data/checkins.csv → data/tips.json) both work.
+    tips_path = Path(args.input).resolve().parent / "tips.json"
     tips_recent_json = '{"total":0,"items":[]}'
     if tips_path.exists():
         all_tips = json.loads(tips_path.read_text(encoding="utf-8"))
