@@ -169,6 +169,13 @@ if __name__ == "__main__":
     tips_path = Path(args.input).resolve().parent / "tips.json"
     tips_recent_json = '{"total":0,"items":[]}'
     if tips_path.exists():
+        # Import CTRY_NORM from gen_tips for country-name normalisation
+        try:
+            from gen_tips import CTRY_NORM as _CTRY_NORM
+        except ImportError:
+            _CTRY_NORM = {}
+        _city_merge = mappings.get("city_merge", {})
+
         all_tips = json.loads(tips_path.read_text(encoding="utf-8"))
         all_tips.sort(key=lambda t: -t.get("ts", 0))
         recent30 = []
@@ -179,6 +186,10 @@ if __name__ == "__main__":
                 from datetime import datetime, timezone as _tz
                 dt = datetime.fromtimestamp(ts, tz=_tz.utc)
                 date_str = dt.strftime("%d %b %Y")
+            raw_country = t.get("country") or ""
+            raw_city = t.get("city") or ""
+            nc = _CTRY_NORM.get(raw_country, raw_country)
+            nci = _city_merge.get(raw_city, raw_city)
             recent30.append({
                 "id":          t.get("id", ""),
                 "ts":          ts,
@@ -186,8 +197,10 @@ if __name__ == "__main__":
                 "text":        t.get("text", ""),
                 "venue":       t.get("venue", ""),
                 "venue_id":    t.get("venue_id", ""),
-                "city":        t.get("city", ""),
-                "country":     t.get("country", ""),
+                "city":        raw_city,
+                "country":     raw_country,
+                "nc":          nc,
+                "nci":         nci,
                 "category":    t.get("category", ""),
                 "agree_count": t.get("agree_count", 0),
             })
