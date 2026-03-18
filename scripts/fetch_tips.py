@@ -263,6 +263,7 @@ def main() -> None:
             sweep_tips = fetch_venue_sweep(token, venue_ids, covered_venue_ids)
             for t in sweep_tips:
                 if t.get("id") and t["id"] not in by_id:
+                    t["closed"] = True   # sweep-only tips are on closed venues
                     by_id[t["id"]] = t
                     new_from_sweep += 1
 
