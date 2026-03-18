@@ -1,16 +1,18 @@
 """
 fetch_tips.py  –  Fetch tips from Foursquare API and merge into tips.json.
 
-Works for closed venues — the API still returns venue data after closure.
+Two complementary strategies to capture all tips including those on closed venues:
+
+  1. /users/self/tips  — fast, returns ~all tips, but may miss some closed-venue tips.
+  2. /venues/{vid}/tips?filter=self  — per-venue sweep using venue IDs from checkins.csv.
+     Only queries venues NOT already in the tip set. Catches tips the user endpoint omits.
 
 Usage:
     python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out data/tips.json
-    python scripts/fetch_tips.py --full   # force full re-fetch
-
-Modes:
-  - Incremental (default when tips.json exists): fetch tips sorted by recent,
-    stop as soon as we reach a tip already in the file (by timestamp).
-  - Full (--full or tips.json missing): offset-paginate through all tips.
+    python scripts/fetch_tips.py --full              # force full re-fetch (users endpoint)
+    python scripts/fetch_tips.py --full --sweep      # full re-fetch + venue sweep
+    python scripts/fetch_tips.py --sweep             # venue sweep only (extend existing tips)
+    python scripts/fetch_tips.py --csv data/checkins.csv --sweep  # explicit CSV path
 
 Outputs:
   - Prints CHANGED=true/false to stdout (for GitHub Actions >> $GITHUB_OUTPUT).
@@ -18,6 +20,7 @@ Outputs:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import logging
 import os
@@ -29,10 +32,12 @@ import requests
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 
-TIPS_API = "https://api.foursquare.com/v2/users/self/tips"
-API_V    = "20231201"
-LIMIT    = 500
-SLEEP    = 0.35
+TIPS_API   = "https://api.foursquare.com/v2/users/self/tips"
+VENUE_API  = "https://api.foursquare.com/v2/venues/{vid}/tips"
+API_V      = "20231201"
+LIMIT      = 500
+SLEEP      = 0.35
+SLEEP_VEN  = 0.25   # shorter sleep for per-venue calls (one tip each at most)
 
 
 def resolve_token(cli_token: str | None) -> str:
@@ -76,7 +81,7 @@ def api_tip_to_dict(t: dict) -> dict:
     }
 
 
-def _request(token: str, params: dict) -> dict:
+def _request_users(token: str, params: dict) -> dict:
     resp = requests.get(
         TIPS_API,
         params={"oauth_token": token, "v": API_V, **params},
@@ -95,7 +100,7 @@ def fetch_incremental(token: str, after_ts: int) -> list[dict]:
     offset = 0
 
     while True:
-        data = _request(token, {"limit": LIMIT, "offset": offset, "sort": "recent"})
+        data = _request_users(token, {"limit": LIMIT, "offset": offset, "sort": "recent"})
         items = data.get("items", [])
         if not items:
             break
@@ -122,12 +127,12 @@ def fetch_full(token: str) -> list[dict]:
     tips: list[dict] = []
     offset = 0
 
-    probe = _request(token, {"limit": 1})
+    probe = _request_users(token, {"limit": 1})
     total = probe.get("count", 0)
     log.info("Full fetch: server reports %d tips", total)
 
     while True:
-        data = _request(token, {"limit": LIMIT, "offset": offset})
+        data = _request_users(token, {"limit": LIMIT, "offset": offset})
         items = data.get("items", [])
         if not items:
             break
@@ -141,11 +146,71 @@ def fetch_full(token: str) -> list[dict]:
     return tips
 
 
+def load_venue_ids_from_csv(csv_path: Path) -> list[str]:
+    """Return unique non-empty venue_ids from checkins.csv, preserving first-seen order."""
+    seen: dict[str, None] = {}
+    try:
+        with open(csv_path, encoding="utf-8", newline="") as fh:
+            for row in csv.DictReader(fh):
+                vid = (row.get("venue_id") or "").strip()
+                if vid:
+                    seen[vid] = None
+    except Exception as exc:
+        log.warning("Could not read CSV %s: %s", csv_path, exc)
+    return list(seen)
+
+
+def fetch_venue_sweep(token: str, venue_ids: list[str], known_ids: set[str]) -> list[dict]:
+    """
+    For each venue_id, call /venues/{vid}/tips?filter=self.
+    Only queries venues whose tips are not already in known_ids (by venue_id).
+    Returns any newly discovered tips.
+    """
+    # Build set of venue_ids already covered by existing tips
+    covered_venues = known_ids  # we pass venue_ids of already-known tips
+
+    candidates = [vid for vid in venue_ids if vid not in covered_venues]
+    log.info("Venue sweep: %d venues to probe (skipping %d already covered)",
+             len(candidates), len(venue_ids) - len(candidates))
+
+    new_tips: list[dict] = []
+    for i, vid in enumerate(candidates):
+        try:
+            resp = requests.get(
+                VENUE_API.format(vid=vid),
+                params={"oauth_token": token, "v": API_V, "limit": 200, "filter": "self"},
+                timeout=20,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("meta", {}).get("code") != 200:
+                continue
+            items = data.get("response", {}).get("tips", {}).get("items", [])
+            for item in items:
+                tip = api_tip_to_dict(item)
+                if tip["id"] and tip["id"] not in known_ids:
+                    new_tips.append(tip)
+                    log.info("  Found hidden tip on venue %s: %s", vid, tip["text"][:60])
+        except Exception as exc:
+            log.debug("Venue %s skipped: %s", vid, exc)
+
+        if (i + 1) % 100 == 0:
+            log.info("Venue sweep progress: %d / %d probed, %d new tips found",
+                     i + 1, len(candidates), len(new_tips))
+        time.sleep(SLEEP_VEN)
+
+    log.info("Venue sweep complete: %d new tips found across %d venues probed",
+             len(new_tips), len(candidates))
+    return new_tips
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--token", default="", help="Foursquare OAuth token")
+    parser.add_argument("--token", default="",               help="Foursquare OAuth token")
     parser.add_argument("--out",   default="data/tips.json", help="Output JSON path")
-    parser.add_argument("--full",  action="store_true",      help="Force full re-fetch")
+    parser.add_argument("--csv",   default="",               help="checkins.csv path for venue sweep")
+    parser.add_argument("--full",  action="store_true",      help="Force full re-fetch via users endpoint")
+    parser.add_argument("--sweep", action="store_true",      help="Also sweep per-venue for hidden tips")
     args = parser.parse_args()
 
     token = resolve_token(args.token)
@@ -160,6 +225,7 @@ def main() -> None:
     max_ts = max((t.get("ts", 0) for t in existing), default=0)
     do_full = args.full or not out_path.exists() or not existing
 
+    # ── Step 1: users/self/tips ──────────────────────────────────────────────
     try:
         if do_full:
             log.info("Mode: FULL %s", "(forced)" if args.full else "(tips.json missing/empty)")
@@ -172,26 +238,47 @@ def main() -> None:
         print("CHANGED=false")
         return
 
-    added = [t for t in fetched if t.get("id") not in existing_ids]
-    log.info("New (de-duped): %d", len(added))
+    # Merge with existing
+    by_id: dict[str, dict] = {t["id"]: t for t in existing if t.get("id")}
+    for t in fetched:
+        if t.get("id"):
+            by_id[t["id"]] = t
+    new_from_users = len(by_id) - len(existing_ids)
 
-    if not added and not do_full:
-        print("CHANGED=false")
-        return
+    # ── Step 2: venue sweep (optional) ───────────────────────────────────────
+    new_from_sweep = 0
+    if args.sweep:
+        # Resolve CSV path: explicit --csv, or next to tips.json, or default
+        if args.csv:
+            csv_path = Path(args.csv)
+        else:
+            csv_path = out_path.parent / "checkins.csv"
+        if not csv_path.exists():
+            log.warning("--sweep requested but CSV not found at %s", csv_path)
+        else:
+            venue_ids = load_venue_ids_from_csv(csv_path)
+            # "covered" = venues already represented in the merged tip set
+            covered_venue_ids = {t["venue_id"] for t in by_id.values() if t.get("venue_id")}
+            sweep_tips = fetch_venue_sweep(token, venue_ids, covered_venue_ids)
+            for t in sweep_tips:
+                if t.get("id") and t["id"] not in by_id:
+                    by_id[t["id"]] = t
+                    new_from_sweep += 1
+
+    all_tips = sorted(by_id.values(), key=lambda t: -t.get("ts", 0))
+    changed = len(all_tips) != len(existing) or new_from_users > 0 or new_from_sweep > 0
 
     if do_full:
-        # Full re-fetch: replace entirely (dedupe by id)
-        by_id = {t["id"]: t for t in fetched if t.get("id")}
-        all_tips = sorted(by_id.values(), key=lambda t: -t["ts"])
+        # For full re-fetch, always check if content actually changed
         changed = all_tips != existing
-    else:
-        all_tips = sorted(existing + added, key=lambda t: -t.get("ts", 0))
-        changed = True
 
     if changed:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(all_tips, ensure_ascii=False, indent=2), encoding="utf-8")
-        log.info("Wrote %d tips → %s", len(all_tips), out_path)
+        log.info("Wrote %d tips → %s (+%d from users endpoint, +%d from venue sweep)",
+                 len(all_tips), out_path, new_from_users, new_from_sweep)
+    else:
+        log.info("No new tips found.")
 
     print(f"CHANGED={'true' if changed else 'false'}")
 
