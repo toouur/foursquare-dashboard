@@ -203,6 +203,7 @@ if __name__ == "__main__":
                 "nci":         nci,
                 "category":    t.get("category", ""),
                 "agree_count": t.get("agree_count", 0),
+                "closed":      bool(t.get("closed", False)),
             })
         tips_recent_json = json.dumps(
             {"total": len(all_tips), "items": recent30},
