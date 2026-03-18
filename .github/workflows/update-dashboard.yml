@@ -112,7 +112,7 @@ jobs:
             echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping tips fetch."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
-            python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json >> "$GITHUB_OUTPUT"
+            python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json --csv private-data/checkins.csv >> "$GITHUB_OUTPUT"
           fi
 
       # ── 5. Exit gracefully if neither check-ins nor tips changed ─────────────
