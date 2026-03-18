@@ -26,11 +26,6 @@ on:
   push:
     branches: [main]         # verify build on every push (no deploy)
   workflow_dispatch:         # manual trigger button in GitHub UI
-    inputs:
-      sweep_tips:
-        description: 'Run venue sweep for hidden tips on closed venues'
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -117,14 +112,12 @@ jobs:
             echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping tips fetch."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
-            SWEEP_FLAG=""
-            if [ "${{ github.event.inputs.sweep_tips }}" = "true" ]; then SWEEP_FLAG="--sweep"; fi
-            python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json --csv private-data/checkins.csv $SWEEP_FLAG >> "$GITHUB_OUTPUT"
+            python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json --csv private-data/checkins.csv >> "$GITHUB_OUTPUT"
           fi
 
       # ── 5. Exit gracefully if neither check-ins nor tips changed ─────────────
       - name: Skip if no new data
-        if: steps.fetch.outputs.CHANGED != 'true' && steps.fetch_tips.outputs.CHANGED != 'true'
+        if: github.event_name != 'workflow_dispatch' && steps.fetch.outputs.CHANGED != 'true' && steps.fetch_tips.outputs.CHANGED != 'true'
         run: |
           echo "No new check-ins or tips — nothing to rebuild or deploy."
           exit 0
@@ -148,7 +141,7 @@ jobs:
 
       # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
-        if: steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
         run: |
           python scripts/build.py \
             --input private-data/checkins.csv \
@@ -157,7 +150,7 @@ jobs:
 
       # ── 8. Commit HTML to public repo → Cloudflare Pages auto-deploys ────────
       - name: Commit updated HTML files
-        if: steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
