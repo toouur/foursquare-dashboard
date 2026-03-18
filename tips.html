@@ -71,6 +71,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .tc-date{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);}
 .tc-fsq{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);text-decoration:none;}
 .tc-fsq:hover{color:var(--gold);}
+.tc-closed{font-family:'DM Mono',monospace;font-size:.50rem;color:#ef4444;border:1px solid rgba(239,68,68,.45);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
+.tc-loc{display:inline-flex;align-items:center;gap:3px;}
 
 /* ── Map popup ── */
 .leaflet-popup-content-wrapper{background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.80rem;}
@@ -348,10 +350,12 @@ function render(){
     const f=t.nc?flagHtml(t.nc):'';
     const loc=[t.nci||t.city,t.nc||t.country].filter(Boolean).join(', ');
     const agree=t.agree_count>0?`<span class="tc-agree">👍 ${t.agree_count}</span>`:'';
+    const closedBadge=t.closed?'<span class="tc-closed">CLOSED</span>':'';
+    const venueLabel=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(t.venue||'Unknown venue')}</a>`:esc(t.venue||'Unknown venue');
     return `<div class="tcard" id="tc_${i}" onclick="selectTip(${i})">
       <div class="tc-venue-row">
         <div class="tc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>
-        <div class="tc-venue">${vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(t.venue||'Unknown venue')}</a>`:esc(t.venue||'Unknown venue')}</div>
+        <div class="tc-venue">${venueLabel}${closedBadge}</div>
       </div>
       <div class="tc-text">${esc(t.text||'')}</div>
       <div class="tc-meta">

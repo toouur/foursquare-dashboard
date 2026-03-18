@@ -186,8 +186,12 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 
 /* ── TIPS CARDS ── */
 .tip-card{flex:0 0 260px;}
-.rc-tip-text{font-size:0.80rem;color:var(--text);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:2px;}
-.rc-agree{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--teal);}
+.tip-card .rc-tip-text{flex:1;}
+.rc-tip-text{font-size:0.80rem;color:var(--text);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.rc-tip-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:4px;}
+.rc-tip-foot .rc-location{margin-top:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.rc-tip-foot .rc-date{padding-top:0;white-space:nowrap;flex-shrink:0;}
+.rc-closed{font-family:'DM Mono',monospace;font-size:.50rem;color:#ef4444;border:1px solid rgba(239,68,68,.45);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
 
 /* ── RECENT CARD: MINI MAP ── */
 .rc-map{margin:-18px -18px 12px;height:90px;position:relative;overflow:hidden;border-radius:12px 12px 0 0;background:var(--card2);}
@@ -1574,13 +1578,15 @@ function filterList(id,q){
     const tag=tUrl?'a':'div', href=tUrl?` href="${tUrl}" target="_blank" rel="noopener"`:'';
     const f=(t.nc||t.country)?flagHtml(t.nc||t.country):'';
     const loc=[(t.nci||t.city),(t.nc||t.country)].filter(Boolean).join(', ');
-    const agree=t.agree_count>0?`<div class="rc-agree">👍 ${t.agree_count}</div>`:'';
+    const closedBadge=t.closed?'<span class="rc-closed">CLOSED</span>':'';
+    const agreeStr=t.agree_count>0?`👍 ${t.agree_count} · `:'';
     return `<${tag}${href} class="recent-card tip-card" style="${tUrl?'text-decoration:none;cursor:pointer;':''}">
-      <div class="rc-venue-row"><div class="rc-venue">${esc(t.venue||'Unknown venue')}</div>${catIcon(t.category||'')}</div>
+      <div class="rc-venue-row"><div class="rc-venue">${esc(t.venue||'Unknown venue')}${closedBadge}</div>${catIcon(t.category||'')}</div>
       <div class="rc-tip-text">${esc(t.text||'')}</div>
-      <div class="rc-location">${f}${esc(loc)}</div>
-      ${agree}
-      <div class="rc-date">${t.date}</div>
+      <div class="rc-tip-foot">
+        <span class="rc-location">${f} ${esc(loc)}</span>
+        <span class="rc-date">${agreeStr}${t.date}</span>
+      </div>
     </${tag}>`;
   }).join('');
 })();
