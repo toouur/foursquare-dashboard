@@ -129,7 +129,7 @@ footer a:hover{text-decoration:underline;}
       <div class="stat-lbl">Check-in → Live Deploy</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">6</div>
+      <div class="stat-num">7</div>
       <div class="stat-lbl">Generated HTML Pages</div>
     </div>
     <div class="stat-item">
@@ -418,6 +418,55 @@ const url = <span class="hl">`...&start_date=${utcDate}...&timezone=auto`</span>
           and <strong><code>trip_names.json</code></strong> / <strong><code>trip_tags.json</code></strong>
           attach human-readable names and activity tags (bicycle, camping, etc.) keyed by the
           final resolved start timestamp.
+        </div>
+      </div>
+    </div>
+
+    <!-- C8 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 08 — Tips on Closed Venues Are Silently Omitted</div>
+        <div class="cs-text">
+          Foursquare's <code>/users/self/tips</code> endpoint silently omits any tip written on
+          a venue that has since been closed or deleted. With no error, no flag, and no indication
+          in the response, a full fetch of 1&nbsp;782 tips appeared complete — until a per-venue sweep
+          revealed 25 additional tips that existed only on closed venues.
+          A secondary problem: the API returns country names in the <em>local language</em>
+          (<code>Беларусь</code>, <code>Republica Moldova</code>, <code>المغرب</code>…) rather than
+          a consistent English form, breaking grouping, flag lookup, and tab rendering.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Two-Strategy Fetch + Normalization Pipeline</div>
+        <div class="cs-text">
+          The tips pipeline uses two complementary strategies that together achieve completeness:
+        </div>
+        <div class="code-block">
+<span class="cm"># Strategy 1 — users endpoint (fast, ~1 800 tips in one paginated sweep)</span>
+GET /v2/users/self/tips?limit=500&amp;offset=0  <span class="cm"># silent about closed venues</span>
+
+<span class="cm"># Strategy 2 — per-venue sweep (catches closed-venue tips)</span>
+<span class="kw">for</span> venue_id <span class="kw">in</span> checkins_csv:
+    <span class="kw">if</span> venue_id <span class="kw">not in</span> existing_tips:
+        GET /v2/venues/{venue_id}/tips?filter=self  <span class="cm"># reveals closed-venue tips</span>
+        <span class="kw">if</span> new_tip_found:
+            tip[<span class="hl">"closed"</span>] = <span class="hl2">True</span>   <span class="cm"># auto-marked as closed</span>
+        </div>
+        <div class="cs-text">
+          Any tip discovered exclusively via the sweep — not returned by the users endpoint —
+          is automatically marked <code>closed=True</code> in <code>tips.json</code>.
+          The 25 pre-existing sweep tips were identified retroactively by comparing the initial
+          1&nbsp;782-tip commit in the data repo against HEAD (1&nbsp;807 tips); the 25-ID delta was
+          patched directly.
+        </div>
+        <div class="cs-text">
+          Country name normalisation uses a <strong><code>CTRY_NORM</code></strong> dictionary
+          in <code>gen_tips.py</code> mapping every local-language variant to its English form.
+          City names reuse the existing <code>city_merge.yaml</code> pipeline. Both normalised
+          values are stored as <code>nc</code> (country) and <code>nci</code> (city) on each tip
+          record and propagated into the recent-30 tips slice embedded in <code>index.html</code>.
+          Tip cards display a <strong><code>CLOSED</code></strong> badge on any venue with
+          <code>closed=True</code>, surfacing the otherwise invisible data-quality gap to the reader.
         </div>
       </div>
     </div>
