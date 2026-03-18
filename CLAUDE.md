@@ -20,6 +20,22 @@ python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv data/checkins
 python scripts/fetch_checkins.py --full   # Force full re-fetch
 ```
 
+### Fetch tips from Foursquare API
+```bash
+# Incremental (new tips only)
+python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out data/tips.json
+
+# Full re-fetch + venue sweep (finds tips on closed/deleted venues)
+python scripts/fetch_tips.py --full --sweep --csv data/checkins.csv --out data/tips.json
+```
+
+Tips live in the private data repo at `data/tips.json` (same folder as `checkins.csv`).
+The venue sweep adds tips whose venues are NOT returned by `/users/self/tips` — these are automatically marked `closed=True`.
+To recover tips from closed venues using browser cookies (one-time):
+```bash
+python scripts/find_closed_venue_tips.py --token "$FOURSQUARE_TOKEN" --cookies cookies.txt --csv data/checkins.csv --tips data/tips.json
+```
+
 ### Preview locally
 ```bash
 python -m http.server 8000   # then open http://localhost:8000
@@ -36,13 +52,15 @@ python scripts/build.py --input data/checkins.csv --config-dir config --output-d
 ```
 Foursquare API
   → scripts/fetch_checkins.py     # writes/updates data/checkins.csv
+  → scripts/fetch_tips.py         # writes/updates data/tips.json
   → scripts/build.py              # orchestrator:
       ├── scripts/transform.py    # normalise city/country names
       ├── scripts/metrics.py      # compute all aggregations + trip detection
-      ├── templates/index.html.tmpl  → index.html
+      ├── templates/index.html.tmpl  → index.html  (includes TIPS_RECENT from tips.json)
       ├── templates/trips.html.tmpl  → trips.html
       ├── scripts/gen_companions.py  → companions.html
       ├── scripts/gen_feed.py        → feed.html
+      ├── scripts/gen_tips.py        → tips.html    (reads tips.json)
       ├── scripts/gen_venues.py      → venues.html
       └── scripts/gen_worldcities.py → world_cities.html
 ```
@@ -59,8 +77,11 @@ All HTML output is **pre-built and committed** — the site is purely static wit
 |--------|------|
 | `transform.py` | Apply city_merge.yaml, city_fixes.json, country_fixes.json; infer blank cities from CSV centroids |
 | `metrics.py` | All aggregations, trip detection, timezone-aware local timestamps, `recent` last-30 check-ins |
-| `build.py` | CLI entry: loads settings.yaml, calls transform → metrics → renders templates → calls gen_*.py |
+| `build.py` | CLI entry: loads settings.yaml, calls transform → metrics → renders templates → calls gen_*.py; also loads tips.json for TIPS_RECENT section |
 | `fetch_checkins.py` | Incremental or full Foursquare API fetch; exits with `CHANGED=true/false` env var |
+| `fetch_tips.py` | Incremental or full tips fetch from `/users/self/tips`; optional `--sweep` probes per-venue for tips on closed venues (auto-marks `closed=True`) |
+| `gen_tips.py` | Builds tips.html from tips.json: normalises country names via `CTRY_NORM` dict, city names via city_merge.yaml, computes `TABS_DATA` for country/city tab filtering |
+| `find_closed_venue_tips.py` | One-time utility: uses browser cookies to scrape venue pages and recover tips that the API omits entirely |
 
 ### Configuration files (`config/`)
 
@@ -142,6 +163,20 @@ For trips where `trip_tags[_name_ts]` contains `"bicycle"`: scans backward up to
 
 `_BICYCLE_PASSTHROUGH_CATS`: Sports and Recreation, Road, Bridge, River, Lake, Waterfall, Park, Trail, Bike Trail, Other Great Outdoors, Beach, Reservoir, Bike Rental.
 
+### Tips page (`gen_tips.py` + `templates/tips.html.tmpl`)
+
+`tips.html` is built from `data/tips.json` (stored in the private data repo). Key details:
+
+- **Country normalisation:** `gen_tips.py` has a `CTRY_NORM` dict mapping local-language country names (Cyrillic, Arabic, etc.) from the Foursquare API to English. This is also imported by `build.py` for the TIPS_RECENT section in index.html.
+- **City normalisation:** `city_merge.yaml` (same as checkins pipeline) is applied to `t.city` → `t.nci`.
+- **`TABS_DATA`:** `{country: {total, cities: [[city, count], …]}}` injected as a JS constant for client-side country/city tab filtering.
+- **Closed venues:** Tips discovered via venue sweep have `closed=True` in tips.json. The template shows a red `CLOSED` badge next to the venue name. The `tc-loc` span uses `display:inline-flex` + `gap` for flag spacing.
+- **Template:** `tips.html.tmpl` uses `{{TIPS_DATA_PLACEHOLDER}}` and `{{TABS_DATA_PLACEHOLDER}}` substitution.
+
+### Tips in index.html (`build.py` TIPS_RECENT)
+
+`build.py` loads `data/tips.json` (resolved next to `checkins.csv`), takes the 30 most recent, and injects them as `{{TIPS_RECENT}}` into `index.html.tmpl`. Each recent tip item includes `nc` (normalised country), `nci` (normalised city), and `closed` fields. The tip cards use `window._catIcon` (exported from the checkins IIFE) for category icons.
+
 ### World-cities continent-aware matching
 `index.html.tmpl` and `gen_worldcities.py` both have a `CTRY_CONT` JavaScript dict and a `matchVisited`/`getVisitCount` function that guards against false city matches across continents (e.g., Malta's "Rabat" ≠ Morocco's "Rabat"). Any change to this logic must be kept in sync between both files.
 
@@ -153,11 +188,17 @@ Browsers silently ignore `var()` CSS custom properties inside `:visited` rules (
 
 ## Data storage
 
-`data/checkins.csv` is **not committed** to this public repo. It lives in the private repo `toouur/foursquare-data` and is checked out during CI via `DATA_REPO_PAT`. Locally the file lives at `data/checkins.csv` (gitignored). To sync a full re-fetch:
+`data/checkins.csv` and `data/tips.json` are **not committed** to this public repo. Both live in the private repo `toouur/foursquare-data` and are checked out during CI via `DATA_REPO_PAT`. Locally the files live at `data/checkins.csv` and `data/tips.json` (gitignored).
 
 ```bash
+# Full re-fetch of check-ins
 python scripts/fetch_checkins.py --full --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv
+
+# Full re-fetch of tips + venue sweep for closed-venue tips
+python scripts/fetch_tips.py --full --sweep --token "$FOURSQUARE_TOKEN" --out data/tips.json --csv data/checkins.csv
 ```
+
+**Closed-venue tip detection:** `fetch_tips.py --sweep` probes each venue in `checkins.csv` that isn't already in `tips.json` and marks any discovered tips as `closed=True`. The `find_closed_venue_tips.py` script offers a deeper alternative using actual browser session cookies to scrape venue pages (use once after a full sweep if tips are still missing).
 
 ## Deployment
 - **Cloudflare Pages:** Auto-deploys on every push to `main` (no build step needed)

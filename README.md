@@ -4,7 +4,8 @@ A self-updating personal dashboard for your Foursquare/Swarm check-in history.
 
 **Features:** heatmap + dot map + country flag map · charts by year / month / hour / day of week ·
 GitHub-style activity heatmap · travel timeline (Gantt) · trip journal with per-trip maps ·
-searchable cities & venues · venue loyalty · category explorer · recent check-ins with historical weather.
+searchable cities & venues · venue loyalty · category explorer · recent check-ins with historical weather ·
+tips page with country/city tabs, map, and closed-venue detection.
 
 ---
 
@@ -13,16 +14,20 @@ searchable cities & venues · venue loyalty · category explorer · recent check
 ```
 .
 ├── scripts/
-│   ├── fetch_checkins.py     # Fetch check-ins from Foursquare API → data/checkins.csv
-│   ├── transform.py          # Data cleaning: country fixes, city normalisation
-│   ├── metrics.py            # All aggregation + trip-detection logic
-│   ├── build.py              # CLI entry point: checkins.csv → index.html + trips.html
-│   ├── gen_companions.py     # Generates companions.html
-│   ├── gen_feed.py           # Generates feed.html (infinite-scroll with weather)
-│   ├── gen_venues.py         # Generates venues.html (top 500 venues)
-│   └── gen_worldcities.py    # Generates world_cities.html
+│   ├── fetch_checkins.py        # Fetch check-ins from Foursquare API → data/checkins.csv
+│   ├── fetch_tips.py            # Fetch tips → data/tips.json (incremental + venue sweep)
+│   ├── transform.py             # Data cleaning: country fixes, city normalisation
+│   ├── metrics.py               # All aggregation + trip-detection logic
+│   ├── build.py                 # CLI entry point: checkins.csv → index.html + trips.html
+│   ├── gen_companions.py        # Generates companions.html
+│   ├── gen_feed.py              # Generates feed.html (infinite-scroll with weather)
+│   ├── gen_tips.py              # Generates tips.html (country/city tabs, map, CLOSED badges)
+│   ├── gen_venues.py            # Generates venues.html (top 500 venues)
+│   ├── gen_worldcities.py       # Generates world_cities.html
+│   └── find_closed_venue_tips.py  # One-time utility: find tips on closed venues via browser cookies
 ├── data/
-│   └── checkins.csv          # Your check-in data — gitignored, lives in private repo
+│   ├── checkins.csv          # Your check-in data — gitignored, lives in private repo
+│   └── tips.json             # Your tips data — gitignored, lives in private repo alongside checkins.csv
 ├── workers/
 │   └── checkin-poller/       # Cloudflare Worker: polls Foursquare every minute,
 │       ├── worker.js         #   triggers GitHub Actions on new check-in
@@ -40,11 +45,13 @@ searchable cities & venues · venue loyalty · category explorer · recent check
 │   └── trip_end_overrides.json    # Force trip end at a specific timestamp
 ├── templates/
 │   ├── index.html.tmpl       # Template for index.html
-│   └── trips.html.tmpl       # Template for trips.html
+│   ├── trips.html.tmpl       # Template for trips.html
+│   └── tips.html.tmpl        # Template for tips.html
 ├── index.html                # Main dashboard (built by CI, committed)
 ├── trips.html                # Trip journal (built by CI, committed)
 ├── companions.html           # Companions page (built by CI)
 ├── feed.html                 # Check-in feed (built by CI)
+├── tips.html                 # Tips page (built by CI)
 ├── venues.html               # Top venues (built by CI)
 ├── world_cities.html         # World cities explorer (built by CI)
 ├── requirements.txt          # Python deps (requests, pyyaml, timezonefinder)
@@ -128,6 +135,9 @@ pip install -r requirements.txt
 export FOURSQUARE_TOKEN=your_token_here
 python scripts/fetch_checkins.py
 
+# Fetch tips (incremental)
+python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out data/tips.json
+
 # Build dashboard
 python scripts/build.py
 
@@ -140,6 +150,9 @@ python -m http.server 8000
 ```bash
 # Force full re-fetch (ignore existing CSV)
 python scripts/fetch_checkins.py --full
+
+# Tips: force full re-fetch + venue sweep (finds tips on closed venues)
+python scripts/fetch_tips.py --full --sweep --csv data/checkins.csv
 
 # Custom paths / home city
 python scripts/build.py --input data/checkins.csv --home-city "Minsk" --config-dir config
