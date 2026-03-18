@@ -1137,6 +1137,107 @@
   "Kalodziščy": "Kalodziščy"  # approved singleton review rank 790
   "Kryvyy Rih": "Kryvyi Rih"  # approved singleton review rank 792
   "Obišovce": "Košice"  # approved singleton review rank 796
+
+  # ══ TIPS — local-script city names missing from checkins pipeline ══
+
+  # Belarus (Belarusian Cyrillic forms)
+  "Брэст": "Brest"
+  "Быхаў": "Bykhaw"
+  "Вілейка": "Vileyka"
+  "Віцебск": "Vitebsk"
+  "Крычаў": "Krychaw"
+  "Ліда": "Lida"
+  "Лоеў": "Loyew"
+  "Мёры": "Myory"
+  "Навагрудак": "Navahrudak"
+  "Наваполацк": "Navapolatsk"
+  "Нясвіж": "Nesvizh"
+  "Пінск": "Pinsk"
+  "Полацк": "Polotsk"
+  "Рэчыца": "Rechytsa"
+  "Салігорск": "Salihorsk"
+
+  # Russia
+  "Великие Луки": "Velikiye Luki"
+  "Владимир": "Vladimir"
+  "Иркутск": "Irkutsk"
+  "Красное": "Krasnoye"
+  "Листвянка": "Listvyanka"
+  "Невель": "Nevel"
+  "Омск": "Omsk"
+  "Сестрорецк": "Sestroretsk"
+  "Хужир": "Khuzhir"
+
+  # Ukraine (Ukrainian Cyrillic forms)
+  "Дніпро": "Dnipro"
+  "Здолбунів": "Zdolbuniv"
+  "Ковель": "Kovel"
+  "Кривий Ріг": "Kryvyi Rih"
+  "Одеса": "Odesa"
+  "Сарни": "Sarny"
+  "Тернопіль": "Ternopil"
+  "Умань": "Uman"
+  "Херсон": "Kherson"
+  "Чернівці": "Chernivtsi"
+  "Чернігів": "Chernihiv"
+  "Чорноморськ": "Chornomorsk"
+
+  # Serbia
+  "Београд": "Belgrade"
+  "Нови Сад": "Novi Sad"
+
+  # Bulgaria
+  "Варна": "Varna"
+
+  # Kyrgyzstan
+  "Бишкек": "Bishkek"
+
+  # Armenia (Armenian script)
+  "Երևան": "Yerevan"
+  "Գյումրի": "Gyumri"
+  "Գորիս": "Goris"
+  "Հալիձոր": "Halidzor"
+  "Տաթև": "Tatev"
+
+  # Greece (Greek script)
+  "Αθήνα": "Athens"
+  "Βούλα": "Athens"
+  "Ελληνικό": "Athens"
+  "Μαρούσι": "Athens"
+  "Νέα Φιλαδέλφεια": "Athens"
+  "Παλαιό Φάληρο": "Athens"
+  "Πειραιάς": "Piraeus"
+
+  # Cyprus (Greek script)
+  "Λάρνακα": "Larnaca"
+  "Λεμεσός": "Limassol"
+  "Λευκωσία": "Nicosia"
+  "Πάφος": "Paphos"
+
+  # Egypt (Arabic script)
+  "القاهرة": "Cairo"
+  "الجيزة": "Giza"
+  "الدقى": "Cairo"
+  "السيدة زينب": "Cairo"
+  "بولاق": "Cairo"
+  "بورسعيد": "Port Said"
+  "زمالك": "Cairo"
+  "وسط البلد": "Cairo"
+  "Ma'ādī al Khabīrī": "Cairo"
+
+  # Iran
+  "یزد": "Yazd"
+
+  # Georgia (Georgian script)
+  "ქუთაისი": "Kutaisi"
+  "მახინჯაური": "Makhinjauri"
+
+  # Croatia
+  "Plitvička Jezera": "Plitvice Lakes"
+  "Rastovača": "Plitvice Lakes"
+
+  # Malta
+  "San Ġiljan": "Saint Julian's"
   "Schwechat": "Vienna"  # approved singleton review rank 797
   "Sluck": "Slutsk"  # approved singleton review rank 799
   "Novi Sas": "Novi Sad"  # approved singleton review rank 801
