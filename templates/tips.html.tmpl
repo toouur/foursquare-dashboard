@@ -30,14 +30,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .nav-btn:hover{border-color:var(--gold);color:var(--gold);}
 
 /* ── Tab bars ── */
-.tabs-row{display:flex;align-items:center;gap:4px;padding:4px 10px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;}
+.tabs-wrap{display:flex;align-items:center;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;}
+.tabs-arrow{background:transparent;border:none;color:var(--muted);padding:0 6px;cursor:pointer;font-size:.8rem;flex-shrink:0;line-height:28px;transition:color .12s;}
+.tabs-arrow:hover{color:var(--gold);}
+.tabs-row{display:flex;align-items:center;gap:4px;padding:4px 2px;flex:1;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;}
 .tabs-row::-webkit-scrollbar{display:none;}
 .tab-btn{background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);padding:3px 9px;cursor:pointer;font-size:.68rem;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all .12s;flex-shrink:0;}
 .tab-btn:hover{border-color:var(--border);color:var(--text);}
 .tab-btn.act{border-color:var(--gold);color:var(--gold);background:rgba(232,184,109,.08);}
 .tab-count{font-family:'DM Mono',monospace;font-size:.60rem;opacity:.55;}
-.cities-row{display:none;}
-.cities-row.vis{display:flex;}
+.cities-wrap{display:none;}
+.cities-wrap.vis{display:flex;}
 
 /* ── Layout ── */
 .content{display:flex;flex:1;overflow:hidden;}
@@ -91,8 +94,16 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <span class="badge" id="badge"></span>
     </div>
   </div>
-  <div class="tabs-row" id="ctryTabs"></div>
-  <div class="tabs-row cities-row" id="cityTabs"></div>
+  <div class="tabs-wrap" id="ctryWrap">
+    <button class="tabs-arrow" onclick="scrollTabs('ctryTabs',-160)">◀</button>
+    <div class="tabs-row" id="ctryTabs"></div>
+    <button class="tabs-arrow" onclick="scrollTabs('ctryTabs',160)">▶</button>
+  </div>
+  <div class="tabs-wrap cities-wrap" id="cityWrap">
+    <button class="tabs-arrow" onclick="scrollTabs('cityTabs',-160)">◀</button>
+    <div class="tabs-row" id="cityTabs"></div>
+    <button class="tabs-arrow" onclick="scrollTabs('cityTabs',160)">▶</button>
+  </div>
   <div class="content">
     <div class="feed-col">
       <div class="feed-scroll" id="feedScroll"></div>
@@ -291,12 +302,15 @@ function buildCtryTabs(){
   document.getElementById('ctryTabs').innerHTML=html;
 }
 
+function scrollTabs(id,dx){document.getElementById(id).scrollBy({left:dx,behavior:'smooth'});}
+
 function buildCityTabs(){
   const row=document.getElementById('cityTabs');
-  if(!selCountry){row.classList.remove('vis');return;}
+  const wrap=document.getElementById('cityWrap');
+  if(!selCountry){wrap.classList.remove('vis');return;}
   const d=TABS_DATA[selCountry];
-  if(!d){row.classList.remove('vis');return;}
-  row.classList.add('vis');
+  if(!d){wrap.classList.remove('vis');return;}
+  wrap.classList.add('vis');
   let html=`<button class="tab-btn ${!selCity?'act':''}" onclick="setCity('')">All cities <span class="tab-count">${d.total}</span></button>`;
   for(const[c,n]of d.cities){
     if(!c)continue;
@@ -332,7 +346,7 @@ function render(){
     const vUrl=t.venue_id?`https://foursquare.com/v/${t.venue_id}`:'';
     const tUrl=t.id?`https://foursquare.com/item/${t.id}`:'';
     const f=t.nc?flagHtml(t.nc):'';
-    const loc=[t.city,t.nc||t.country].filter(Boolean).join(', ');
+    const loc=[t.nci||t.city,t.nc||t.country].filter(Boolean).join(', ');
     const agree=t.agree_count>0?`<span class="tc-agree">👍 ${t.agree_count}</span>`:'';
     return `<div class="tcard" id="tc_${i}" onclick="selectTip(${i})">
       <div class="tc-venue-row">
