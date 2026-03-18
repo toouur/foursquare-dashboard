@@ -26,6 +26,11 @@ on:
   push:
     branches: [main]         # verify build on every push (no deploy)
   workflow_dispatch:         # manual trigger button in GitHub UI
+    inputs:
+      sweep_tips:
+        description: 'Run venue sweep for hidden tips on closed venues'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -112,7 +117,9 @@ jobs:
             echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping tips fetch."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
-            python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json --csv private-data/checkins.csv >> "$GITHUB_OUTPUT"
+            SWEEP_FLAG=""
+            if [ "${{ github.event.inputs.sweep_tips }}" = "true" ]; then SWEEP_FLAG="--sweep"; fi
+            python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json --csv private-data/checkins.csv $SWEEP_FLAG >> "$GITHUB_OUTPUT"
           fi
 
       # ── 5. Exit gracefully if neither check-ins nor tips changed ─────────────
