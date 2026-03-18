@@ -52,7 +52,7 @@ _TEMPLATES_DIR = _PROJECT_ROOT / "templates"
 TEMPLATE       = (_TEMPLATES_DIR / "index.html.tmpl").read_text(encoding="utf-8")
 TRIPS_TEMPLATE = (_TEMPLATES_DIR / "trips.html.tmpl").read_text(encoding="utf-8")
 
-def build(data, trips, out_dir='.'):
+def build(data, trips, out_dir='.', extra_replacements=None):
     import os
     # ── index.html ──────────────────────────────────────────────────────────
     html = TEMPLATE
@@ -65,6 +65,9 @@ def build(data, trips, out_dir='.'):
     html = html.replace('{{UPDATED}}',   datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     html = html.replace('{{TRIPS}}',     str(data['trips_count']))
     html = html.replace('{{STATS}}',     json.dumps(data, ensure_ascii=False).replace('</', '<\\/'))
+    if extra_replacements:
+        for key, val in extra_replacements.items():
+            html = html.replace(key, val)
     idx_path = os.path.join(out_dir, 'index.html')
     with open(idx_path, 'w', encoding='utf-8') as f: f.write(html)
     print(f"Built ->{idx_path}  ({len(html)//1024:,} KB)")
@@ -160,19 +163,55 @@ if __name__ == "__main__":
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
     data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags)
 
+    # ── Load tips for recent section ─────────────────────────────────────────
+    # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
+    # private-data/tips.json) and local (data/checkins.csv → data/tips.json) both work.
+    tips_path = Path(args.input).resolve().parent / "tips.json"
+    tips_recent_json = '{"total":0,"items":[]}'
+    if tips_path.exists():
+        all_tips = json.loads(tips_path.read_text(encoding="utf-8"))
+        all_tips.sort(key=lambda t: -t.get("ts", 0))
+        recent30 = []
+        for t in all_tips[:30]:
+            ts = t.get("ts", 0)
+            date_str = ""
+            if ts:
+                from datetime import datetime, timezone as _tz
+                dt = datetime.fromtimestamp(ts, tz=_tz.utc)
+                date_str = dt.strftime("%d %b %Y")
+            recent30.append({
+                "id":          t.get("id", ""),
+                "ts":          ts,
+                "date":        date_str,
+                "text":        t.get("text", ""),
+                "venue":       t.get("venue", ""),
+                "venue_id":    t.get("venue_id", ""),
+                "city":        t.get("city", ""),
+                "country":     t.get("country", ""),
+                "category":    t.get("category", ""),
+                "agree_count": t.get("agree_count", 0),
+            })
+        tips_recent_json = json.dumps(
+            {"total": len(all_tips), "items": recent30},
+            ensure_ascii=False
+        ).replace("</", "<\\/")
+        log.info("Loaded %d tips (recent %d) from %s", len(all_tips), len(recent30), tips_path)
+
     os.makedirs(args.output_dir, exist_ok=True)
-    build(data, trips, out_dir=args.output_dir)
+    build(data, trips, out_dir=args.output_dir,
+          extra_replacements={"{{TIPS_RECENT}}": tips_recent_json})
 
     if args.cat_list:
         save_category_list(rows, os.path.join(args.output_dir, "category_list.txt"))
 
-    # ── Generate companion, feed, and world-cities pages ──
+    # ── Generate companion, feed, world-cities, tips pages ──
     _here = _SCRIPT_DIR
     for gen_script, gen_out, gen_tmpl, gen_kwargs in [
         (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {}),
         (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {}),
         (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities")}),
         (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {}),
+        (_here / "gen_tips.py",       "tips.html",         "tips.html.tmpl",         {"tips_path": str(tips_path)}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il

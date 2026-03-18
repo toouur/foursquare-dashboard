@@ -763,13 +763,21 @@ def process(
 
     # ── Countries by venues ───────────────────────────────────────────────────
     country_vids: dict[str, set] = defaultdict(set)
+    city_vids:    dict[str, set] = defaultdict(set)
     for r in rows:
         c   = r.get("country", "").strip()
+        cy  = r.get("city",    "").strip()
         vid = r.get("venue_id", "").strip() or r.get("venue", "").strip()
         if c and vid:
             country_vids[c].add(vid)
+        if cy and vid:
+            city_vids[cy].add(vid)
     countries_by_venues = sorted(
         [[c, len(v)] for c, v in country_vids.items()], key=lambda x: -x[1]
+    )
+    cities_by_venues = sorted(
+        [[cy, len(v), city_primary_country.get(cy, "")] for cy, v in city_vids.items()],
+        key=lambda x: -x[1]
     )
 
     # ── All coords (kept for dot map) ────────────────────────────────────────
@@ -937,6 +945,7 @@ def process(
         "countries":          [[c, n] for c, n in countries.most_common()],
         "countries_by_venues":countries_by_venues,
         "cities":             [[c, n, city_primary_country.get(c, "")] for c, n in cities.most_common()],
+        "cities_by_venues":   cities_by_venues,
         "city_centroids":     city_centroids,
         "country_centroids":  country_centroids,
         "venues":             venues_list,

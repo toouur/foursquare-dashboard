@@ -6,8 +6,8 @@
 #                   Guards against broken builds being merged.
 #
 # [hourly schedule / manual dispatch]
-#                 → update: fetch check-ins → if no new check-ins, exit gracefully.
-#                   If new check-ins: rebuild → commit & push → Cloudflare Pages auto-deploys.
+#                 → update: fetch check-ins + tips → if neither changed, exit gracefully.
+#                   If check-ins OR tips changed: rebuild → commit & push → Cloudflare auto-deploys.
 #
 # Required repository secrets:
 #   FOURSQUARE_TOKEN   — Foursquare OAuth token
@@ -102,33 +102,46 @@ jobs:
             python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 5. Exit gracefully if no new check-ins ───────────────────────────────
-      - name: Skip if no new check-ins
-        if: steps.fetch.outputs.CHANGED != 'true' && github.event_name != 'workflow_dispatch'
+      # ── 4b. Fetch new tips ───────────────────────────────────────────────────
+      - name: Fetch new Foursquare tips
+        id: fetch_tips
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |
-          echo "No new check-ins — nothing to rebuild or deploy."
+          if [ -z "$FOURSQUARE_TOKEN" ]; then
+            echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping tips fetch."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 5. Exit gracefully if neither check-ins nor tips changed ─────────────
+      - name: Skip if no new data
+        if: steps.fetch.outputs.CHANGED != 'true' && steps.fetch_tips.outputs.CHANGED != 'true'
+        run: |
+          echo "No new check-ins or tips — nothing to rebuild or deploy."
           exit 0
 
-      # ── 6. Commit updated CSV to private data repo ───────────────────────────
-      - name: Commit updated CSV to data repo
-        if: steps.fetch.outputs.CHANGED == 'true'
+      # ── 6. Commit updated data files to private data repo ────────────────────
+      - name: Commit updated data files to data repo
+        if: steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add checkins.csv
+          git add checkins.csv tips.json
           if git diff --cached --quiet; then
             echo "Nothing to commit in data repo."
           else
             TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-            git commit -m "chore: update checkins.csv [${TIMESTAMP}]"
+            git commit -m "chore: update data [${TIMESTAMP}]"
             git push
           fi
           cd ..
 
       # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
-        if: steps.fetch.outputs.CHANGED == 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
         run: |
           python scripts/build.py \
             --input private-data/checkins.csv \
@@ -137,12 +150,12 @@ jobs:
 
       # ── 8. Commit HTML to public repo → Cloudflare Pages auto-deploys ────────
       - name: Commit updated HTML files
-        if: steps.fetch.outputs.CHANGED == 'true' || github.event_name == 'workflow_dispatch'
+        if: steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add index.html trips.html feed.html companions.html world_cities.html venues.html
+          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html
 
           if git diff --cached --quiet; then
             echo "Nothing to commit."
