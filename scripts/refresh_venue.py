@@ -26,12 +26,16 @@ Usage:
     # Preview changes without writing
     python scripts/refresh_venue.py ... --dry-run
 
-Fields updated per matching row:
+Fields updated per matching row in checkins.csv:
     venue, venue_id (if --new-venue-id), venue_url,
     city, state, country, neighborhood, lat, lng, address, category
 
+Fields updated per matching tip in tips.json (auto-detected next to CSV):
+    venue, venue_id (if --new-venue-id), city, country, lat, lng, category
+
 Fields never touched:
-    date, shout, source_app, source_url, with_name, with_id
+    date, shout, source_app, source_url, with_name, with_id (CSV)
+    id, ts, text, agree_count, disagree_count, closed (tips)
 """
 from __future__ import annotations
 
@@ -128,6 +132,7 @@ def main() -> None:
     parser.add_argument("--csv",          default="data/checkins.csv", help="Path to checkins.csv")
     parser.add_argument("--venue-id",     required=True,               help="Venue ID to find in CSV")
     parser.add_argument("--new-venue-id", default="",                  help="If merged: fetch info from this ID and update venue_id in CSV")
+    parser.add_argument("--tips",         default="",                  help="Path to tips.json (default: auto-detect next to CSV)")
     parser.add_argument("--dry-run",      action="store_true",         help="Show what would change without writing")
     args = parser.parse_args()
 
@@ -197,6 +202,25 @@ def main() -> None:
 
     if args.dry_run:
         log.info("Dry run — CSV not written.")
+        # Still show tips diff in dry-run
+        tips_path = Path(args.tips) if args.tips else csv_path.parent / "tips.json"
+        if tips_path.exists():
+            tips = json.loads(tips_path.read_text(encoding="utf-8"))
+            tip_patch = {
+                "venue":    patch["venue"],
+                "venue_id": patch["venue_id"],
+                "city":     patch["city"],
+                "country":  patch["country"],
+                "lat":      round(float(patch["lat"]), 5) if patch["lat"] else None,
+                "lng":      round(float(patch["lng"]), 5) if patch["lng"] else None,
+                "category": patch["category"],
+            }
+            for t in tips:
+                if t.get("venue_id", "") != old_venue_id:
+                    continue
+                diffs = {k: (t.get(k), v) for k, v in tip_patch.items() if t.get(k) != v}
+                for field, (old_val, new_val) in diffs.items():
+                    log.info("  tip %s  %s: %r → %r", t.get("id", ""), field, old_val, new_val)
         return
 
     if changed == 0:
@@ -210,6 +234,36 @@ def main() -> None:
         writer.writerows(rows)
 
     log.info("Saved %s (%d total rows, %d updated).", csv_path, len(rows), changed)
+
+    # ── Patch tips.json (auto-detected next to checkins.csv) ─────────────────
+    tips_path = Path(args.tips) if args.tips else csv_path.parent / "tips.json"
+    if not tips_path.exists():
+        return
+    tips = json.loads(tips_path.read_text(encoding="utf-8"))
+    tip_patch = {
+        "venue":    patch["venue"],
+        "venue_id": patch["venue_id"],
+        "city":     patch["city"],
+        "country":  patch["country"],
+        "lat":      round(float(patch["lat"]), 5) if patch["lat"] else None,
+        "lng":      round(float(patch["lng"]), 5) if patch["lng"] else None,
+        "category": patch["category"],
+    }
+    tips_changed = 0
+    for t in tips:
+        if t.get("venue_id", "") != old_venue_id:
+            continue
+        diffs = {k: (t.get(k), v) for k, v in tip_patch.items() if t.get(k) != v}
+        if diffs:
+            tips_changed += 1
+            for field, (old_val, new_val) in diffs.items():
+                log.info("  tip %s  %s: %r → %r", t.get("id", ""), field, old_val, new_val)
+            t.update(tip_patch)
+    if tips_changed:
+        tips_path.write_text(json.dumps(tips, ensure_ascii=False, indent=2), encoding="utf-8")
+        log.info("Saved %s (%d tip(s) updated).", tips_path, tips_changed)
+    else:
+        log.info("No matching tips found in %s.", tips_path)
 
 
 if __name__ == "__main__":
