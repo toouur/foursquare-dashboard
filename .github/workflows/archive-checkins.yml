@@ -1,0 +1,87 @@
+# .github/workflows/archive-checkins.yml
+#
+# Manual-only workflow: full re-fetch of all check-ins from Foursquare,
+# archive the previous checkins.csv (timestamped), store the fresh one.
+#
+# Purpose: build a CSV trail so venue renames, closures, merges, and
+# deletions are detectable by diffing archived versions.
+#
+# Trigger: Actions tab → "Archive check-in snapshot" → Run workflow
+#
+# Required secrets (same as update-dashboard):
+#   FOURSQUARE_TOKEN  — Foursquare OAuth token
+#   DATA_REPO_PAT     — Fine-grained PAT with Contents read/write on toouur/foursquare-data
+
+name: Archive check-in snapshot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read   # public repo read-only; private repo access via PAT
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout public repo (scripts live here) ───────────────────────
+      - uses: actions/checkout@v4
+
+      # ── 2. Checkout private data repo ────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 3. Python setup ──────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Archive current checkins.csv with a timestamp ─────────────────
+      - name: Archive existing checkins.csv
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
+          mkdir -p private-data/archive
+          if [ -f private-data/checkins.csv ]; then
+            cp private-data/checkins.csv "private-data/archive/checkins_${TIMESTAMP}.csv"
+            echo "Archived checkins.csv as archive/checkins_${TIMESTAMP}.csv"
+            echo "ARCHIVE_NAME=checkins_${TIMESTAMP}.csv" >> "$GITHUB_ENV"
+          else
+            echo "No existing checkins.csv to archive."
+            echo "ARCHIVE_NAME=" >> "$GITHUB_ENV"
+          fi
+
+      # ── 5. Full re-fetch all check-ins from Foursquare ───────────────────
+      - name: Full re-fetch check-ins
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          python scripts/fetch_checkins.py \
+            --token "$FOURSQUARE_TOKEN" \
+            --csv private-data/checkins.csv \
+            --full
+
+      # ── 6. Commit archive + fresh CSV to private data repo ────────────────
+      - name: Commit to private data repo
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add checkins.csv
+          [ -n "$ARCHIVE_NAME" ] && git add "archive/${ARCHIVE_NAME}"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "chore: full check-in snapshot [${TIMESTAMP}]"
+            git push
+          fi
