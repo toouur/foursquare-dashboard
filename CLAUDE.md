@@ -20,6 +20,20 @@ python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv data/checkins
 python scripts/fetch_checkins.py --full   # Force full re-fetch
 ```
 
+### Refresh a renamed/merged/moved venue in checkins.csv
+```bash
+# Venue renamed (same ID, new name/location info)
+python scripts/refresh_venue.py --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv \
+  --venue-id 4d8f90e3cb9b224b49d99d41
+
+# Venue merged (old ID → new ID; fetches info from new ID, updates venue_id in CSV)
+python scripts/refresh_venue.py --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv \
+  --venue-id OLD_VENUE_ID --new-venue-id NEW_VENUE_ID
+
+# Preview changes without writing
+python scripts/refresh_venue.py ... --dry-run
+```
+
 ### Fetch tips from Foursquare API
 ```bash
 # Incremental (new tips only)
