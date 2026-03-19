@@ -2,6 +2,9 @@
 refresh_venue.py — Re-fetch venue info from Foursquare and patch all matching
 rows in checkins.csv with the latest name, category, location, etc.
 
+Uses /v2/users/self/checkins (free) to get venue info by fetching check-ins
+near a known timestamp, extracting the embedded venue object.
+
 Use cases:
   - Venue renamed (same venue_id, new name)
   - Venue moved (new lat/lng/address)
@@ -19,6 +22,9 @@ Usage:
         --csv data/checkins.csv \\
         --venue-id 4d8f90e3cb9b224b49d99d41 \\
         --new-venue-id 5c44a5c94a7aae002cd3efa3
+
+    # Preview changes without writing
+    python scripts/refresh_venue.py ... --dry-run
 
 Fields updated per matching row:
     venue, venue_id (if --new-venue-id), venue_url,
@@ -41,7 +47,7 @@ import requests
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 
-VENUE_DETAIL_API = "https://api.foursquare.com/v2/venues/{vid}"
+CHECKINS_API = "https://api.foursquare.com/v2/users/self/checkins"
 API_V = "20231201"
 
 FIELDS = [
@@ -49,10 +55,6 @@ FIELDS = [
     "neighborhood", "lat", "lng", "address", "category", "shout",
     "source_app", "source_url", "with_name", "with_id",
 ]
-
-# Fields we will overwrite from the fresh venue API response
-VENUE_FIELDS = {"venue", "venue_id", "venue_url", "city", "state", "country",
-                "neighborhood", "lat", "lng", "address", "category"}
 
 
 def resolve_token(cli_token: str | None) -> str:
@@ -62,23 +64,39 @@ def resolve_token(cli_token: str | None) -> str:
     return os.environ.get("FOURSQUARE_TOKEN", "").strip()
 
 
-def fetch_venue(token: str, venue_id: str) -> dict | None:
-    """Fetch current venue details from /v2/venues/{id}."""
-    try:
-        resp = requests.get(
-            VENUE_DETAIL_API.format(vid=venue_id),
-            params={"oauth_token": token, "v": API_V},
-            timeout=20,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        if data.get("meta", {}).get("code") != 200:
-            log.error("API error: %s", data.get("meta"))
-            return None
-        return data.get("response", {}).get("venue")
-    except Exception as exc:
-        log.error("Failed to fetch venue %s: %s", venue_id, exc)
-        return None
+def fetch_venue_via_checkin(token: str, venue_id: str, timestamps: list[int]) -> dict | None:
+    """
+    Extract current venue info by fetching check-ins around known timestamps.
+    Uses /v2/users/self/checkins (free) instead of /v2/venues/{id} (paid).
+    Tries up to 3 timestamps (most recent first) before giving up.
+    """
+    for ts in sorted(timestamps, reverse=True)[:3]:
+        try:
+            resp = requests.get(
+                CHECKINS_API,
+                params={
+                    "oauth_token": token, "v": API_V,
+                    "limit": 50,
+                    "beforeTimestamp": ts + 1,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("meta", {}).get("code") != 200:
+                continue
+            items = data.get("response", {}).get("checkins", {}).get("items", [])
+            for ci in items:
+                if str(ci.get("venue", {}).get("id", "")) == venue_id:
+                    log.info("Found venue info via check-in at ts=%d", ts)
+                    return ci.get("venue")
+        except Exception as exc:
+            log.warning("Error fetching check-ins around ts=%d: %s", ts, exc)
+    log.error(
+        "Could not find a check-in for venue_id=%s in %d timestamp(s) tried.",
+        venue_id, min(3, len(timestamps)),
+    )
+    return None
 
 
 def venue_to_patch(venue: dict, override_id: str | None = None) -> dict:
@@ -106,11 +124,11 @@ def venue_to_patch(venue: dict, override_id: str | None = None) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Patch venue info in checkins.csv")
-    parser.add_argument("--token",       default="",                   help="Foursquare OAuth token")
-    parser.add_argument("--csv",         default="data/checkins.csv",  help="Path to checkins.csv")
-    parser.add_argument("--venue-id",    required=True,                help="Venue ID to find in CSV")
-    parser.add_argument("--new-venue-id", default="",                  help="If the venue was merged, fetch info from this ID instead (and update venue_id in CSV)")
-    parser.add_argument("--dry-run",     action="store_true",          help="Show what would change without writing")
+    parser.add_argument("--token",        default="",                  help="Foursquare OAuth token")
+    parser.add_argument("--csv",          default="data/checkins.csv", help="Path to checkins.csv")
+    parser.add_argument("--venue-id",     required=True,               help="Venue ID to find in CSV")
+    parser.add_argument("--new-venue-id", default="",                  help="If merged: fetch info from this ID and update venue_id in CSV")
+    parser.add_argument("--dry-run",      action="store_true",         help="Show what would change without writing")
     args = parser.parse_args()
 
     token = resolve_token(args.token)
@@ -125,7 +143,7 @@ def main() -> None:
 
     old_venue_id = args.venue_id.strip()
     new_venue_id = args.new_venue_id.strip()
-    fetch_id = new_venue_id or old_venue_id  # fetch info from new ID if provided
+    fetch_id = new_venue_id or old_venue_id
 
     # ── Load CSV ─────────────────────────────────────────────────────────────
     with open(csv_path, encoding="utf-8", newline="") as fh:
@@ -137,9 +155,24 @@ def main() -> None:
         return
     log.info("Found %d row(s) with venue_id=%s", len(matching), old_venue_id)
 
-    # ── Fetch fresh venue info ────────────────────────────────────────────────
-    log.info("Fetching venue info for %s …", fetch_id)
-    venue = fetch_venue(token, fetch_id)
+    # ── Resolve timestamps for API lookup ─────────────────────────────────────
+    if new_venue_id:
+        # Merged venue: look up check-ins at the new venue_id
+        new_matches = [r for r in rows if r.get("venue_id", "").strip() == new_venue_id]
+        timestamps = [int(r["date"]) for r in new_matches if r.get("date", "").isdigit()]
+        if not timestamps:
+            log.error(
+                "No check-ins found for new venue_id=%s in CSV. "
+                "Cannot fetch venue info — try a full re-fetch first, or patch manually.",
+                new_venue_id,
+            )
+            return
+    else:
+        timestamps = [int(r["date"]) for r in matching if r.get("date", "").isdigit()]
+
+    # ── Fetch fresh venue info via check-ins endpoint (free) ─────────────────
+    log.info("Fetching venue info for %s via check-ins endpoint …", fetch_id)
+    venue = fetch_venue_via_checkin(token, fetch_id, timestamps)
     if not venue:
         return
 
