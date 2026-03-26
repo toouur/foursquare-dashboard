@@ -90,6 +90,8 @@ jobs:
 
           git add checkins.csv tips.json
           [ -n "$ARCHIVE_NAME" ] && git add "archive/${ARCHIVE_NAME}"
+          [ -f checkins_anomalies.json ] && git add checkins_anomalies.json
+          [ -f duplicate_checkins.csv  ] && git add duplicate_checkins.csv
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
