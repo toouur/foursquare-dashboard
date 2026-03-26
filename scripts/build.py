@@ -63,7 +63,7 @@ def build(data, trips, out_dir='.', extra_replacements=None):
     html = html.replace('{{CITIES}}',    f"{len(data['cities']):,}")
     html = html.replace('{{PLACES}}',    f"{data['unique_places_count']:,}")
     html = html.replace('{{UPDATED}}',   datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
-    html = html.replace('{{TRIPS}}',     str(data['trips_count']))
+    html = html.replace('{{TRIPS}}',      str(data['trips_count']))
     html = html.replace('{{STATS}}',     json.dumps(data, ensure_ascii=False).replace('</', '<\\/'))
     if extra_replacements:
         for key, val in extra_replacements.items():
@@ -218,6 +218,7 @@ if __name__ == "__main__":
     # private-data/tips.json) and local (data/checkins.csv → data/tips.json) both work.
     tips_path = Path(args.input).resolve().parent / "tips.json"
     tips_recent_json = '{"total":0,"items":[]}'
+    all_tips: list = []
     if tips_path.exists():
         # Import CTRY_NORM from gen_tips for country-name normalisation
         try:
@@ -261,9 +262,14 @@ if __name__ == "__main__":
         ).replace("</", "<\\/")
         log.info("Loaded %d tips (recent %d) from %s", len(all_tips), len(recent30), tips_path)
 
+    tips_count = len(all_tips)
+
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir,
-          extra_replacements={"{{TIPS_RECENT}}": tips_recent_json})
+          extra_replacements={
+              "{{TIPS_RECENT}}":  tips_recent_json,
+              "{{TIPS_COUNT}}":   f"{tips_count:,}",
+          })
 
     if args.cat_list:
         save_category_list(rows, os.path.join(args.output_dir, "category_list.txt"))
