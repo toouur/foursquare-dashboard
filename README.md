@@ -16,6 +16,7 @@
 <a href="https://boosty.to/toouur/donate">
   <img src="https://img.shields.io/badge/Donate%20on-Boosty-f15f2c?style=for-the-badge&logo=boosty&logoColor=white" alt="Donate on Boosty" height="36">
 </a>
+
 <a href="https://wise.com/pay/me/andreip1207">
   <img src="https://img.shields.io/badge/Donate%20via-Wise-9fe870?style=for-the-badge&logo=wise&logoColor=black" alt="Donate via Wise" height="36">
 </a>
