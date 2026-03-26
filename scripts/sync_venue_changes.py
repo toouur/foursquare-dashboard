@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 sync_venue_changes.py — Diff two checkins.csv snapshots, report changed venues,
 and patch tips.json with updated venue metadata.

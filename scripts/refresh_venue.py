@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 refresh_venue.py — Re-fetch venue info from Foursquare and patch all matching
 rows in checkins.csv with the latest name, category, location, etc.

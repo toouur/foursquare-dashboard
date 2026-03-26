@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 metrics.py  –  All aggregation and trip-detection logic.
 

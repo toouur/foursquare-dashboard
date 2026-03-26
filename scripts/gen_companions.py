@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 #!/usr/bin/env python3
 """Generate companions.html on every build."""
 import csv, json, sys

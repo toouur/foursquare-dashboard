@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 fetch_tips_from_log.py — Parse scan.log for discovered tip IDs and fetch them.
 

@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 add_venue_tip.py — Fetch the user's tip(s) from a single Foursquare venue
 (by URL or venue ID) and append any new ones to tips.json, marked closed=True.

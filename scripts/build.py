@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 build.py  –  CLI entry point. Reads checkins.csv → index.html + trips.html
 Run:  python scripts/build.py [--input data/checkins.csv] [--config-dir config]

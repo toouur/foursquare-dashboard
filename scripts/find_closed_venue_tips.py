@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 find_closed_venue_tips.py — Discover tips on closed/deleted venues.
 

@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 fetch_checkins.py  –  Fetch check-ins from Foursquare/Swarm API and merge into
 checkins.csv. Designed for GitHub Actions and local manual runs.
