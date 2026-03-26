@@ -1,0 +1,76 @@
+# .github/workflows/add-venue-tip.yml
+#
+# Manual workflow: fetch the user's tip(s) from a single Foursquare venue
+# (closed/deleted) and append them to tips.json marked closed=True.
+#
+# Use when: a tip on a closed venue was missed by the automated sweep.
+# Paste the Foursquare venue URL from your browser (or just the venue ID).
+#
+# Trigger: Actions tab → "Add tip from closed venue" → Run workflow
+#
+# Required secrets:
+#   FOURSQUARE_TOKEN  — Foursquare OAuth token
+#   DATA_REPO_PAT     — Fine-grained PAT with Contents read/write on foursquare-data
+
+name: Add tip from closed venue
+
+on:
+  workflow_dispatch:
+    inputs:
+      venue_url:
+        description: "Foursquare venue URL or venue ID"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  add-tip:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout public repo (scripts live here) ───────────────────────
+      - uses: actions/checkout@v4
+
+      # ── 2. Checkout private data repo ────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 3. Python setup ──────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Fetch tip and append to tips.json ─────────────────────────────
+      - name: Add venue tip
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          python scripts/add_venue_tip.py \
+            --token "$FOURSQUARE_TOKEN" \
+            --venue "${{ github.event.inputs.venue_url }}" \
+            --tips  private-data/tips.json
+
+      # ── 5. Commit updated tips.json ───────────────────────────────────────
+      - name: Commit to private data repo
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add tips.json
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit (tip already present or none found)."
+          else
+            VENUE="${{ github.event.inputs.venue_url }}"
+            git commit -m "fix(tips): add closed-venue tip for ${VENUE}"
+            git push
+          fi
