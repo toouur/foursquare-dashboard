@@ -165,9 +165,38 @@ if __name__ == "__main__":
 
     # ── Auto-populate trip_names.json with new trips ──────────────────────────
     # Any trip whose _name_ts is not yet in trip_names.json gets added with its
-    # auto-generated name so the user can rename it without hunting for the key.
+    # auto-generated name + inferred transport icon.
+    _ICON_MAP = {
+        "Airport":            "✈️",
+        "Light Rail Station": "✈️",
+        "Rail Station":       "🚂",
+        "Train Station":      "🚂",
+        "Bus Station":        "🚌",
+        "Bus Terminal":       "🚌",
+        "Ferry Terminal":     "⛴️",
+        "Fuel Station":       "🚗",
+        "Gas Station":        "🚗",
+        "Parking":            "🚗",
+    }
+    _ICON_PRIORITY = {"✈️": 4, "🚂": 3, "⛴️": 2, "🚌": 1, "🚗": 0}
+
+    def _infer_icon(trip: dict) -> str:
+        # Probe first 5 and last 5 check-ins — transport hubs appended by extension
+        checkins = trip.get("checkins", [])
+        probe = checkins[:5] + checkins[-5:]
+        best = ""
+        for ci in probe:
+            icon = _ICON_MAP.get(ci.get("category", ""), "")
+            if icon and _ICON_PRIORITY.get(icon, -1) > _ICON_PRIORITY.get(best, -1):
+                best = icon
+        return best
+
+    def _name_with_icon(t: dict) -> str:
+        icon = _infer_icon(t)
+        return t["name"] + (" " + icon if icon else "")
+
     new_name_entries = {
-        str(t["_name_ts"]): t["name"]
+        str(t["_name_ts"]): _name_with_icon(t)
         for t in trips
         if str(t["_name_ts"]) not in trip_names
     }
