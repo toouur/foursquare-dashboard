@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import logging
 import os
 import time
@@ -256,6 +257,64 @@ def save_rows(csv_path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
+def update_anomalies(
+    csv_path: Path,
+    dup_rows: list[dict],
+    dup_key_count: int,
+    missing_rows: list[dict],
+) -> None:
+    """
+    Merge duplicate and missing rows into <csv_dir>/checkins_anomalies.json.
+    Existing entries are preserved; new ones are added (keyed by venue_id+date).
+    """
+    anomaly_path = csv_path.parent / "checkins_anomalies.json"
+    existing: dict = {}
+    if anomaly_path.exists():
+        try:
+            existing = json.loads(anomaly_path.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            existing = {}
+
+    # Merge duplicates: accumulate by (venue_id, date) key
+    dup_index: dict[str, dict] = {
+        f"{r.get('venue_id','')}|{r.get('date','')}" : r
+        for r in existing.get("duplicates", [])
+    }
+    for r in dup_rows:
+        k = f"{r.get('venue_id','')}|{r.get('date','')}"
+        dup_index[k] = r
+
+    # Merge missing: accumulate by (venue_id, date) key
+    miss_index: dict[str, dict] = {
+        f"{r.get('venue_id','')}|{r.get('date','')}" : r
+        for r in existing.get("missing", [])
+    }
+    for r in missing_rows:
+        k = f"{r.get('venue_id','')}|{r.get('date','')}"
+        miss_index[k] = r
+
+    import datetime as _dt
+    today = _dt.date.today().isoformat()
+    new_dup_pairs = len({k.split("|")[0] + "|" + k.split("|")[1] for k in dup_index}) // 1
+    out = {
+        "_meta": {
+            "description": "Tracked CSV anomalies: duplicate rows and check-ins missing from API responses.",
+            "updated": today,
+            "duplicates_count": dup_key_count or len({
+                f"{r.get('venue_id','')}|{r.get('date','')}" for r in dup_index.values()
+            }),
+            "missing_count": len(miss_index),
+        },
+        "duplicates": sorted(dup_index.values(), key=lambda r: int(r.get("date") or 0)),
+        "missing":    sorted(miss_index.values(), key=lambda r: int(r.get("date") or 0)),
+    }
+    anomaly_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    log.info(
+        "Updated %s — %d duplicate row(s), %d missing row(s)",
+        anomaly_path, len(dup_index), len(miss_index),
+    )
+
+
 def max_timestamp(rows: list[dict]) -> int:
     valid = [int(r["date"]) for r in rows if str(r.get("date", "")).strip().isdigit()]
     return max(valid) if valid else 0
@@ -340,6 +399,20 @@ def main() -> None:
             if row_key(row) not in existing_key_set:
                 all_rows.append(row)
         all_rows.sort(key=lambda r: int(r.get("date", 0) or 0))
+
+        # Detect missing: keys in existing that the API no longer returns
+        fetched_key_set = {row_key(r) for r in fetched_rows}
+        unique_existing: dict[tuple, dict] = {}
+        for r in existing_rows:
+            unique_existing.setdefault(row_key(r), r)
+        missing_rows = [r for k, r in unique_existing.items() if k not in fetched_key_set]
+        missing_rows.sort(key=lambda r: int(r.get("date") or 0))
+        if missing_rows:
+            log.warning("%d row(s) in existing CSV not returned by API — recorded in anomalies file.", len(missing_rows))
+
+        # Update anomalies file (duplicates + missing)
+        dup_rows_for_anomaly = [r for r in existing_rows if row_key(r) in dup_keys] if dup_keys else []
+        update_anomalies(csv_path, dup_rows_for_anomaly, len(dup_keys), missing_rows)
 
         changed = all_rows != existing_rows
         if changed:
