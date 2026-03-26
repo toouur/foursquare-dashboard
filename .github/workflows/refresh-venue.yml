@@ -1,0 +1,117 @@
+# .github/workflows/refresh-venue.yml
+#
+# Manual workflow: refresh venue metadata (name, city, country, lat, lng,
+# category) in checkins.csv and tips.json for a single venue.
+#
+# Use when:
+#   - A venue was renamed or moved (same venue ID, updated fields)
+#   - A venue was merged into another (old ID → new ID; pass new_venue_url too)
+#
+# Paste the Foursquare venue URL from your browser for both fields.
+# Leave "new_venue_url" empty unless the venue was merged.
+#
+# Trigger: Actions tab → "Refresh venue metadata" → Run workflow
+#
+# Required secrets:
+#   FOURSQUARE_TOKEN  — Foursquare OAuth token
+#   DATA_REPO_PAT     — Fine-grained PAT with Contents read/write on foursquare-data
+
+name: Refresh venue metadata
+
+on:
+  workflow_dispatch:
+    inputs:
+      venue_url:
+        description: "Foursquare venue URL or venue ID (the one in your checkins)"
+        required: true
+      new_venue_url:
+        description: "New venue URL or ID (only if the venue was merged into another)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout public repo (scripts live here) ───────────────────────
+      - uses: actions/checkout@v4
+
+      # ── 2. Checkout private data repo ────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 3. Python setup ──────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Extract venue IDs from URLs ────────────────────────────────────
+      - name: Extract venue IDs
+        id: ids
+        run: |
+          python - <<'EOF'
+          import re, os
+
+          def extract(url):
+              s = url.strip().rstrip('/')
+              m = re.search(r'([0-9a-f]{24})', s)
+              return m.group(1) if m else s.split('/')[-1]
+
+          old = extract("${{ github.event.inputs.venue_url }}")
+          new = "${{ github.event.inputs.new_venue_url }}".strip()
+          new = extract(new) if new else ""
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"old_id={old}\n")
+              f.write(f"new_id={new}\n")
+          EOF
+
+      # ── 5. Refresh venue in checkins.csv (and tips.json) ─────────────────
+      - name: Refresh venue metadata
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          ARGS="--token $FOURSQUARE_TOKEN \
+                --csv  private-data/checkins.csv \
+                --tips private-data/tips.json \
+                --venue-id ${{ steps.ids.outputs.old_id }}"
+
+          if [ -n "${{ steps.ids.outputs.new_id }}" ]; then
+            ARGS="$ARGS --new-venue-id ${{ steps.ids.outputs.new_id }}"
+          fi
+
+          python scripts/refresh_venue.py $ARGS
+
+      # ── 6. Commit updated files ───────────────────────────────────────────
+      - name: Commit to private data repo
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add checkins.csv tips.json
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit (venue already up to date)."
+          else
+            OLD="${{ steps.ids.outputs.old_id }}"
+            NEW="${{ steps.ids.outputs.new_id }}"
+            if [ -n "$NEW" ]; then
+              MSG="fix(venues): merge venue ${OLD} → ${NEW} in checkins + tips"
+            else
+              MSG="fix(venues): refresh metadata for venue ${OLD} in checkins + tips"
+            fi
+            git commit -m "$MSG"
+            git push
+          fi
