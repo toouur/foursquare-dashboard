@@ -129,7 +129,7 @@ footer a:hover{text-decoration:underline;}
       <div class="stat-lbl">Check-in → Live Deploy</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">7</div>
+      <div class="stat-num">8</div>
       <div class="stat-lbl">Generated HTML Pages</div>
     </div>
     <div class="stat-item">
@@ -467,6 +467,80 @@ GET /v2/users/self/tips?limit=500&amp;offset=0  <span class="cm"># silent about 
           record and propagated into the recent-30 tips slice embedded in <code>index.html</code>.
           Tip cards display a <strong><code>CLOSED</code></strong> badge on any venue with
           <code>closed=True</code>, surfacing the otherwise invisible data-quality gap to the reader.
+        </div>
+      </div>
+    </div>
+
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 09 — Venue Metadata Drifts Silently Over Time</div>
+        <div class="cs-text">
+          Foursquare venues can be renamed, moved, or recategorised at any time.
+          A check-in stored in <code>checkins.csv</code> three years ago may now point to a venue
+          with a different name, city, or coordinates — and <code>tips.json</code>, which duplicates
+          that venue metadata per tip, can drift out of sync independently.
+          Additionally, full re-fetches occasionally surface a second problem: some check-ins that
+          existed in the old CSV are simply <em>absent</em> from the API response (deleted or merged
+          venues), while other rows appear duplicated within the historical data with no indication of
+          the double-entry.
+          Both silent drift and silent data loss are impossible to detect without an explicit comparison.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Snapshot Diff + Incremental Anomaly Log</div>
+        <div class="cs-text">
+          The <strong>Archive check-in snapshot</strong> GitHub Actions workflow (manual trigger)
+          addresses both problems in a single run:
+        </div>
+        <div class="code-block">
+<span class="cm"># 1. Archive current CSV with UTC timestamp before overwriting</span>
+cp checkins.csv <span class="hl">archive/checkins_2026-03-26T12-00-00Z.csv</span>
+
+<span class="cm"># 2. Full re-fetch via beforeTimestamp pagination (no API cap)</span>
+python fetch_checkins.py --full   <span class="cm"># quota-safe: saves partial on 403</span>
+
+<span class="cm"># 3. Diff old vs new — detect venue renames, moves, category changes</span>
+python sync_venue_changes.py \
+  --old <span class="hl">archive/checkins_${ARCHIVE_NAME}</span> \
+  --new  checkins.csv \
+  --tips tips.json   <span class="cm"># patches tips in-place, no extra API calls</span>
+        </div>
+        <div class="cs-text">
+          <code>sync_venue_changes.py</code> compares the two snapshots on six fields per
+          <code>venue_id</code>: <code>venue</code>, <code>city</code>, <code>country</code>,
+          <code>lat</code>, <code>lng</code>, <code>category</code>. For each changed venue it
+          patches every matching tip in <code>tips.json</code> in-place — converting lat/lng to
+          float rounded to 5 dp to match the tips schema — and logs a numbered summary of every
+          updated tip. The patched <code>tips.json</code> is committed alongside the fresh CSV in
+          the same atomic commit, keeping both files permanently in sync without any additional
+          API quota.
+        </div>
+        <div class="cs-text">
+          The full re-fetch also runs two anomaly detectors and accumulates their results
+          incrementally in <strong><code>checkins_anomalies.json</code></strong>:
+        </div>
+        <div class="code-block">
+<span class="cm"># checkins_anomalies.json — grows on every full re-fetch</span>
+{
+  <span class="hl">"duplicates"</span>: [  <span class="cm">// rows with identical (venue_id, date) in the CSV</span>
+    { <span class="hl2">"date"</span>: <span class="hl">"1384169327"</span>, <span class="hl2">"venue"</span>: <span class="hl">"Суперпрод"</span>, <span class="hl2">"city"</span>: <span class="hl">"Minsk"</span>, ... }
+  ],
+  <span class="hl">"missing"</span>: [    <span class="cm">// rows present in CSV but absent from API response</span>
+    { <span class="hl2">"date"</span>: <span class="hl">"1625992035"</span>, <span class="hl2">"venue"</span>: <span class="hl">"Chashmayi Ayyub"</span>, <span class="hl2">"city"</span>: <span class="hl">"Bukhara"</span>, ... }
+  ]
+}
+        </div>
+        <div class="cs-text">
+          <strong>Duplicates</strong> are rows whose <code>(venue_id, date)</code> key appears more
+          than once — identical double-entries from early Swarm usage. They are intentionally
+          <em>preserved</em> in the CSV rather than silently removed; the anomaly file provides
+          visibility without data loss. A <code>duplicate_checkins.csv</code> sidecar is also written
+          for direct inspection.
+          <strong>Missing</strong> rows are check-ins present in the existing CSV but absent from the
+          API response — venues that Foursquare deleted or merged. These too are preserved and recorded
+          so the count discrepancy is explained and auditable. Both lists accumulate across runs:
+          new entries are merged in, existing entries are never removed, giving a permanent history
+          of every data quality event the re-fetch has ever observed.
         </div>
       </div>
     </div>

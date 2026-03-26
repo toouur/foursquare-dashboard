@@ -101,21 +101,22 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 
 /* ── TRAVEL TIMELINE (Gantt) ── */
 .tl-wrap{position:relative;}
-.tl-month-ruler{display:grid;grid-template-columns:40px repeat(12,1fr);margin-bottom:3px;}
+.tl-month-ruler{display:grid;grid-template-columns:40px repeat(12,1fr);margin-bottom:4px;}
 .tl-month-tick{font-family:'DM Mono',monospace;font-size:0.52rem;color:var(--muted);text-align:center;letter-spacing:0;}
-.tl-row{display:grid;grid-template-columns:40px 1fr 56px;align-items:center;gap:8px;margin-bottom:4px;}
-.tl-year-label{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);text-align:right;}
-.tl-track{height:30px;background:var(--card2);border-radius:5px;position:relative;overflow:hidden;}
+.tl-row{display:grid;grid-template-columns:40px 1fr 56px;align-items:center;gap:8px;margin-bottom:5px;}
+.tl-year-label{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--text2);text-align:right;}
+.tl-track{height:32px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.055);border-radius:6px;position:relative;overflow:hidden;}
 .tl-track-grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(12,1fr);pointer-events:none;}
-.tl-track-grid span{border-left:1px solid rgba(255,255,255,0.04);}
+.tl-track-grid span{border-left:1px solid rgba(255,255,255,0.06);}
 .tl-track-grid span:first-child{border-left:none;}
-.tl-bar{position:absolute;top:3px;height:24px;border-radius:4px;display:flex;align-items:center;overflow:hidden;text-decoration:none;transition:filter 0.15s;z-index:1;}
-.tl-bar:hover{filter:brightness(1.25);z-index:10;}
-.tl-bar-text{font-family:'DM Sans',sans-serif;font-size:0.60rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;color:rgba(10,12,20,0.9);}
-.tl-bar-dot{width:6px;height:6px;border-radius:50%;margin:0 4px;flex-shrink:0;}
-.tl-total{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);text-align:right;}
-.tl-tooltip{position:fixed;background:rgba(11,13,19,0.97);border:1px solid var(--border);border-radius:8px;padding:9px 13px;font-family:'DM Mono',monospace;font-size:0.63rem;color:var(--text);z-index:9999;pointer-events:none;display:none;max-width:260px;line-height:1.6;}
-.tl-tooltip-name{color:var(--gold);font-size:0.68rem;margin-bottom:2px;}
+.tl-bar{position:absolute;top:4px;height:22px;border-radius:4px;display:flex;align-items:center;overflow:visible;text-decoration:none;transition:filter 0.15s,box-shadow 0.15s;z-index:1;}
+.tl-bar::after{content:'';position:absolute;inset:0;border-radius:4px;background:linear-gradient(180deg,rgba(255,255,255,0.13) 0%,rgba(0,0,0,0.18) 100%);pointer-events:none;}
+.tl-bar:hover{filter:brightness(1.2);z-index:10;}
+.tl-bar-text{position:relative;z-index:1;font-family:'DM Mono',monospace;font-size:0.58rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 7px;color:rgba(255,255,255,0.92);text-shadow:0 1px 3px rgba(0,0,0,0.55);letter-spacing:0.01em;}
+.tl-bar-dot{position:relative;z-index:1;width:5px;height:5px;border-radius:50%;margin:0 4px;flex-shrink:0;background:rgba(255,255,255,0.55);}
+.tl-total{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);text-align:right;}
+.tl-tooltip{position:fixed;background:rgba(11,13,19,0.97);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-family:'DM Mono',monospace;font-size:0.63rem;color:var(--text);z-index:9999;pointer-events:none;display:none;max-width:260px;line-height:1.7;backdrop-filter:blur(8px);}
+.tl-tooltip-name{color:var(--gold);font-size:0.70rem;margin-bottom:3px;font-weight:600;}
 
 /* ── COMPANIONS ── */
 .companion-bar{display:grid;grid-template-columns:160px 1fr 52px;align-items:center;gap:8px;margin-bottom:6px;}
@@ -567,7 +568,7 @@ new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:S.cat_gro
   const byYear={};
   trips.forEach(t=>{if(!byYear[t.year])byYear[t.year]=[];byYear[t.year].push(t);});
 
-  const COLORS=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f','#96ceb4','#ff6b9d','#4d79ff','#00c9a7','#ffaa00'];
+  const COLORS=['#e8b86d','#4ecdc4','#7c8cf8','#f4831f','#c084fc','#34d399','#fb923c','#60a5fa','#f472b6','#2dd4bf','#a78bfa','#fbbf24'];
 
   Object.keys(byYear).sort().forEach(yr=>{
     const row=document.createElement('div'); row.className='tl-row';
@@ -597,11 +598,12 @@ new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:S.cat_gro
       bar.style.left=leftPct.toFixed(3)+'%';
       bar.style.width=widthPct.toFixed(3)+'%';
       bar.style.minWidth='8px';
-      bar.style.background=color;
+      bar.style.background=`linear-gradient(135deg,${color}f0 0%,${color}a8 100%)`;
+      bar.style.border=`1px solid ${color}55`;
 
-      bar.addEventListener('mouseenter',e=>showTip(e,t));
+      bar.addEventListener('mouseenter',e=>{bar.style.boxShadow=`0 0 14px ${color}55`;showTip(e,t);});
       bar.addEventListener('mousemove',moveTip);
-      bar.addEventListener('mouseleave',hideTip);
+      bar.addEventListener('mouseleave',()=>{bar.style.boxShadow='';hideTip();});
 
       // After paint: decide whether to show text or just a dot
       requestAnimationFrame(()=>{
