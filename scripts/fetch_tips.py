@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """
 fetch_tips.py  –  Fetch tips from Foursquare API and merge into tips.json.
 

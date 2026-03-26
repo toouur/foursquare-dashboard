@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 #!/usr/bin/env python3
 """Generate venues.html - top 500 venues page."""
 import csv, json, sys

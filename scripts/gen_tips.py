@@ -1,3 +1,6 @@
+# Copyright 2026 Andrei Patsiomkin
+# SPDX-License-Identifier: Apache-2.0
+
 """gen_tips.py — Generate tips.html from data/tips.json."""
 import json
 from collections import Counter, defaultdict
