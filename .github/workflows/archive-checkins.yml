@@ -1,10 +1,9 @@
 # .github/workflows/archive-checkins.yml
 #
 # Manual-only workflow: full re-fetch of all check-ins from Foursquare,
-# archive the previous checkins.csv (timestamped), store the fresh one.
-#
-# Purpose: build a CSV trail so venue renames, closures, merges, and
-# deletions are detectable by diffing archived versions.
+# archive the previous checkins.csv (timestamped), store the fresh one,
+# then automatically diff old vs new to detect venue renames/moves and
+# sync any changes into tips.json.
 #
 # Trigger: Actions tab → "Archive check-in snapshot" → Run workflow
 #
@@ -68,14 +67,26 @@ jobs:
             --csv private-data/checkins.csv \
             --full
 
-      # ── 6. Commit archive + fresh CSV to private data repo ────────────────
+      # ── 6. Diff old vs new — detect venue renames/moves, sync tips.json ────
+      - name: Sync venue changes into tips.json
+        run: |
+          if [ -n "$ARCHIVE_NAME" ] && [ -f "private-data/tips.json" ]; then
+            python scripts/sync_venue_changes.py \
+              --old "private-data/archive/${ARCHIVE_NAME}" \
+              --new  private-data/checkins.csv \
+              --tips private-data/tips.json
+          else
+            echo "No archive snapshot or no tips.json — skipping venue diff."
+          fi
+
+      # ── 7. Commit archive + fresh CSV + updated tips to private data repo ──
       - name: Commit to private data repo
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add checkins.csv
+          git add checkins.csv tips.json
           [ -n "$ARCHIVE_NAME" ] && git add "archive/${ARCHIVE_NAME}"
 
           if git diff --cached --quiet; then
