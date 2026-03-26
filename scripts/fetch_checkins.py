@@ -313,14 +313,32 @@ def main() -> None:
             print("CHANGED=false")
             return
 
-        # Merge: existing rows as base, fetched rows override (fresher venue info)
-        deduped: dict[tuple[str, str], dict] = {}
+        # Detect and log duplicates in existing CSV (same venue_id+date appearing >1 time)
+        existing_key_count: dict[tuple[str, str], int] = {}
         for row in existing_rows:
-            deduped[row_key(row)] = row
-        for row in fetched_rows:
-            deduped[row_key(row)] = row
+            k = row_key(row)
+            existing_key_count[k] = existing_key_count.get(k, 0) + 1
+        dup_keys = {k for k, c in existing_key_count.items() if c > 1}
+        if dup_keys:
+            dup_log_path = csv_path.parent / "duplicate_checkins.csv"
+            dup_rows = [r for r in existing_rows if row_key(r) in dup_keys]
+            with open(dup_log_path, "w", encoding="utf-8", newline="") as fh:
+                writer = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
+                writer.writeheader()
+                writer.writerows(dup_rows)
+            log.warning(
+                "%d duplicate (venue_id, date) pair(s) in existing CSV (%d rows) — saved to %s",
+                len(dup_keys), len(dup_rows), dup_log_path,
+            )
 
-        all_rows = list(deduped.values())
+        # Merge: preserve existing rows (including any duplicates); update venue info
+        # from fetched rows where keys match; append genuinely new rows.
+        fetched_map: dict[tuple[str, str], dict] = {row_key(r): r for r in fetched_rows}
+        existing_key_set = {row_key(r) for r in existing_rows}
+        all_rows = [fetched_map.get(row_key(r), r) for r in existing_rows]
+        for row in fetched_rows:
+            if row_key(row) not in existing_key_set:
+                all_rows.append(row)
         all_rows.sort(key=lambda r: int(r.get("date", 0) or 0))
 
         changed = all_rows != existing_rows
