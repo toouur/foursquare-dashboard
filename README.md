@@ -1,5 +1,11 @@
 # Foursquare Check-in Dashboard
 
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Cloudflare Pages](https://img.shields.io/badge/deployed%20on-Cloudflare%20Pages-orange?style=flat-square&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
+[![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/features/actions)
+[![Sponsor](https://img.shields.io/badge/sponsor-Boosty-f15f2c?style=flat-square&logo=boosty&logoColor=white)](https://boosty.to/toouur/donate)
+
 A self-updating personal dashboard for your Foursquare/Swarm check-in history.
 
 **Features:** heatmap + dot map + country flag map · charts by year / month / hour / day of week ·

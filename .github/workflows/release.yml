@@ -1,0 +1,72 @@
+# .github/workflows/release.yml
+#
+# Manual workflow: create a GitHub release with a source zip.
+# The zip includes all scripts, config, templates, and workers —
+# but excludes generated HTML pages (index.html, trips.html, etc.)
+# and private data files.
+#
+# Trigger: Actions tab → "Create release" → Run workflow
+# Input:   version tag, e.g. v1.0.0
+
+name: Create release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v1.0.0)"
+        required: true
+      notes:
+        description: "Release notes (optional)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build source zip
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          ZIPNAME="foursquare-dashboard-${VERSION}.zip"
+
+          zip -r "$ZIPNAME" . \
+            --exclude "*.html" \
+            --exclude ".git/*" \
+            --exclude ".claude/*" \
+            --exclude "data/*" \
+            --exclude "private-data/*" \
+            --exclude "__pycache__/*" \
+            --exclude "*.pyc" \
+            --exclude "*.pyo" \
+            --exclude ".env" \
+            --exclude "node_modules/*"
+
+          # Re-include solution.html (it's a hand-written page, not generated)
+          zip "$ZIPNAME" solution.html
+
+          echo "ZIPNAME=$ZIPNAME" >> "$GITHUB_ENV"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          NOTES="${{ github.event.inputs.notes }}"
+
+          BODY="## Foursquare Check-in Dashboard ${VERSION}
+
+          Source release — includes all scripts, config, templates, and workers.
+          Generated HTML pages are excluded (rebuild locally with \`python scripts/build.py\`).
+
+          ${NOTES}"
+
+          gh release create "$VERSION" "$ZIPNAME" \
+            --title "Foursquare Dashboard ${VERSION}" \
+            --notes "$BODY"
