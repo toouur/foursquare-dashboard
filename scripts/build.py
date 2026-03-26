@@ -193,7 +193,9 @@ if __name__ == "__main__":
 
     def _name_with_icon(t: dict) -> str:
         icon = _infer_icon(t)
-        return t["name"] + (" " + icon if icon else "")
+        if not icon and "bicycle" not in t.get("tags", []):
+            icon = "🚗"
+        return t["name"] + " " + icon
 
     new_name_entries = {
         str(t["_name_ts"]): _name_with_icon(t)
