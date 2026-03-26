@@ -86,10 +86,11 @@ def detect_changes(
 def patch_tips(
     tips: list[dict],
     changes: list[dict],
-) -> tuple[list[dict], int]:
+) -> tuple[list[dict], list[dict]]:
     """
     Apply venue changes to tips in-place.
-    Returns (updated_tips, count_of_patched_tips).
+    Returns (updated_tips, list_of_patch_records) where each record has
+    {id, venue, venue_id, fields: {field: (old, new)}}.
     """
     # Build lookup: venue_id → new field values
     patches: dict[str, dict] = {}
@@ -97,7 +98,7 @@ def patch_tips(
         vid = ch["venue_id"]
         patches[vid] = {field: nv for field, (_, nv) in ch["fields"].items()}
 
-    patched = 0
+    patch_records: list[dict] = []
     for tip in tips:
         vid = tip.get("venue_id", "")
         if vid not in patches:
@@ -117,14 +118,13 @@ def patch_tips(
                 changed_fields[field] = (tip.get(field), typed)
                 tip[field] = typed
         if changed_fields:
-            patched += 1
-            log.info(
-                "  tip %-24s  venue=%r  changes: %s",
-                tip.get("id", ""),
-                tip.get("venue", ""),
-                ", ".join(f"{k}: {ov!r}→{nv!r}" for k, (ov, nv) in changed_fields.items()),
-            )
-    return tips, patched
+            patch_records.append({
+                "id":       tip.get("id", ""),
+                "venue":    tip.get("venue", ""),
+                "venue_id": vid,
+                "fields":   changed_fields,
+            })
+    return tips, patch_records
 
 
 def main() -> None:
@@ -176,18 +176,28 @@ def main() -> None:
     tips = json.loads(tips_path.read_text(encoding="utf-8"))
     log.info("Loaded %d tips from %s", len(tips), tips_path)
 
-    tips, patched = patch_tips(tips, changes)
+    tips, patch_records = patch_tips(tips, changes)
 
-    if patched == 0:
+    if not patch_records:
         log.info("No tips needed updating.")
     else:
-        log.info("%d tip(s) updated.", patched)
+        log.info("")
+        log.info("── Updated tips (%d) ─────────────────────────────────", len(patch_records))
+        for i, rec in enumerate(patch_records, 1):
+            field_summary = ", ".join(
+                f"{f}: {ov!r} → {nv!r}" for f, (ov, nv) in rec["fields"].items()
+            )
+            log.info("  %2d. [%s]  %s", i, rec["id"], rec["venue"])
+            log.info("       venue_id: %s", rec["venue_id"])
+            log.info("       %s", field_summary)
+        log.info("─────────────────────────────────────────────────────")
+        log.info("")
 
     if args.dry_run:
         log.info("Dry run — tips.json not written.")
         return
 
-    if patched > 0:
+    if patch_records:
         tips_path.write_text(
             json.dumps(tips, ensure_ascii=False, indent=2), encoding="utf-8"
         )

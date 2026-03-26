@@ -58,7 +58,9 @@ jobs:
           fi
 
       # ── 5. Full re-fetch all check-ins from Foursquare ───────────────────
+      # continue-on-error: partial results are saved even if quota is hit midway
       - name: Full re-fetch check-ins
+        continue-on-error: true
         env:
           FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |

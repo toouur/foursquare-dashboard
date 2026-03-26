@@ -203,7 +203,13 @@ def fetch_full_offset(token: str) -> list[dict]:
     return rows
 
 
-def fetch_full_timestamp(token: str) -> list[dict]:
+def fetch_full_timestamp(token: str) -> tuple[list[dict], bool]:
+    """
+    Fetch all check-ins walking backwards via beforeTimestamp.
+    Returns (rows, completed).  completed=False when a quota/rate-limit error
+    interrupts the fetch — partial rows are still returned so callers can
+    merge them with the existing CSV rather than discarding the work done.
+    """
     rows: list[dict] = []
     before_ts: int | None = None
 
@@ -216,7 +222,17 @@ def fetch_full_timestamp(token: str) -> list[dict]:
         if before_ts:
             params["beforeTimestamp"] = before_ts
 
-        data = request_checkins(token, params)
+        try:
+            data = request_checkins(token, params)
+        except RuntimeError as exc:
+            msg = str(exc).lower()
+            if "rate_limit" in msg or "quota" in msg or "403" in msg:
+                log.warning(
+                    "Quota/rate-limit hit after %d rows — saving partial results.", len(rows)
+                )
+                return rows, False
+            raise
+
         items = data.get("items", [])
         if not items:
             break
@@ -230,7 +246,7 @@ def fetch_full_timestamp(token: str) -> list[dict]:
         before_ts = int(items[-1]["createdAt"]) - 1
         time.sleep(SLEEP)
 
-    return rows
+    return rows, True
 
 
 def save_rows(csv_path: Path, rows: list[dict]) -> None:
@@ -279,14 +295,28 @@ def main() -> None:
         #   ?beforeTimestamp=T.  No hard cap; handles large histories and the
         #   500-retry logic in request_checkins() covers occasional API gaps.
         #   Used in CI where a correct full history matters most.
+        #   Returns (rows, completed); if quota is hit, partial rows are merged
+        #   with existing CSV so the work done is not discarded.
         try:
-            fetched_rows = fetch_full_timestamp(token) if IS_CI else fetch_full_offset(token)
+            if IS_CI:
+                fetched_rows, completed = fetch_full_timestamp(token)
+                if not completed:
+                    log.warning(
+                        "Full fetch incomplete (quota). Merging %d partial rows with existing %d.",
+                        len(fetched_rows), len(existing_rows),
+                    )
+            else:
+                fetched_rows = fetch_full_offset(token)
+                completed = True
         except RuntimeError as exc:
             log.error("Full fetch failed: %s", exc)
             print("CHANGED=false")
             return
 
+        # Merge: existing rows as base, fetched rows override (fresher venue info)
         deduped: dict[tuple[str, str], dict] = {}
+        for row in existing_rows:
+            deduped[row_key(row)] = row
         for row in fetched_rows:
             deduped[row_key(row)] = row
 
