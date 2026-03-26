@@ -202,6 +202,64 @@ category chart and the Category Explorer widget.
 
 ---
 
+## Full re-fetch and data integrity
+
+### Fetch strategies
+
+`fetch_checkins.py` uses two strategies depending on context:
+
+| Strategy | When | How |
+|----------|------|-----|
+| **Incremental** | Default (CSV exists) | Fetches only check-ins newer than the latest timestamp in the CSV |
+| **Full (offset)** | `--full` locally | Paginates via `?offset=N`; simple but silently capped at ~2,500 rows by Foursquare |
+| **Full (timestamp)** | `--full` in CI | Walks backwards via `?beforeTimestamp=T`; no cap, handles full history |
+
+The timestamp strategy is used in CI because it correctly handles histories longer than 2,500 check-ins. If the Foursquare API returns a quota/rate-limit error mid-fetch, partial results are saved to the CSV rather than discarded — the next run will continue from where the API stopped.
+
+### Merge logic on full re-fetch
+
+When a full re-fetch completes (or partially completes), results are merged with the existing CSV:
+
+1. All existing rows are kept as the base (including any duplicate rows)
+2. Fetched rows override existing rows where `(venue_id, date)` matches — this refreshes renamed/moved venue metadata
+3. Rows returned by the API but absent from the existing CSV are appended as new check-ins
+4. The merged result is sorted by timestamp and written back
+
+### Anomaly tracking (`checkins_anomalies.json`)
+
+Every full re-fetch writes a `checkins_anomalies.json` file next to `checkins.csv` in the private data repo. It records two categories of data quality issues and accumulates entries across runs:
+
+**`duplicates`** — rows with the same `(venue_id, date)` key appearing more than once in the existing CSV. These are identical rows that were double-entered at some point. They are preserved in the CSV (not silently removed) and logged here for awareness. A `duplicate_checkins.csv` sidecar file is also written alongside `checkins.csv` for easy inspection.
+
+**`missing`** — rows present in the existing CSV that the Foursquare API no longer returns. These are check-ins on venues that were deleted, merged into another venue, or otherwise removed from the API. They are preserved in the CSV and recorded here so you know which check-ins the API has "forgotten".
+
+```json
+{
+  "_meta": {
+    "description": "...",
+    "updated": "2026-03-26",
+    "duplicates_count": 12,
+    "missing_count": 8
+  },
+  "duplicates": [ ...rows... ],
+  "missing":    [ ...rows... ]
+}
+```
+
+### Archive and venue-change sync (`archive-checkins` workflow)
+
+The **Archive check-in snapshot** workflow (Actions tab → manual trigger) does a full re-fetch and automatically syncs venue metadata changes into `tips.json`:
+
+1. Archives the current `checkins.csv` with a UTC timestamp (e.g. `archive/checkins_2026-03-26T12-00-00Z.csv`)
+2. Does a full re-fetch of all check-ins from Foursquare
+3. Diffs the archived CSV against the fresh one — detects renamed venues, moved locations, category changes
+4. Patches any matching `tips.json` entries with updated venue metadata (no extra API calls — uses the already-fresh check-in data)
+5. Commits the archive, updated `checkins.csv`, updated `tips.json`, and `checkins_anomalies.json` to the private data repo
+
+Venue diff is done by `scripts/sync_venue_changes.py`. It compares these fields per venue_id: `venue`, `city`, `country`, `lat`, `lng`, `category`.
+
+---
+
 ## Data flow
 
 ```

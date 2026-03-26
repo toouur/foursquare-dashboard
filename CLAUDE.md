@@ -92,10 +92,66 @@ All HTML output is **pre-built and committed** — the site is purely static wit
 | `transform.py` | Apply city_merge.yaml, city_fixes.json, country_fixes.json; infer blank cities from CSV centroids |
 | `metrics.py` | All aggregations, trip detection, timezone-aware local timestamps, `recent` last-30 check-ins |
 | `build.py` | CLI entry: loads settings.yaml, calls transform → metrics → renders templates → calls gen_*.py; also loads tips.json for TIPS_RECENT section |
-| `fetch_checkins.py` | Incremental or full Foursquare API fetch; exits with `CHANGED=true/false` env var |
+| `fetch_checkins.py` | Incremental or full Foursquare API fetch; exits with `CHANGED=true/false` env var; on full re-fetch writes `duplicate_checkins.csv` and updates `checkins_anomalies.json` |
+| `sync_venue_changes.py` | Diffs two `checkins.csv` snapshots by venue_id; patches `tips.json` with updated venue metadata (no extra API calls) |
 | `fetch_tips.py` | Incremental or full tips fetch from `/users/self/tips`; optional `--sweep` probes per-venue for tips on closed venues (auto-marks `closed=True`) |
 | `gen_tips.py` | Builds tips.html from tips.json: normalises country names via `CTRY_NORM` dict, city names via city_merge.yaml, computes `TABS_DATA` for country/city tab filtering |
 | `find_closed_venue_tips.py` | One-time utility: uses browser cookies to scrape venue pages and recover tips that the API omits entirely |
+
+### `fetch_checkins.py` — full re-fetch logic
+
+**Modes**
+
+| Mode | Trigger | Strategy |
+|------|---------|----------|
+| Incremental | CSV exists, no `--full` | `afterTimestamp=<max_ts>` — fetches only newer rows |
+| Full (local) | `--full` outside CI | `fetch_full_offset`: `?offset=N` pagination — simple but Foursquare silently caps at ~2,500 rows |
+| Full (CI) | `--full` inside CI | `fetch_full_timestamp`: walks backwards via `?beforeTimestamp=T` — no cap, handles full history |
+
+**Quota handling**
+
+`fetch_full_timestamp` catches 403/quota/rate-limit errors mid-fetch and returns `(partial_rows, completed=False)` instead of raising. The partial rows are merged with the existing CSV so work done is not lost. The `archive-checkins` workflow step uses `continue-on-error: true` so the diff and commit steps always run even on a partial fetch.
+
+**500-retry logic** (`request_checkins`)
+
+The Foursquare API sporadically returns HTTP 500 near certain `beforeTimestamp` values. `request_checkins` retries up to 120 times, nudging `beforeTimestamp` back by 1 second on each 500, before giving up.
+
+**Merge logic on full re-fetch**
+
+1. Count `(venue_id, date)` key occurrences in existing rows — any key appearing >1 time is a duplicate.
+2. Write all duplicate rows to `duplicate_checkins.csv` next to `checkins.csv` and emit `WARNING`.
+3. Build `fetched_map = {(venue_id, date): row}` from the API response.
+4. `all_rows = [fetched_map.get(key, existing_row) for existing_row in existing_rows]` — preserves duplicates, updates venue metadata in-place.
+5. Append genuinely new rows (keys in fetched but not in existing).
+6. Sort by timestamp, write back.
+7. Detect missing rows: keys in existing (deduplicated) that are absent from fetched → record in anomalies file.
+
+**`checkins_anomalies.json`** (written to private data repo next to `checkins.csv`)
+
+Accumulates data quality issues across full re-fetch runs:
+
+```json
+{
+  "_meta": { "updated": "YYYY-MM-DD", "duplicates_count": N, "missing_count": M },
+  "duplicates": [ ...all rows whose (venue_id, date) appears >1 time... ],
+  "missing":    [ ...rows present in CSV but not returned by API... ]
+}
+```
+
+- `duplicates` — identical rows double-entered in the CSV. Preserved in CSV, flagged here.
+- `missing` — check-ins on deleted/merged venues that Foursquare no longer returns. Preserved in CSV.
+- Both lists accumulate (new entries merged in, existing entries never removed).
+
+**`sync_venue_changes.py`** (called by `archive-checkins` workflow)
+
+After a full re-fetch the archive workflow diffs the old and new `checkins.csv`:
+
+1. Loads both CSVs, keeps the most-recent check-in per venue_id (highest `date`).
+2. Compares `TRACKED = ["venue", "city", "country", "lat", "lng", "category"]` per venue_id.
+3. Logs every changed venue with old→new values.
+4. Patches matching `tips.json` entries in-place (lat/lng converted to `float` rounded to 5 dp).
+5. Writes updated `tips.json` only if at least one tip changed.
+6. Accepts `--dry-run` to report without writing.
 
 ### Configuration files (`config/`)
 
