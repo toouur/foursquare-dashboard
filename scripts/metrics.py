@@ -579,6 +579,7 @@ def detect_trips(
         result.append(
             {
                 "name":           name,
+                "_name_ts":       _name_ts,
                 "start_date":     str(dates[0].date()),
                 "end_date":       str(dates[-1].date()),
                 "start_ts":       int(trip_rows[0]["date"]),

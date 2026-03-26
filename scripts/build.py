@@ -163,6 +163,27 @@ if __name__ == "__main__":
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
     data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags)
 
+    # ── Auto-populate trip_names.json with new trips ──────────────────────────
+    # Any trip whose _name_ts is not yet in trip_names.json gets added with its
+    # auto-generated name so the user can rename it without hunting for the key.
+    new_name_entries = {
+        str(t["_name_ts"]): t["name"]
+        for t in trips
+        if str(t["_name_ts"]) not in trip_names
+    }
+    if new_name_entries:
+        trip_names.update(new_name_entries)
+        trip_names_sorted = dict(sorted(trip_names.items(), key=lambda kv: int(kv[0])))
+        trip_names_path.write_text(
+            json.dumps(trip_names_sorted, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        log.info(
+            "Auto-added %d new trip(s) to %s: %s",
+            len(new_name_entries),
+            trip_names_path,
+            ", ".join(f"{k}={v!r}" for k, v in new_name_entries.items()),
+        )
+
     # ── Load tips for recent section ─────────────────────────────────────────
     # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
     # private-data/tips.json) and local (data/checkins.csv → data/tips.json) both work.
