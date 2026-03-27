@@ -429,8 +429,6 @@ def main() -> None:
     parser.add_argument("--token", default="", help="Foursquare OAuth token")
     parser.add_argument("--csv", default="data/checkins.csv", help="Path to checkins CSV")
     parser.add_argument("--full", action="store_true", help="Force full re-fetch")
-    parser.add_argument("--overlaps-limit", type=int, default=0,
-                        help="Max individual API calls to enrich overlaps (0=unlimited, default)")
     args = parser.parse_args()
 
     token = resolve_token(args.token)
@@ -527,13 +525,7 @@ def main() -> None:
         else:
             log.info("No content changes after full fetch.")
 
-        enriched = enrich_overlaps(token, all_rows, max_calls=args.overlaps_limit,
-                                   csv_path=csv_path)
-        if enriched:
-            save_rows(csv_path, all_rows)
-            log.info("Saved %d overlap enrichment(s).", enriched)
-
-        print(f"CHANGED={'true' if changed or enriched else 'false'}")
+        print(f"CHANGED={'true' if changed else 'false'}")
         return
 
     log.info("Mode: INCREMENTAL (latest timestamp=%d)", after_ts)
