@@ -196,21 +196,34 @@ if __name__ == "__main__":
 
     _ALL_ICONS = {'✈️', '🚂', '🚌', '🚗', '⛺', '🛁', '⛴️'}
 
-    def _name_with_icon(t: dict) -> str:
-        icon = _infer_icon(t)
-        if not icon and "bicycle" not in t.get("tags", []):
-            icon = "🚗"
-        name = t["name"]
-        return f"{name} {icon}" if icon else name
+    def _base_name(name: str) -> str:
+        """Strip any trailing transport icon we may have previously appended."""
+        for icon in _ALL_ICONS:
+            if name.endswith(" " + icon):
+                return name[: -len(icon) - 1]
+        return name
 
-    def _missing_icon(ts_key: str) -> bool:
-        existing = trip_names.get(ts_key, "")
-        return not any(icon in existing for icon in _ALL_ICONS)
+    def _name_with_icon(t: dict) -> str:
+        # Bicycle trips: template already shows 🚲 badge — no name icon needed.
+        if "bicycle" in t.get("tags", []):
+            return _base_name(t["name"])
+        icon = _infer_icon(t) or "🚗"
+        return f"{_base_name(t['name'])} {icon}"
+
+    def _needs_update(ts_key: str, t: dict) -> bool:
+        if ts_key not in trip_names:
+            return True
+        existing = trip_names[ts_key]
+        has_icon = any(icon in existing for icon in _ALL_ICONS)
+        is_bicycle = "bicycle" in t.get("tags", [])
+        # Bicycle trip with a transport icon → strip it
+        # Non-bicycle trip missing an icon → add one
+        return (is_bicycle and has_icon) or (not is_bicycle and not has_icon)
 
     new_name_entries = {
         str(t["_name_ts"]): _name_with_icon(t)
         for t in trips
-        if str(t["_name_ts"]) not in trip_names or _missing_icon(str(t["_name_ts"]))
+        if _needs_update(str(t["_name_ts"]), t)
     }
     if new_name_entries:
         trip_names.update(new_name_entries)
