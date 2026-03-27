@@ -292,18 +292,28 @@ def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0,
     Returns number of rows where overlaps were found.
     """
     # Skip rows already checked: overlaps_id="-" means checked but no overlaps / access denied
-    to_enrich = [r for r in rows if r.get("checkin_id") and r.get("overlaps_id", "") == ""]
-    to_enrich.sort(key=lambda r: int(r.get("date", 0) or 0), reverse=True)
-    if max_calls:
-        to_enrich = to_enrich[:max_calls]
+    # Deduplicate by checkin_id — duplicate CSV rows share the same check-in, fetch it once
+    seen_cids: set[str] = set()
+    cid_to_rows: dict[str, list[dict]] = {}
+    for r in rows:
+        cid = r.get("checkin_id", "")
+        if cid and r.get("overlaps_id", "") == "":
+            cid_to_rows.setdefault(cid, []).append(r)
+            seen_cids.add(cid)
 
-    if not to_enrich:
+    to_enrich_cids = sorted(seen_cids,
+                            key=lambda c: int(cid_to_rows[c][0].get("date", 0) or 0),
+                            reverse=True)
+    if max_calls:
+        to_enrich_cids = to_enrich_cids[:max_calls]
+
+    if not to_enrich_cids:
         return 0
 
-    log.info("Enriching overlaps for %d check-in(s) via individual API calls …", len(to_enrich))
+    log.info("Enriching overlaps for %d check-in(s) via individual API calls …", len(to_enrich_cids))
     found = 0
-    for i, row in enumerate(to_enrich, 1):
-        cid = row["checkin_id"]
+    for i, cid in enumerate(to_enrich_cids, 1):
+        row_group = cid_to_rows[cid]
         try:
             resp = requests.get(
                 f"https://api.foursquare.com/v2/checkins/{cid}",
@@ -314,19 +324,21 @@ def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0,
             ci = resp.json().get("response", {}).get("checkin", {})
             overlap_items = ci.get("overlaps", {}).get("items", [])
             overlap_users = [item.get("user", {}) for item in overlap_items if item.get("user")]
-            row["overlaps_name"] = ", ".join(
+            overlaps_name = ", ".join(
                 (u.get("firstName", "") + " " + u.get("lastName", "")).strip()
                 for u in overlap_users
             ).strip()
-            row["overlaps_id"] = ", ".join(str(u.get("id", "")) for u in overlap_users)
-            if row["overlaps_name"]:
+            overlaps_id = ", ".join(str(u.get("id", "")) for u in overlap_users) or "-"
+            for r in row_group:
+                r["overlaps_name"] = overlaps_name
+                r["overlaps_id"] = overlaps_id
+            if overlaps_name:
                 found += 1
-                log.info("  overlaps found: %s @ %s — %s", row["overlaps_name"], row.get("venue", ""), cid)
-            else:
-                row["overlaps_id"] = "-"  # mark as checked, no overlaps found
+                log.info("  overlaps found: %s @ %s — %s", overlaps_name, row_group[0].get("venue", ""), cid)
         except requests.HTTPError as exc:
             if exc.response is not None and exc.response.status_code == 403:
-                row["overlaps_id"] = "-"  # mark as checked, access denied — don't retry
+                for r in row_group:
+                    r["overlaps_id"] = "-"  # access denied — don't retry
             log.warning("Failed to enrich overlaps for checkin %s: %s", cid, exc)
         except Exception as exc:
             log.warning("Failed to enrich overlaps for checkin %s: %s", cid, exc)
@@ -336,9 +348,9 @@ def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0,
         # Save periodically so progress survives interruptions
         if csv_path and i % save_every == 0:
             save_rows(csv_path, rows)
-            log.info("  checkpoint: saved after %d/%d enrichment calls.", i, len(to_enrich))
+            log.info("  checkpoint: saved after %d/%d enrichment calls.", i, len(to_enrich_cids))
 
-    log.info("Overlaps enrichment done: %d/%d had overlapping friends.", found, len(to_enrich))
+    log.info("Overlaps enrichment done: %d/%d had overlapping friends.", found, len(to_enrich_cids))
     return found
 
 
