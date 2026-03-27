@@ -44,7 +44,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
         if cb_name and cb_name not in seen_in_row:
             comp_rows[cb_name].append(r)
             seen_in_row.add(cb_name)
-        for name in [n.strip() for n in r.get('overlaps_name','').split(',') if n.strip()]:
+        for name in [n.strip() for n in r.get('overlaps_name','').split(',') if n.strip() and n.strip() != '-']:
             if name not in seen_in_row:
                 comp_rows[name].append(r)
                 seen_in_row.add(name)

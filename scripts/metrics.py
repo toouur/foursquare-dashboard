@@ -839,7 +839,7 @@ def process(
             comp_raw[cb] += 1
             seen_in_row.add(cb)
         # Also count overlapping friends (checked in separately at same venue/time)
-        for name in [n.strip() for n in r.get("overlaps_name", "").replace(" ,", ",").split(",")]:
+        for name in [n.strip() for n in r.get("overlaps_name", "").replace(" ,", ",").split(",") if n.strip() != "-"]:
             if name and name not in seen_in_row:
                 comp_raw[name] += 1
                 seen_in_row.add(name)

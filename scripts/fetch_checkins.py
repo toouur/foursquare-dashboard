@@ -291,7 +291,8 @@ def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0,
     max_calls=0 means unlimited.
     Returns number of rows where overlaps were found.
     """
-    to_enrich = [r for r in rows if r.get("checkin_id") and not r.get("overlaps_name", "").strip()]
+    # Skip rows already checked: overlaps_id="-" means checked but no overlaps / access denied
+    to_enrich = [r for r in rows if r.get("checkin_id") and r.get("overlaps_id", "") == ""]
     to_enrich.sort(key=lambda r: int(r.get("date", 0) or 0), reverse=True)
     if max_calls:
         to_enrich = to_enrich[:max_calls]
@@ -321,8 +322,15 @@ def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0,
             if row["overlaps_name"]:
                 found += 1
                 log.info("  overlaps found: %s @ %s — %s", row["overlaps_name"], row.get("venue", ""), cid)
+            else:
+                row["overlaps_id"] = "-"  # mark as checked, no overlaps found
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code == 403:
+                row["overlaps_id"] = "-"  # mark as checked, access denied — don't retry
+            log.warning("Failed to enrich overlaps for checkin %s: %s", cid, exc)
         except Exception as exc:
             log.warning("Failed to enrich overlaps for checkin %s: %s", cid, exc)
+            # Don't mark as checked — transient errors should be retried
         time.sleep(SLEEP)
 
         # Save periodically so progress survives interruptions
