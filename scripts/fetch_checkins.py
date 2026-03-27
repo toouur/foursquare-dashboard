@@ -280,12 +280,15 @@ def fetch_full_timestamp(token: str) -> tuple[list[dict], bool]:
     return rows, True
 
 
-def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0) -> int:
+def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0,
+                    csv_path: Path | None = None, save_every: int = 200) -> int:
     """Fetch individual check-in details to populate overlaps_name/overlaps_id.
 
     Only processes rows that have a checkin_id and empty overlaps_name.
-    For full re-fetch, pass max_calls to cap API usage (0 = unlimited).
     Rows are processed newest-first so recent check-ins are filled first.
+    Progress is saved to csv_path every save_every calls so the job is
+    resumable across runs if interrupted (already-enriched rows are skipped).
+    max_calls=0 means unlimited.
     Returns number of rows where overlaps were found.
     """
     to_enrich = [r for r in rows if r.get("checkin_id") and not r.get("overlaps_name", "").strip()]
@@ -298,7 +301,7 @@ def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0) -> int:
 
     log.info("Enriching overlaps for %d check-in(s) via individual API calls …", len(to_enrich))
     found = 0
-    for row in to_enrich:
+    for i, row in enumerate(to_enrich, 1):
         cid = row["checkin_id"]
         try:
             resp = requests.get(
@@ -321,6 +324,11 @@ def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0) -> int:
         except Exception as exc:
             log.warning("Failed to enrich overlaps for checkin %s: %s", cid, exc)
         time.sleep(SLEEP)
+
+        # Save periodically so progress survives interruptions
+        if csv_path and i % save_every == 0:
+            save_rows(csv_path, rows)
+            log.info("  checkpoint: saved after %d/%d enrichment calls.", i, len(to_enrich))
 
     log.info("Overlaps enrichment done: %d/%d had overlapping friends.", found, len(to_enrich))
     return found
@@ -401,8 +409,8 @@ def main() -> None:
     parser.add_argument("--token", default="", help="Foursquare OAuth token")
     parser.add_argument("--csv", default="data/checkins.csv", help="Path to checkins CSV")
     parser.add_argument("--full", action="store_true", help="Force full re-fetch")
-    parser.add_argument("--overlaps-limit", type=int, default=500,
-                        help="Max individual API calls to enrich overlaps on full re-fetch (0=unlimited, default 500)")
+    parser.add_argument("--overlaps-limit", type=int, default=0,
+                        help="Max individual API calls to enrich overlaps (0=unlimited, default)")
     args = parser.parse_args()
 
     token = resolve_token(args.token)
@@ -499,8 +507,9 @@ def main() -> None:
         else:
             log.info("No content changes after full fetch.")
 
-        enriched = enrich_overlaps(token, all_rows, max_calls=args.overlaps_limit)
-        if enriched or any(r.get("overlaps_name") for r in all_rows):
+        enriched = enrich_overlaps(token, all_rows, max_calls=args.overlaps_limit,
+                                   csv_path=csv_path)
+        if enriched:
             save_rows(csv_path, all_rows)
             log.info("Saved %d overlap enrichment(s).", enriched)
 
@@ -524,7 +533,7 @@ def main() -> None:
         return
 
     # Enrich overlaps for newly added rows before saving (no cap — few rows in incremental)
-    enrich_overlaps(token, added, max_calls=0)
+    enrich_overlaps(token, added, max_calls=0, csv_path=None)
 
     all_rows = existing_rows + added
     all_rows.sort(key=lambda r: int(r.get("date", 0) or 0))
