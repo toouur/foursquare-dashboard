@@ -237,6 +237,11 @@ if __name__ == "__main__":
             trip_names_path,
             ", ".join(f"{k}={v!r}" for k, v in new_name_entries.items()),
         )
+        # Patch the in-memory trips list so the HTML reflects the updated names.
+        for t in trips:
+            ts_key = str(t["_name_ts"])
+            if ts_key in new_name_entries:
+                t["name"] = new_name_entries[ts_key]
 
     # ── Load tips for recent section ─────────────────────────────────────────
     # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
