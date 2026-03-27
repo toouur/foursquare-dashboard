@@ -51,14 +51,24 @@ def load_csv(path: Path) -> tuple[list[dict], list[str]]:
     return rows, list(fields)
 
 
-def save_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
+def save_csv(path: Path, rows: list[dict], fields: list[str], retries: int = 10, delay: float = 3.0) -> None:
     buf = io.StringIO()
     w = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore", lineterminator="\n")
     w.writeheader()
     w.writerows(rows)
+    content = buf.getvalue()
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(buf.getvalue(), encoding="utf-8")
-    os.replace(tmp, path)
+    for attempt in range(retries):
+        try:
+            tmp.write_text(content, encoding="utf-8")
+            os.replace(tmp, path)
+            return
+        except OSError as exc:
+            if attempt < retries - 1:
+                log.debug("Save locked (attempt %d/%d): %s — retrying in %.0fs …", attempt + 1, retries, exc, delay)
+                time.sleep(delay)
+            else:
+                raise
 
 
 def fetch_overlaps(token: str, checkin_id: str) -> tuple[str, str] | None:
@@ -141,21 +151,16 @@ def main() -> None:
         while not success and retries <= MAX_RETRIES:
             try:
                 name, uid = fetch_overlaps(token, cid)
-                row["overlaps_name"] = name if name != "-" else ""
-                row["overlaps_id"]   = uid
-                save_csv(csv_path, rows, fields)
-                done += 1
-                consecutive_pauses = 0
-                if name and name != "-":
-                    found += 1
-                    log.info("[%d/%d] overlaps: %s @ %s", done, total, name, row.get("venue", ""))
-                elif done % 500 == 0:
-                    log.info("[%d/%d] progress checkpoint", done, total)
-                success = True
-                time.sleep(args.sleep)
-
             except SystemExit:
                 raise
+            except requests.ConnectionError as exc:
+                # Network blip — short retry (60s), not a full pause
+                retries += 1
+                wait = 60 if retries <= MAX_RETRIES else args.pause * 60
+                log.warning("Network error on %s (attempt %d/%d): %s — retrying in %ds …",
+                            cid, retries, MAX_RETRIES, exc, wait)
+                time.sleep(wait)
+                continue
             except Exception as exc:
                 retries += 1
                 if retries > MAX_RETRIES:
@@ -170,6 +175,21 @@ def main() -> None:
                     log.warning("Error on %s (attempt %d/%d): %s — pausing %d min …",
                                 cid, retries, MAX_RETRIES, exc, args.pause)
                     time.sleep(args.pause * 60)
+                continue
+
+            # API call succeeded — update row and save
+            row["overlaps_name"] = name if name != "-" else ""
+            row["overlaps_id"]   = uid
+            save_csv(csv_path, rows, fields)
+            done += 1
+            consecutive_pauses = 0
+            if name and name != "-":
+                found += 1
+                log.info("[%d/%d] overlaps: %s @ %s", done, total, name, row.get("venue", ""))
+            elif done % 500 == 0:
+                log.info("[%d/%d] progress checkpoint", done, total)
+            success = True
+            time.sleep(args.sleep)
 
         if consecutive_pauses >= MAX_PAUSES:
             log.error("%d consecutive failures — quitting. Re-run to resume.", MAX_PAUSES)
