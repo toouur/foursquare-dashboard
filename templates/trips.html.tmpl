@@ -58,7 +58,8 @@ a{color:inherit;}
 .detail-back:hover{color:var(--gold);}
 .detail-back::before{content:'←';}
 .detail-hero{padding:28px 56px 24px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px;border-bottom:1px solid var(--border);}
-.detail-hero h2{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,4vw,2.6rem);font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;}
+.detail-hero h2{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,4vw,2.6rem);font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;padding-bottom:0.15em;}
+.detail-hero h2 .trip-icon{-webkit-text-fill-color:initial;background:none;font-size:0.8em;vertical-align:middle;}
 .detail-dates{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);margin-top:6px;}
 .detail-kpis{display:flex;gap:24px;flex-wrap:wrap;}
 .detail-kpi .num{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1;}
@@ -215,7 +216,13 @@ function showTrip(id){
   history.pushState({trip:id},'','#trip-'+id);
   document.getElementById('listView').style.display = 'none';
   document.getElementById('detailView').style.display = 'block';
-  document.getElementById('detailName').textContent = t.name;
+  const _icons=['✈️','🚂','🚌','🚗','⛺','🛁','⛴️'];
+  let _dname=t.name, _dicon='';
+  for(const ic of _icons){ if(_dname.endsWith(' '+ic)){_dicon=ic;_dname=_dname.slice(0,-ic.length-1);break;} }
+  const _h2=document.getElementById('detailName');
+  _h2.textContent=_dname;
+  if(_dicon){const _sp=document.createElement('span');_sp.className='trip-icon';_sp.textContent=' '+_dicon;_h2.appendChild(_sp);}
+  if((t.tags||[]).includes('bicycle')){const _sp=document.createElement('span');_sp.className='trip-icon';_sp.textContent=' 🚲';_h2.appendChild(_sp);}
   document.getElementById('detailDates').textContent = t.start_date + ' – ' + t.end_date;
   document.getElementById('detailKpis').innerHTML =
     `<div class="detail-kpi"><div class="num">${t.duration}</div><div class="lbl">Days</div></div>
