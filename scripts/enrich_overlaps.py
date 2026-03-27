@@ -185,9 +185,10 @@ def main() -> None:
             consecutive_pauses = 0
             if name and name != "-":
                 found += 1
-                log.info("[%d/%d] overlaps: %s @ %s", done, total, name, row.get("venue", ""))
-            elif done % 500 == 0:
-                log.info("[%d/%d] progress checkpoint", done, total)
+                print(f"\r[{done}/{total}] FOUND: {name} @ {row.get('venue', '')}".ljust(100))
+            else:
+                venue_short = row.get("venue", "")[:50]
+                print(f"\r[{done}/{total}] {venue_short}".ljust(100), end="", flush=True)
             success = True
             time.sleep(args.sleep)
 
