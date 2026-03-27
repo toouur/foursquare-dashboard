@@ -18,5 +18,4 @@ analyze_mismatches.py
 /docs/
 /gitattributes
 config/categories_old.json
-config/city_merge_normalized_review.csv
 scripts/fetch_tips_from_log.py
