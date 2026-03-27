@@ -194,16 +194,23 @@ if __name__ == "__main__":
                 best = icon
         return best
 
+    _ALL_ICONS = {'✈️', '🚂', '🚌', '🚗', '⛺', '🛁', '⛴️'}
+
     def _name_with_icon(t: dict) -> str:
         icon = _infer_icon(t)
         if not icon and "bicycle" not in t.get("tags", []):
             icon = "🚗"
-        return t["name"] + " " + icon
+        name = t["name"]
+        return f"{name} {icon}" if icon else name
+
+    def _missing_icon(ts_key: str) -> bool:
+        existing = trip_names.get(ts_key, "")
+        return not any(icon in existing for icon in _ALL_ICONS)
 
     new_name_entries = {
         str(t["_name_ts"]): _name_with_icon(t)
         for t in trips
-        if str(t["_name_ts"]) not in trip_names
+        if str(t["_name_ts"]) not in trip_names or _missing_icon(str(t["_name_ts"]))
     }
     if new_name_entries:
         trip_names.update(new_name_entries)

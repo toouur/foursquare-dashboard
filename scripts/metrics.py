@@ -531,8 +531,6 @@ def detect_trips(
         if trip_names and start_ts_key in trip_names:
             name = trip_names[start_ts_key]
 
-        duration = (dates[-1].date() - dates[0].date()).days + 1
-
         checkins: list[dict] = []
         for r in trip_rows:
             d = _parse_ts(r)
@@ -579,14 +577,27 @@ def detect_trips(
         trip_cats = Counter(
             r.get("category", "").strip() for r in trip_rows if r.get("category", "").strip()
         )
+        if checkins:
+            from datetime import date as _date
+            _sd = _date.fromisoformat(checkins[0]["date"])
+            _ed = _date.fromisoformat(checkins[-1]["date"])
+            start_date = checkins[0]["date"]
+            end_date   = checkins[-1]["date"]
+            start_year = _sd.year
+            duration   = (_ed - _sd).days + 1
+        else:
+            start_date = str(dates[0].date())
+            end_date   = str(dates[-1].date())
+            start_year = dates[0].year
+            duration   = (dates[-1].date() - dates[0].date()).days + 1
         result.append(
             {
                 "name":           name,
                 "_name_ts":       _name_ts,
-                "start_date":     str(dates[0].date()),
-                "end_date":       str(dates[-1].date()),
+                "start_date":     start_date,
+                "end_date":       end_date,
                 "start_ts":       int(trip_rows[0]["date"]),
-                "start_year":     dates[0].year,
+                "start_year":     start_year,
                 "duration":       duration,
                 "countries":      top_countries,
                 "cities":         [c for c, _ in cities_c.most_common()],
