@@ -49,6 +49,7 @@ FIELDS = [
     "source_app", "source_url", "with_name", "with_id",
     "created_by_name", "created_by_id",
     "overlaps_name", "overlaps_id",
+    "checkin_id",
 ]
 
 
@@ -175,6 +176,7 @@ def api_to_row(ci: dict) -> dict:
         "created_by_id": created_by_id,
         "overlaps_name": overlaps_names,
         "overlaps_id": overlaps_ids,
+        "checkin_id": str(ci.get("id", "") or ""),
     }
 
 
@@ -278,6 +280,52 @@ def fetch_full_timestamp(token: str) -> tuple[list[dict], bool]:
     return rows, True
 
 
+def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0) -> int:
+    """Fetch individual check-in details to populate overlaps_name/overlaps_id.
+
+    Only processes rows that have a checkin_id and empty overlaps_name.
+    For full re-fetch, pass max_calls to cap API usage (0 = unlimited).
+    Rows are processed newest-first so recent check-ins are filled first.
+    Returns number of rows where overlaps were found.
+    """
+    to_enrich = [r for r in rows if r.get("checkin_id") and not r.get("overlaps_name", "").strip()]
+    to_enrich.sort(key=lambda r: int(r.get("date", 0) or 0), reverse=True)
+    if max_calls:
+        to_enrich = to_enrich[:max_calls]
+
+    if not to_enrich:
+        return 0
+
+    log.info("Enriching overlaps for %d check-in(s) via individual API calls …", len(to_enrich))
+    found = 0
+    for row in to_enrich:
+        cid = row["checkin_id"]
+        try:
+            resp = requests.get(
+                f"https://api.foursquare.com/v2/checkins/{cid}",
+                params={"oauth_token": token, "v": API_V},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            ci = resp.json().get("response", {}).get("checkin", {})
+            overlap_items = ci.get("overlaps", {}).get("items", [])
+            overlap_users = [item.get("user", {}) for item in overlap_items if item.get("user")]
+            row["overlaps_name"] = ", ".join(
+                (u.get("firstName", "") + " " + u.get("lastName", "")).strip()
+                for u in overlap_users
+            ).strip()
+            row["overlaps_id"] = ", ".join(str(u.get("id", "")) for u in overlap_users)
+            if row["overlaps_name"]:
+                found += 1
+                log.info("  overlaps found: %s @ %s — %s", row["overlaps_name"], row.get("venue", ""), cid)
+        except Exception as exc:
+            log.warning("Failed to enrich overlaps for checkin %s: %s", cid, exc)
+        time.sleep(SLEEP)
+
+    log.info("Overlaps enrichment done: %d/%d had overlapping friends.", found, len(to_enrich))
+    return found
+
+
 def save_rows(csv_path: Path, rows: list[dict]) -> None:
     with open(csv_path, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
@@ -353,6 +401,8 @@ def main() -> None:
     parser.add_argument("--token", default="", help="Foursquare OAuth token")
     parser.add_argument("--csv", default="data/checkins.csv", help="Path to checkins CSV")
     parser.add_argument("--full", action="store_true", help="Force full re-fetch")
+    parser.add_argument("--overlaps-limit", type=int, default=500,
+                        help="Max individual API calls to enrich overlaps on full re-fetch (0=unlimited, default 500)")
     args = parser.parse_args()
 
     token = resolve_token(args.token)
@@ -449,7 +499,12 @@ def main() -> None:
         else:
             log.info("No content changes after full fetch.")
 
-        print(f"CHANGED={'true' if changed else 'false'}")
+        enriched = enrich_overlaps(token, all_rows, max_calls=args.overlaps_limit)
+        if enriched or any(r.get("overlaps_name") for r in all_rows):
+            save_rows(csv_path, all_rows)
+            log.info("Saved %d overlap enrichment(s).", enriched)
+
+        print(f"CHANGED={'true' if changed or enriched else 'false'}")
         return
 
     log.info("Mode: INCREMENTAL (latest timestamp=%d)", after_ts)
@@ -467,6 +522,9 @@ def main() -> None:
     if not added:
         print("CHANGED=false")
         return
+
+    # Enrich overlaps for newly added rows before saving (no cap — few rows in incremental)
+    enrich_overlaps(token, added, max_calls=0)
 
     all_rows = existing_rows + added
     all_rows.sort(key=lambda r: int(r.get("date", 0) or 0))
