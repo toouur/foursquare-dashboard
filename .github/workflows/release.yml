@@ -36,20 +36,21 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           ZIPNAME="foursquare-dashboard-${VERSION}.zip"
 
-          zip -r "$ZIPNAME" . \
-            --exclude "*.html" \
-            --exclude ".git/*" \
-            --exclude ".claude/*" \
-            --exclude "data/*" \
-            --exclude "private-data/*" \
-            --exclude "__pycache__/*" \
-            --exclude "*.pyc" \
-            --exclude "*.pyo" \
-            --exclude ".env" \
-            --exclude "node_modules/*"
-
-          # Re-include solution.html (it's a hand-written page, not generated)
-          zip "$ZIPNAME" solution.html
+          # Allowlist: only include files that are part of the project
+          zip -r "$ZIPNAME" \
+            scripts/ \
+            config/ \
+            templates/ \
+            workers/ \
+            .github/ \
+            README.md \
+            LICENSE \
+            CLAUDE.md \
+            requirements.txt \
+            netlify.toml \
+            wrangler.jsonc \
+            .gitattributes \
+            solution.html
 
           echo "ZIPNAME=$ZIPNAME" >> "$GITHUB_ENV"
 

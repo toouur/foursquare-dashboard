@@ -12,3 +12,11 @@ __pycache__/
 
 .claude/worktrees
 analyze_mismatches.py
+
+# Unused / experimental files
+/android/
+/docs/
+/gitattributes
+config/categories_old.json
+config/city_merge_normalized_review.csv
+scripts/fetch_tips_from_log.py

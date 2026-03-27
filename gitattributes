@@ -1,5 +1,0 @@
-# Auto detect text files and perform LF normalization
-* text=auto
-
-# Template files — always LF so Python read_text() and diffs are consistent
-templates/*.tmpl text eol=lf
