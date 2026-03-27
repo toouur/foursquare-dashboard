@@ -121,6 +121,7 @@ a{color:inherit;}
   <div class="list-filters">
     <input class="filter-search" type="text" placeholder="Search trips…" id="tripSearch" oninput="filterTrips()">
     <div id="yearPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    <div id="sortPills" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;"></div>
   </div>
   <div class="trips-grid" id="tripsGrid"></div>
 </div>
@@ -188,7 +189,7 @@ let activeYear = null;
   p.className = 'filter-pill' + (y==='All'?' active':'');
   p.textContent = y;
   p.onclick = () => {
-    document.querySelectorAll('.filter-pill').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('#yearPills .filter-pill').forEach(x=>x.classList.remove('active'));
     p.classList.add('active');
     activeYear = y==='All' ? null : y;
     filterTrips();
@@ -196,17 +197,34 @@ let activeYear = null;
   pillsEl.appendChild(p);
 });
 
+// ── Sort pills ───────────────────────────────────────────────────────────────
+let activeSort = 'date';
+[['date','Date ↓'],['checkins','Check-ins ↓'],['days','Days ↓']].forEach(([key,label]) => {
+  const p = document.createElement('div');
+  p.className = 'filter-pill' + (key==='date'?' active':'');
+  p.textContent = label;
+  p.onclick = () => {
+    document.querySelectorAll('#sortPills .filter-pill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    activeSort = key;
+    filterTrips();
+  };
+  document.getElementById('sortPills').appendChild(p);
+});
+
 function filterTrips(){
   const q = document.getElementById('tripSearch').value.toLowerCase();
-  TRIPS.forEach(t => {
-    const card = document.getElementById('card-trip-'+t.id);
+  let filtered = TRIPS.filter(t => {
     const matchYear = !activeYear || t.start_year === activeYear;
     const matchQ = !q || t.name.toLowerCase().includes(q)
       || t.countries.some(c=>c.toLowerCase().includes(q))
       || t.cities.some(c=>c.toLowerCase().includes(q))
       || t.start_date.includes(q);
-    card.classList.toggle('hidden', !(matchYear && matchQ));
+    return matchYear && matchQ;
   });
+  if(activeSort === 'checkins') filtered.sort((a,b) => b.checkin_count - a.checkin_count);
+  else if(activeSort === 'days') filtered.sort((a,b) => b.duration - a.duration);
+  renderGrid(filtered);
 }
 
 // ── Show detail ─────────────────────────────────────────────────────────────
