@@ -25,10 +25,29 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
         for n, i in zip(names, ids):
             if n not in name_to_uid:
                 name_to_uid[n] = i
+        cb_name = r.get('created_by_name', '').strip()
+        cb_id = r.get('created_by_id', '').strip()
+        if cb_name and cb_id and cb_name not in name_to_uid:
+            name_to_uid[cb_name] = cb_id
+        ov_names = [n.strip() for n in r.get('overlaps_name','').split(',') if n.strip()]
+        ov_ids = [i.strip() for i in r.get('overlaps_id','').split(',') if i.strip()]
+        for n, i in zip(ov_names, ov_ids):
+            if n not in name_to_uid:
+                name_to_uid[n] = i
     comp_rows = defaultdict(list)
     for r in rows:
+        seen_in_row = set()
         for name in [n.strip() for n in r.get('with_name','').split(',') if n.strip()]:
             comp_rows[name].append(r)
+            seen_in_row.add(name)
+        cb_name = r.get('created_by_name', '').strip()
+        if cb_name and cb_name not in seen_in_row:
+            comp_rows[cb_name].append(r)
+            seen_in_row.add(cb_name)
+        for name in [n.strip() for n in r.get('overlaps_name','').split(',') if n.strip()]:
+            if name not in seen_in_row:
+                comp_rows[name].append(r)
+                seen_in_row.add(name)
     comp_sorted = sorted(comp_rows.items(), key=lambda x: -len(x[1]))
     comp_data = []
     for name, checkins in comp_sorted[:30]:

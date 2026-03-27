@@ -47,6 +47,8 @@ FIELDS = [
     "date", "venue", "venue_id", "venue_url", "city", "state", "country",
     "neighborhood", "lat", "lng", "address", "category", "shout",
     "source_app", "source_url", "with_name", "with_id",
+    "created_by_name", "created_by_id",
+    "overlaps_name", "overlaps_id",
 ]
 
 
@@ -129,8 +131,27 @@ def api_to_row(ci: dict) -> dict:
     ).strip()
     with_ids = ", ".join(str(w.get("id", "")) for w in with_items)
 
+    overlap_items = ci.get("overlaps", {}).get("items", [])
+    overlap_users = [item.get("user", {}) for item in overlap_items if item.get("user")]
+    overlaps_names = ", ".join(
+        (u.get("firstName", "") + " " + u.get("lastName", "")).strip()
+        for u in overlap_users
+    ).strip()
+    overlaps_ids = ", ".join(str(u.get("id", "")) for u in overlap_users)
+
     source = ci.get("source", {})
     vid = str(venue.get("id", "") or "")
+
+    # created_by: populated only when a friend checked you in on your behalf
+    created_by = ci.get("createdBy", {})
+    owner_id = str(ci.get("user", {}).get("id", "") or "")
+    creator_id = str(created_by.get("id", "") or "")
+    if creator_id and creator_id != owner_id:
+        created_by_name = (created_by.get("firstName", "") + " " + created_by.get("lastName", "")).strip()
+        created_by_id = creator_id
+    else:
+        created_by_name = ""
+        created_by_id = ""
 
     return {
         "date": str(ci.get("createdAt", "")),
@@ -150,6 +171,10 @@ def api_to_row(ci: dict) -> dict:
         "source_url": source.get("url", ""),
         "with_name": with_names,
         "with_id": with_ids,
+        "created_by_name": created_by_name,
+        "created_by_id": created_by_id,
+        "overlaps_name": overlaps_names,
+        "overlaps_id": overlaps_ids,
     }
 
 

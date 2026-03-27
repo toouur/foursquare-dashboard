@@ -827,12 +827,22 @@ def process(
     # ── Companions ────────────────────────────────────────────────────────────
     comp_raw: Counter = Counter()
     for r in rows:
+        seen_in_row: set = set()
         raw = r.get("with_name", "").strip()
-        if not raw:
-            continue
         for name in [n.strip() for n in raw.replace(" ,", ",").split(",")]:
             if name:
                 comp_raw[name] += 1
+                seen_in_row.add(name)
+        # Also count friend-created check-ins (createdBy ≠ owner), deduping against with_name
+        cb = r.get("created_by_name", "").strip()
+        if cb and cb not in seen_in_row:
+            comp_raw[cb] += 1
+            seen_in_row.add(cb)
+        # Also count overlapping friends (checked in separately at same venue/time)
+        for name in [n.strip() for n in r.get("overlaps_name", "").replace(" ,", ",").split(",")]:
+            if name and name not in seen_in_row:
+                comp_raw[name] += 1
+                seen_in_row.add(name)
     companions = [[n, c] for n, c in comp_raw.most_common(30)]
 
     # ── Day heatmap ───────────────────────────────────────────────────────────
