@@ -33,6 +33,7 @@ import io
 import logging
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -104,6 +105,10 @@ def fetch_overlaps(token: str, checkin_id: str) -> tuple[str, str] | None:
 
 
 def main() -> None:
+    # Ensure stdout handles all Unicode (important on Windows cp1251 terminals)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Backfill overlaps for historical check-ins")
     parser.add_argument("--token",      default="",  help="Foursquare OAuth token")
     parser.add_argument("--token-file", default="",  help="Path to file containing the token")
@@ -142,18 +147,53 @@ def main() -> None:
     to_do = [r for r in rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") in ("", "error")]
 
     if args.recover_from_log:
+        from collections import Counter as _Counter
         log_path = Path(args.recover_from_log)
         if not log_path.exists():
             log.error("Log file not found: %s", log_path)
             raise SystemExit(1)
-        found_venues: set[str] = set()
-        _found_re = re.compile(r"\[\d+/\d+\] FOUND: .+ @ (.+)")
+
+        # Parse (1-based position, venue) from every FOUND line
+        _found_re = re.compile(r"\[(\d+)/\d+\] FOUND: .+ @ (.+)")
+        found_entries: list[tuple[int, str]] = []
         for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
             m = _found_re.search(line.strip())
             if m:
-                found_venues.add(m.group(1).strip())
-        log.info("Recovery mode: %d unique venues from log", len(found_venues))
-        to_do = [r for r in to_do if r.get("venue", "").strip() in found_venues]
+                found_entries.append((int(m.group(1)), m.group(2).strip()))
+
+        if not found_entries:
+            log.warning("No FOUND entries in log — nothing to recover.")
+            to_do = []
+        else:
+            # Build venue → [indices] map for current to_do
+            venue_to_idx: dict[str, list[int]] = {}
+            for i, r in enumerate(to_do):
+                venue_to_idx.setdefault(r.get("venue", "").strip(), []).append(i)
+
+            # Compute shift: old_pos-1 - current_idx should be constant.
+            # Use up to 200 anchors and take the mode.
+            shift_counts: _Counter = _Counter()
+            for pos, venue in found_entries[:200]:
+                for cur_idx in venue_to_idx.get(venue, []):
+                    s = (pos - 1) - cur_idx
+                    if s >= 0:
+                        shift_counts[s] += 1
+
+            if not shift_counts:
+                # Fallback: venue-name matching (old behaviour)
+                log.warning("Could not compute shift — falling back to venue matching.")
+                found_venues = {v for _, v in found_entries}
+                to_do = [r for r in to_do if r.get("venue", "").strip() in found_venues]
+            else:
+                shift = shift_counts.most_common(1)[0][0]
+                log.info("Recovery mode: %d FOUND entries, shift=%d", len(found_entries), shift)
+                target_indices: set[int] = set()
+                for pos, _ in found_entries:
+                    idx = (pos - 1) - shift
+                    if 0 <= idx < len(to_do):
+                        target_indices.add(idx)
+                to_do = [to_do[i] for i in sorted(target_indices)]
+                log.info("Exact rows targeted: %d", len(to_do))
 
     total = len(to_do)
     log.info("Rows to enrich: %d / %d total", total, len(rows))
