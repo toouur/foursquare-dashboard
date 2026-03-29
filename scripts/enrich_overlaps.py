@@ -257,7 +257,26 @@ def main() -> None:
                     time.sleep(args.pause * 60)
                 continue
 
-            # API call succeeded — update row and save
+            # API call succeeded — filter out anyone already in with_name/created_by_name
+            if name and name != "-":
+                existing = {
+                    n.strip().lower()
+                    for field in ("with_name", "created_by_name")
+                    for n in row.get(field, "").split(",")
+                    if n.strip()
+                }
+                pairs = list(zip(
+                    [n.strip() for n in name.split(",")],
+                    [i.strip() for i in uid.split(",")],
+                ))
+                pairs = [(n, i) for n, i in pairs if n.lower() not in existing]
+                if pairs:
+                    name = ", ".join(n for n, _ in pairs)
+                    uid  = ", ".join(i for _, i in pairs)
+                else:
+                    name, uid = "-", "-"
+
+            # Update row and save
             row["overlaps_name"] = name if name != "-" else ""
             row["overlaps_id"]   = uid
             save_csv(csv_path, rows, fields)
