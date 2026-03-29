@@ -83,7 +83,7 @@ def fetch_overlaps(token: str, checkin_id: str) -> tuple[str, str] | None:
     if resp.status_code == 401:
         log.error("401 Unauthorized — token expired or revoked. Quitting.")
         raise SystemExit(1)
-    if resp.status_code == 403:
+    if resp.status_code in (400, 403):
         return "-", "-"
     resp.raise_for_status()
 
