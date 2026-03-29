@@ -114,6 +114,8 @@ def main() -> None:
     parser.add_argument("--token-file", default="",  help="Path to file containing the token")
     parser.add_argument("--csv",        default="G:/FoursquareDashboardClaude/local_parsing/checkins.csv",
                         help="Path to checkins.csv")
+    parser.add_argument("--only-ids-file", default="",
+                        help="Path to a file with one checkin_id per line; process only those rows")
     parser.add_argument("--recover-from-log", default="",
                         help="Path to a previous run's terminal output; re-process only rows "
                              "whose venue appeared as FOUND in that log")
@@ -145,6 +147,21 @@ def main() -> None:
                 r.setdefault(f, "")
 
     to_do = [r for r in rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") in ("", "error")]
+
+    if args.only_ids_file:
+        ids_path = Path(args.only_ids_file)
+        if not ids_path.exists():
+            log.error("IDs file not found: %s", ids_path)
+            raise SystemExit(1)
+        only_ids = {line.strip() for line in ids_path.read_text(encoding="utf-8").splitlines() if line.strip()}
+        # Reset any incorrectly marked rows so they appear in to_do
+        for r in rows:
+            if r.get("checkin_id", "") in only_ids and r.get("overlaps_id", "") not in ("", "error"):
+                r["overlaps_id"] = ""
+                r["overlaps_name"] = ""
+        to_do = [r for r in rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") in ("", "error")]
+        to_do = [r for r in to_do if r.get("checkin_id", "") in only_ids]
+        log.info("--only-ids-file: %d rows targeted", len(to_do))
 
     if args.recover_from_log:
         from collections import Counter as _Counter
