@@ -7,13 +7,14 @@ enrich_overlaps.py — Backfill overlaps_name/overlaps_id for historical check-i
 Fetches individual check-in details via /checkins/{id} and writes results
 immediately to the CSV after each row. Designed for a one-time local run.
 
-Resume: already-processed rows (overlaps_id != "") are skipped automatically.
+Resume: already-processed rows (overlaps_id != "" and != "error") are skipped automatically.
+Rows marked "error" are retried on the next run.
 
 Error handling:
   - 401 (auth)  → quit immediately
-  - 403 (access denied) → mark as "-", continue
+  - 400/403 (access denied) → mark as "-", continue
   - Other errors → pause PAUSE_MINUTES, retry same row up to MAX_RETRIES times,
-                   then mark as "-" and continue. After MAX_PAUSES consecutive
+                   then mark as "error" and continue. After MAX_PAUSES consecutive
                    pause cycles with no progress → quit.
 
 Usage:
@@ -39,7 +40,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 API_V        = "20231201"
 SLEEP        = 0.35   # seconds between calls
 PAUSE_MINUTES = 30    # pause on transient errors
-MAX_RETRIES  = 3      # retries per row before marking as "-"
+MAX_RETRIES  = 3      # retries per row before marking as "error"
 MAX_PAUSES   = 3      # consecutive pause cycles before quitting
 
 
@@ -131,7 +132,7 @@ def main() -> None:
             for r in rows:
                 r.setdefault(f, "")
 
-    to_do = [r for r in rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") == ""]
+    to_do = [r for r in rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") in ("", "error")]
     total = len(to_do)
     log.info("Rows to enrich: %d / %d total", total, len(rows))
 
@@ -164,9 +165,9 @@ def main() -> None:
             except Exception as exc:
                 retries += 1
                 if retries > MAX_RETRIES:
-                    log.warning("[%d/%d] giving up on %s after %d retries: %s — marking as skipped",
+                    log.warning("[%d/%d] giving up on %s after %d retries: %s — marking as error",
                                 done + 1, total, cid, MAX_RETRIES, exc)
-                    row["overlaps_id"] = "-"
+                    row["overlaps_id"] = "error"
                     save_csv(csv_path, rows, fields)
                     done += 1
                     consecutive_pauses += 1
