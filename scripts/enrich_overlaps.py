@@ -21,6 +21,9 @@ Usage:
     python scripts/enrich_overlaps.py --token TOKEN --csv data/checkins.csv
     python scripts/enrich_overlaps.py --token-file G:/FoursquareDashboardClaude/local_parsing/token.txt \
                                       --csv G:/FoursquareDashboardClaude/local_parsing/checkins.csv
+
+Recovery mode (re-process only rows whose venues appeared as FOUND in a previous run's log):
+    python scripts/enrich_overlaps.py --csv ... --recover-from-log found_output.txt
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ import csv
 import io
 import logging
 import os
+import re
 import time
 from pathlib import Path
 
@@ -105,6 +109,9 @@ def main() -> None:
     parser.add_argument("--token-file", default="",  help="Path to file containing the token")
     parser.add_argument("--csv",        default="G:/FoursquareDashboardClaude/local_parsing/checkins.csv",
                         help="Path to checkins.csv")
+    parser.add_argument("--recover-from-log", default="",
+                        help="Path to a previous run's terminal output; re-process only rows "
+                             "whose venue appeared as FOUND in that log")
     parser.add_argument("--sleep",      type=float, default=SLEEP,
                         help=f"Seconds between API calls (default {SLEEP})")
     parser.add_argument("--pause",      type=int,   default=PAUSE_MINUTES,
@@ -133,6 +140,21 @@ def main() -> None:
                 r.setdefault(f, "")
 
     to_do = [r for r in rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") in ("", "error")]
+
+    if args.recover_from_log:
+        log_path = Path(args.recover_from_log)
+        if not log_path.exists():
+            log.error("Log file not found: %s", log_path)
+            raise SystemExit(1)
+        found_venues: set[str] = set()
+        _found_re = re.compile(r"\[\d+/\d+\] FOUND: .+ @ (.+)")
+        for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = _found_re.search(line.strip())
+            if m:
+                found_venues.add(m.group(1).strip())
+        log.info("Recovery mode: %d unique venues from log", len(found_venues))
+        to_do = [r for r in to_do if r.get("venue", "").strip() in found_venues]
+
     total = len(to_do)
     log.info("Rows to enrich: %d / %d total", total, len(rows))
 
