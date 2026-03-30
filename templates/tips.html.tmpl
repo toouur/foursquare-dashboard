@@ -72,6 +72,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .tc-fsq{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);text-decoration:none;}
 .tc-fsq:hover{color:var(--gold);}
 .tc-closed{font-family:'DM Mono',monospace;font-size:.50rem;color:#ef4444;border:1px solid rgba(239,68,68,.45);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
+.tc-deleted{font-family:'DM Mono',monospace;font-size:.50rem;color:#a78bfa;border:1px solid rgba(167,139,250,.45);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
 .tc-loc{display:inline-flex;align-items:center;gap:3px;}
 .tc-views{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);white-space:nowrap;}
 
@@ -91,6 +92,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <button class="sbtn act" id="sDate" onclick="sortBy('date',this)">By Date</button>
     <button class="sbtn" id="sAgree" onclick="sortBy('agree',this)">👍 By Agree</button>
     <button class="sbtn" id="sClosed" onclick="toggleClosed(this)">Closed only</button>
+    <button class="sbtn" id="sDeleted" onclick="toggleDeleted(this)">Deleted only</button>
     <button class="nav-btn" onclick="jumpLatest()">↑ Latest</button>
     <button class="nav-btn" onclick="jumpOldest()">↓ Oldest</button>
     <div class="tb-right">
@@ -327,7 +329,7 @@ function setCountry(c){selCountry=c;selCity='';buildCtryTabs();buildCityTabs();r
 function setCity(c){selCity=c;buildCityTabs();render();}
 
 // ── Filter & sort ────────────────────────────────────────────────────────────
-let sortMode='date', query='', showClosed=false;
+let sortMode='date', query='', showClosed=false, showDeleted=false;
 
 function getFiltered(){
   const q=query.toLowerCase();
@@ -336,6 +338,7 @@ function getFiltered(){
     if(selCountry && t.nc!==selCountry) return false;
     if(selCity && t.nci!==selCity) return false;
     if(showClosed && !t.closed) return false;
+    if(showDeleted && !t.deleted) return false;
     if(!q) return true;
     return (t.text||'').toLowerCase().includes(q)||(t.venue||'').toLowerCase().includes(q)||(t.city||'').toLowerCase().includes(q)||(t.country||'').toLowerCase().includes(q)||(t.category||'').toLowerCase().includes(q);
   });
@@ -355,11 +358,12 @@ function render(){
     const agree=t.agree_count>0?`<span class="tc-agree">👍 ${t.agree_count}</span>`:'';
     const views=t.view_count>0?`<span class="tc-views">👁 ${t.view_count}</span>`:'';
     const closedBadge=t.closed?'<span class="tc-closed">CLOSED</span>':'';
+    const deletedBadge=t.deleted?'<span class="tc-deleted">DELETED</span>':'';
     const venueLabel=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(t.venue||'Unknown venue')}</a>`:esc(t.venue||'Unknown venue');
     return `<div class="tcard" id="tc_${i}" onclick="selectTip(${i})">
       <div class="tc-venue-row">
         <div class="tc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>
-        <div class="tc-venue">${venueLabel}${closedBadge}</div>
+        <div class="tc-venue">${venueLabel}${closedBadge}${deletedBadge}</div>
       </div>
       <div class="tc-text">${esc(t.text||'')}</div>
       <div class="tc-meta">
@@ -393,9 +397,10 @@ function jumpLatest(){document.getElementById('feedScroll').scrollTo({top:0,beha
 function jumpOldest(){const s=document.getElementById('feedScroll');s.scrollTo({top:s.scrollHeight,behavior:'smooth'});}
 function onSearch(v){query=v;render();}
 function toggleClosed(el){showClosed=!showClosed;el.classList.toggle('act');render();}
+function toggleDeleted(el){showDeleted=!showDeleted;el.classList.toggle('act');render();}
 function sortBy(mode,el){
   sortMode=mode;
-  document.querySelectorAll('.sbtn:not(#sClosed)').forEach(b=>b.classList.remove('act'));
+  document.querySelectorAll('.sbtn:not(#sClosed):not(#sDeleted)').forEach(b=>b.classList.remove('act'));
   el.classList.add('act');
   render();
 }
