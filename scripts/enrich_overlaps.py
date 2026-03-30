@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 
 API_V        = "20231201"
-SLEEP        = 0.35   # seconds between calls
+SLEEP        = 1.5    # seconds between calls (keep well under quota)
 PAUSE_MINUTES = 30    # pause on transient errors
 MAX_RETRIES  = 3      # retries per row before marking as "error"
 MAX_PAUSES   = 3      # consecutive pause cycles before quitting
@@ -90,6 +90,10 @@ def fetch_overlaps(token: str, checkin_id: str) -> tuple[str, str] | None:
         log.error("401 Unauthorized — token expired or revoked. Quitting.")
         raise SystemExit(1)
     if resp.status_code in (400, 403):
+        error_type = resp.json().get("meta", {}).get("errorType", "")
+        if error_type == "rate_limit_exceeded":
+            raise requests.HTTPError(f"403 rate_limit_exceeded (quota)", response=resp)
+        log.warning("SKIP %s — HTTP %d %s", checkin_id, resp.status_code, error_type or resp.text[:120])
         return "-", "-"
     resp.raise_for_status()
 
@@ -284,10 +288,10 @@ def main() -> None:
             consecutive_pauses = 0
             if name and name != "-":
                 found += 1
-                print(f"\r[{done}/{total}] FOUND: {name} @ {row.get('venue', '')}".ljust(100))
+                print(f"[{done}/{total}] {cid} FOUND: {name} @ {row.get('venue', '')}")
             else:
                 venue_short = row.get("venue", "")[:50]
-                print(f"\r[{done}/{total}] {venue_short}".ljust(100), end="", flush=True)
+                print(f"[{done}/{total}] {cid} {venue_short}")
             success = True
             time.sleep(args.sleep)
 

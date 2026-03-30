@@ -3,7 +3,8 @@
     "allow": [
       "Bash(wc -l *.py)",
       "Bash(python scripts/build.py --input data/checkins.csv --config-dir config --output-dir .)",
-      "Bash(python scripts/build.py --input data/checkins.csv --config-dir config --output-dir \"C:\\\\Users\\\\toouur\\\\Documents\\\\GitHub\\\\foursquare-dashboard\\\\.claude\\\\worktrees\\\\bold-bardeen\")"
+      "Bash(python scripts/build.py --input data/checkins.csv --config-dir config --output-dir \"C:\\\\Users\\\\toouur\\\\Documents\\\\GitHub\\\\foursquare-dashboard\\\\.claude\\\\worktrees\\\\bold-bardeen\")",
+      "WebSearch"
     ]
   }
 }

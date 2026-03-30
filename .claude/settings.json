@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -:*)"
+    ]
+  }
+}
