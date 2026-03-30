@@ -83,6 +83,7 @@ def api_tip_to_dict(t: dict) -> dict:
         "category":       (primary.get("name") or "").strip(),
         "agree_count":    int(t.get("agreeCount") or 0),
         "disagree_count": int(t.get("disagreeCount") or 0),
+        "view_count":     int(t.get("viewCount") or 0),
         "closed":         bool(venue.get("closed", False)),
     }
 
