@@ -554,6 +554,83 @@ python sync_venue_changes.py \
       </div>
     </div>
 
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 10 — Recovering Companion Overlap Data from a Deprecated API</div>
+        <div class="cs-text">
+          Foursquare's <strong>overlaps</strong> field — people who independently checked in at the
+          same venue at the same time, distinct from explicit <em>with</em> companions — was only
+          ever available via the legacy <code>/v2/checkins/{id}</code> endpoint and is no longer
+          surfaced through any current API. With ~65&nbsp;000 historical check-ins, a one-time
+          enrichment run was the only way to recover this data before it disappeared entirely.
+        </div>
+        <div class="cs-text">
+          Three compounding problems made the enrichment non-trivial:
+        </div>
+        <div class="cs-text">
+          <strong>1. Quota exhaustion mid-run.</strong> At 0.35 s per call the script consumed the
+          daily quota mid-run. The original error handler treated <em>all</em>
+          <code>HTTP 403</code> responses identically — marking the row as a permanent skip
+          (<code>"-"</code>) — so quota-exhausted rows were silently discarded alongside genuinely
+          inaccessible ones, with no way to tell them apart after the fact.
+        </div>
+        <div class="cs-text">
+          <strong>2. Overlaps duplicating <em>with</em> companions.</strong> For a subset of
+          check-ins Foursquare returned the explicit <em>with</em> companion in the overlaps list
+          as well, producing duplicate entries across <code>overlaps_name</code> and
+          <code>with_name</code> / <code>created_by_name</code>. 408 rows were affected.
+        </div>
+        <div class="cs-text">
+          <strong>3. Crash recovery without reprocessing 51&nbsp;000 rows.</strong> A mid-run crash
+          after ~7&nbsp;400 rows left 1&nbsp;089 FOUND entries in the terminal log but no record of
+          which check-in IDs they corresponded to. The remaining ~57&nbsp;000 rows still needed
+          processing, making a full restart wasteful.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Quota-Aware Retry, Dedup Filter, Position-Based Recovery</div>
+        <div class="cs-text">
+          Each problem was addressed with a targeted fix:
+        </div>
+        <div class="code-block">
+<span class="cm"># Fix 1 — distinguish quota 403 from access-denied 403</span>
+<span class="kw">if</span> resp.status_code == 403:
+    error_type = resp.json()[<span class="hl">"meta"</span>][<span class="hl">"errorType"</span>]
+    <span class="kw">if</span> error_type == <span class="hl">"rate_limit_exceeded"</span>:
+        <span class="kw">raise</span> HTTPError(<span class="hl">"quota"</span>)   <span class="cm"># → pause + retry, NOT permanent skip</span>
+    <span class="kw">return</span> <span class="hl">"-"</span>, <span class="hl">"-"</span>              <span class="cm"># genuine access denied → skip, log reason</span>
+
+<span class="cm"># Fix 2 — dedup filter after each successful API call</span>
+existing = {name.lower() <span class="kw">for</span> name <span class="kw">in</span> with_name + created_by_name}
+pairs = [(n, i) <span class="kw">for</span> n, i <span class="kw">in</span> zip(overlap_names, overlap_ids)
+         <span class="kw">if</span> n.lower() <span class="kw">not in</span> existing]   <span class="cm"># strip duplicates, keep genuine</span>
+
+<span class="cm"># Fix 3 — position-based crash recovery via --only-ids-file</span>
+<span class="cm"># Two known anchor pairs from the log (pos → checkin_id) gave OFFSET=4717</span>
+<span class="cm"># rows_with_cid[pos - 1 + 4717]  →  exact checkin_id for each FOUND line</span>
+python enrich_overlaps.py --only-ids-file <span class="hl">recovery_ids.txt</span>
+<span class="cm"># resets any incorrectly-marked rows for those IDs, then processes only them</span>
+        </div>
+        <div class="cs-text">
+          The <code>--only-ids-file</code> flag accepts a plain text file of one
+          <code>checkin_id</code> per line. Before building the work queue it resets any row in
+          that set whose <code>overlaps_id</code> was incorrectly finalised (back to <code>""</code>),
+          ensuring the IDs are always re-processed regardless of prior run state.
+          Sleep was increased from 0.35 s to <strong>1.5 s</strong> per call to stay safely below
+          the quota ceiling for the full 65&nbsp;000-row run.
+        </div>
+        <div class="cs-text">
+          Post-enrichment cleanup applied the dedup filter retroactively: <strong>408 existing rows
+          </strong> had their <code>overlaps_name</code> / <code>overlaps_id</code> scrubbed of any
+          name already present in <code>with_name</code> or <code>created_by_name</code>, with
+          entries reduced to <code>"-"</code> where nothing genuine remained. The surviving
+          <strong>38 genuine overlaps</strong> — people who happened to be at the same place at the
+          same time, entirely independently — were committed to the data repo and rendered in the
+          companions page.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>
