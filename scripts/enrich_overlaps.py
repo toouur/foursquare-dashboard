@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 
 API_V        = "20231201"
-SLEEP        = 1.5    # seconds between calls (keep well under quota)
+SLEEP        = 8.0    # seconds between calls (~450 req/hour, under 500/hour quota)
 PAUSE_MINUTES = 30    # pause on transient errors
 MAX_RETRIES  = 3      # retries per row before marking as "error"
 MAX_PAUSES   = 3      # consecutive pause cycles before quitting
