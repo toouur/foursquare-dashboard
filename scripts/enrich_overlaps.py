@@ -245,6 +245,32 @@ def main() -> None:
                             cid, retries, MAX_RETRIES, exc, wait)
                 time.sleep(wait)
                 continue
+            except requests.HTTPError as exc:
+                # Quota exhaustion — pause once, reset retries, do not burn retry budget
+                if exc.response is not None and exc.response.status_code == 403:
+                    log.warning("QUOTA exceeded — pausing %d min before retrying %s …",
+                                args.pause, cid)
+                    time.sleep(args.pause * 60)
+                    retries = 0   # reset so row is retried fresh after the pause
+                    consecutive_pauses += 1
+                    if consecutive_pauses >= MAX_PAUSES:
+                        log.error("%d consecutive quota pauses — quitting. Re-run to resume.", MAX_PAUSES)
+                        return
+                    continue
+                retries += 1
+                if retries > MAX_RETRIES:
+                    log.warning("[%d/%d] giving up on %s after %d retries: %s — marking as error",
+                                done + 1, total, cid, MAX_RETRIES, exc)
+                    row["overlaps_id"] = "error"
+                    save_csv(csv_path, rows, fields)
+                    done += 1
+                    consecutive_pauses += 1
+                    success = True
+                else:
+                    log.warning("Error on %s (attempt %d/%d): %s — pausing %d min …",
+                                cid, retries, MAX_RETRIES, exc, args.pause)
+                    time.sleep(args.pause * 60)
+                continue
             except Exception as exc:
                 retries += 1
                 if retries > MAX_RETRIES:
