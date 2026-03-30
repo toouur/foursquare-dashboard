@@ -73,6 +73,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .tc-fsq:hover{color:var(--gold);}
 .tc-closed{font-family:'DM Mono',monospace;font-size:.50rem;color:#ef4444;border:1px solid rgba(239,68,68,.45);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
 .tc-loc{display:inline-flex;align-items:center;gap:3px;}
+.tc-views{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);white-space:nowrap;}
 
 /* ── Map popup ── */
 .leaflet-popup-content-wrapper{background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.80rem;}
@@ -89,6 +90,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <h1>Tips</h1>
     <button class="sbtn act" id="sDate" onclick="sortBy('date',this)">By Date</button>
     <button class="sbtn" id="sAgree" onclick="sortBy('agree',this)">👍 By Agree</button>
+    <button class="sbtn" id="sClosed" onclick="toggleClosed(this)">Closed only</button>
     <button class="nav-btn" onclick="jumpLatest()">↑ Latest</button>
     <button class="nav-btn" onclick="jumpOldest()">↓ Oldest</button>
     <div class="tb-right">
@@ -325,7 +327,7 @@ function setCountry(c){selCountry=c;selCity='';buildCtryTabs();buildCityTabs();r
 function setCity(c){selCity=c;buildCityTabs();render();}
 
 // ── Filter & sort ────────────────────────────────────────────────────────────
-let sortMode='date', query='';
+let sortMode='date', query='', showClosed=false;
 
 function getFiltered(){
   const q=query.toLowerCase();
@@ -333,6 +335,7 @@ function getFiltered(){
     const t=ALL[i];
     if(selCountry && t.nc!==selCountry) return false;
     if(selCity && t.nci!==selCity) return false;
+    if(showClosed && !t.closed) return false;
     if(!q) return true;
     return (t.text||'').toLowerCase().includes(q)||(t.venue||'').toLowerCase().includes(q)||(t.city||'').toLowerCase().includes(q)||(t.country||'').toLowerCase().includes(q)||(t.category||'').toLowerCase().includes(q);
   });
@@ -350,6 +353,7 @@ function render(){
     const f=t.nc?flagHtml(t.nc):'';
     const loc=[t.nci||t.city,t.nc||t.country].filter(Boolean).join(', ');
     const agree=t.agree_count>0?`<span class="tc-agree">👍 ${t.agree_count}</span>`:'';
+    const views=t.view_count>0?`<span class="tc-views">👁 ${t.view_count}</span>`:'';
     const closedBadge=t.closed?'<span class="tc-closed">CLOSED</span>':'';
     const venueLabel=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(t.venue||'Unknown venue')}</a>`:esc(t.venue||'Unknown venue');
     return `<div class="tcard" id="tc_${i}" onclick="selectTip(${i})">
@@ -365,6 +369,7 @@ function render(){
       </div>
       <div class="tc-foot">
         <span class="tc-date">${t.date}</span>
+        ${views}
         ${tUrl?`<a class="tc-fsq" href="${tUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ foursquare</a>`:''}
       </div>
     </div>`;
@@ -387,9 +392,10 @@ function selectTip(i){
 function jumpLatest(){document.getElementById('feedScroll').scrollTo({top:0,behavior:'smooth'});}
 function jumpOldest(){const s=document.getElementById('feedScroll');s.scrollTo({top:s.scrollHeight,behavior:'smooth'});}
 function onSearch(v){query=v;render();}
+function toggleClosed(el){showClosed=!showClosed;el.classList.toggle('act');render();}
 function sortBy(mode,el){
   sortMode=mode;
-  document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('act'));
+  document.querySelectorAll('.sbtn:not(#sClosed)').forEach(b=>b.classList.remove('act'));
   el.classList.add('act');
   render();
 }
