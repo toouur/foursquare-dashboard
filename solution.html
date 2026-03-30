@@ -112,8 +112,8 @@ footer a:hover{text-decoration:underline;}
         A personal analytics dashboard that ingests every Foursquare/Swarm check-in and renders it into
         <strong>eight pages</strong>: a main analytics dashboard, a trip journal with per-trip maps,
         a companions tracker, a full check-in feed with historical weather, a tips explorer with country/city
-        tabs and closed-venue detection, a venue loyalty explorer, a world cities map, and this engineering
-        write-up — all committed to git and served via Cloudflare Pages CDN.
+        tabs, closed/deleted-venue badges, view counts, and filter buttons, a venue loyalty explorer,
+        a world cities map, and this engineering write-up — all committed to git and served via Cloudflare Pages CDN.
       </p>
       <p>
         Beyond rendering, the system maintains a <strong>data integrity pipeline</strong>: a manual archive
@@ -444,11 +444,20 @@ const url = <span class="hl">`...&start_date=${utcDate}...&timezone=auto`</span>
           (<code>Беларусь</code>, <code>Republica Moldova</code>, <code>المغرب</code>…) rather than
           a consistent English form, breaking grouping, flag lookup, and tab rendering.
         </div>
+        <div class="cs-text">
+          A third gap emerged when cross-checking against a Foursquare <strong>data export</strong>
+          (downloaded from account settings): the export contained <strong>1&nbsp;912 tips</strong>
+          versus 1&nbsp;807 in the API-sourced file — a delta of <strong>104 missing tips</strong>,
+          plus a <code>viewCount</code> field entirely absent from the API response. The export also
+          revealed that <em>presence in <code>checkins.csv</code></em> is not a reliable proxy for
+          venue activity: a venue can appear in historical check-ins and still be closed on Foursquare
+          today. Determining true closed/deleted status required fetching each venue page individually.
+        </div>
       </div>
       <div class="cs-solution">
-        <div class="cs-label sol">Solution — Two-Strategy Fetch + Normalization Pipeline</div>
+        <div class="cs-label sol">Solution — Two-Strategy Fetch + Data Export Cross-Check + Page Verification</div>
         <div class="cs-text">
-          The tips pipeline uses two complementary strategies that together achieve completeness:
+          The tips pipeline uses two complementary strategies that together achieve API completeness:
         </div>
         <div class="code-block">
 <span class="cm"># Strategy 1 — users endpoint (fast, ~1 800 tips in one paginated sweep)</span>
@@ -469,13 +478,42 @@ GET /v2/users/self/tips?limit=500&amp;offset=0  <span class="cm"># silent about 
           patched directly.
         </div>
         <div class="cs-text">
+          For the 104 export-only tips, closed status could not be inferred from whether the venue_id
+          appeared in the users endpoint response — a venue can have other active tips and still be
+          closed. The only reliable source was the <strong>venue page itself</strong>. All 100 unique
+          venue IDs were fetched via <code>foursquare.com/v/{id}</code> with browser session cookies
+          (the public page embeds <code>"closed":true</code> in its <code>__NEXT_DATA__</code> JSON
+          or in the raw HTML for closed venues). 95 of 100 venues were confirmed closed on-page;
+          the remaining 5 loaded on the legacy <code>app.foursquare.com</code> renderer with no closed
+          marker, indicating they are still active — and their tips were found to have been
+          <strong>deleted by moderators</strong> rather than lost to venue closure.
+        </div>
+        <div class="code-block">
+<span class="cm"># Closed/deleted status determination for export-only tips</span>
+<span class="kw">for</span> venue_id <span class="kw">in</span> new_tip_venue_ids:
+    html = GET <span class="hl">foursquare.com/v/{venue_id}</span>  <span class="cm"># with browser cookies</span>
+    <span class="kw">if</span> <span class="hl">"closed":true</span> <span class="kw">in</span> html <span class="kw">or</span> <span class="hl">__NEXT_DATA__</span>[<span class="hl">"closed"</span>]:
+        tip[<span class="hl">"closed"</span>] = <span class="hl2">True</span>           <span class="cm"># 99 tips — venue confirmed closed</span>
+    <span class="kw">elif</span> loads_on_legacy_renderer:
+        tip[<span class="hl">"deleted"</span>] = <span class="hl2">True</span>          <span class="cm"># 5 tips — venue active, tip deleted by mod</span>
+        </div>
+        <div class="cs-text">
+          The export also provided <code>viewCount</code> for all tips — a field the API never
+          returns. <code>fetch_tips.py</code> was updated to capture <code>viewCount</code> going
+          forward; historical counts from the export were backfilled into <code>tips.json</code>
+          in one pass. View counts are refreshed on each full re-fetch (<code>--full</code>);
+          incremental runs only touch tips newer than the latest known timestamp.
+        </div>
+        <div class="cs-text">
           Country name normalisation uses a <strong><code>CTRY_NORM</code></strong> dictionary
           in <code>gen_tips.py</code> mapping every local-language variant to its English form.
           City names reuse the existing <code>city_merge.yaml</code> pipeline. Both normalised
           values are stored as <code>nc</code> (country) and <code>nci</code> (city) on each tip
           record and propagated into the recent-30 tips slice embedded in <code>index.html</code>.
-          Tip cards display a <strong><code>CLOSED</code></strong> badge on any venue with
-          <code>closed=True</code>, surfacing the otherwise invisible data-quality gap to the reader.
+          Tip cards display a red <strong><code>CLOSED</code></strong> badge, a purple
+          <strong><code>DELETED</code></strong> badge, and a <strong>👁 view count</strong>
+          in the footer. Three dedicated filter buttons — <em>By Date</em>, <em>Closed only</em>,
+          and <em>Deleted only</em> — let the reader surface each data quality category directly.
         </div>
       </div>
     </div>

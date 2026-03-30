@@ -24,7 +24,7 @@ A self-updating personal dashboard for your Foursquare/Swarm check-in history.
 **Features:** heatmap + dot map + country flag map · charts by year / month / hour / day of week ·
 GitHub-style activity heatmap · travel timeline (Gantt) · trip journal with per-trip maps ·
 searchable cities & venues · venue loyalty · category explorer · recent check-ins with historical weather ·
-tips page with country/city tabs, map, and closed-venue detection.
+tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons.
 
 ---
 
@@ -172,6 +172,15 @@ python scripts/fetch_checkins.py --full
 
 # Tips: force full re-fetch + venue sweep (finds tips on closed venues)
 python scripts/fetch_tips.py --full --sweep --csv data/checkins.csv
+
+# Tips: recover tips missing from API using a Foursquare data export
+# 1. Download your export from foursquare.com/settings/data-export
+# 2. Locate tips.json inside the extracted archive
+# 3. Run find_closed_venue_tips.py to cross-check and import missing tips:
+python scripts/find_closed_venue_tips.py \
+  --token "$FOURSQUARE_TOKEN" --cookies cookies.txt \
+  --csv data/checkins.csv --tips data/tips.json
+# Then verify closed/deleted status of new tips against venue pages (requires cookies)
 
 # Custom paths / home city
 python scripts/build.py --input data/checkins.csv --home-city "Minsk" --config-dir config
