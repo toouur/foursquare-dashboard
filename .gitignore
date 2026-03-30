@@ -19,3 +19,8 @@ analyze_mismatches.py
 /gitattributes
 config/categories_old.json
 scripts/fetch_tips_from_log.py
+scripts/enrich_overlaps.py
+scripts/fix_overlap_dupes.py
+scripts/run_enrich.ps1
+scripts/add_venue_tip.py
+scripts/_mark_done.py
