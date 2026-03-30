@@ -91,6 +91,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <h1>Tips</h1>
     <button class="sbtn act" id="sDate" onclick="sortBy('date',this)">By Date</button>
     <button class="sbtn" id="sAgree" onclick="sortBy('agree',this)">👍 By Agree</button>
+    <button class="sbtn" id="sViews" onclick="sortBy('views',this)">👁 By Views</button>
     <button class="sbtn" id="sClosed" onclick="toggleClosed(this)">Closed only</button>
     <button class="sbtn" id="sDeleted" onclick="toggleDeleted(this)">Deleted only</button>
     <button class="nav-btn" onclick="jumpLatest()">↑ Latest</button>
@@ -347,6 +348,7 @@ function getFiltered(){
 function render(){
   let idx=getFiltered();
   if(sortMode==='agree')idx.sort((a,b)=>(ALL[b].agree_count||0)-(ALL[a].agree_count||0));
+  if(sortMode==='views')idx.sort((a,b)=>(ALL[b].view_count||0)-(ALL[a].view_count||0));
   document.getElementById('badge').textContent=idx.length+' / '+ALL.length+' tips';
   document.getElementById('feedScroll').innerHTML=idx.map(i=>{
     const t=ALL[i];
