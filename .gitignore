@@ -1,5 +1,6 @@
 checkins.json
 data/checkins.csv
+trip-*.html
 __pycache__/
 *.pyc
 .env

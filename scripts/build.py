@@ -100,6 +100,10 @@ if __name__ == "__main__":
                         help="Override min check-ins for a trip")
     parser.add_argument("--cat-list",    action="store_true",
                         help="Also write category_list.txt")
+    parser.add_argument("--photos",      default=None,
+                        help="Path to photos.json (checkin_id → [filenames]); "
+                             "also infers pix/ dir as sibling. When supplied, "
+                             "trip-{id}.html pages are generated in output-dir.")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -243,6 +247,16 @@ if __name__ == "__main__":
             if ts_key in new_name_entries:
                 t["name"] = new_name_entries[ts_key]
 
+    # ── Patch trips with photo_count from photos.json (if provided) ──────────
+    _photos_by_checkin: dict = {}
+    if args.photos and Path(args.photos).exists():
+        _photos_by_checkin = json.loads(Path(args.photos).read_text(encoding="utf-8"))
+        for t in trips:
+            t["photo_count"] = sum(
+                len(_photos_by_checkin.get(c.get("checkin_id", ""), []))
+                for c in t.get("checkins", [])
+            )
+
     # ── Load tips for recent section ─────────────────────────────────────────
     # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
     # private-data/tips.json) and local (data/checkins.csv → data/tips.json) both work.
@@ -330,6 +344,29 @@ if __name__ == "__main__":
                 log.warning("Generator %s failed: %s", gen_script.name, _e)
         else:
             log.warning("Generator not found: %s", gen_script)
+
+    # ── Generate per-trip photo pages (optional) ─────────────────────────────
+    if args.photos:
+        photos_json_path = Path(args.photos)
+        if not photos_json_path.exists():
+            log.warning("--photos file not found: %s — skipping trip pages", photos_json_path)
+        else:
+            # pix/ dir is assumed to be a sibling of photos.json
+            pix_dir = str(photos_json_path.parent / "pix")
+            gen_trip_pages_script = _SCRIPT_DIR / "gen_trip_pages.py"
+            if gen_trip_pages_script.exists():
+                import importlib.util as _ilu
+                _spec = _ilu.spec_from_file_location("gen_trip_pages", gen_trip_pages_script)
+                _mod  = _ilu.module_from_spec(_spec)
+                _spec.loader.exec_module(_mod)
+                _mod.build_page(
+                    trips=trips,
+                    photos_by_checkin=_photos_by_checkin,
+                    pix_dir=pix_dir,
+                    out_dir=args.output_dir,
+                )
+            else:
+                log.warning("gen_trip_pages.py not found — skipping trip pages")
 
     log.info("Done!")
 

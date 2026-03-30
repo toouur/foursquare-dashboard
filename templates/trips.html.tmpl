@@ -52,6 +52,10 @@ a{color:inherit;}
 .tc-stat{display:flex;flex-direction:column;gap:2px;}
 .tc-stat-v{font-family:'DM Mono',monospace;font-size:.80rem;color:var(--gold);}
 .tc-stat-l{font-size:.60rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.tc-photos-link{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-family:'DM Mono',monospace;font-size:.58rem;color:var(--teal);text-decoration:none;opacity:.8;transition:opacity .2s;}
+.tc-photos-link:hover{opacity:1;}
+.detail-photos-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#0b0d13;background:var(--teal);text-decoration:none;transition:opacity .2s;white-space:nowrap;}
+.detail-photos-btn:hover{opacity:.85;}
 
 /* ── DETAIL VIEW ── */
 .detail-back{display:flex;align-items:center;gap:8px;padding:18px 56px 0;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);cursor:pointer;text-transform:uppercase;letter-spacing:.12em;width:max-content;transition:color .2s;}
@@ -176,6 +180,7 @@ function renderGrid(trips){
         <div class="tc-stat"><div class="tc-stat-v">${t.unique_places.toLocaleString()}</div><div class="tc-stat-l">Places</div></div>
         <div class="tc-stat"><div class="tc-stat-v">${t.countries.length}</div><div class="tc-stat-l">Countries</div></div>
       </div>
+      ${t.photo_count>0?`<a class="tc-photos-link" href="trip-${t.id}.html" onclick="event.stopPropagation()">📸 ${t.photo_count.toLocaleString()} photos</a>`:''}
     </a>`).join('');
 }
 renderGrid(TRIPS);
@@ -246,7 +251,8 @@ function showTrip(id){
     `<div class="detail-kpi"><div class="num">${t.duration}</div><div class="lbl">Days</div></div>
      <div class="detail-kpi"><div class="num">${t.checkin_count.toLocaleString()}</div><div class="lbl">Check-ins</div></div>
      <div class="detail-kpi"><div class="num">${t.unique_places.toLocaleString()}</div><div class="lbl">Unique Places</div></div>
-     <div class="detail-kpi"><div class="num">${t.countries.length}</div><div class="lbl">Countries</div></div>`;
+     <div class="detail-kpi"><div class="num">${t.countries.length}</div><div class="lbl">Countries</div></div>
+     ${t.photo_count>0?`<a class="detail-photos-btn" href="trip-${t.id}.html">📸 ${t.photo_count.toLocaleString()} photos</a>`:''}  `;
   // Countries + cities
   document.getElementById('detailCountries').innerHTML =
     t.countries.map(c=>`<span class="detail-country">🌍 ${c}</span>`).join('')

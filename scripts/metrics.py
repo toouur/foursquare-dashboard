@@ -547,17 +547,18 @@ def detect_trips(
             d_local = _localise(d, lat, lng, r.get("country", "").strip())
             checkins.append(
                 {
-                    "ts":       int(r["date"]),
-                    "date":     d_local.strftime("%Y-%m-%d"),
-                    "time":     d_local.strftime("%H:%M"),
-                    "datetime": d_local.strftime("%d %b %Y, %H:%M"),
-                    "venue":    r.get("venue", "").strip(),
-                    "venue_id": r.get("venue_id", "").strip(),
-                    "city":     r.get("city", "").strip(),
-                    "country":  r.get("country", "").strip(),
-                    "category": r.get("category", "").strip(),
-                    "lat":      lat,
-                    "lng":      lng,
+                    "ts":         int(r["date"]),
+                    "date":       d_local.strftime("%Y-%m-%d"),
+                    "time":       d_local.strftime("%H:%M"),
+                    "datetime":   d_local.strftime("%d %b %Y, %H:%M"),
+                    "venue":      r.get("venue", "").strip(),
+                    "venue_id":   r.get("venue_id", "").strip(),
+                    "city":       r.get("city", "").strip(),
+                    "country":    r.get("country", "").strip(),
+                    "category":   r.get("category", "").strip(),
+                    "lat":        lat,
+                    "lng":        lng,
+                    "checkin_id": r.get("checkin_id", "").strip(),
                 }
             )
 
