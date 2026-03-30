@@ -6,8 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Build the dashboard
 ```bash
-# Full build (all pages)
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/build.py --input data/checkins.csv --config-dir config --output-dir .
+# Full build (all pages) — data lives in private repo alongside checkins.csv
+/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/build.py \
+  --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --config-dir config --output-dir .
 
 # Standard python3 also works if PyYAML is installed there
 python scripts/build.py --input data/checkins.csv --config-dir config --output-dir .
@@ -94,7 +96,7 @@ All HTML output is **pre-built and committed** — the site is purely static wit
 | `build.py` | CLI entry: loads settings.yaml, calls transform → metrics → renders templates → calls gen_*.py; also loads tips.json for TIPS_RECENT section |
 | `fetch_checkins.py` | Incremental or full Foursquare API fetch; exits with `CHANGED=true/false` env var; on full re-fetch writes `duplicate_checkins.csv` and updates `checkins_anomalies.json` |
 | `sync_venue_changes.py` | Diffs two `checkins.csv` snapshots by venue_id; patches `tips.json` with updated venue metadata (no extra API calls) |
-| `fetch_tips.py` | Incremental or full tips fetch from `/users/self/tips`; optional `--sweep` probes per-venue for tips on closed venues (auto-marks `closed=True`) |
+| `fetch_tips.py` | Incremental or full tips fetch from `/users/self/tips`; optional `--sweep` probes per-venue for tips on closed venues (auto-marks `closed=True`); captures `viewCount` → `view_count` |
 | `gen_tips.py` | Builds tips.html from tips.json: normalises country names via `CTRY_NORM` dict, city names via city_merge.yaml, computes `TABS_DATA` for country/city tab filtering |
 | `find_closed_venue_tips.py` | One-time utility: uses browser cookies to scrape venue pages and recover tips that the API omits entirely |
 
@@ -269,6 +271,12 @@ python scripts/fetch_tips.py --full --sweep --token "$FOURSQUARE_TOKEN" --out da
 ```
 
 **Closed-venue tip detection:** `fetch_tips.py --sweep` probes each venue in `checkins.csv` that isn't already in `tips.json` and marks any discovered tips as `closed=True`. The `find_closed_venue_tips.py` script offers a deeper alternative using actual browser session cookies to scrape venue pages (use once after a full sweep if tips are still missing).
+
+**Data export cross-check:** The Foursquare account data export (`foursquare.com/settings/data-export`) can contain tips absent from both API strategies — these are tips whose venues were deleted from the Foursquare index entirely (not just closed). After importing such tips, verify closed/deleted status by fetching each venue page with session cookies: pages that embed `"closed":true` in `__NEXT_DATA__` (or raw HTML) → set `closed=True`; pages that load on the legacy `app.foursquare.com` renderer with no closed marker but whose tip is still absent from the API → the tip was deleted by a moderator, set `deleted=True` instead.
+
+**`tips.json` fields:** `id`, `ts`, `text`, `venue`, `venue_id`, `city`, `country`, `lat`, `lng`, `category`, `agree_count`, `disagree_count`, `view_count`, `closed` (bool, default `False`), `deleted` (bool, only present when `True`). `nc` and `nci` are computed at build time by `gen_tips.py`, not stored in the file.
+
+**View count updates:** `view_count` is refreshed for any tip re-fetched during a `--full` run. Incremental runs only fetch tips newer than the latest known timestamp, so `view_count` on old tips stays frozen until the next full re-fetch.
 
 ## Deployment
 - **Cloudflare Pages:** Auto-deploys on every push to `main` (no build step needed)
