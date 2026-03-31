@@ -169,17 +169,18 @@ a{{color:inherit;text-decoration:none;}}
 .sort-pill.active{{background:var(--gold);color:#0b0d13;border-color:var(--gold);}}
 .sort-pill:hover:not(.active){{border-color:var(--gold);color:var(--gold);}}
 .city-filter{{padding:8px 48px 0;}}
-.country-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 8px;}}
+.city-filter{{padding:8px 48px 0;}}
+.country-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0 8px;}}
 .country-block{{}}
-.country-row{{display:flex;align-items:center;gap:5px;padding:4px 6px;cursor:pointer;user-select:none;border-radius:5px;transition:background .15s;}}
+.country-row{{display:flex;align-items:center;gap:5px;padding:3px 6px;cursor:pointer;user-select:none;border-radius:5px;transition:background .15s;}}
 .country-row:hover{{background:var(--card2);}}
 .country-label{{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
 .country-count{{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);flex-shrink:0;}}
 .country-arrow{{font-size:.50rem;color:var(--muted);transition:transform .2s;flex-shrink:0;}}
 .country-row.open .country-arrow{{transform:rotate(90deg);}}
-.country-cities{{display:none;flex-wrap:wrap;gap:4px;padding:3px 6px 8px 22px;}}
+.country-cities{{display:none;flex-wrap:wrap;gap:3px;padding:2px 4px 6px 4px;}}
 .country-row.open + .country-cities{{display:flex;}}
-.city-pill{{padding:2px 9px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.55rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
+.city-pill{{padding:1px 7px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.52rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
 .city-pill.active{{background:var(--teal);color:#0b0d13;border-color:var(--teal);}}
 .city-pill:hover:not(.active){{border-color:var(--teal);color:var(--teal);}}
 </style>
