@@ -115,21 +115,37 @@ jobs:
             python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json --csv private-data/checkins.csv >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 5. Exit gracefully if neither check-ins nor tips changed ─────────────
-      - name: Skip if no new data
-        if: github.event_name != 'workflow_dispatch' && steps.fetch.outputs.CHANGED != 'true' && steps.fetch_tips.outputs.CHANGED != 'true'
+      # ── 4c. Fetch photos for new check-ins ──────────────────────────────────
+      - name: Fetch photos for new check-ins
+        id: fetch_photos
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |
-          echo "No new check-ins or tips — nothing to rebuild or deploy."
+          if [ -z "$FOURSQUARE_TOKEN" ]; then
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/fetch_photos.py \
+              --token "$FOURSQUARE_TOKEN" \
+              --csv   private-data/checkins.csv \
+              --out   private-data/photos.json \
+              --sleep 0.3 >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 5. Exit gracefully if nothing changed ────────────────────────────────
+      - name: Skip if no new data
+        if: github.event_name != 'workflow_dispatch' && steps.fetch.outputs.CHANGED != 'true' && steps.fetch_tips.outputs.CHANGED != 'true' && steps.fetch_photos.outputs.CHANGED != 'true'
+        run: |
+          echo "No new check-ins, tips, or photos — nothing to rebuild or deploy."
           exit 0
 
       # ── 6. Commit updated data files to private data repo ────────────────────
       - name: Commit updated data files to data repo
-        if: steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
+        if: steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_photos.outputs.CHANGED == 'true'
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add checkins.csv tips.json
+          git add checkins.csv tips.json photos.json
           if git diff --cached --quiet; then
             echo "Nothing to commit in data repo."
           else
@@ -141,7 +157,7 @@ jobs:
 
       # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
-        if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_photos.outputs.CHANGED == 'true'
         run: |
           python scripts/build.py \
             --input private-data/checkins.csv \
@@ -150,7 +166,7 @@ jobs:
 
       # ── 8. Commit HTML to public repo → Cloudflare Pages auto-deploys ────────
       - name: Commit updated HTML files
-        if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_photos.outputs.CHANGED == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
