@@ -193,6 +193,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .photo-card-venue{font-size:.73rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .photo-card-venue a{color:inherit;text-decoration:none;}.photo-card-venue a:hover{color:var(--gold);}
 .photo-card-sub{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:2px;}
+.photo-card-badge{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.65);color:#fff;font-family:'DM Mono',monospace;font-size:.6rem;padding:2px 6px;border-radius:8px;pointer-events:none;}
 /* ── PHOTO LIGHTBOX ── */
 #rcGallery{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9999;flex-direction:column;align-items:center;justify-content:center;}
 #rcGallery.open{display:flex;}
@@ -1632,19 +1633,29 @@ function filterList(id,q){
   document.getElementById('photosFeedSection').style.display='';
   document.getElementById('photosSub').textContent=photos.length+' most recent';
 
-  let rcgIdx=0;
-  function rcgShow(){const p=photos[rcgIdx];document.getElementById('rcGallery-img').src=p.src;document.getElementById('rcg-counter').textContent=(rcgIdx+1)+' / '+photos.length;document.getElementById('rcg-caption').textContent=p.venue+(p.date?' · '+p.date:'');}
-  window.rcgOpen=function(i){rcgIdx=i;rcgShow();document.getElementById('rcGallery').classList.add('open');};
+  let rcgCard=0,rcgPhoto=0;
+  function rcgShow(){
+    const p=photos[rcgCard];
+    document.getElementById('rcGallery-img').src=p.srcs[rcgPhoto];
+    const total=p.srcs.length;
+    document.getElementById('rcg-counter').textContent=total>1?(rcgPhoto+1)+' / '+total:'';
+    document.getElementById('rcg-caption').textContent=p.venue+(p.date?' · '+p.date:'');
+    document.getElementById('rcg-prev').style.display=total>1?'':'none';
+    document.getElementById('rcg-next').style.display=total>1?'':'none';
+  }
+  window.rcgOpen=function(i){rcgCard=i;rcgPhoto=0;rcgShow();document.getElementById('rcGallery').classList.add('open');};
   window.rcgClose=function(){document.getElementById('rcGallery').classList.remove('open');document.getElementById('rcGallery-img').src='';};
-  window.rcgPrev=function(){rcgIdx=(rcgIdx-1+photos.length)%photos.length;rcgShow();};
-  window.rcgNext=function(){rcgIdx=(rcgIdx+1)%photos.length;rcgShow();};
+  window.rcgPrev=function(){const n=photos[rcgCard].srcs.length;rcgPhoto=(rcgPhoto-1+n)%n;rcgShow();};
+  window.rcgNext=function(){const n=photos[rcgCard].srcs.length;rcgPhoto=(rcgPhoto+1)%n;rcgShow();};
   document.addEventListener('keydown',e=>{if(!document.getElementById('rcGallery').classList.contains('open'))return;if(e.key==='ArrowLeft')rcgPrev();else if(e.key==='ArrowRight')rcgNext();else if(e.key==='Escape')rcgClose();});
 
   document.getElementById('photosScroll').innerHTML=photos.map((p,i)=>{
     const vUrl=p.venue_id?`https://foursquare.com/v/${p.venue_id}`:'';
     const venueEl=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(p.venue)}</a>`:esc(p.venue);
+    const badge=p.srcs.length>1?`<div class="photo-card-badge">+${p.srcs.length-1}</div>`:'';
     return `<div class="photo-card" onclick="rcgOpen(${i})">
-      <img src="${p.src}" loading="lazy" alt="${esc(p.venue)}">
+      <img src="${p.srcs[0]}" loading="lazy" alt="${esc(p.venue)}">
+      ${badge}
       <div class="photo-card-info">
         <div class="photo-card-venue">${venueEl}</div>
         <div class="photo-card-sub">${esc(p.city||'')}${p.city&&p.date?' · ':''}${esc(p.date||'')}</div>

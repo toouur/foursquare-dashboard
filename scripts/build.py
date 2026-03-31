@@ -331,7 +331,7 @@ if __name__ == "__main__":
             if _ts:
                 _date_str = datetime.fromtimestamp(_ts, tz=timezone.utc).strftime("%d %b %Y")
             _recent_photos.append({
-                "src":      _pix_dir_uri + "/" + _photos[0],
+                "srcs":     [_pix_dir_uri + "/" + f for f in _photos],
                 "venue":    _r.get("venue", ""),
                 "venue_id": _r.get("venue_id", ""),
                 "city":     _r.get("city", ""),
