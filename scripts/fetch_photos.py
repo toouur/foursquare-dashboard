@@ -29,6 +29,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 _API = "https://api.foursquare.com/v2"
@@ -138,10 +139,23 @@ def main() -> None:
     # Sort newest first so new check-ins are processed first
     rows.sort(key=lambda r: int(r.get("date", 0) or 0), reverse=True)
 
-    # Find check-ins not yet processed (not in photos.json at all)
+    # Auto-detect export cutoff: max timestamp of check-ins already in photos.json
+    known = set(photos_by_checkin.keys())
+    cutoff_ts = max(
+        (int(r.get("date", 0) or 0) for r in rows if r.get("checkin_id", "").strip() in known),
+        default=0,
+    )
+    if cutoff_ts:
+        cutoff_str = datetime.fromtimestamp(cutoff_ts, tz=timezone.utc).strftime("%Y-%m-%d")
+    else:
+        cutoff_str = "none"
+    print(f"Export cutoff: {cutoff_ts} ({cutoff_str})", file=sys.stderr)
+
+    # Only process check-ins newer than export cutoff and not yet indexed
     pending = [r["checkin_id"] for r in rows
                if r.get("checkin_id", "").strip()
-               and r["checkin_id"].strip() not in photos_by_checkin]
+               and r["checkin_id"].strip() not in known
+               and int(r.get("date", 0) or 0) > cutoff_ts]
 
     if args.limit:
         pending = pending[:args.limit]

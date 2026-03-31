@@ -321,6 +321,7 @@ if __name__ == "__main__":
             (r, _photos_by_checkin[r.get("checkin_id", "")])
             for r in rows
             if r.get("checkin_id", "") in _photos_by_checkin
+            and _photos_by_checkin[r.get("checkin_id", "")]
         ]
         _photo_rows.sort(key=lambda x: -int(x[0].get("date", 0) or 0))
         _recent_photos = []
