@@ -38,7 +38,7 @@ def get_tz(country, lng):
         except: pass
     return 'UTC'
 
-def build_page(csv_path, config_dir, out_path, tmpl_path=None):
+def build_page(csv_path, config_dir, out_path, tmpl_path=None, swarm_user_id=""):
     TEMPLATE = Path(tmpl_path).read_text(encoding="utf-8")
     sys.path.insert(0, str(Path(__file__).parent))
     from transform import load_mappings, apply_transforms
@@ -70,6 +70,6 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
             ym_index[ym] = len(feed) - 1
     feed_json = json.dumps(feed, ensure_ascii=False, separators=(',',':'))
     ym_json = json.dumps(ym_index, ensure_ascii=False, separators=(',',':'))
-    html = TEMPLATE.replace('FEED_DATA_PLACEHOLDER', feed_json).replace('YM_INDEX_PLACEHOLDER', ym_json)
+    html = TEMPLATE.replace('FEED_DATA_PLACEHOLDER', feed_json).replace('YM_INDEX_PLACEHOLDER', ym_json).replace('{{SWARM_USER_ID}}', swarm_user_id)
     Path(out_path).write_text(html, encoding='utf-8')
     print(f"feed.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB, {len(feed):,} check-ins)")

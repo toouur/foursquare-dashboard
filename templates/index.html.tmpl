@@ -1558,7 +1558,7 @@ function filterList(id,q){
 
 
   scrollEl.innerHTML=recent.map((r,i)=>{
-    const swarmUrl=r.checkin_id?`https://www.swarmapp.com/c/${r.checkin_id}`:null;
+    const swarmUrl=r.checkin_id?`https://www.swarmapp.com/user/{{SWARM_USER_ID}}/checkin/${r.checkin_id}`:null;
     const vUrl=fsUrl(r);
     // Use div+onclick to avoid nested <a> (card link + venue link both being <a>)
     const cardClick=swarmUrl?` onclick="window.open('${swarmUrl}','_blank')"`:' onclick=""';

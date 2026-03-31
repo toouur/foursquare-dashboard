@@ -117,6 +117,7 @@ if __name__ == "__main__":
 
     home_city     = args.home_city     or trip_cfg.get("home_city",    "Minsk")
     min_checkins  = args.min_checkins  or trip_cfg.get("min_checkins", 5)
+    fs_user_id    = settings.get("dashboard", {}).get("foursquare_user_id", "")
 
     log.info("Loading mappings from %s …", config_dir)
     mappings = load_mappings(config_dir)
@@ -345,6 +346,7 @@ if __name__ == "__main__":
               "{{TIPS_COUNT}}":          f"{tips_count:,}",
               "{{PHOTOS_KPI}}":           f'<div class="kpi"><div class="num">{total_photos:,}</div><div class="lbl">Photos</div></div>' if total_photos else '',
               "{{PHOTOS_RECENT_JSON}}":  recent_photos_json,
+              "{{SWARM_USER_ID}}":       fs_user_id,
           })
 
     if args.cat_list:
@@ -354,7 +356,7 @@ if __name__ == "__main__":
     _here = _SCRIPT_DIR
     for gen_script, gen_out, gen_tmpl, gen_kwargs in [
         (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {}),
-        (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {}),
+        (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {"swarm_user_id": fs_user_id}),
         (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities")}),
         (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {}),
         (_here / "gen_tips.py",       "tips.html",         "tips.html.tmpl",         {"tips_path": str(tips_path)}),

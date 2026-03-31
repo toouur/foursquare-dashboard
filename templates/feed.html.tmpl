@@ -1055,7 +1055,7 @@ function onCardClick(i){
   activate(i, false);
 
   const cid=DATA[i]&&DATA[i][10];
-  if(cid) window.open('https://www.swarmapp.com/c/'+cid,'_blank');
+  if(cid) window.open('https://www.swarmapp.com/user/{{SWARM_USER_ID}}/checkin/'+cid,'_blank');
 
 }
 

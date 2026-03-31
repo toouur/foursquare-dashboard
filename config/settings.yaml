@@ -11,6 +11,7 @@ trip_detection:
 dashboard:
   title: "Check-in Journal"
   subtitle_source: "Foursquare"
+  foursquare_user_id: "29447180"   # used for Swarm checkin links
 
 output:
   index_html: index.html
