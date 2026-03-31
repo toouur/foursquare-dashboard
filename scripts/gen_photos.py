@@ -145,7 +145,7 @@ a{{color:inherit;text-decoration:none;}}
 
 <div class="page-hero">
   <h1>Photos</h1>
-  <div class="page-hero-sub">{total:,} photos</div>
+  <div class="page-hero-sub">{total + len(tip_photos):,} photos{f' · <a href="#tipPhotosSection" style="color:var(--gold);text-decoration:none;">+ {len(tip_photos)} tip photos ↓</a>' if tip_photos else ''}</div>
   <div class="sort-pills">
     <div class="sort-pill active" id="sNewest" onclick="setSort('newest')">Newest first</div>
     <div class="sort-pill" id="sOldest" onclick="setSort('oldest')">Oldest first</div>
