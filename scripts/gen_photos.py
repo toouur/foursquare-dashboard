@@ -86,13 +86,27 @@ def build_page(
     tip_photos.sort(key=lambda p: -p["ts"])
     tip_photos_json = json.dumps(tip_photos, ensure_ascii=False).replace("</", "<\\/")
 
-    # Build city list sorted by photo count desc (only cities with >=5 photos)
-    from collections import Counter
+    # Build country→cities hierarchy for the filter accordion
+    from collections import Counter, defaultdict
+    city_country: dict[str, str] = {}
+    for p in all_photos:
+        if p.get("city") and p.get("country"):
+            city_country[p["city"]] = p["country"]
     city_counts = Counter(p["city"] for p in all_photos if p.get("city"))
-    cities_json = json.dumps(
-        [{"city": c, "count": n} for c, n in city_counts.most_common() if n >= 5],
-        ensure_ascii=False
-    )
+    country_counts: Counter = Counter()
+    country_cities: dict[str, list] = defaultdict(list)
+    for city, count in city_counts.items():
+        if count < 5:
+            continue
+        country = city_country.get(city, "")
+        country_counts[country] += count
+        country_cities[country].append({"city": city, "count": count})
+    # Sort countries by total photo count, cities within by count
+    countries_data = []
+    for country, ctotal in sorted(country_counts.items(), key=lambda x: -x[1]):
+        cities_sorted = sorted(country_cities[country], key=lambda x: -x["count"])
+        countries_data.append({"country": country, "count": ctotal, "cities": cities_sorted})
+    countries_json = json.dumps(countries_data, ensure_ascii=False).replace("</", "<\\/")
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -101,6 +115,7 @@ def build_page(
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Photos Gallery</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
 <style>
 :root{{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}}
 *{{margin:0;padding:0;box-sizing:border-box;}}
@@ -141,8 +156,16 @@ a{{color:inherit;text-decoration:none;}}
 .sort-pill{{padding:5px 13px;border-radius:6px;font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;}}
 .sort-pill.active{{background:var(--gold);color:#0b0d13;border-color:var(--gold);}}
 .sort-pill:hover:not(.active){{border-color:var(--gold);color:var(--gold);}}
-.city-filter{{padding:10px 48px 0;display:flex;flex-wrap:wrap;gap:6px;}}
-.city-pill{{padding:4px 11px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.58rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
+.city-filter{{padding:8px 48px 0;}}
+.country-row{{display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;user-select:none;border-bottom:1px solid var(--border);}}
+.country-row:last-child{{border-bottom:none;}}
+.country-label{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text2);flex:1;}}
+.country-count{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);}}
+.country-arrow{{font-size:.55rem;color:var(--muted);transition:transform .2s;}}
+.country-row.open .country-arrow{{transform:rotate(90deg);}}
+.country-cities{{display:none;flex-wrap:wrap;gap:5px;padding:6px 0 8px 22px;}}
+.country-row.open + .country-cities{{display:flex;}}
+.city-pill{{padding:3px 10px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.57rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
 .city-pill.active{{background:var(--teal);color:#0b0d13;border-color:var(--teal);}}
 .city-pill:hover:not(.active){{border-color:var(--teal);color:var(--teal);}}
 </style>
@@ -187,28 +210,37 @@ a{{color:inherit;text-decoration:none;}}
 const PHOTOS_NEWEST = {photos_json};
 const PHOTOS_OLDEST = [...PHOTOS_NEWEST].reverse();
 const TIP_PHOTOS = {tip_photos_json};
-const CITIES = {cities_json};
+const COUNTRIES = COUNTRIES_PLACEHOLDER;
 const PAGE = 300;
 let sorted = PHOTOS_NEWEST, loaded = 0, galleryIdx = 0;
 let tipGalIdx = 0, galMode = 'photos'; // 'photos' or 'tips'
 let activeCity = null, sortOrder = 'newest';
 
-// Build city filter pills
+const CTRY_CODE = {{"Belarus":"by","Moldova":"md","Poland":"pl","Russia":"ru","Ukraine":"ua","Germany":"de","France":"fr","Italy":"it","Spain":"es","Turkey":"tr","Türkiye":"tr","Sweden":"se","Denmark":"dk","Norway":"no","Finland":"fi","Austria":"at","Switzerland":"ch","Netherlands":"nl","Belgium":"be","Portugal":"pt","Czech Republic":"cz","Czechia":"cz","Hungary":"hu","Slovakia":"sk","Romania":"ro","Bulgaria":"bg","Croatia":"hr","Slovenia":"si","Serbia":"rs","Bosnia and Herzegovina":"ba","Montenegro":"me","North Macedonia":"mk","Albania":"al","Kosovo":"xk","Estonia":"ee","Latvia":"lv","Lithuania":"lt","Greece":"gr","Cyprus":"cy","Malta":"mt","Iceland":"is","Ireland":"ie","United Kingdom":"gb","Georgia":"ge","Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","Uzbekistan":"uz","Kyrgyzstan":"kg","Tajikistan":"tj","Turkmenistan":"tm","Mongolia":"mn","China":"cn","Japan":"jp","South Korea":"kr","Taiwan":"tw","India":"in","Thailand":"th","Vietnam":"vn","Indonesia":"id","Singapore":"sg","Malaysia":"my","Pakistan":"pk","Nepal":"np","Qatar":"qa","UAE":"ae","United Arab Emirates":"ae","Saudi Arabia":"sa","Jordan":"jo","Israel":"il","Iraq":"iq","Lebanon":"lb","Iran":"ir","Egypt":"eg","Morocco":"ma","Tunisia":"tn","South Africa":"za","United States":"us","Canada":"ca","Mexico":"mx","Brazil":"br","Australia":"au","New Zealand":"nz"}};
+function flag(c){{const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span class="fi fi-${{code}}" style="border-radius:2px;font-size:.9em;vertical-align:middle;flex-shrink:0"></span>`:''}}
+
+// Build country accordion
 (function(){{
   const wrap = document.getElementById('cityFilter');
-  const allPill = document.createElement('div');
-  allPill.className = 'city-pill active';
-  allPill.id = 'city-all';
-  allPill.textContent = 'All';
-  allPill.onclick = () => setCity(null);
-  wrap.appendChild(allPill);
-  CITIES.forEach(c => {{
-    const p = document.createElement('div');
-    p.className = 'city-pill';
-    p.id = 'city-' + c.city;
-    p.textContent = c.city + ' ' + c.count;
-    p.onclick = () => setCity(c.city);
-    wrap.appendChild(p);
+  COUNTRIES.forEach(ctr => {{
+    const row = document.createElement('div');
+    row.className = 'country-row';
+    row.id = 'ctr-' + ctr.country;
+    row.innerHTML = `${{flag(ctr.country)}}<span class="country-label">${{esc(ctr.country)}}</span><span class="country-count">${{ctr.count}}</span><span class="country-arrow">▶</span>`;
+    row.onclick = () => row.classList.toggle('open');
+    wrap.appendChild(row);
+
+    const cities = document.createElement('div');
+    cities.className = 'country-cities';
+    ctr.cities.forEach(c => {{
+      const p = document.createElement('div');
+      p.className = 'city-pill';
+      p.id = 'city-' + c.city;
+      p.textContent = c.city + ' ' + c.count;
+      p.onclick = (e) => {{ e.stopPropagation(); setCity(c.city); }};
+      cities.appendChild(p);
+    }});
+    wrap.appendChild(cities);
   }});
 }})();
 
@@ -230,9 +262,9 @@ function setSort(order){{
 function setCity(city){{
   activeCity=city;
   document.querySelectorAll('.city-pill').forEach(p=>p.classList.remove('active'));
-  const id=city?'city-'+city:'city-all';
-  const el=document.getElementById(id);
-  if(el)el.classList.add('active');
+  if(city){{
+    document.querySelectorAll('.city-pill').forEach(p=>{{if(p.textContent.startsWith(city+' ')||p.textContent===city)p.classList.add('active');}});
+  }}
   applyFilter();
 }}
 
@@ -288,5 +320,6 @@ function openTipGallery(idx){{galMode='tips';tipGalIdx=idx;showGalItem();documen
 </body>
 </html>"""
 
+    html = html.replace("COUNTRIES_PLACEHOLDER", countries_json)
     Path(out_path).write_text(html, encoding="utf-8")
     print(f"photos.html → {out_path}  ({total:,} photos, {Path(out_path).stat().st_size//1024:,} KB)", file=sys.stderr)
