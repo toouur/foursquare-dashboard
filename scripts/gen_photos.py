@@ -169,20 +169,20 @@ a{{color:inherit;text-decoration:none;}}
 .sort-pill.active{{background:var(--gold);color:#0b0d13;border-color:var(--gold);}}
 .sort-pill:hover:not(.active){{border-color:var(--gold);color:var(--gold);}}
 .city-filter{{padding:8px 48px 0;}}
-.city-filter{{padding:8px 48px 0;}}
-.country-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0 8px;}}
-.country-block{{}}
+.country-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:0;}}
 .country-row{{display:flex;align-items:center;gap:5px;padding:3px 6px;cursor:pointer;user-select:none;border-radius:5px;transition:background .15s;}}
-.country-row:hover{{background:var(--card2);}}
+.country-row:hover,.country-row.open{{background:var(--card2);}}
 .country-label{{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
 .country-count{{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);flex-shrink:0;}}
 .country-arrow{{font-size:.50rem;color:var(--muted);transition:transform .2s;flex-shrink:0;}}
 .country-row.open .country-arrow{{transform:rotate(90deg);}}
-.country-cities{{display:none;flex-wrap:wrap;gap:3px;padding:2px 4px 6px 4px;}}
-.country-row.open + .country-cities{{display:flex;}}
-.city-pill{{padding:1px 7px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.52rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
+.cities-panel{{display:none;flex-wrap:wrap;gap:4px;padding:8px 48px 10px;border-top:1px solid var(--border);margin-top:4px;}}
+.cities-panel.open{{display:flex;}}
+.city-pill{{padding:2px 9px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.57rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
 .city-pill.active{{background:var(--teal);color:#0b0d13;border-color:var(--teal);}}
 .city-pill:hover:not(.active){{border-color:var(--teal);color:var(--teal);}}
+.city-pill-all{{border-color:var(--gold);color:var(--gold);}}
+.city-pill-all:hover,.city-pill-all.active{{background:var(--gold);color:#0b0d13;border-color:var(--gold);}}
 </style>
 </head>
 <body>
@@ -203,6 +203,7 @@ a{{color:inherit;text-decoration:none;}}
 </div>
 
 <div class="city-filter" id="cityFilter"></div>
+<div class="cities-panel" id="citiesPanel"></div>
 
 <div class="gallery-grid" id="galleryGrid"></div>
 <button class="load-more" id="loadMore" onclick="loadMore()">Load more</button>
@@ -234,43 +235,68 @@ let activeCity = null, sortOrder = 'newest';
 const CTRY_CODE = {{"Belarus":"by","Moldova":"md","Poland":"pl","Russia":"ru","Ukraine":"ua","Germany":"de","France":"fr","Italy":"it","Spain":"es","Turkey":"tr","Türkiye":"tr","Sweden":"se","Denmark":"dk","Norway":"no","Finland":"fi","Austria":"at","Switzerland":"ch","Netherlands":"nl","Belgium":"be","Portugal":"pt","Czech Republic":"cz","Czechia":"cz","Hungary":"hu","Slovakia":"sk","Romania":"ro","Bulgaria":"bg","Croatia":"hr","Slovenia":"si","Serbia":"rs","Bosnia and Herzegovina":"ba","Montenegro":"me","North Macedonia":"mk","Albania":"al","Kosovo":"xk","Estonia":"ee","Latvia":"lv","Lithuania":"lt","Greece":"gr","Cyprus":"cy","Malta":"mt","Iceland":"is","Ireland":"ie","United Kingdom":"gb","Georgia":"ge","Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","Uzbekistan":"uz","Kyrgyzstan":"kg","Tajikistan":"tj","Turkmenistan":"tm","Mongolia":"mn","China":"cn","Japan":"jp","South Korea":"kr","Taiwan":"tw","India":"in","Thailand":"th","Vietnam":"vn","Cambodia":"kh","Indonesia":"id","Singapore":"sg","Malaysia":"my","Pakistan":"pk","Nepal":"np","Qatar":"qa","UAE":"ae","United Arab Emirates":"ae","Saudi Arabia":"sa","Jordan":"jo","Israel":"il","Iraq":"iq","Lebanon":"lb","Iran":"ir","Egypt":"eg","Morocco":"ma","Tunisia":"tn","Oman":"om","South Africa":"za","United States":"us","Canada":"ca","Mexico":"mx","Argentina":"ar","Chile":"cl","Brazil":"br","Australia":"au","New Zealand":"nz","Hong Kong":"hk","Liechtenstein":"li","Holy See (Vatican City State)":"va"}};
 function flag(c){{const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span class="fi fi-${{code}}" style="border-radius:2px;font-size:.9em;vertical-align:middle;flex-shrink:0"></span>`:''}}
 
-// Build country accordion (multi-column grid)
+function esc(s){{return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}}
+
+// Build country grid + full-width cities panel
+let openCountry = null;
+const citiesPanel = document.getElementById('citiesPanel');
 (function(){{
   const wrap = document.getElementById('cityFilter');
   const grid = document.createElement('div');
   grid.className = 'country-grid';
   wrap.appendChild(grid);
   COUNTRIES.forEach(ctr => {{
-    const block = document.createElement('div');
-    block.className = 'country-block';
-
     const row = document.createElement('div');
     row.className = 'country-row';
     row.id = 'ctr-' + ctr.country;
     row.innerHTML = `${{flag(ctr.country)}}<span class="country-label">${{esc(ctr.country)}}</span><span class="country-count">${{ctr.count}}</span><span class="country-arrow">▶</span>`;
-    row.onclick = () => row.classList.toggle('open');
-    block.appendChild(row);
-
-    const cities = document.createElement('div');
-    cities.className = 'country-cities';
-    ctr.cities.forEach(c => {{
-      const p = document.createElement('div');
-      p.className = 'city-pill';
-      p.id = 'city-' + c.city;
-      p.textContent = c.city + ' ' + c.count;
-      p.onclick = (e) => {{ e.stopPropagation(); setCity(c.city); }};
-      cities.appendChild(p);
-    }});
-    block.appendChild(cities);
-    grid.appendChild(block);
+    row.onclick = () => toggleCountry(ctr);
+    grid.appendChild(row);
   }});
 }})();
 
-function esc(s){{return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}}
+function toggleCountry(ctr){{
+  const row = document.getElementById('ctr-' + ctr.country);
+  if(openCountry === ctr.country){{
+    // close
+    row.classList.remove('open');
+    citiesPanel.classList.remove('open');
+    citiesPanel.innerHTML = '';
+    openCountry = null;
+    setCity(null);
+    return;
+  }}
+  // close previous
+  if(openCountry){{
+    const prev = document.getElementById('ctr-' + openCountry);
+    if(prev) prev.classList.remove('open');
+  }}
+  row.classList.add('open');
+  openCountry = ctr.country;
+  // Build cities panel
+  citiesPanel.innerHTML = '';
+  // "All" pill
+  const all = document.createElement('div');
+  all.className = 'city-pill city-pill-all';
+  all.id = 'city-all';
+  all.textContent = 'All ' + ctr.country;
+  all.onclick = () => setCity(null);
+  citiesPanel.appendChild(all);
+  ctr.cities.forEach(c => {{
+    const p = document.createElement('div');
+    p.className = 'city-pill';
+    p.dataset.city = c.city;
+    p.textContent = c.city + ' ' + c.count;
+    p.onclick = () => setCity(c.city);
+    citiesPanel.appendChild(p);
+  }});
+  citiesPanel.classList.add('open');
+  setCity(null); // reset city filter, switch to oldest
+}}
 
 function applyFilter(){{
   const base = sortOrder==='oldest' ? PHOTOS_OLDEST : PHOTOS_NEWEST;
-  sorted = activeCity ? base.filter(p => p.city === activeCity) : base;
+  sorted = activeCity ? base.filter(p => p.city === activeCity) : (openCountry ? base.filter(p => p.country === openCountry) : base);
   document.getElementById('galleryGrid').innerHTML='';
   loaded=0;
   loadMore();
@@ -283,9 +309,21 @@ function setSort(order){{
 }}
 function setCity(city){{
   activeCity=city;
-  document.querySelectorAll('.city-pill').forEach(p=>p.classList.remove('active'));
+  // update pill highlights
+  citiesPanel.querySelectorAll('.city-pill').forEach(p=>p.classList.remove('active'));
+  if(!city){{
+    const allPill = document.getElementById('city-all');
+    if(allPill) allPill.classList.add('active');
+  }} else {{
+    citiesPanel.querySelectorAll('.city-pill[data-city]').forEach(p=>{{
+      if(p.dataset.city===city) p.classList.add('active');
+    }});
+  }}
+  // switch to oldest when a city is selected
   if(city){{
-    document.querySelectorAll('.city-pill').forEach(p=>{{if(p.textContent.startsWith(city+' ')||p.textContent===city)p.classList.add('active');}});
+    sortOrder='oldest';
+    document.getElementById('sNewest').classList.remove('active');
+    document.getElementById('sOldest').classList.add('active');
   }}
   applyFilter();
 }}
