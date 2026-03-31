@@ -176,15 +176,19 @@ jobs:
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
-          PHOTOS_ARGS=""
-          if [ -f private-data/photos.json ] && [ -n "$R2_PUBLIC_URL" ]; then
-            PHOTOS_ARGS="--photos private-data/photos.json --pix-url ${R2_PUBLIC_URL}"
+          PIX_URL_ARG=""
+          if [ -n "$R2_PUBLIC_URL" ]; then
+            PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"
+          fi
+          PHOTOS_ARG=""
+          if [ -f private-data/photos.json ]; then
+            PHOTOS_ARG="--photos private-data/photos.json"
           fi
           python scripts/build.py \
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
-            $PHOTOS_ARGS
+            $PHOTOS_ARG $PIX_URL_ARG
 
       # ── 8. Commit HTML to public repo → Cloudflare Pages auto-deploys ────────
       - name: Commit updated HTML files
