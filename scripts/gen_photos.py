@@ -86,6 +86,14 @@ def build_page(
     tip_photos.sort(key=lambda p: -p["ts"])
     tip_photos_json = json.dumps(tip_photos, ensure_ascii=False).replace("</", "<\\/")
 
+    # Build city list sorted by photo count desc (only cities with >=5 photos)
+    from collections import Counter
+    city_counts = Counter(p["city"] for p in all_photos if p.get("city"))
+    cities_json = json.dumps(
+        [{"city": c, "count": n} for c, n in city_counts.most_common() if n >= 5],
+        ensure_ascii=False
+    )
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -133,6 +141,10 @@ a{{color:inherit;text-decoration:none;}}
 .sort-pill{{padding:5px 13px;border-radius:6px;font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;}}
 .sort-pill.active{{background:var(--gold);color:#0b0d13;border-color:var(--gold);}}
 .sort-pill:hover:not(.active){{border-color:var(--gold);color:var(--gold);}}
+.city-filter{{padding:10px 48px 0;display:flex;flex-wrap:wrap;gap:6px;}}
+.city-pill{{padding:4px 11px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.58rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
+.city-pill.active{{background:var(--teal);color:#0b0d13;border-color:var(--teal);}}
+.city-pill:hover:not(.active){{border-color:var(--teal);color:var(--teal);}}
 </style>
 </head>
 <body>
@@ -151,6 +163,8 @@ a{{color:inherit;text-decoration:none;}}
     <div class="sort-pill" id="sOldest" onclick="setSort('oldest')">Oldest first</div>
   </div>
 </div>
+
+<div class="city-filter" id="cityFilter"></div>
 
 <div class="gallery-grid" id="galleryGrid"></div>
 <button class="load-more" id="loadMore" onclick="loadMore()">Load more</button>
@@ -173,19 +187,53 @@ a{{color:inherit;text-decoration:none;}}
 const PHOTOS_NEWEST = {photos_json};
 const PHOTOS_OLDEST = [...PHOTOS_NEWEST].reverse();
 const TIP_PHOTOS = {tip_photos_json};
+const CITIES = {cities_json};
 const PAGE = 300;
 let sorted = PHOTOS_NEWEST, loaded = 0, galleryIdx = 0;
 let tipGalIdx = 0, galMode = 'photos'; // 'photos' or 'tips'
+let activeCity = null, sortOrder = 'newest';
+
+// Build city filter pills
+(function(){{
+  const wrap = document.getElementById('cityFilter');
+  const allPill = document.createElement('div');
+  allPill.className = 'city-pill active';
+  allPill.id = 'city-all';
+  allPill.textContent = 'All';
+  allPill.onclick = () => setCity(null);
+  wrap.appendChild(allPill);
+  CITIES.forEach(c => {{
+    const p = document.createElement('div');
+    p.className = 'city-pill';
+    p.id = 'city-' + c.city;
+    p.textContent = c.city + ' ' + c.count;
+    p.onclick = () => setCity(c.city);
+    wrap.appendChild(p);
+  }});
+}})();
 
 function esc(s){{return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}}
 
-function setSort(order){{
-  sorted = order==='oldest' ? PHOTOS_OLDEST : PHOTOS_NEWEST;
-  document.getElementById('sNewest').classList.toggle('active', order==='newest');
-  document.getElementById('sOldest').classList.toggle('active', order==='oldest');
+function applyFilter(){{
+  const base = sortOrder==='oldest' ? PHOTOS_OLDEST : PHOTOS_NEWEST;
+  sorted = activeCity ? base.filter(p => p.city === activeCity) : base;
   document.getElementById('galleryGrid').innerHTML='';
   loaded=0;
   loadMore();
+}}
+function setSort(order){{
+  sortOrder=order;
+  document.getElementById('sNewest').classList.toggle('active', order==='newest');
+  document.getElementById('sOldest').classList.toggle('active', order==='oldest');
+  applyFilter();
+}}
+function setCity(city){{
+  activeCity=city;
+  document.querySelectorAll('.city-pill').forEach(p=>p.classList.remove('active'));
+  const id=city?'city-'+city:'city-all';
+  const el=document.getElementById(id);
+  if(el)el.classList.add('active');
+  applyFilter();
 }}
 
 function renderBatch(start, end){{
