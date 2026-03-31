@@ -947,9 +947,10 @@ def process(
                 "city":     r.get("city",     "").strip(),
                 "country":  r.get("country",  "").strip(),
                 "category": r.get("category", "").strip(),
-                "lat":      lat,
-                "lng":      lng,
-                "tz_name":  tz_name,
+                "lat":        lat,
+                "lng":        lng,
+                "tz_name":    tz_name,
+                "checkin_id": r.get("checkin_id", "").strip(),
             }
         )
 

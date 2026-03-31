@@ -329,10 +329,11 @@ if __name__ == "__main__":
             if _ts:
                 _date_str = datetime.fromtimestamp(_ts, tz=timezone.utc).strftime("%d %b %Y")
             _recent_photos.append({
-                "src":   _pix_dir_uri + "/" + _photos[0],
-                "venue": _r.get("venue", ""),
-                "city":  _r.get("city", ""),
-                "date":  _date_str,
+                "src":      _pix_dir_uri + "/" + _photos[0],
+                "venue":    _r.get("venue", ""),
+                "venue_id": _r.get("venue_id", ""),
+                "city":     _r.get("city", ""),
+                "date":     _date_str,
             })
         recent_photos_json = json.dumps(_recent_photos, ensure_ascii=False).replace("</", "<\\/")
 

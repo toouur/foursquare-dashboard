@@ -191,7 +191,18 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .photo-card img{width:100%;height:135px;object-fit:cover;display:block;}
 .photo-card-info{background:var(--card);padding:8px 10px;}
 .photo-card-venue{font-size:.73rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.photo-card-venue a{color:inherit;text-decoration:none;}.photo-card-venue a:hover{color:var(--gold);}
 .photo-card-sub{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:2px;}
+/* ── PHOTO LIGHTBOX ── */
+#rcGallery{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9999;flex-direction:column;align-items:center;justify-content:center;}
+#rcGallery.open{display:flex;}
+#rcGallery-img{max-width:90vw;max-height:82vh;object-fit:contain;border-radius:6px;}
+.rcg-nav{position:absolute;top:50%;transform:translateY(-50%);font-size:2.2rem;color:#fff;cursor:pointer;padding:18px 22px;opacity:.5;transition:opacity .2s;background:none;border:none;user-select:none;}
+.rcg-nav:hover{opacity:1;}
+#rcg-prev{left:0;}#rcg-next{right:0;}
+.rcg-close{position:absolute;top:18px;right:24px;font-size:1.5rem;color:#fff;cursor:pointer;opacity:.5;background:none;border:none;}.rcg-close:hover{opacity:1;}
+.rcg-counter{position:absolute;bottom:18px;font-family:'DM Mono',monospace;font-size:.70rem;color:rgba(255,255,255,.55);}
+.rcg-caption{position:absolute;bottom:40px;font-family:'DM Sans',sans-serif;font-size:.76rem;color:rgba(255,255,255,.65);max-width:80vw;text-align:center;pointer-events:none;}
 
 /* ── TIPS CARDS ── */
 .tip-card{flex:0 0 260px;}
@@ -1547,16 +1558,18 @@ function filterList(id,q){
 
 
   scrollEl.innerHTML=recent.map((r,i)=>{
-    const url=fsUrl(r);
-    const tag=url?'a':'div', href=url?` href="${url}" target="_blank" rel="noopener"`:'';
+    const swarmUrl=r.checkin_id?`https://www.swarmapp.com/c/${r.checkin_id}`:null;
+    const vUrl=fsUrl(r);
+    const tag=swarmUrl?'a':'div', href=swarmUrl?` href="${swarmUrl}" target="_blank" rel="noopener"`:'';
+    const venueLink=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(r.venue)||'Unknown venue'}</a>`:esc(r.venue)||'Unknown venue';
     const streak=r.venue_id&&venueCounts[r.venue_id]>1
       ? `<div class="rc-streak">🔁 ${venueCounts[r.venue_id]}×</div>` : '';
     const f=r.country?flagHtml(r.country,'1em'):'';
     const loc=[r.city,r.country].filter(Boolean);
     const locStr=loc.join(', ');
-    return `<${tag}${href} class="recent-card" id="rc_${i}" style="${url?'text-decoration:none;cursor:pointer;':''}">
+    return `<${tag}${href} class="recent-card" id="rc_${i}" style="${swarmUrl?'text-decoration:none;cursor:pointer;':''}">
       ${tileBlock(r.lat,r.lng)}
-      <div class="rc-venue-row"><div class="rc-venue">${esc(r.venue)||'Unknown venue'}</div>${catIcon(r.category)}</div>
+      <div class="rc-venue-row"><div class="rc-venue">${venueLink}</div>${catIcon(r.category)}</div>
       <div class="rc-cat-row"><div class="rc-cat">${esc(r.category||'')}</div>${streak}</div>
       <div class="rc-location">${f} ${esc(locStr)}</div>
       <div class="rc-weather" id="rcw_${i}"><span class="rc-weather-loading">fetching weather…</span></div>
@@ -1616,15 +1629,28 @@ function filterList(id,q){
   const photos={{PHOTOS_RECENT_JSON}};
   if(!photos||!photos.length)return;
   document.getElementById('photosFeedSection').style.display='';
-  document.getElementById('photosSub').textContent=photos.length+' most recent';
-  document.getElementById('photosScroll').innerHTML=photos.map(p=>`
-    <div class="photo-card" onclick="window.open('photos.html')">
+  document.getElementById('photosSub').textContent=photos.length+' most recent · <a href="photos.html" style="color:var(--teal);text-decoration:none;">all photos ↗</a>';
+  document.getElementById('photosSub').innerHTML=photos.length+' most recent · <a href="photos.html" style="color:var(--teal);text-decoration:none;">all photos ↗</a>';
+
+  let rcgIdx=0;
+  function rcgShow(){const p=photos[rcgIdx];document.getElementById('rcGallery-img').src=p.src;document.getElementById('rcg-counter').textContent=(rcgIdx+1)+' / '+photos.length;document.getElementById('rcg-caption').textContent=p.venue+(p.date?' · '+p.date:'');}
+  window.rcgOpen=function(i){rcgIdx=i;rcgShow();document.getElementById('rcGallery').classList.add('open');};
+  window.rcgClose=function(){document.getElementById('rcGallery').classList.remove('open');document.getElementById('rcGallery-img').src='';};
+  window.rcgPrev=function(){rcgIdx=(rcgIdx-1+photos.length)%photos.length;rcgShow();};
+  window.rcgNext=function(){rcgIdx=(rcgIdx+1)%photos.length;rcgShow();};
+  document.addEventListener('keydown',e=>{if(!document.getElementById('rcGallery').classList.contains('open'))return;if(e.key==='ArrowLeft')rcgPrev();else if(e.key==='ArrowRight')rcgNext();else if(e.key==='Escape')rcgClose();});
+
+  document.getElementById('photosScroll').innerHTML=photos.map((p,i)=>{
+    const vUrl=p.venue_id?`https://foursquare.com/v/${p.venue_id}`:'';
+    const venueEl=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(p.venue)}</a>`:esc(p.venue);
+    return `<div class="photo-card" onclick="rcgOpen(${i})">
       <img src="${p.src}" loading="lazy" alt="${esc(p.venue)}">
       <div class="photo-card-info">
-        <div class="photo-card-venue">${esc(p.venue)}</div>
+        <div class="photo-card-venue">${venueEl}</div>
         <div class="photo-card-sub">${esc(p.city||'')}${p.city&&p.date?' · ':''}${esc(p.date||'')}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 })();
 
 // ── Main Map (heatmap / dots) ─────────────────────────────────────
@@ -2009,6 +2035,15 @@ function buildCityMap(){
   };
 })();
 </script>
+<!-- Photo lightbox for recent photos section -->
+<div id="rcGallery" onclick="if(event.target===this)rcgClose()">
+  <img id="rcGallery-img" src="" alt="">
+  <button class="rcg-nav" id="rcg-prev" onclick="event.stopPropagation();rcgPrev()">&#8592;</button>
+  <button class="rcg-nav" id="rcg-next" onclick="event.stopPropagation();rcgNext()">&#8594;</button>
+  <button class="rcg-close" onclick="rcgClose()">&#10005;</button>
+  <div class="rcg-caption" id="rcg-caption"></div>
+  <div class="rcg-counter" id="rcg-counter"></div>
+</div>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>

@@ -61,7 +61,8 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
         feed.append([ts, dt.strftime('%d %b %Y'), dt.strftime('%H:%M'),
                      r.get('venue',''), r.get('city',''), r.get('country',''),
                      r.get('category',''), r.get('venue_id',''),
-                     round(lat,4) if lat else None, round(lng,4) if lng else None])
+                     round(lat,4) if lat else None, round(lng,4) if lng else None,
+                     r.get('checkin_id','')])
         # Build YM index (UTC month for calendar)
         dt_utc = datetime.fromtimestamp(ts, tz=timezone.utc)
         ym = f"{dt_utc.year}-{dt_utc.month:02d}"
