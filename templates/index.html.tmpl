@@ -1560,21 +1560,22 @@ function filterList(id,q){
   scrollEl.innerHTML=recent.map((r,i)=>{
     const swarmUrl=r.checkin_id?`https://www.swarmapp.com/c/${r.checkin_id}`:null;
     const vUrl=fsUrl(r);
-    const tag=swarmUrl?'a':'div', href=swarmUrl?` href="${swarmUrl}" target="_blank" rel="noopener"`:'';
+    // Use div+onclick to avoid nested <a> (card link + venue link both being <a>)
+    const cardClick=swarmUrl?` onclick="window.open('${swarmUrl}','_blank')"`:' onclick=""';
     const venueLink=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(r.venue)||'Unknown venue'}</a>`:esc(r.venue)||'Unknown venue';
     const streak=r.venue_id&&venueCounts[r.venue_id]>1
       ? `<div class="rc-streak">🔁 ${venueCounts[r.venue_id]}×</div>` : '';
     const f=r.country?flagHtml(r.country,'1em'):'';
     const loc=[r.city,r.country].filter(Boolean);
     const locStr=loc.join(', ');
-    return `<${tag}${href} class="recent-card" id="rc_${i}" style="${swarmUrl?'text-decoration:none;cursor:pointer;':''}">
+    return `<div${cardClick} class="recent-card" id="rc_${i}" style="${swarmUrl?'cursor:pointer;':''}">
       ${tileBlock(r.lat,r.lng)}
       <div class="rc-venue-row"><div class="rc-venue">${venueLink}</div>${catIcon(r.category)}</div>
       <div class="rc-cat-row"><div class="rc-cat">${esc(r.category||'')}</div>${streak}</div>
       <div class="rc-location">${f} ${esc(locStr)}</div>
       <div class="rc-weather" id="rcw_${i}"><span class="rc-weather-loading">fetching weather…</span></div>
       <div class="rc-date">${r.datetime}</div>
-    </${tag}>`;
+    </div>`;
   }).join('');
 
   // ── Weather fetch (throttled) ──
@@ -1629,8 +1630,7 @@ function filterList(id,q){
   const photos={{PHOTOS_RECENT_JSON}};
   if(!photos||!photos.length)return;
   document.getElementById('photosFeedSection').style.display='';
-  document.getElementById('photosSub').textContent=photos.length+' most recent · <a href="photos.html" style="color:var(--teal);text-decoration:none;">all photos ↗</a>';
-  document.getElementById('photosSub').innerHTML=photos.length+' most recent · <a href="photos.html" style="color:var(--teal);text-decoration:none;">all photos ↗</a>';
+  document.getElementById('photosSub').textContent=photos.length+' most recent';
 
   let rcgIdx=0;
   function rcgShow(){const p=photos[rcgIdx];document.getElementById('rcGallery-img').src=p.src;document.getElementById('rcg-counter').textContent=(rcgIdx+1)+' / '+photos.length;document.getElementById('rcg-caption').textContent=p.venue+(p.date?' · '+p.date:'');}
