@@ -169,15 +169,17 @@ a{{color:inherit;text-decoration:none;}}
 .sort-pill.active{{background:var(--gold);color:#0b0d13;border-color:var(--gold);}}
 .sort-pill:hover:not(.active){{border-color:var(--gold);color:var(--gold);}}
 .city-filter{{padding:8px 48px 0;}}
-.country-row{{display:flex;align-items:center;gap:6px;padding:5px 0;cursor:pointer;user-select:none;border-bottom:1px solid var(--border);}}
-.country-row:last-child{{border-bottom:none;}}
-.country-label{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text2);flex:1;}}
-.country-count{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);}}
-.country-arrow{{font-size:.55rem;color:var(--muted);transition:transform .2s;}}
+.country-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0 8px;}}
+.country-block{{}}
+.country-row{{display:flex;align-items:center;gap:5px;padding:4px 6px;cursor:pointer;user-select:none;border-radius:5px;transition:background .15s;}}
+.country-row:hover{{background:var(--card2);}}
+.country-label{{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
+.country-count{{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);flex-shrink:0;}}
+.country-arrow{{font-size:.50rem;color:var(--muted);transition:transform .2s;flex-shrink:0;}}
 .country-row.open .country-arrow{{transform:rotate(90deg);}}
-.country-cities{{display:none;flex-wrap:wrap;gap:5px;padding:6px 0 8px 22px;}}
+.country-cities{{display:none;flex-wrap:wrap;gap:4px;padding:3px 6px 8px 22px;}}
 .country-row.open + .country-cities{{display:flex;}}
-.city-pill{{padding:3px 10px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.57rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
+.city-pill{{padding:2px 9px;border-radius:20px;font-family:'DM Mono',monospace;font-size:.55rem;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;white-space:nowrap;}}
 .city-pill.active{{background:var(--teal);color:#0b0d13;border-color:var(--teal);}}
 .city-pill:hover:not(.active){{border-color:var(--teal);color:var(--teal);}}
 </style>
@@ -228,19 +230,25 @@ let sorted = PHOTOS_NEWEST, loaded = 0, galleryIdx = 0;
 let tipGalIdx = 0, galMode = 'photos'; // 'photos' or 'tips'
 let activeCity = null, sortOrder = 'newest';
 
-const CTRY_CODE = {{"Belarus":"by","Moldova":"md","Poland":"pl","Russia":"ru","Ukraine":"ua","Germany":"de","France":"fr","Italy":"it","Spain":"es","Turkey":"tr","Türkiye":"tr","Sweden":"se","Denmark":"dk","Norway":"no","Finland":"fi","Austria":"at","Switzerland":"ch","Netherlands":"nl","Belgium":"be","Portugal":"pt","Czech Republic":"cz","Czechia":"cz","Hungary":"hu","Slovakia":"sk","Romania":"ro","Bulgaria":"bg","Croatia":"hr","Slovenia":"si","Serbia":"rs","Bosnia and Herzegovina":"ba","Montenegro":"me","North Macedonia":"mk","Albania":"al","Kosovo":"xk","Estonia":"ee","Latvia":"lv","Lithuania":"lt","Greece":"gr","Cyprus":"cy","Malta":"mt","Iceland":"is","Ireland":"ie","United Kingdom":"gb","Georgia":"ge","Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","Uzbekistan":"uz","Kyrgyzstan":"kg","Tajikistan":"tj","Turkmenistan":"tm","Mongolia":"mn","China":"cn","Japan":"jp","South Korea":"kr","Taiwan":"tw","India":"in","Thailand":"th","Vietnam":"vn","Indonesia":"id","Singapore":"sg","Malaysia":"my","Pakistan":"pk","Nepal":"np","Qatar":"qa","UAE":"ae","United Arab Emirates":"ae","Saudi Arabia":"sa","Jordan":"jo","Israel":"il","Iraq":"iq","Lebanon":"lb","Iran":"ir","Egypt":"eg","Morocco":"ma","Tunisia":"tn","South Africa":"za","United States":"us","Canada":"ca","Mexico":"mx","Brazil":"br","Australia":"au","New Zealand":"nz"}};
+const CTRY_CODE = {{"Belarus":"by","Moldova":"md","Poland":"pl","Russia":"ru","Ukraine":"ua","Germany":"de","France":"fr","Italy":"it","Spain":"es","Turkey":"tr","Türkiye":"tr","Sweden":"se","Denmark":"dk","Norway":"no","Finland":"fi","Austria":"at","Switzerland":"ch","Netherlands":"nl","Belgium":"be","Portugal":"pt","Czech Republic":"cz","Czechia":"cz","Hungary":"hu","Slovakia":"sk","Romania":"ro","Bulgaria":"bg","Croatia":"hr","Slovenia":"si","Serbia":"rs","Bosnia and Herzegovina":"ba","Montenegro":"me","North Macedonia":"mk","Albania":"al","Kosovo":"xk","Estonia":"ee","Latvia":"lv","Lithuania":"lt","Greece":"gr","Cyprus":"cy","Malta":"mt","Iceland":"is","Ireland":"ie","United Kingdom":"gb","Georgia":"ge","Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","Uzbekistan":"uz","Kyrgyzstan":"kg","Tajikistan":"tj","Turkmenistan":"tm","Mongolia":"mn","China":"cn","Japan":"jp","South Korea":"kr","Taiwan":"tw","India":"in","Thailand":"th","Vietnam":"vn","Cambodia":"kh","Indonesia":"id","Singapore":"sg","Malaysia":"my","Pakistan":"pk","Nepal":"np","Qatar":"qa","UAE":"ae","United Arab Emirates":"ae","Saudi Arabia":"sa","Jordan":"jo","Israel":"il","Iraq":"iq","Lebanon":"lb","Iran":"ir","Egypt":"eg","Morocco":"ma","Tunisia":"tn","Oman":"om","South Africa":"za","United States":"us","Canada":"ca","Mexico":"mx","Argentina":"ar","Chile":"cl","Brazil":"br","Australia":"au","New Zealand":"nz","Hong Kong":"hk","Liechtenstein":"li","Holy See (Vatican City State)":"va"}};
 function flag(c){{const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span class="fi fi-${{code}}" style="border-radius:2px;font-size:.9em;vertical-align:middle;flex-shrink:0"></span>`:''}}
 
-// Build country accordion
+// Build country accordion (multi-column grid)
 (function(){{
   const wrap = document.getElementById('cityFilter');
+  const grid = document.createElement('div');
+  grid.className = 'country-grid';
+  wrap.appendChild(grid);
   COUNTRIES.forEach(ctr => {{
+    const block = document.createElement('div');
+    block.className = 'country-block';
+
     const row = document.createElement('div');
     row.className = 'country-row';
     row.id = 'ctr-' + ctr.country;
     row.innerHTML = `${{flag(ctr.country)}}<span class="country-label">${{esc(ctr.country)}}</span><span class="country-count">${{ctr.count}}</span><span class="country-arrow">▶</span>`;
     row.onclick = () => row.classList.toggle('open');
-    wrap.appendChild(row);
+    block.appendChild(row);
 
     const cities = document.createElement('div');
     cities.className = 'country-cities';
@@ -252,7 +260,8 @@ function flag(c){{const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span
       p.onclick = (e) => {{ e.stopPropagation(); setCity(c.city); }};
       cities.appendChild(p);
     }});
-    wrap.appendChild(cities);
+    block.appendChild(cities);
+    grid.appendChild(block);
   }});
 }})();
 
