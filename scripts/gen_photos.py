@@ -24,6 +24,7 @@ def build_page(
     csv_path: str,
     pix_dir_uri: str,
     out_path: str,
+    tips: list | None = None,
 ) -> None:
     # Load checkin metadata from CSV
     with open(csv_path, encoding="utf-8") as fh:
@@ -62,9 +63,28 @@ def build_page(
                 "ts":      ts,
             })
     all_photos.sort(key=lambda p: -p["ts"])
-
     total = len(all_photos)
     photos_json = json.dumps(all_photos, ensure_ascii=False).replace("</", "<\\/")
+
+    # Build tip photos list
+    tip_photos: list[dict] = []
+    for t in (tips or []):
+        if not t.get("photo"):
+            continue
+        ts = t.get("ts", 0)
+        date_str = ""
+        if ts:
+            date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%d %b %Y")
+        tip_photos.append({
+            "src":   pix_dir_uri.rstrip("/") + "/" + t["photo"],
+            "venue": t.get("venue", ""),
+            "city":  t.get("city", ""),
+            "date":  date_str,
+            "text":  t.get("text", ""),
+            "ts":    ts,
+        })
+    tip_photos.sort(key=lambda p: -p["ts"])
+    tip_photos_json = json.dumps(tip_photos, ensure_ascii=False).replace("</", "<\\/")
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -135,6 +155,11 @@ a{{color:inherit;text-decoration:none;}}
 <div class="gallery-grid" id="galleryGrid"></div>
 <button class="load-more" id="loadMore" onclick="loadMore()">Load more</button>
 
+<div id="tipPhotosSection" style="display:none;padding:0 24px 24px;">
+  <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);padding:32px 0 12px;border-top:1px solid var(--border);">Tip Photos</div>
+  <div class="gallery-grid" id="tipGalleryGrid" style="padding:0;"></div>
+</div>
+
 <div id="gallery" onclick="if(event.target===this)closeGallery()">
   <img id="gallery-img" src="" alt="">
   <button class="gal-nav" id="gal-prev" onclick="event.stopPropagation();galPrev()">&#8592;</button>
@@ -147,8 +172,10 @@ a{{color:inherit;text-decoration:none;}}
 <script>
 const PHOTOS_NEWEST = {photos_json};
 const PHOTOS_OLDEST = [...PHOTOS_NEWEST].reverse();
+const TIP_PHOTOS = {tip_photos_json};
 const PAGE = 300;
 let sorted = PHOTOS_NEWEST, loaded = 0, galleryIdx = 0;
+let tipGalIdx = 0, galMode = 'photos'; // 'photos' or 'tips'
 
 function esc(s){{return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}}
 
@@ -183,12 +210,32 @@ function loadMore(){{
 }}
 loadMore();
 
-function openGallery(idx){{galleryIdx=idx;showGalItem();document.getElementById('gallery').classList.add('open');}}
-function showGalItem(){{const p=sorted[galleryIdx];document.getElementById('gallery-img').src=p.src;document.getElementById('gal-counter').textContent=(galleryIdx+1)+' / '+sorted.length;document.getElementById('gal-caption').textContent=p.venue+(p.date?' · '+p.date:'');}}
+function openGallery(idx){{galMode='photos';galleryIdx=idx;showGalItem();document.getElementById('gallery').classList.add('open');}}
+function showGalItem(){{
+  if(galMode==='tips'){{const p=TIP_PHOTOS[tipGalIdx];document.getElementById('gallery-img').src=p.src;document.getElementById('gal-counter').textContent=(tipGalIdx+1)+' / '+TIP_PHOTOS.length;document.getElementById('gal-caption').textContent=p.venue+(p.date?' · '+p.date:'');return;}}
+  const p=sorted[galleryIdx];document.getElementById('gallery-img').src=p.src;document.getElementById('gal-counter').textContent=(galleryIdx+1)+' / '+sorted.length;document.getElementById('gal-caption').textContent=p.venue+(p.date?' · '+p.date:'');
+}}
 function closeGallery(){{document.getElementById('gallery').classList.remove('open');document.getElementById('gallery-img').src='';}}
-function galPrev(){{if(sorted.length){{galleryIdx=(galleryIdx-1+sorted.length)%sorted.length;showGalItem();}}}}
-function galNext(){{if(sorted.length){{galleryIdx=(galleryIdx+1)%sorted.length;showGalItem();}}}}
+function galPrev(){{if(galMode==='tips'){{tipGalIdx=(tipGalIdx-1+TIP_PHOTOS.length)%TIP_PHOTOS.length;}}else{{galleryIdx=(galleryIdx-1+sorted.length)%sorted.length;}}showGalItem();}}
+function galNext(){{if(galMode==='tips'){{tipGalIdx=(tipGalIdx+1)%TIP_PHOTOS.length;}}else{{galleryIdx=(galleryIdx+1)%sorted.length;}}showGalItem();}}
 document.addEventListener('keydown',e=>{{const g=document.getElementById('gallery');if(!g.classList.contains('open'))return;if(e.key==='ArrowLeft')galPrev();else if(e.key==='ArrowRight')galNext();else if(e.key==='Escape')closeGallery();}});
+
+// ── Tip photos section ──
+if(TIP_PHOTOS.length){{
+  document.getElementById('tipPhotosSection').style.display='';
+  const grid=document.getElementById('tipGalleryGrid');
+  const frag=document.createDocumentFragment();
+  TIP_PHOTOS.forEach((p,i)=>{{
+    const div=document.createElement('div');
+    div.className='ph-item';
+    div.innerHTML=`<img src="${{p.src}}" loading="lazy" alt="${{esc(p.venue)}}"><div class="ph-tooltip"><div class="pv">${{esc(p.venue)}}</div><div class="pd">${{esc(p.text||'').slice(0,60)}}${{p.text&&p.text.length>60?'…':''}}</div></div>`;
+    div.onclick=(()=>{{const idx=i;return()=>openTipGallery(idx);}})();
+    frag.appendChild(div);
+  }});
+  grid.appendChild(frag);
+}}
+
+function openTipGallery(idx){{galMode='tips';tipGalIdx=idx;showGalItem();document.getElementById('gallery').classList.add('open');}}
 </script>
 </body>
 </html>"""

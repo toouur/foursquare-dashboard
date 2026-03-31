@@ -401,6 +401,7 @@ if __name__ == "__main__":
                     csv_path=args.input,
                     pix_dir_uri=_pix_dir_uri,
                     out_path=os.path.join(args.output_dir, "photos.html"),
+                    tips=all_tips if _pix_dir_uri else [],
                 )
             except Exception as _e:
                 log.warning("gen_photos.py failed: %s", _e)
