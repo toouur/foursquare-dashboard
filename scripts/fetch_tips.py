@@ -264,6 +264,10 @@ def main() -> None:
         tip = api_tip_to_dict(raw)
         tip["closed"] = True
         by_id = {t["id"]: t for t in existing if t.get("id")}
+        if tip["id"] in by_id:
+            for field in {"photo", "deleted"}:
+                if field in by_id[tip["id"]]:
+                    tip[field] = by_id[tip["id"]][field]
         by_id[tip["id"]] = tip
         all_tips = sorted(by_id.values(), key=lambda t: -t.get("ts", 0))
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,10 +292,19 @@ def main() -> None:
         print("CHANGED=false")
         return
 
+    # Fields that are never returned by the API but may be set manually in tips.json.
+    # Preserve them from the existing entry when merging freshly-fetched data.
+    _PRESERVE = {"photo", "deleted"}
+
     # Merge with existing
     by_id: dict[str, dict] = {t["id"]: t for t in existing if t.get("id")}
     for t in fetched:
         if t.get("id"):
+            prev = by_id.get(t["id"])
+            if prev:
+                for field in _PRESERVE:
+                    if field in prev:
+                        t[field] = prev[field]
             by_id[t["id"]] = t
     new_from_users = len(by_id) - len(existing_ids)
 
