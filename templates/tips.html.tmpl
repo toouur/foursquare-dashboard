@@ -75,7 +75,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .tc-deleted{font-family:'DM Mono',monospace;font-size:.50rem;color:#a78bfa;border:1px solid rgba(167,139,250,.45);border-radius:3px;padding:1px 4px;margin-left:5px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
 .tc-loc{display:inline-flex;align-items:center;gap:3px;}
 .tc-views{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);white-space:nowrap;}
-.tc-photo{width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;display:block;}
+.tc-photo{width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;display:block;cursor:zoom-in;}
+#tipLightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9999;align-items:center;justify-content:center;}
+#tipLightbox.open{display:flex;}
+#tipLightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:6px;}
+#tipLightbox-close{position:absolute;top:16px;right:20px;font-size:1.8rem;color:#fff;cursor:pointer;background:none;border:none;line-height:1;}
 
 /* ── Map popup ── */
 .leaflet-popup-content-wrapper{background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.80rem;}
@@ -363,7 +367,7 @@ function render(){
     const closedBadge=t.closed?'<span class="tc-closed">CLOSED</span>':'';
     const deletedBadge=t.deleted?'<span class="tc-deleted">DELETED</span>':'';
     const venueLabel=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(t.venue||'Unknown venue')}</a>`:esc(t.venue||'Unknown venue');
-    const photoEl=t.photo_url?`<img class="tc-photo" src="${t.photo_url}" loading="lazy" alt="">`:'';
+    const photoEl=t.photo_url?`<img class="tc-photo" src="${t.photo_url}" loading="lazy" alt="" onclick="event.stopPropagation();openTipPhoto('${t.photo_url}')">`:'';
     return `<div class="tcard" id="tc_${i}" onclick="selectTip(${i})">
       ${photoEl}
       <div class="tc-venue-row">
@@ -412,6 +416,20 @@ function sortBy(mode,el){
 
 buildCtryTabs();
 render();
+
+function openTipPhoto(url){
+  document.getElementById('tipLightbox-img').src=url;
+  document.getElementById('tipLightbox').classList.add('open');
+}
+function closeTipPhoto(){
+  document.getElementById('tipLightbox').classList.remove('open');
+  document.getElementById('tipLightbox-img').src='';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTipPhoto();});
 </script>
+<div id="tipLightbox" onclick="closeTipPhoto()">
+  <img id="tipLightbox-img" src="" alt="" onclick="event.stopPropagation()">
+  <button id="tipLightbox-close" onclick="closeTipPhoto()">&#10005;</button>
+</div>
 </body>
 </html>

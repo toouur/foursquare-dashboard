@@ -1616,7 +1616,7 @@ function filterList(id,q){
     const loc=[(t.nci||t.city),(t.nc||t.country)].filter(Boolean).join(', ');
     const closedBadge=t.closed?'<span class="rc-closed">CLOSED</span>':'';
     const agreeStr=t.agree_count>0?`👍 ${t.agree_count} · `:'';
-    const tipPhotoEl=t.photo?`<img class="tip-card-photo" src="${t.photo}" loading="lazy" alt="">`:'';
+    const tipPhotoEl=t.photo?`<img class="tip-card-photo" src="${t.photo}" loading="lazy" alt="" onclick="event.stopPropagation();window.open('${t.photo}','_blank')" style="cursor:zoom-in;">`:'';
     return `<${tag}${href} class="recent-card tip-card" style="${tUrl?'text-decoration:none;cursor:pointer;':''}">
       ${tipPhotoEl}
       <div class="rc-venue-row"><div class="rc-venue">${esc(t.venue||'Unknown venue')}${closedBadge}</div>${catIcon(t.category||'')}</div>
