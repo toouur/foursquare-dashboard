@@ -94,6 +94,21 @@ a{color:inherit;}
 .cat-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--teal));}
 .cat-bar-cnt{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);width:36px;text-align:right;}
 
+/* ── INLINE PHOTOS ── */
+.tl-photos{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 4px 50px;}
+.tl-photo{width:100px;height:75px;object-fit:cover;border-radius:5px;cursor:pointer;border:1px solid var(--border);transition:transform .15s,opacity .15s;}
+.tl-photo:hover{transform:scale(1.04);opacity:.9;}
+/* ── GALLERY LIGHTBOX ── */
+#gallery{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9999;flex-direction:column;align-items:center;justify-content:center;}
+#gallery.open{display:flex;}
+#gallery-img{max-width:90vw;max-height:82vh;object-fit:contain;border-radius:6px;}
+.gal-nav{position:absolute;top:50%;transform:translateY(-50%);font-size:2.2rem;color:#fff;cursor:pointer;padding:18px 22px;opacity:.5;transition:opacity .2s;background:none;border:none;user-select:none;}
+.gal-nav:hover{opacity:1;}
+#gal-prev{left:0;}#gal-next{right:0;}
+.gal-close{position:absolute;top:18px;right:24px;font-size:1.5rem;color:#fff;cursor:pointer;opacity:.5;background:none;border:none;}.gal-close:hover{opacity:1;}
+.gal-counter{position:absolute;bottom:18px;font-family:'DM Mono',monospace;font-size:.70rem;color:rgba(255,255,255,.55);}
+.gal-caption{position:absolute;bottom:40px;font-family:'DM Sans',sans-serif;font-size:.76rem;color:rgba(255,255,255,.65);max-width:80vw;text-align:center;pointer-events:none;}
+
 @media(max-width:900px){
   .topnav,.list-header,.list-filters,.trips-grid,.detail-back,.detail-hero,.detail-body{padding-left:18px;padding-right:18px;}
   .trips-grid{grid-template-columns:1fr 1fr;}
@@ -153,15 +168,38 @@ a{color:inherit;}
       <div class="detail-card-title">Top Categories</div>
       <div id="detailCats"></div>
     </div>
-    <div class="detail-card full">
+    <div class="detail-card full" id="detail-timeline-card">
       <div class="detail-card-title">Check-in Timeline</div>
       <div class="detail-timeline" id="detailTimeline"></div>
     </div>
   </div>
 </div>
 
+<!-- ── GALLERY LIGHTBOX ── -->
+<div id="gallery" onclick="if(event.target===this)closeGallery()">
+  <img id="gallery-img" src="" alt="">
+  <button class="gal-nav" id="gal-prev" onclick="event.stopPropagation();galPrev()">&#8592;</button>
+  <button class="gal-nav" id="gal-next" onclick="event.stopPropagation();galNext()">&#8594;</button>
+  <button class="gal-close" onclick="closeGallery()">&#10005;</button>
+  <div class="gal-caption" id="gal-caption"></div>
+  <div class="gal-counter" id="gal-counter"></div>
+</div>
+
 <script>
 const TRIPS = {{TRIPS_JSON}};
+const PIX_DIR = {{PIX_DIR_JSON}};
+let _gallery = [], _galleryIdx = 0;
+function openGallery(idx){_galleryIdx=idx;_showGalItem();document.getElementById('gallery').classList.add('open');}
+function _showGalItem(){const g=_gallery[_galleryIdx];document.getElementById('gallery-img').src=PIX_DIR+'/'+g.src;document.getElementById('gal-counter').textContent=(_galleryIdx+1)+' / '+_gallery.length;document.getElementById('gal-caption').textContent=g.venue+(g.time?' · '+g.time:'');}
+function closeGallery(){document.getElementById('gallery').classList.remove('open');document.getElementById('gallery-img').src='';}
+function galPrev(){if(_gallery.length){_galleryIdx=(_galleryIdx-1+_gallery.length)%_gallery.length;_showGalItem();}}
+function galNext(){if(_gallery.length){_galleryIdx=(_galleryIdx+1)%_gallery.length;_showGalItem();}}
+document.addEventListener('keydown',e=>{const g=document.getElementById('gallery');if(!g.classList.contains('open'))return;if(e.key==='ArrowLeft')galPrev();else if(e.key==='ArrowRight')galNext();else if(e.key==='Escape')closeGallery();});
+function scrollToPhotos(){
+  const card=document.getElementById('detail-timeline-card');
+  if(card)card.scrollIntoView({behavior:'smooth',block:'start'});
+  setTimeout(()=>{const first=document.querySelector('#detailTimeline .tl-photos');if(!first)return;const tl=document.getElementById('detailTimeline');tl.scrollTop=first.offsetTop-20;},350);
+}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 let activeMap = null, activeObserver = null;
 
@@ -180,7 +218,7 @@ function renderGrid(trips){
         <div class="tc-stat"><div class="tc-stat-v">${t.unique_places.toLocaleString()}</div><div class="tc-stat-l">Places</div></div>
         <div class="tc-stat"><div class="tc-stat-v">${t.countries.length}</div><div class="tc-stat-l">Countries</div></div>
       </div>
-      ${t.photo_count>0?`<a class="tc-photos-link" href="trip-${t.id}.html" onclick="event.stopPropagation()">📸 ${t.photo_count.toLocaleString()} photos</a>`:''}
+      ${t.photo_count>0?`<span class="tc-photos-link" onclick="event.stopPropagation();showTrip(${t.id});setTimeout(scrollToPhotos,300)">📸 ${t.photo_count.toLocaleString()} photos</span>`:''}
     </a>`).join('');
 }
 renderGrid(TRIPS);
@@ -236,6 +274,15 @@ function filterTrips(){
 function showTrip(id){
   const t = TRIPS.find(x=>x.id===id);
   if(!t) return;
+  // Build flat gallery array for this trip (all photos in timeline order)
+  _gallery = [];
+  const cidGalStart = {};
+  if(PIX_DIR){
+    t.checkins.forEach(c=>{
+      cidGalStart[c.checkin_id||''] = _gallery.length;
+      (c.photos||[]).forEach(src=>_gallery.push({src, venue:c.venue||'', time:c.time||''}));
+    });
+  }
   history.pushState({trip:id},'','#trip-'+id);
   document.getElementById('listView').style.display = 'none';
   document.getElementById('detailView').style.display = 'block';
@@ -252,7 +299,7 @@ function showTrip(id){
      <div class="detail-kpi"><div class="num">${t.checkin_count.toLocaleString()}</div><div class="lbl">Check-ins</div></div>
      <div class="detail-kpi"><div class="num">${t.unique_places.toLocaleString()}</div><div class="lbl">Unique Places</div></div>
      <div class="detail-kpi"><div class="num">${t.countries.length}</div><div class="lbl">Countries</div></div>
-     ${t.photo_count>0?`<a class="detail-photos-btn" href="trip-${t.id}.html">📸 ${t.photo_count.toLocaleString()} photos</a>`:''}  `;
+     ${t.photo_count>0?`<span class="detail-photos-btn" style="cursor:pointer" onclick="scrollToPhotos()">📸 ${t.photo_count.toLocaleString()} photos</span>`:''}  `;
   // Countries + cities
   document.getElementById('detailCountries').innerHTML =
     t.countries.map(c=>`<span class="detail-country">🌍 ${c}</span>`).join('')
@@ -277,11 +324,17 @@ function showTrip(id){
       <div class="tl-day-header">${day} &nbsp;·&nbsp; ${byDay[day].length} check-ins</div>
       ${byDay[day].map(c=>{
         const fsUrl = c.venue_id ? `https://app.foursquare.com/v/${encodeURIComponent(c.venue.toLowerCase().replace(/\s+/g,'-'))}/${c.venue_id}` : null;
+        const cPhotos = (PIX_DIR && c.photos) ? c.photos : [];
+        const galStart = cidGalStart[c.checkin_id||''] || 0;
+        const photosHtml = cPhotos.length
+          ? `<div class="tl-photos">${cPhotos.map((src,i)=>`<img class="tl-photo" src="${PIX_DIR}/${src}" loading="lazy" onclick="openGallery(${galStart+i})">`).join('')}</div>`
+          : '';
         return `<div class="tl-checkin" data-ts="${c.ts}">
           <div class="tl-checkin-time">${c.time}</div>
           <div class="tl-checkin-info">
             <div class="tl-checkin-venue">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}</div>
             <div class="tl-checkin-sub">${[c.category,c.city,c.country].filter(Boolean).join(' · ')}</div>
+            ${photosHtml}
           </div>
         </div>`;
       }).join('')}

@@ -55,7 +55,7 @@ _TEMPLATES_DIR = _PROJECT_ROOT / "templates"
 TEMPLATE       = (_TEMPLATES_DIR / "index.html.tmpl").read_text(encoding="utf-8")
 TRIPS_TEMPLATE = (_TEMPLATES_DIR / "trips.html.tmpl").read_text(encoding="utf-8")
 
-def build(data, trips, out_dir='.', extra_replacements=None):
+def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     import os
     # ── index.html ──────────────────────────────────────────────────────────
     html = TEMPLATE
@@ -80,6 +80,7 @@ def build(data, trips, out_dir='.', extra_replacements=None):
     trips_html = trips_html.replace('{{TRIPS_JSON}}', json.dumps(trips, ensure_ascii=False).replace('</', '<\\/'))
     trips_html = trips_html.replace('{{TOTAL_TRIPS}}', str(len(trips)))
     trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
+    trips_html = trips_html.replace('{{PIX_DIR_JSON}}', pix_dir_json)
     trips_path = os.path.join(out_dir, 'trips.html')
     with open(trips_path, 'w', encoding='utf-8') as f: f.write(trips_html)
     print(f"Built ->{trips_path}  ({len(trips_html)//1024:,} KB)")
@@ -247,15 +248,18 @@ if __name__ == "__main__":
             if ts_key in new_name_entries:
                 t["name"] = new_name_entries[ts_key]
 
-    # ── Patch trips with photo_count from photos.json (if provided) ──────────
+    # ── Patch trips with photos per check-in from photos.json (if provided) ──
     _photos_by_checkin: dict = {}
+    _pix_dir_uri: str = ""
     if args.photos and Path(args.photos).exists():
         _photos_by_checkin = json.loads(Path(args.photos).read_text(encoding="utf-8"))
+        _pix_dir = Path(args.photos).parent / "pix"
+        _pix_dir_uri = _pix_dir.as_uri() if _pix_dir.is_dir() else Path(args.photos).parent.as_uri() + "/pix"
         for t in trips:
-            t["photo_count"] = sum(
-                len(_photos_by_checkin.get(c.get("checkin_id", ""), []))
-                for c in t.get("checkins", [])
-            )
+            for c in t.get("checkins", []):
+                cid = c.get("checkin_id", "")
+                c["photos"] = _photos_by_checkin.get(cid, [])
+            t["photo_count"] = sum(len(c.get("photos", [])) for c in t.get("checkins", []))
 
     # ── Load tips for recent section ─────────────────────────────────────────
     # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
@@ -308,11 +312,38 @@ if __name__ == "__main__":
 
     tips_count = len(all_tips)
 
+    # ── Compute total photo count and recent 30 photos for index.html ─────────
+    total_photos = sum(len(v) for v in _photos_by_checkin.values()) if _photos_by_checkin else 0
+    recent_photos_json = "[]"
+    if _photos_by_checkin and _pix_dir_uri:
+        _photo_rows = [
+            (r, _photos_by_checkin[r.get("checkin_id", "")])
+            for r in rows
+            if r.get("checkin_id", "") in _photos_by_checkin
+        ]
+        _photo_rows.sort(key=lambda x: -int(x[0].get("date", 0) or 0))
+        _recent_photos = []
+        for _r, _photos in _photo_rows[:30]:
+            _ts = int(_r.get("date", 0) or 0)
+            _date_str = ""
+            if _ts:
+                _date_str = datetime.fromtimestamp(_ts, tz=timezone.utc).strftime("%d %b %Y")
+            _recent_photos.append({
+                "src":   _pix_dir_uri + "/" + _photos[0],
+                "venue": _r.get("venue", ""),
+                "city":  _r.get("city", ""),
+                "date":  _date_str,
+            })
+        recent_photos_json = json.dumps(_recent_photos, ensure_ascii=False).replace("</", "<\\/")
+
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir,
+          pix_dir_json=json.dumps(_pix_dir_uri),
           extra_replacements={
-              "{{TIPS_RECENT}}":  tips_recent_json,
-              "{{TIPS_COUNT}}":   f"{tips_count:,}",
+              "{{TIPS_RECENT}}":         tips_recent_json,
+              "{{TIPS_COUNT}}":          f"{tips_count:,}",
+              "{{PHOTOS_KPI}}":           f'<div class="kpi"><div class="num">{total_photos:,}</div><div class="lbl">Photos</div></div>' if total_photos else '',
+              "{{PHOTOS_RECENT_JSON}}":  recent_photos_json,
           })
 
     if args.cat_list:
@@ -345,28 +376,25 @@ if __name__ == "__main__":
         else:
             log.warning("Generator not found: %s", gen_script)
 
-    # ── Generate per-trip photo pages (optional) ─────────────────────────────
-    if args.photos:
-        photos_json_path = Path(args.photos)
-        if not photos_json_path.exists():
-            log.warning("--photos file not found: %s — skipping trip pages", photos_json_path)
-        else:
-            # pix/ dir is assumed to be a sibling of photos.json
-            pix_dir = str(photos_json_path.parent / "pix")
-            gen_trip_pages_script = _SCRIPT_DIR / "gen_trip_pages.py"
-            if gen_trip_pages_script.exists():
-                import importlib.util as _ilu
-                _spec = _ilu.spec_from_file_location("gen_trip_pages", gen_trip_pages_script)
-                _mod  = _ilu.module_from_spec(_spec)
+    # ── Generate photos.html (all photos gallery) ────────────────────────────
+    if args.photos and _photos_by_checkin:
+        gen_photos_script = _SCRIPT_DIR / "gen_photos.py"
+        if gen_photos_script.exists():
+            import importlib.util as _ilu
+            _spec = _ilu.spec_from_file_location("gen_photos", gen_photos_script)
+            _mod  = _ilu.module_from_spec(_spec)
+            try:
                 _spec.loader.exec_module(_mod)
                 _mod.build_page(
-                    trips=trips,
                     photos_by_checkin=_photos_by_checkin,
-                    pix_dir=pix_dir,
-                    out_dir=args.output_dir,
+                    csv_path=args.input,
+                    pix_dir_uri=_pix_dir_uri,
+                    out_path=os.path.join(args.output_dir, "photos.html"),
                 )
-            else:
-                log.warning("gen_trip_pages.py not found — skipping trip pages")
+            except Exception as _e:
+                log.warning("gen_photos.py failed: %s", _e)
+        else:
+            log.warning("gen_photos.py not found — skipping photos.html")
 
     log.info("Done!")
 
