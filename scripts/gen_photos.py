@@ -109,6 +109,10 @@ a{{color:inherit;text-decoration:none;}}
 
 .load-more{{display:block;margin:0 auto 48px;padding:11px 32px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-family:'DM Mono',monospace;font-size:.64rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);cursor:pointer;transition:all .2s;}}
 .load-more:hover{{border-color:var(--gold);color:var(--gold);}}
+.sort-pills{{display:flex;gap:8px;margin-top:14px;}}
+.sort-pill{{padding:5px 13px;border-radius:6px;font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text2);transition:all .2s;}}
+.sort-pill.active{{background:var(--gold);color:#0b0d13;border-color:var(--gold);}}
+.sort-pill:hover:not(.active){{border-color:var(--gold);color:var(--gold);}}
 </style>
 </head>
 <body>
@@ -121,7 +125,11 @@ a{{color:inherit;text-decoration:none;}}
 
 <div class="page-hero">
   <h1>Photos</h1>
-  <div class="page-hero-sub">{total:,} photos · sorted newest first</div>
+  <div class="page-hero-sub">{total:,} photos</div>
+  <div class="sort-pills">
+    <div class="sort-pill active" id="sNewest" onclick="setSort('newest')">Newest first</div>
+    <div class="sort-pill" id="sOldest" onclick="setSort('oldest')">Oldest first</div>
+  </div>
 </div>
 
 <div class="gallery-grid" id="galleryGrid"></div>
@@ -137,39 +145,49 @@ a{{color:inherit;text-decoration:none;}}
 </div>
 
 <script>
-const PHOTOS = {photos_json};
+const PHOTOS_NEWEST = {photos_json};
+const PHOTOS_OLDEST = [...PHOTOS_NEWEST].reverse();
 const PAGE = 300;
-let loaded = 0, galleryIdx = 0;
+let sorted = PHOTOS_NEWEST, loaded = 0, galleryIdx = 0;
 
 function esc(s){{return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}}
+
+function setSort(order){{
+  sorted = order==='oldest' ? PHOTOS_OLDEST : PHOTOS_NEWEST;
+  document.getElementById('sNewest').classList.toggle('active', order==='newest');
+  document.getElementById('sOldest').classList.toggle('active', order==='oldest');
+  document.getElementById('galleryGrid').innerHTML='';
+  loaded=0;
+  loadMore();
+}}
 
 function renderBatch(start, end){{
   const grid = document.getElementById('galleryGrid');
   const frag = document.createDocumentFragment();
-  for(let i=start;i<end&&i<PHOTOS.length;i++){{
-    const p=PHOTOS[i];
+  for(let i=start;i<end&&i<sorted.length;i++){{
+    const p=sorted[i];
     const div=document.createElement('div');
     div.className='ph-item';
     div.innerHTML=`<img src="${{p.src}}" loading="lazy" alt="${{esc(p.venue)}}"><div class="ph-tooltip"><div class="pv">${{esc(p.venue)}}</div><div class="pd">${{esc(p.city||p.country||'')}}${{p.city&&p.date?' · ':''}}${{esc(p.date||'')}}</div></div>`;
-    div.onclick=()=>openGallery(i);
+    div.onclick=(()=>{{const idx=i;return()=>openGallery(idx);}})();
     frag.appendChild(div);
   }}
   grid.appendChild(frag);
 }}
 
 function loadMore(){{
-  const end=Math.min(loaded+PAGE, PHOTOS.length);
+  const end=Math.min(loaded+PAGE, sorted.length);
   renderBatch(loaded, end);
   loaded=end;
-  if(loaded>=PHOTOS.length) document.getElementById('loadMore').style.display='none';
+  document.getElementById('loadMore').style.display=loaded>=sorted.length?'none':'block';
 }}
 loadMore();
 
 function openGallery(idx){{galleryIdx=idx;showGalItem();document.getElementById('gallery').classList.add('open');}}
-function showGalItem(){{const p=PHOTOS[galleryIdx];document.getElementById('gallery-img').src=p.src;document.getElementById('gal-counter').textContent=(galleryIdx+1)+' / '+PHOTOS.length;document.getElementById('gal-caption').textContent=p.venue+(p.date?' · '+p.date:'');}}
+function showGalItem(){{const p=sorted[galleryIdx];document.getElementById('gallery-img').src=p.src;document.getElementById('gal-counter').textContent=(galleryIdx+1)+' / '+sorted.length;document.getElementById('gal-caption').textContent=p.venue+(p.date?' · '+p.date:'');}}
 function closeGallery(){{document.getElementById('gallery').classList.remove('open');document.getElementById('gallery-img').src='';}}
-function galPrev(){{if(PHOTOS.length){{galleryIdx=(galleryIdx-1+PHOTOS.length)%PHOTOS.length;showGalItem();}}}}
-function galNext(){{if(PHOTOS.length){{galleryIdx=(galleryIdx+1)%PHOTOS.length;showGalItem();}}}}
+function galPrev(){{if(sorted.length){{galleryIdx=(galleryIdx-1+sorted.length)%sorted.length;showGalItem();}}}}
+function galNext(){{if(sorted.length){{galleryIdx=(galleryIdx+1)%sorted.length;showGalItem();}}}}
 document.addEventListener('keydown',e=>{{const g=document.getElementById('gallery');if(!g.classList.contains('open'))return;if(e.key==='ArrowLeft')galPrev();else if(e.key==='ArrowRight')galNext();else if(e.key==='Escape')closeGallery();}});
 </script>
 </body>
