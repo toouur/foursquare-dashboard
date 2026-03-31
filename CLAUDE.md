@@ -16,6 +16,33 @@ python scripts/build.py --input data/checkins.csv --config-dir config --output-d
 ```
 > **Note:** The system `python3` may be Python 3.14 (Windows Store) without PyYAML. Use the Python 3.12 path above if `import yaml` fails.
 
+### Build with photos (local)
+```bash
+# Enables inline photos in trips.html, photos.html gallery, recent photos on index.html
+/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/build.py \
+  --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --config-dir config --output-dir . \
+  --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json
+
+# Build with Cloudflare R2 URL (for CI / deployed site)
+/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/build.py \
+  --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --config-dir config --output-dir . \
+  --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json \
+  --pix-url "https://pub-5514667a5da04a75986022e39efc7118.r2.dev/pix"
+```
+
+### Fetch photos from Foursquare data export
+```bash
+# Incremental — only new check-ins since last index (auto-detects cutoff from photos.json)
+/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/fetch_photos.py \
+  --token "$FOURSQUARE_TOKEN" \
+  --export path/to/export/photos/ \
+  --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json \
+  --pix-dir C:/Users/toouur/Documents/GitHub/foursquare-data/pix/
+```
+
 ### Fetch check-ins from Foursquare API
 ```bash
 python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv data/checkins.csv
@@ -69,14 +96,16 @@ python scripts/build.py --input data/checkins.csv --config-dir config --output-d
 Foursquare API
   → scripts/fetch_checkins.py     # writes/updates data/checkins.csv
   → scripts/fetch_tips.py         # writes/updates data/tips.json
+  → scripts/fetch_photos.py       # writes/updates data/photos.json; downloads pix/ files
   → scripts/build.py              # orchestrator:
       ├── scripts/transform.py    # normalise city/country names
       ├── scripts/metrics.py      # compute all aggregations + trip detection
-      ├── templates/index.html.tmpl  → index.html  (includes TIPS_RECENT from tips.json)
-      ├── templates/trips.html.tmpl  → trips.html
+      ├── templates/index.html.tmpl  → index.html  (includes TIPS_RECENT, recent 30 photos)
+      ├── templates/trips.html.tmpl  → trips.html  (inline photo thumbnails per check-in)
       ├── scripts/gen_companions.py  → companions.html
       ├── scripts/gen_feed.py        → feed.html
-      ├── scripts/gen_tips.py        → tips.html    (reads tips.json)
+      ├── scripts/gen_photos.py      → photos.html  (full gallery, city filter, tip photos)
+      ├── scripts/gen_tips.py        → tips.html    (reads tips.json, tip photo cards)
       ├── scripts/gen_venues.py      → venues.html
       └── scripts/gen_worldcities.py → world_cities.html
 ```
@@ -97,7 +126,9 @@ All HTML output is **pre-built and committed** — the site is purely static wit
 | `fetch_checkins.py` | Incremental or full Foursquare API fetch; exits with `CHANGED=true/false` env var; on full re-fetch writes `duplicate_checkins.csv` and updates `checkins_anomalies.json` |
 | `sync_venue_changes.py` | Diffs two `checkins.csv` snapshots by venue_id; patches `tips.json` with updated venue metadata (no extra API calls) |
 | `fetch_tips.py` | Incremental or full tips fetch from `/users/self/tips`; optional `--sweep` probes per-venue for tips on closed venues (auto-marks `closed=True`); captures `viewCount` → `view_count` |
-| `gen_tips.py` | Builds tips.html from tips.json: normalises country names via `CTRY_NORM` dict, city names via city_merge.yaml, computes `TABS_DATA` for country/city tab filtering |
+| `fetch_photos.py` | Indexes photos from Foursquare data export into `photos.json`; auto-detects cutoff timestamp so only new check-ins are fetched; downloads jpg files into `pix/` |
+| `gen_tips.py` | Builds tips.html from tips.json: normalises country names via `CTRY_NORM` dict, city names via city_merge.yaml, computes `TABS_DATA` for country/city tab filtering; shows tip photo cards |
+| `gen_photos.py` | Builds photos.html: full gallery with lazy loading, country/city accordion filter, tip photos section, lightbox; injects `COUNTRIES_PLACEHOLDER` to avoid f-string conflicts with JSON |
 | `find_closed_venue_tips.py` | One-time utility: uses browser cookies to scrape venue pages and recover tips that the API omits entirely |
 
 ### `fetch_checkins.py` — full re-fetch logic
@@ -249,6 +280,48 @@ For trips where `trip_tags[_name_ts]` contains `"bicycle"`: scans backward up to
 
 `build.py` loads `data/tips.json` (resolved next to `checkins.csv`), takes the 30 most recent, and injects them as `{{TIPS_RECENT}}` into `index.html.tmpl`. Each recent tip item includes `nc` (normalised country), `nci` (normalised city), and `closed` fields. The tip cards use `window._catIcon` (exported from the checkins IIFE) for category icons.
 
+### Photos pipeline (`fetch_photos.py` + `gen_photos.py` + `--photos` flag)
+
+**Data files (private repo):**
+- `photos.json` — `{checkin_id: [filenames]}` index; 13 692 entries; filenames like `29447180_AbCdEf.jpg`
+- `pix/` — 21 151 jpg files (gitignored, local only)
+- **Tip photos:** 12 tips have a `photo` field in `tips.json` (e.g. `"photo": "29447180_AbCdEf.jpg"`); these were discovered as orphan files in the data export that belonged to tips, not check-ins
+
+**Cloudflare R2 (deployed site):**
+- Bucket: `foursquare-photos`, files stored at `pix/filename.jpg`
+- Public URL: `https://pub-5514667a5da04a75986022e39efc7118.r2.dev`
+- `--pix-url` passed to build must include the `/pix` prefix: `https://pub-....r2.dev/pix`
+- CI uploads new photos via `aws s3 sync private-data/pix/ s3://${R2_BUCKET_NAME}/pix/`
+- Secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`
+
+**`fetch_photos.py` cutoff logic:**
+- Finds max timestamp of check-ins already in `photos.json` (the cutoff)
+- Only fetches photos for check-ins **newer** than that cutoff AND not already indexed
+- Prevents re-downloading the entire history on each incremental run
+
+**`gen_photos.py` architecture:**
+- `build_page()` accepts `tips: list | None` parameter — tip photos shown in a separate section
+- Builds `countries_data` hierarchy (country → cities with ≥5 photos) for the accordion filter
+- Uses `COUNTRIES_PLACEHOLDER` injection (not f-string) to avoid `{` collisions with JSON content
+- `galMode` variable (`'photos'` or `'tips'`) controls lightbox navigation context
+- Variable name: loop uses `ctotal` (not `total`) to avoid overwriting the outer photo count
+- Hero count links to tip photos section: `{total + len(tip_photos):,} photos · + N tip photos ↓`
+
+**`build.py` photos integration:**
+- `--photos path` loads `photos.json`; `--pix-url URL` overrides local `file:///` URI
+- `_pix_dir_uri`: local `file:///` path (local builds) or R2 URL (CI builds)
+- Recent photos: `"srcs": [_pix_dir_uri + "/" + f for f in _photos]` (list for multi-photo badge)
+- Tip `photo` field: `pix_dir_uri + "/" + t["photo"]` if present and pix_url set
+- `gen_photos.py` called with `tips=all_tips if _pix_dir_uri else []`
+
+**`gen_tips.py` tip photo:**
+- `photo_url = pix_url.rstrip("/") + "/" + t["photo"]` computed at build time, not stored in tips.json
+
+**`index.html.tmpl` multi-photo cards:**
+- `rcgCard`, `rcgPhoto` state (replaces single `rcgIdx`) — navigates within `photos[rcgCard].srcs`
+- Badge: `+N` overlay on card when check-in has multiple photos
+- Tip photo opens in new tab (`window.open`) rather than inline lightbox
+
 ### World-cities continent-aware matching
 `index.html.tmpl` and `gen_worldcities.py` both have a `CTRY_CONT` JavaScript dict and a `matchVisited`/`getVisitCount` function that guards against false city matches across continents (e.g., Malta's "Rabat" ≠ Morocco's "Rabat"). Any change to this logic must be kept in sync between both files.
 
@@ -274,12 +347,14 @@ python scripts/fetch_tips.py --full --sweep --token "$FOURSQUARE_TOKEN" --out da
 
 **Data export cross-check:** The Foursquare account data export (`foursquare.com/settings/data-export`) can contain tips absent from both API strategies — these are tips whose venues were deleted from the Foursquare index entirely (not just closed). After importing such tips, verify closed/deleted status by fetching each venue page with session cookies: pages that embed `"closed":true` in `__NEXT_DATA__` (or raw HTML) → set `closed=True`; pages that load on the legacy `app.foursquare.com` renderer with no closed marker but whose tip is still absent from the API → the tip was deleted by a moderator, set `deleted=True` instead.
 
-**`tips.json` fields:** `id`, `ts`, `text`, `venue`, `venue_id`, `city`, `country`, `lat`, `lng`, `category`, `agree_count`, `disagree_count`, `view_count`, `closed` (bool, default `False`), `deleted` (bool, only present when `True`). `nc` and `nci` are computed at build time by `gen_tips.py`, not stored in the file.
+**`tips.json` fields:** `id`, `ts`, `text`, `venue`, `venue_id`, `city`, `country`, `lat`, `lng`, `category`, `agree_count`, `disagree_count`, `view_count`, `closed` (bool, default `False`), `deleted` (bool, only present when `True`), `photo` (filename string, only present for 12 tips with photos). `nc`, `nci`, and `photo_url` are computed at build time by `gen_tips.py`, not stored in the file.
+
+**`photos.json` fields:** `{checkin_id: [filename, ...]}` — top-level keys are check-in IDs (strings), values are lists of photo filenames. Tip photos are NOT stored here; they live in `tips.json` under the `photo` field.
 
 **View count updates:** `view_count` is refreshed for any tip re-fetched during a `--full` run. Incremental runs only fetch tips newer than the latest known timestamp, so `view_count` on old tips stays frozen until the next full re-fetch.
 
 ## Deployment
 - **Cloudflare Pages:** Auto-deploys on every push to `main` (no build step needed)
 - **Netlify:** Manual deploys only on last day of month (free tier limit); `netlify.toml` has empty build command
-- **GitHub Actions:** Runs every hour to fetch new check-ins and rebuild; secrets needed: `FOURSQUARE_TOKEN`, `DATA_REPO_PAT`, `NETLIFY_SITE_ID`, `NETLIFY_AUTH_TOKEN`
+- **GitHub Actions:** Runs every hour to fetch new check-ins and rebuild; secrets needed: `FOURSQUARE_TOKEN`, `DATA_REPO_PAT`, `NETLIFY_SITE_ID`, `NETLIFY_AUTH_TOKEN`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`
 - **Cloudflare Worker (`workers/checkin-poller/`):** Polls Foursquare every minute; triggers `workflow_dispatch` on new check-in for near-instant deploys (~4–5 min latency). Secrets: `FOURSQUARE_TOKEN`, `GITHUB_TOKEN` (set via `wrangler secret put`)

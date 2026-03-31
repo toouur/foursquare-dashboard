@@ -321,7 +321,8 @@ if __name__ == "__main__":
     tips_count = len(all_tips)
 
     # ── Compute total photo count and recent 30 photos for index.html ─────────
-    total_photos = sum(len(v) for v in _photos_by_checkin.values()) if _photos_by_checkin else 0
+    tip_photo_count = sum(1 for t in all_tips if t.get("photo")) if _pix_dir_uri else 0
+    total_photos = (sum(len(v) for v in _photos_by_checkin.values()) if _photos_by_checkin else 0) + tip_photo_count
     recent_photos_json = "[]"
     if _photos_by_checkin and _pix_dir_uri:
         _photo_rows = [
@@ -399,9 +400,12 @@ if __name__ == "__main__":
                 _mod.build_page(
                     photos_by_checkin=_photos_by_checkin,
                     csv_path=args.input,
+                    rows=rows,
                     pix_dir_uri=_pix_dir_uri,
                     out_path=os.path.join(args.output_dir, "photos.html"),
                     tips=all_tips if _pix_dir_uri else [],
+                    city_merge=mappings.get("city_merge", {}),
+                    ctry_norm=_CTRY_NORM,
                 )
             except Exception as _e:
                 log.warning("gen_photos.py failed: %s", _e)

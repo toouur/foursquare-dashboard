@@ -24,7 +24,9 @@ A self-updating personal dashboard for your Foursquare/Swarm check-in history.
 **Features:** heatmap + dot map + country flag map · charts by year / month / hour / day of week ·
 GitHub-style activity heatmap · travel timeline (Gantt) · trip journal with per-trip maps ·
 searchable cities & venues · venue loyalty · category explorer · recent check-ins with historical weather ·
-tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons.
+tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons ·
+**photo gallery** with 21 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
+lazy loading, lightbox, and inline tip photos.
 
 ---
 
@@ -35,18 +37,21 @@ tips page with country/city tabs, map, closed/deleted-venue detection, view coun
 ├── scripts/
 │   ├── fetch_checkins.py        # Fetch check-ins from Foursquare API → data/checkins.csv
 │   ├── fetch_tips.py            # Fetch tips → data/tips.json (incremental + venue sweep)
+│   ├── fetch_photos.py          # Fetch check-in photos from Foursquare data export → data/photos.json
 │   ├── transform.py             # Data cleaning: country fixes, city normalisation
 │   ├── metrics.py               # All aggregation + trip-detection logic
 │   ├── build.py                 # CLI entry point: checkins.csv → index.html + trips.html
 │   ├── gen_companions.py        # Generates companions.html
 │   ├── gen_feed.py              # Generates feed.html (infinite-scroll with weather)
+│   ├── gen_photos.py            # Generates photos.html (full gallery, city filter, tip photos)
 │   ├── gen_tips.py              # Generates tips.html (country/city tabs, map, CLOSED badges)
 │   ├── gen_venues.py            # Generates venues.html (top 500 venues)
 │   ├── gen_worldcities.py       # Generates world_cities.html
 │   └── find_closed_venue_tips.py  # One-time utility: find tips on closed venues via browser cookies
 ├── data/
 │   ├── checkins.csv          # Your check-in data — gitignored, lives in private repo
-│   └── tips.json             # Your tips data — gitignored, lives in private repo alongside checkins.csv
+│   ├── tips.json             # Your tips data — gitignored, lives in private repo alongside checkins.csv
+│   └── photos.json           # Photo index {checkin_id: [filenames]} — gitignored, lives in private repo
 ├── workers/
 │   └── checkin-poller/       # Cloudflare Worker: polls Foursquare every minute,
 │       ├── worker.js         #   triggers GitHub Actions on new check-in
@@ -157,8 +162,19 @@ python scripts/fetch_checkins.py
 # Fetch tips (incremental)
 python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out data/tips.json
 
-# Build dashboard
+# Fetch photos from Foursquare data export (only new check-ins since last index)
+python scripts/fetch_photos.py \
+  --token "$FOURSQUARE_TOKEN" \
+  --export path/to/foursquare-export/photos/ \
+  --csv data/checkins.csv \
+  --photos data/photos.json \
+  --pix-dir data/pix/
+
+# Build dashboard (without photos — deployed site uses R2)
 python scripts/build.py
+
+# Build dashboard (with local photos)
+python scripts/build.py --photos data/photos.json
 
 # Preview in browser
 python -m http.server 8000
@@ -184,6 +200,11 @@ python scripts/find_closed_venue_tips.py \
 
 # Custom paths / home city
 python scripts/build.py --input data/checkins.csv --home-city "Minsk" --config-dir config
+
+# Build with photos hosted on Cloudflare R2 (deployed site)
+python scripts/build.py \
+  --photos data/photos.json \
+  --pix-url "https://pub-xxxx.r2.dev/pix"
 
 # Dump a full list of raw Foursquare categories seen in your data
 python scripts/build.py --cat-list
@@ -288,6 +309,51 @@ Venue diff is done by `scripts/sync_venue_changes.py`. It compares these fields 
 
 ---
 
+## Photos
+
+`photos.json` is an index of `{checkin_id: [filenames]}` built from your Foursquare data export.
+Photos are stored locally in `data/pix/` (gitignored) and served in the deployed site from **Cloudflare R2** (free tier: 10 GB storage, 10 M reads/month, zero egress cost).
+
+### Fetching photos
+
+1. Download your data export from `foursquare.com/settings/data-export`.
+2. Extract the archive — it contains CSV files of your photos.
+3. Run `fetch_photos.py` to index new photos and download the actual files:
+
+```bash
+python scripts/fetch_photos.py \
+  --token "$FOURSQUARE_TOKEN" \
+  --export path/to/export/photos/ \
+  --csv data/checkins.csv \
+  --photos data/photos.json \
+  --pix-dir data/pix/
+```
+
+The script auto-detects the cutoff timestamp (the max timestamp of check-ins already in `photos.json`)
+and only fetches photos for **newer** check-ins, making incremental runs fast.
+
+### Tip photos
+
+12 photos in the data export were discovered to belong to **tips** rather than check-ins.
+These are stored as a `photo` field directly in `tips.json` entries (e.g. `"photo": "29447180_AbCdEf.jpg"`).
+`gen_tips.py` computes `photo_url` at build time from `pix_url + "/" + tip["photo"]`.
+Tip photos appear on tip cards in both `tips.html` and `index.html`.
+
+### Cloudflare R2 setup
+
+1. Create a bucket (e.g. `foursquare-photos`) in the Cloudflare R2 dashboard.
+2. Enable the **Public Development URL** (`r2.dev` domain) on the bucket.
+3. Upload your `pix/` folder: `aws s3 sync data/pix/ s3://foursquare-photos/pix/ --endpoint-url https://{account_id}.r2.cloudflarestorage.com`
+4. Set `R2_PUBLIC_URL` to `https://pub-xxxx.r2.dev/pix` (include the `/pix` prefix).
+5. Pass it to the build: `python scripts/build.py --photos data/photos.json --pix-url "$R2_PUBLIC_URL"`
+
+In CI, the `update-dashboard` workflow uploads only **new** photos (those added since the last run)
+using `aws s3 sync`, then rebuilds with `--pix-url` so the deployed site serves photos from R2.
+
+Required GitHub secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`.
+
+---
+
 ## Data flow
 
 ```
@@ -296,6 +362,14 @@ data/checkins.csv
   → metrics.py (categories.json, settings.yaml)
   → build.py (templates/*.tmpl → *.html)
   → gen_*.py (embedded templates → *.html)
+
+data/photos.json + data/pix/           (optional, local only)
+  → build.py --photos → gen_photos.py → photos.html
+                       → trips.html (inline thumbnails)
+                       → index.html (recent 30 photos section)
+
+Cloudflare R2 (pix/ prefix)            (deployed site)
+  → build.py --pix-url → same pages with R2 URLs instead of local file:// URIs
 ```
 
 ## Dependencies

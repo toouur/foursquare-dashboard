@@ -667,6 +667,87 @@ python enrich_overlaps.py --only-ids-file <span class="hl">recovery_ids.txt</spa
           companions page.
         </div>
       </div>
+
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 11 — Recovering and Hosting 21 000+ Check-in Photos</div>
+        <div class="cs-text">
+          Foursquare's public API exposes photo metadata per check-in, but rate limits and the
+          sheer volume (~21 000 images for ~65 000 check-ins) made a naive full re-fetch
+          impractical. The private data export archive contained all historical photos, but
+          the export's CSV files referenced internal Foursquare URLs rather than actual image
+          bytes — so photos still had to be fetched individually, and the index had to be
+          built from scratch.
+        </div>
+        <div class="cs-text">
+          Three compounding problems:
+        </div>
+        <div class="cs-text">
+          <strong>1. Incremental indexing without re-downloading history.</strong>
+          The photo index (<code>photos.json</code>) grows over time as new check-ins are added.
+          A naive run would re-probe every un-indexed check-in on every CI run — including the
+          ~51 000 that were already confirmed to have no photos — wasting quota and time.
+        </div>
+        <div class="cs-text">
+          <strong>2. Orphan photos belonging to tips, not check-ins.</strong>
+          After cross-referencing all 21 168 downloaded jpg files against the check-in index,
+          17 files were unaccounted for. Investigation of the export's photo URLs revealed
+          12 of them used an <code>/item/{id}</code> path rather than <code>/checkin/{id}</code>
+          — matching <em>tip IDs</em>, not check-in IDs. They had been silently mis-classified.
+        </div>
+        <div class="cs-text">
+          <strong>3. Serving 21 000+ files on a static site at zero cost.</strong>
+          GitHub Pages has a 1 GB repo limit; embedding binary assets in the repo was not
+          viable. The site needed a public CDN that was genuinely free at this scale.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Export Cutoff Detection, Tip Photo Discovery, Cloudflare R2</div>
+        <div class="cs-text">
+          Each problem was addressed with a targeted fix:
+        </div>
+        <div class="code-block">
+<span class="cm"># Fix 1 — auto-detect cutoff; only probe check-ins newer than already indexed</span>
+known = set(photos_by_checkin.keys())
+cutoff_ts = max(
+    (int(r[<span class="hl">"date"</span>]) <span class="kw">for</span> r <span class="kw">in</span> rows <span class="kw">if</span> r[<span class="hl">"checkin_id"</span>] <span class="kw">in</span> known),
+    default=0
+)
+pending = [r[<span class="hl">"checkin_id"</span>] <span class="kw">for</span> r <span class="kw">in</span> rows
+           <span class="kw">if</span> r[<span class="hl">"checkin_id"</span>] <span class="kw">not in</span> known
+           <span class="kw">and</span> int(r[<span class="hl">"date"</span>]) &gt; cutoff_ts]   <span class="cm"># skip old confirmed-empty check-ins</span>
+
+<span class="cm"># Fix 2 — tip photos stored in tips.json, not photos.json</span>
+<span class="cm"># Export URL pattern:  /item/{tip_id}/photo → tip photo, not checkin photo</span>
+<span class="cm"># 12 matched tips.json entries by ID → added "photo": "filename.jpg" field</span>
+<span class="cm"># photo_url computed at build time:  pix_url + "/" + tip["photo"]</span>
+tip[<span class="hl">"photo_url"</span>] = pix_url.rstrip(<span class="hl">"/"</span>) + <span class="hl">"/"</span> + tip[<span class="hl">"photo"</span>]
+
+<span class="cm"># Fix 3 — Cloudflare R2 (free tier: 10 GB, 10M reads/month, $0 egress)</span>
+<span class="cm"># Files uploaded at pix/filename.jpg; --pix-url must include the /pix prefix</span>
+aws s3 sync private-data/pix/ s3://<span class="hl">${R2_BUCKET_NAME}</span>/pix/ \
+    --endpoint-url https://<span class="hl">${R2_ACCOUNT_ID}</span>.r2.cloudflarestorage.com
+
+python scripts/build.py \
+    --photos private-data/photos.json \
+    --pix-url <span class="hl">"${R2_PUBLIC_URL}"</span>   <span class="cm"># e.g. https://pub-xxxx.r2.dev/pix</span>
+        </div>
+        <div class="cs-text">
+          The <code>photos.html</code> gallery renders 21 000+ images lazily in batches of 300,
+          with a country/city accordion filter (countries collapsed by default, cities as pill
+          buttons), a separate tip photos section with its own lightbox mode, and a hero count
+          that includes both check-in and tip photos with an anchor link to the tip section.
+          The multi-photo badge on <code>index.html</code> recent-check-in cards shows the first
+          photo plus a <code>+N</code> overlay when a check-in has multiple images; clicking
+          navigates through all photos for that check-in in the inline lightbox.
+        </div>
+        <div class="cs-text">
+          In CI, <code>aws s3 sync</code> uploads only <strong>new</strong> files (those not yet
+          in the bucket), making each incremental deploy fast regardless of total gallery size.
+          The <code>--pix-url</code> flag keeps the build fully decoupled: local builds use a
+          <code>file:///</code> URI; the deployed site uses the R2 public URL — no code changes
+          needed between environments.
+        </div>
+      </div>
     </div>
 
   </div>
@@ -776,6 +857,11 @@ python scripts/build.py \
         <div class="si-layer">Data Privacy</div>
         <div class="si-tech">Private GitHub Repo</div>
         <div class="si-role">Fine-grained PAT · Contents scope only</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Photo Storage</div>
+        <div class="si-tech">Cloudflare R2</div>
+        <div class="si-role">21 000+ photos · 10 GB free · $0 egress · S3-compatible sync</div>
       </div>
     </div>
   </div>

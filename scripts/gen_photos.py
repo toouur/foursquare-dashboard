@@ -25,10 +25,17 @@ def build_page(
     pix_dir_uri: str,
     out_path: str,
     tips: list | None = None,
+    rows: list | None = None,
+    city_merge: dict | None = None,
+    ctry_norm: dict | None = None,
 ) -> None:
-    # Load checkin metadata from CSV
-    with open(csv_path, encoding="utf-8") as fh:
-        rows = list(csv.DictReader(fh))
+    city_merge = city_merge or {}
+    ctry_norm = ctry_norm or {}
+
+    # Use pre-normalized rows from build.py if provided; otherwise read raw CSV
+    if rows is None:
+        with open(csv_path, encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
 
     # Build checkin metadata map: checkin_id → {venue, city, country, date, ts}
     ci_meta: dict[str, dict] = {}
@@ -40,10 +47,12 @@ def build_page(
         date_str = ""
         if ts:
             date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%d %b %Y")
+        raw_city = r.get("city", "")
+        raw_country = r.get("country", "")
         ci_meta[cid] = {
             "venue":   r.get("venue", ""),
-            "city":    r.get("city", ""),
-            "country": r.get("country", ""),
+            "city":    city_merge.get(raw_city, raw_city),
+            "country": ctry_norm.get(raw_country, raw_country),
             "date":    date_str,
             "ts":      ts,
         }
@@ -75,13 +84,16 @@ def build_page(
         date_str = ""
         if ts:
             date_str = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%d %b %Y")
+        raw_city = t.get("city", "")
+        raw_country = t.get("country", "")
         tip_photos.append({
-            "src":   pix_dir_uri.rstrip("/") + "/" + t["photo"],
-            "venue": t.get("venue", ""),
-            "city":  t.get("city", ""),
-            "date":  date_str,
-            "text":  t.get("text", ""),
-            "ts":    ts,
+            "src":     pix_dir_uri.rstrip("/") + "/" + t["photo"],
+            "venue":   t.get("venue", ""),
+            "city":    city_merge.get(raw_city, raw_city),
+            "country": ctry_norm.get(raw_country, raw_country),
+            "date":    date_str,
+            "text":    t.get("text", ""),
+            "ts":      ts,
         })
     tip_photos.sort(key=lambda p: -p["ts"])
     tip_photos_json = json.dumps(tip_photos, ensure_ascii=False).replace("</", "<\\/")
