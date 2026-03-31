@@ -128,8 +128,23 @@ jobs:
               --token "$FOURSQUARE_TOKEN" \
               --csv   private-data/checkins.csv \
               --out   private-data/photos.json \
+              --pix-dir private-data/pix \
               --sleep 0.3 >> "$GITHUB_OUTPUT"
           fi
+
+      # ── 4d. Upload new photos to Cloudflare R2 ──────────────────────────────
+      - name: Upload new photos to R2
+        if: steps.fetch_photos.outputs.CHANGED == 'true'
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID:         ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME:        ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          pip install awscli --quiet
+          aws s3 sync private-data/pix/ s3://${R2_BUCKET_NAME}/pix/ \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --no-progress
 
       # ── 5. Exit gracefully if nothing changed ────────────────────────────────
       - name: Skip if no new data
@@ -158,11 +173,18 @@ jobs:
       # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
         if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_photos.outputs.CHANGED == 'true'
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
+          PHOTOS_ARGS=""
+          if [ -f private-data/photos.json ] && [ -n "$R2_PUBLIC_URL" ]; then
+            PHOTOS_ARGS="--photos private-data/photos.json --pix-url ${R2_PUBLIC_URL}"
+          fi
           python scripts/build.py \
             --input private-data/checkins.csv \
             --config-dir config \
-            --output-dir .
+            --output-dir . \
+            $PHOTOS_ARGS
 
       # ── 8. Commit HTML to public repo → Cloudflare Pages auto-deploys ────────
       - name: Commit updated HTML files
@@ -171,7 +193,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html
+          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html
 
           if git diff --cached --quiet; then
             echo "Nothing to commit."

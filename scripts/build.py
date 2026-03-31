@@ -105,6 +105,9 @@ if __name__ == "__main__":
                         help="Path to photos.json (checkin_id → [filenames]); "
                              "also infers pix/ dir as sibling. When supplied, "
                              "trip-{id}.html pages are generated in output-dir.")
+    parser.add_argument("--pix-url",     default=None,
+                        help="Base URL for photos (e.g. https://pub-xxx.r2.dev). "
+                             "Overrides local pix/ dir resolution.")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -254,8 +257,11 @@ if __name__ == "__main__":
     _pix_dir_uri: str = ""
     if args.photos and Path(args.photos).exists():
         _photos_by_checkin = json.loads(Path(args.photos).read_text(encoding="utf-8"))
-        _pix_dir = Path(args.photos).parent / "pix"
-        _pix_dir_uri = _pix_dir.as_uri() if _pix_dir.is_dir() else Path(args.photos).parent.as_uri() + "/pix"
+        if args.pix_url:
+            _pix_dir_uri = args.pix_url.rstrip("/")
+        else:
+            _pix_dir = Path(args.photos).parent / "pix"
+            _pix_dir_uri = _pix_dir.as_uri() if _pix_dir.is_dir() else Path(args.photos).parent.as_uri() + "/pix"
         for t in trips:
             for c in t.get("checkins", []):
                 cid = c.get("checkin_id", "")
