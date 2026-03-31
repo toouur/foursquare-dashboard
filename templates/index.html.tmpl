@@ -208,6 +208,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 /* ── TIPS CARDS ── */
 .tip-card{flex:0 0 260px;}
 .tip-card .rc-tip-text{flex:1;}
+.tip-card-photo{width:100%;height:110px;object-fit:cover;border-radius:8px 8px 0 0;display:block;margin:-12px -12px 10px -12px;width:calc(100% + 24px);}
 .rc-tip-text{font-size:0.80rem;color:var(--text);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 .rc-tip-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:4px;}
 .rc-tip-foot .rc-location{margin-top:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
@@ -1615,7 +1616,9 @@ function filterList(id,q){
     const loc=[(t.nci||t.city),(t.nc||t.country)].filter(Boolean).join(', ');
     const closedBadge=t.closed?'<span class="rc-closed">CLOSED</span>':'';
     const agreeStr=t.agree_count>0?`👍 ${t.agree_count} · `:'';
+    const tipPhotoEl=t.photo?`<img class="tip-card-photo" src="${t.photo}" loading="lazy" alt="">`:'';
     return `<${tag}${href} class="recent-card tip-card" style="${tUrl?'text-decoration:none;cursor:pointer;':''}">
+      ${tipPhotoEl}
       <div class="rc-venue-row"><div class="rc-venue">${esc(t.venue||'Unknown venue')}${closedBadge}</div>${catIcon(t.category||'')}</div>
       <div class="rc-tip-text">${esc(t.text||'')}</div>
       <div class="rc-tip-foot">

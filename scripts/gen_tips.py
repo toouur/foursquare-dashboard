@@ -51,7 +51,7 @@ CTRY_NORM = {
 }
 
 
-def build_page(csv_path, config_dir, out_path, tmpl_path, tips_path=None):
+def build_page(csv_path, config_dir, out_path, tmpl_path, tips_path=None, pix_url=""):
     TEMPLATE = Path(tmpl_path).read_text(encoding="utf-8")
 
     tips_file = Path(tips_path) if tips_path else Path(csv_path).parent / "tips.json"
@@ -93,6 +93,12 @@ def build_page(csv_path, config_dir, out_path, tmpl_path, tips_path=None):
         raw_city = t.get("city") or ""
         t["nc"] = CTRY_NORM.get(raw_country, raw_country)
         t["nci"] = city_merge.get(raw_city, raw_city)
+
+        # Resolve photo URL
+        if t.get("photo") and pix_url:
+            t["photo_url"] = pix_url.rstrip("/") + "/" + t["photo"]
+        else:
+            t["photo_url"] = ""
 
     # Build TABS_DATA: {country: {total, cities: [[city, count], ...]}}
     country_counts: Counter = Counter()
