@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-def build_page(csv_path, config_dir, out_path, tmpl_path=None):
+def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None):
     TEMPLATE = Path(tmpl_path).read_text(encoding="utf-8")
     sys.path.insert(0, str(Path(__file__).parent))
     from transform import load_mappings, apply_transforms, build_blank_city_resolver
@@ -61,7 +61,9 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
                        r.get('category',''), r.get('venue_id','')])
         comp_data.append([name, len(checkins), ci, name_to_uid.get(name, '')])
     comp_json = json.dumps(comp_data, ensure_ascii=False, separators=(',',':'))
+    social_json = json.dumps(social_data, ensure_ascii=False, separators=(',',':')) if social_data is not None else 'null'
     html = TEMPLATE.replace('COMP_DATA_PLACEHOLDER', comp_json)
+    html = html.replace('SOCIAL_STATS_PLACEHOLDER', social_json)
     Path(out_path).write_text(html, encoding='utf-8')
     print(f"companions.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB)")
 

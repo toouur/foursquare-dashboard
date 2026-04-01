@@ -369,11 +369,12 @@ if __name__ == "__main__":
     # ── Generate companion, feed, world-cities, tips pages ──
     _here = _SCRIPT_DIR
     for gen_script, gen_out, gen_tmpl, gen_kwargs in [
-        (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {}),
+        (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {"social_data": data}),
         (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {"swarm_user_id": fs_user_id}),
         (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities")}),
         (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {}),
         (_here / "gen_tips.py",       "tips.html",         "tips.html.tmpl",         {"tips_path": str(tips_path), "pix_url": _pix_dir_uri}),
+        (_here / "gen_stats.py",      "stats.html",        "stats.html.tmpl",        {"stats_data": data}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il

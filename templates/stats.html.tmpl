@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Statistics — Check-in Journal</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+a{color:inherit;}
+
+/* ── TOP NAV ── */
+.topnav{display:flex;align-items:center;gap:20px;padding:18px 56px;border-bottom:1px solid var(--border);background:var(--card);}
+.topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;margin-right:8px;}
+.topnav a{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover,.topnav a.active{color:var(--gold);}
+/* visited: must use literal hex, not var() */
+.topnav a:visited{color:#4a5270;}
+.topnav a.active:visited{color:#e8b86d;}
+
+/* ── PAGE HEADER ── */
+.page-header{padding:36px 56px 28px;border-bottom:1px solid var(--border);background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);}
+.page-header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding-bottom:0.15em;}
+.page-header p{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-top:6px;}
+
+/* ── GRID ── */
+.grid{padding:16px 56px 72px;display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1500px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;position:relative;overflow:hidden;}
+.card::after{content:'';position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.35;}
+.card.full{grid-column:1/-1;}
+.card-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.card-title em{opacity:0.5;font-style:normal;}
+
+/* ── STREAK ── */
+.streak-row{display:flex;gap:28px;flex-wrap:wrap;padding:4px 0 16px;}
+.streak-stat .s-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);line-height:1;}
+.streak-stat .s-lbl{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-top:4px;}
+
+/* ── VENUE LOYALTY ── */
+.loyalty-list{display:flex;flex-direction:column;gap:5px;max-height:560px;overflow-y:auto;padding-right:4px;}
+.loyalty-list::-webkit-scrollbar{width:3px;}
+.loyalty-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.loyalty-row{display:grid;grid-template-columns:28px 1fr auto 38px;align-items:center;gap:12px;padding:9px 13px;background:var(--card2);border:1px solid var(--border);border-radius:8px;transition:border-color 0.15s;}
+.loyalty-row:hover{border-color:rgba(232,184,109,0.4);}
+.lr-rank{font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);text-align:right;}
+.lr-info{min-width:0;}
+.lr-venue{font-size:0.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lr-city{font-size:0.62rem;color:var(--muted);}
+.lr-years{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;}
+.lr-yr{font-family:'DM Mono',monospace;font-size:0.52rem;padding:2px 5px;border-radius:3px;background:rgba(232,184,109,0.1);color:var(--gold);border:1px solid rgba(232,184,109,0.2);white-space:nowrap;}
+.lr-count{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--teal);text-align:right;}
+
+/* ── REGULAR HAUNTS ── */
+.reg-list{display:flex;flex-direction:column;gap:5px;max-height:520px;overflow-y:auto;padding-right:4px;}
+.reg-list::-webkit-scrollbar{width:3px;}
+.reg-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.reg-row{display:grid;grid-template-columns:26px 1fr 52px 44px;align-items:center;gap:8px;padding:7px 10px;background:var(--card2);border:1px solid var(--border);border-radius:7px;transition:border-color .15s;}
+.reg-row:hover{border-color:rgba(78,205,196,0.4);}
+.reg-rank{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);text-align:right;}
+.reg-name{font-size:.78rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.reg-city{font-size:.60rem;color:var(--muted);}
+.reg-months{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--teal);text-align:right;}
+.reg-cnt{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);text-align:right;}
+
+/* ── HEATMAP ── */
+.heatmap-outer{overflow-x:auto;padding-bottom:8px;}
+.heatmap-outer::-webkit-scrollbar{height:3px;}
+.heatmap-outer::-webkit-scrollbar-thumb{background:var(--border);}
+.heatmap-year{display:flex;gap:14px;align-items:flex-start;margin-bottom:10px;}
+.heatmap-label{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);width:34px;flex-shrink:0;padding-top:4px;text-align:right;}
+.heatmap-grid{display:flex;gap:3px;}
+.heatmap-week{display:flex;flex-direction:column;gap:3px;}
+.heatmap-cell{width:11px;height:11px;border-radius:2px;background:var(--card2);}
+.heatmap-cell[data-v="0"]{background:#151820;}
+.heatmap-cell[data-v="1"]{background:#1a3a1a;}
+.heatmap-cell[data-v="2"]{background:#1e5c1e;}
+.heatmap-cell[data-v="3"]{background:#c97a20;}
+.heatmap-cell[data-v="4"]{background:#e8b86d;}
+.heatmap-cell[data-v="5"]{background:#f5d48a;}
+.heatmap-tooltip{position:fixed;pointer-events:none;background:rgba(11,13,19,0.96);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-family:'DM Mono',monospace;font-size:0.64rem;color:var(--text);z-index:9999;display:none;}
+
+/* ── SCROLLBAR on generic lists ── */
+.scroll-list{overflow-y:auto;padding-right:4px;}
+.scroll-list::-webkit-scrollbar{width:3px;}
+.scroll-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ── MEDIA QUERIES ── */
+@media(max-width:900px){
+  .topnav{padding:14px 20px;}
+  .page-header{padding:24px 20px 18px;}
+  .grid{padding:14px 14px 64px;grid-template-columns:1fr;gap:14px;}
+  .card{padding:18px 18px;}
+  .card.full{grid-column:1;}
+  .heatmap-cell{width:9px;height:9px;}
+}
+@media(max-width:520px){
+  .topnav{padding:12px 14px;}
+  .grid{padding:10px 10px 48px;}
+  .card{padding:14px 14px;}
+  .card-title{font-size:0.58rem;}
+  .loyalty-row{grid-template-columns:20px 1fr auto 30px;gap:6px;}
+  .reg-row{grid-template-columns:20px 1fr 44px 36px;gap:5px;}
+  .reg-name{font-size:.72rem;}
+  .heatmap-cell{width:7px;height:7px;}
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">Check-in Journal</a>
+  <a href="index.html">← Dashboard</a>
+  <a href="stats.html" class="active">Statistics</a>
+</nav>
+
+<div class="page-header">
+  <h1>Statistics</h1>
+  <p>Deep-dive analytics &nbsp;&middot;&nbsp; all check-ins</p>
+</div>
+
+<div id="heatmapTip" class="heatmap-tooltip"></div>
+
+<div class="grid">
+
+  <!-- 1. Check-ins by Year -->
+  <div class="card">
+    <div class="card-title">Check-ins by Year</div>
+    <canvas id="yearChart" height="210"></canvas>
+  </div>
+
+  <!-- 2. Monthly Trend -->
+  <div class="card">
+    <div class="card-title">Monthly Trend</div>
+    <canvas id="monthChart" height="210"></canvas>
+  </div>
+
+  <!-- 3. Hour of Day -->
+  <div class="card">
+    <div class="card-title">Hour of Day</div>
+    <canvas id="hourChart" height="200"></canvas>
+  </div>
+
+  <!-- 4. Day of Week -->
+  <div class="card">
+    <div class="card-title">Day of Week</div>
+    <canvas id="dowChart" height="200"></canvas>
+  </div>
+
+  <!-- 5. Distance per Year -->
+  <div class="card">
+    <div class="card-title">Distance per Year <em>&middot; km between consecutive check-ins</em></div>
+    <canvas id="distChart" height="210"></canvas>
+  </div>
+
+  <!-- 6. Countries per Year -->
+  <div class="card">
+    <div class="card-title">Countries per Year</div>
+    <canvas id="ctrPerYearChart" height="210"></canvas>
+  </div>
+
+  <!-- 7. Activity Streaks -->
+  <div class="card">
+    <div class="card-title">Activity Streaks</div>
+    <div class="streak-row">
+      <div class="streak-stat"><div class="s-num" id="longestStreak">—</div><div class="s-lbl">Longest Streak (days)</div></div>
+      <div class="streak-stat"><div class="s-num" id="currentStreak">—</div><div class="s-lbl">Current Streak (days)</div></div>
+    </div>
+    <canvas id="streakCalChart" height="140"></canvas>
+  </div>
+
+  <!-- 8. Category Mix by Year -->
+  <div class="card">
+    <div class="card-title">Category Mix by Year <em>&middot; share of top 7 groups</em></div>
+    <canvas id="catDriftChart" height="280"></canvas>
+  </div>
+
+  <!-- 9. Discovery Rate (full-width) -->
+  <div class="card full">
+    <div class="card-title">Discovery Rate <em>&middot; new vs revisited venues per month</em></div>
+    <canvas id="discoveryChart" height="200"></canvas>
+  </div>
+
+  <!-- 10. Venue Loyalty (full-width) -->
+  <div class="card full">
+    <div class="card-title">Venue Loyalty <em>&middot; places visited in 3+ different years</em></div>
+    <div class="loyalty-list" id="loyaltyGrid"></div>
+  </div>
+
+  <!-- 11. Regular Haunts (full-width) -->
+  <div class="card full">
+    <div class="card-title">Regular Haunts <em>&middot; venues visited in the most distinct calendar months</em></div>
+    <div class="reg-list" id="regularsListEl"></div>
+  </div>
+
+  <!-- 12. Venue Visit Frequency -->
+  <div class="card">
+    <div class="card-title">Venue Visit Frequency <em>&middot; how many venues visited N times</em></div>
+    <canvas id="freqDistChart" height="220"></canvas>
+  </div>
+
+  <!-- 13. Revisit Intervals -->
+  <div class="card">
+    <div class="card-title">Revisit Intervals <em>&middot; time between return visits</em></div>
+    <canvas id="revisitChart" height="220"></canvas>
+  </div>
+
+  <!-- 14. Activity Calendar (full-width) -->
+  <div class="card full">
+    <div class="card-title">Activity Calendar <em>&middot; GitHub-style heatmap by day</em></div>
+    <div class="heatmap-outer" id="heatmapCont"></div>
+  </div>
+
+  <!-- 15. Place Categories (full-width) -->
+  <div class="card full">
+    <div class="card-title">Place Categories <em>&middot; by group</em></div>
+    <canvas id="catChart" height="85"></canvas>
+  </div>
+
+</div><!-- /.grid -->
+
+<script>
+const S={{STATS}};
+
+// ── XSS-safe string escape ──────────────────────────────────────────────────
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+// ── Chart.js defaults ───────────────────────────────────────────────────────
+Chart.defaults.color='#7a85a8';
+Chart.defaults.borderColor='#1e2335';
+Chart.defaults.font.family="'DM Mono',monospace";
+Chart.defaults.font.size=11;
+
+const PAL=['#e63946','#f4831f','#e8b86d','#f5d48a','#a8d8a8','#4ecdc4','#45b7d1','#96ceb4','#ff6b9d','#c44dff','#4d79ff','#ff4d4d','#ffaa00','#00c9a7'];
+const CC=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f','#96ceb4'];
+
+// ── 1. Check-ins by Year ────────────────────────────────────────────────────
+new Chart(document.getElementById('yearChart'),{
+  type:'bar',
+  data:{
+    labels:S.by_year.map(x=>x[0]),
+    datasets:[{
+      data:S.by_year.map(x=>x[1]),
+      backgroundColor:S.by_year.map((_,i)=>PAL[i%PAL.length]),
+      borderRadius:5,borderWidth:0
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y.toLocaleString()+' check-ins'}}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'}}}
+  }
+});
+
+// ── 2. Monthly Trend ────────────────────────────────────────────────────────
+new Chart(document.getElementById('monthChart'),{
+  type:'line',
+  data:{
+    labels:S.by_month.map(x=>x[0]),
+    datasets:[{
+      data:S.by_month.map(x=>x[1]),
+      borderColor:'#4ecdc4',
+      backgroundColor:'rgba(78,205,196,0.07)',
+      borderWidth:2,pointRadius:0,fill:true,tension:0.4
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12,maxRotation:0}},y:{grid:{color:'#1a1e2e'}}}
+  }
+});
+
+// ── 3. Hour of Day ──────────────────────────────────────────────────────────
+new Chart(document.getElementById('hourChart'),{
+  type:'bar',
+  data:{
+    labels:S.by_hour.map(x=>x[0]+':00'),
+    datasets:[{
+      data:S.by_hour.map(x=>x[1]),
+      backgroundColor:S.by_hour.map(x=>{
+        const m=Math.max(...S.by_hour.map(y=>y[1]));
+        return 'rgba(78,205,196,'+(0.2+0.8*(x[1]/m)).toFixed(2)+')';
+      }),
+      borderRadius:4,borderWidth:0
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'}}}
+  }
+});
+
+// ── 4. Day of Week ──────────────────────────────────────────────────────────
+const DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+new Chart(document.getElementById('dowChart'),{
+  type:'bar',
+  data:{
+    labels:S.by_dow.map(x=>DOW[x[0]]),
+    datasets:[{
+      data:S.by_dow.map(x=>x[1]),
+      backgroundColor:S.by_dow.map(x=>x[0]>=4?'rgba(78,205,196,0.75)':'rgba(232,184,109,0.55)'),
+      borderRadius:4,borderWidth:0
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'}}}
+  }
+});
+
+// ── 5. Distance per Year ────────────────────────────────────────────────────
+if(S.dist_by_year&&S.dist_by_year.length){
+  new Chart(document.getElementById('distChart'),{
+    type:'bar',
+    data:{
+      labels:S.dist_by_year.map(x=>x[0]),
+      datasets:[{
+        data:S.dist_by_year.map(x=>x[1]),
+        backgroundColor:S.dist_by_year.map((_,i)=>PAL[i%PAL.length]),
+        borderRadius:5,borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+(ctx.parsed.y).toLocaleString()+' km'}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}}
+    }
+  });
+}
+
+// ── 6. Countries per Year ───────────────────────────────────────────────────
+if(S.countries_per_year&&S.countries_per_year.length){
+  new Chart(document.getElementById('ctrPerYearChart'),{
+    type:'bar',
+    data:{
+      labels:S.countries_per_year.map(x=>x[0]),
+      datasets:[{
+        data:S.countries_per_year.map(x=>x[1]),
+        backgroundColor:'rgba(78,205,196,0.7)',
+        borderRadius:5,borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y+' countries'}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},ticks:{stepSize:1}}}
+    }
+  });
+}
+
+// ── 7. Activity Streaks ─────────────────────────────────────────────────────
+if(S.longest_streak!=null){
+  document.getElementById('longestStreak').textContent=S.longest_streak;
+  document.getElementById('currentStreak').textContent=S.current_streak||0;
+  const activeDays=Object.entries(S.heatmap).sort().map(([yr,days])=>[yr,Object.values(days).filter(v=>v>0).length]);
+  new Chart(document.getElementById('streakCalChart'),{
+    type:'bar',
+    data:{
+      labels:activeDays.map(x=>x[0]),
+      datasets:[{
+        data:activeDays.map(x=>x[1]),
+        backgroundColor:'rgba(232,184,109,0.55)',
+        borderRadius:4,borderWidth:0,label:'Active days'
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y+' active days'}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'}}}
+    }
+  });
+}
+
+// ── 8. Category Mix by Year (stacked 100% bar) ──────────────────────────────
+if(S.cat_drift&&S.cat_drift.length&&S.cat_drift_groups){
+  const DRIFT_PAL=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f'];
+  const labels=S.cat_drift.map(x=>x[0]);
+  const datasets=S.cat_drift_groups.map((grp,gi)=>({
+    label:grp,
+    data:S.cat_drift.map(([_yr,counts])=>{
+      const total=S.cat_drift_groups.reduce((s,g)=>s+(counts[g]||0),0);
+      return total?+((counts[grp]||0)/total*100).toFixed(1):0;
+    }),
+    backgroundColor:DRIFT_PAL[gi%DRIFT_PAL.length],
+    borderWidth:0,
+  }));
+  new Chart(document.getElementById('catDriftChart'),{
+    type:'bar',
+    data:{labels,datasets},
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8}},
+        tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}
+      },
+      scales:{
+        x:{stacked:true,grid:{display:false}},
+        y:{stacked:true,grid:{color:'#1a1e2e'},ticks:{callback:v=>v+'%'},max:100}
+      }
+    }
+  });
+}
+
+// ── 9. Discovery Rate ───────────────────────────────────────────────────────
+new Chart(document.getElementById('discoveryChart'),{
+  type:'bar',
+  data:{
+    labels:S.discovery_rate.map(x=>x[0]),
+    datasets:[
+      {label:'New venues', data:S.discovery_rate.map(x=>x[1]),backgroundColor:'rgba(78,205,196,0.75)',borderWidth:0,borderRadius:2},
+      {label:'Revisits',   data:S.discovery_rate.map(x=>x[2]),backgroundColor:'rgba(232,184,109,0.45)',borderWidth:0,borderRadius:2},
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{display:true,labels:{color:'#7a85a8',font:{family:"'DM Mono',monospace",size:10}}},
+      tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+ctx.parsed.y.toLocaleString()}}
+    },
+    scales:{
+      x:{stacked:true,grid:{display:false},ticks:{maxTicksLimit:24,maxRotation:0,font:{size:10}}},
+      y:{stacked:true,grid:{color:'#1a1e2e'}}
+    }
+  }
+});
+
+// ── 10. Venue Loyalty ───────────────────────────────────────────────────────
+(function(){
+  const data=S.venue_loyalty;
+  document.getElementById('loyaltyGrid').innerHTML=data.map(([name,city,years,total],i)=>
+    `<div class="loyalty-row">
+      <span class="lr-rank">#${i+1}</span>
+      <div class="lr-info">
+        <div class="lr-venue" title="${esc(name)}">${esc(name)}</div>
+        <div class="lr-city">${esc(city||'')}</div>
+      </div>
+      <div class="lr-years">${years.map(y=>`<span class="lr-yr">${y}</span>`).join('')}</div>
+      <span class="lr-count">${total}</span>
+    </div>`
+  ).join('');
+})();
+
+// ── 11. Regular Haunts ──────────────────────────────────────────────────────
+(function(){
+  const list=document.getElementById('regularsListEl');
+  if(!list||!S.venue_regulars) return;
+  S.venue_regulars.forEach(([name,city,months,count,vid],i)=>{
+    const row=document.createElement('div'); row.className='reg-row';
+    row.innerHTML=`
+      <div class="reg-rank">${i+1}</div>
+      <div><div class="reg-name">${esc(name)}</div><div class="reg-city">${esc(city||'')}</div></div>
+      <div class="reg-months">${months}<span style="font-size:.52rem;color:var(--muted)"> mo</span></div>
+      <div class="reg-cnt">${count}×</div>`;
+    list.appendChild(row);
+  });
+})();
+
+// ── 12. Venue Visit Frequency ───────────────────────────────────────────────
+if(S.venue_freq_dist&&S.venue_freq_dist.length){
+  const total=S.venue_freq_dist.reduce((s,x)=>s+x[1],0);
+  new Chart(document.getElementById('freqDistChart'),{
+    type:'bar',
+    data:{
+      labels:S.venue_freq_dist.map(x=>x[0]),
+      datasets:[{
+        data:S.venue_freq_dist.map(x=>x[1]),
+        backgroundColor:S.venue_freq_dist.map((_,i)=>i===0?'rgba(232,184,109,0.55)':'rgba(78,205,196,0.65)'),
+        borderRadius:5,borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>{
+          const pctV=Math.round(ctx.parsed.y/total*100);
+          return ` ${ctx.parsed.y.toLocaleString()} venues (${pctV}%)`;
+        }}}
+      },
+      scales:{
+        x:{grid:{display:false},title:{display:true,text:'visits',color:'#4a5270',font:{size:10}}},
+        y:{grid:{color:'#1a1e2e'},ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}
+      }
+    }
+  });
+}
+
+// ── 13. Revisit Intervals ───────────────────────────────────────────────────
+if(S.revisit_intervals&&S.revisit_intervals.length){
+  const totalIv=S.revisit_intervals.reduce((s,x)=>s+x[1],0);
+  new Chart(document.getElementById('revisitChart'),{
+    type:'bar',
+    data:{
+      labels:S.revisit_intervals.map(x=>x[0]),
+      datasets:[{
+        data:S.revisit_intervals.map(x=>x[1]),
+        backgroundColor:S.revisit_intervals.map((_,i)=>PAL[i%PAL.length]),
+        borderRadius:5,borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>{
+          const pctV=totalIv?Math.round(ctx.parsed.y/totalIv*100):0;
+          return ` ${ctx.parsed.y.toLocaleString()} returns (${pctV}%)`;
+        }}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{maxRotation:30}},
+        y:{grid:{color:'#1a1e2e'},ticks:{callback:v=>v>=1000?(v/1000).toFixed(1)+'k':v}}
+      }
+    }
+  });
+}
+
+// ── 14. Activity Calendar (GitHub-style heatmap) ────────────────────────────
+(function(){
+  const data=S.heatmap, tip=document.getElementById('heatmapTip');
+  const cont=document.getElementById('heatmapCont');
+  function level(v){if(!v||v===0)return 0;if(v<=2)return 1;if(v<=5)return 2;if(v<=10)return 3;if(v<=20)return 4;return 5;}
+  Object.keys(data).sort().forEach(year=>{
+    const d=data[year];
+    const row=document.createElement('div'); row.className='heatmap-year';
+    const lbl=document.createElement('div'); lbl.className='heatmap-label'; lbl.textContent=year; row.appendChild(lbl);
+    const grid=document.createElement('div'); grid.className='heatmap-grid';
+    let cur=new Date(parseInt(year),0,1);
+    const end=new Date(parseInt(year),11,31);
+    // pad to Monday start
+    let dow=cur.getDay(); dow=(dow===0?6:dow-1);
+    let week=document.createElement('div'); week.className='heatmap-week';
+    for(let p=0;p<dow;p++){const blank=document.createElement('div');blank.className='heatmap-cell';blank.setAttribute('data-v','0');week.appendChild(blank);}
+    while(cur<=end){
+      if(cur.getDay()===1&&week.children.length>0){grid.appendChild(week);week=document.createElement('div');week.className='heatmap-week';}
+      const ds=cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')+'-'+String(cur.getDate()).padStart(2,'0');
+      const v=d[ds]||0; const cell=document.createElement('div'); cell.className='heatmap-cell';
+      cell.setAttribute('data-v',level(v));
+      cell.addEventListener('mouseenter',e=>{if(v>0){tip.textContent=ds+': '+v+' check-in'+(v===1?'':'s');tip.style.display='block';}});
+      cell.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
+      cell.addEventListener('mouseleave',()=>{tip.style.display='none';});
+      week.appendChild(cell);
+      cur.setDate(cur.getDate()+1);
+    }
+    if(week.children.length>0) grid.appendChild(week);
+    row.appendChild(grid); cont.appendChild(row);
+  });
+})();
+
+// ── 15. Place Categories ────────────────────────────────────────────────────
+new Chart(document.getElementById('catChart'),{
+  type:'bar',
+  data:{
+    labels:S.cat_groups.map(x=>x[0]),
+    datasets:[{
+      data:S.cat_groups.map(x=>x[1]),
+      backgroundColor:S.cat_groups.map((_,i)=>CC[i%CC.length]),
+      borderRadius:5,borderWidth:0
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true,
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.x.toLocaleString()+' check-ins'}}
+    },
+    scales:{
+      x:{grid:{color:'#1a1e2e'}},
+      y:{grid:{display:false},afterFit:s=>{s.width=Math.max(s.width,140);}}
+    }
+  }
+});
+</script>
+
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>

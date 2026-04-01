@@ -165,15 +165,6 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .streak-row{display:flex;gap:28px;flex-wrap:wrap;padding:4px 0 16px;}
 .streak-stat .s-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);line-height:1;}
 .streak-stat .s-lbl{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-top:4px;}
-.nc-year-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
-.nc-year-row:last-child{border-bottom:none;}
-.nc-year{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);width:38px;flex-shrink:0;}
-.nc-flags{display:flex;flex-wrap:wrap;gap:4px;align-items:center;flex:1;}
-.nc-flag-item{display:flex;align-items:center;gap:3px;font-size:0.68rem;color:var(--text2);white-space:nowrap;}
-.nc-count{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--teal);flex-shrink:0;}
-.nc-list{max-height:420px;overflow-y:auto;padding-right:4px;}
-.nc-list::-webkit-scrollbar{width:3px;}
-.nc-list::-webkit-scrollbar-thumb{background:var(--border);}
 .reg-list{display:flex;flex-direction:column;gap:5px;max-height:520px;overflow-y:auto;padding-right:4px;}
 .reg-list::-webkit-scrollbar{width:3px;}
 .reg-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -184,32 +175,6 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .reg-city{font-size:.60rem;color:var(--muted);}
 .reg-months{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--teal);text-align:right;}
 .reg-cnt{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);text-align:right;}
-.trip-kpi-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
-.trip-kpi{flex:1;min-width:90px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
-.trip-kpi .tk-num{font-family:'DM Mono',monospace;font-size:1.1rem;color:var(--teal);}
-.trip-kpi .tk-lbl{font-size:.58rem;color:var(--muted);margin-top:2px;}
-.trip-kpi .tk-sub{font-size:.60rem;color:var(--text);opacity:.65;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.furthest-box{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;}
-.furthest-box .fb-km{font-family:'DM Mono',monospace;font-size:1.2rem;color:var(--gold);}
-.furthest-box .fb-venue{font-size:.78rem;color:var(--text);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.furthest-box .fb-loc{font-size:.62rem;color:var(--muted);margin-top:2px;}
-.ltrip-list{display:flex;flex-direction:column;gap:5px;}
-.ltrip-row{display:grid;grid-template-columns:28px 1fr 52px 52px;align-items:center;gap:8px;padding:8px 10px;background:var(--card2);border:1px solid var(--border);border-radius:7px;transition:border-color .15s;}
-.ltrip-row:hover{border-color:rgba(78,205,196,0.4);}
-.ltrip-rank{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);text-align:center;}
-.ltrip-name{font-size:.78rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ltrip-cos{font-size:.60rem;color:var(--muted);margin-top:1px;}
-.ltrip-days{font-family:'DM Mono',monospace;font-size:.70rem;color:var(--teal);text-align:right;}
-.ltrip-year{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);text-align:right;}
-.cc-list{display:flex;flex-direction:column;gap:5px;}
-.cc-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:8px 12px;background:var(--card2);border:1px solid var(--border);border-radius:7px;}
-.cc-name{font-size:.78rem;color:var(--text);}
-.cc-flags{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
-.social-kpi-row{display:flex;gap:10px;margin-bottom:16px;}
-.social-kpi{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
-.social-kpi .sk-num{font-family:'DM Mono',monospace;font-size:1.2rem;}
-.social-kpi .sk-lbl{font-size:.58rem;color:var(--muted);margin-top:2px;}
-
 .recent-section{padding:0 56px 28px;max-width:1500px;}
 .recent-header{display:flex;align-items:baseline;gap:16px;margin-bottom:14px;}
 .recent-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);}
@@ -383,26 +348,8 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 @media(max-width:900px){
   .mob-nav{display:block;}
   .grid{padding-bottom:80px!important;}
-  .trip-kpi-row{flex-wrap:wrap;}
-  .trip-kpi{min-width:80px;}
-  .ltrip-row{grid-template-columns:22px 1fr 44px 44px;}
-  .cc-row{gap:8px;}
-  .social-kpi-row{gap:8px;}
-  .nc-year-row{flex-wrap:wrap;}
 }
 @media(max-width:520px){
-  .trip-kpi{min-width:70px;padding:8px 10px;}
-  .trip-kpi .tk-num{font-size:.95rem;}
-  .furthest-box{padding:10px 12px;}
-  .furthest-box .fb-km{font-size:1rem;}
-  .ltrip-row{grid-template-columns:20px 1fr 40px;gap:5px;}
-  .ltrip-year{display:none;}
-  .ltrip-name{font-size:.72rem;}
-  .cc-row{grid-template-columns:1fr;gap:5px;}
-  .cc-flags{justify-content:flex-start;}
-  .social-kpi-row{flex-wrap:wrap;}
-  .social-kpi{min-width:calc(50% - 5px);}
-  .social-kpi .sk-num{font-size:1rem;}
   .reg-row{grid-template-columns:20px 1fr 44px 36px;gap:5px;}
   .reg-name{font-size:.72rem;}
   .gs-trigger{top:44px;right:12px;padding:5px 8px;}
@@ -511,29 +458,19 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="tlc-arrow">✈</div>
   </a>
 
-  <!-- ── NEW: Trip Analytics ── -->
-  <div class="card" style="grid-column-start:1">
-    <div class="card-title">Trip Duration <em>&middot; distribution</em></div>
-    <div class="trip-kpi-row" id="tripKpiRow"></div>
-    <canvas id="tripDurChart" height="190"></canvas>
-  </div>
+  <a class="trips-link-card" href="stats.html" style="align-self:start">
+    <div class="tlc-left">
+      <div class="tlc-label">Additional Statistics &nbsp;&middot;&nbsp; charts &amp; analytics →</div>
+    </div>
+    <div class="tlc-arrow">📊</div>
+  </a>
 
-  <div class="card">
-    <div class="card-title">Countries per Trip</div>
-    <div class="furthest-box" id="furthestBox"></div>
-    <canvas id="tripCosChart" height="190"></canvas>
-  </div>
-
-  <div class="card full">
-    <div class="card-title">Longest Trips <em>&middot; top 10 by duration</em></div>
-    <div id="longestTripsList"></div>
-  </div>
-
-  <!-- ── NEW: New Countries Timeline ── -->
-  <div class="card full">
-    <div class="card-title">New Countries by Year <em>&middot; first visit per country</em></div>
-    <div class="nc-list" id="newCountryList"></div>
-  </div>
+  <a class="trips-link-card" href="trips.html#trip-analytics" style="align-self:start">
+    <div class="tlc-left">
+      <div class="tlc-label">Trip Analytics &nbsp;&middot;&nbsp; duration, countries, longest trips ↓</div>
+    </div>
+    <div class="tlc-arrow">📈</div>
+  </a>
 
   <div class="card full" id="s-countries">
     <div class="card-title">
@@ -612,23 +549,6 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   <div class="card">
     <div class="card-title">Top Companions <em>&middot; check-ins with others</em> <a href="companions.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗ full list</a></div>
     <div id="companionsList"></div>
-  </div>
-
-  <!-- ── NEW: Social Analytics ── -->
-  <div class="card">
-    <div class="card-title">Solo vs Together</div>
-    <div class="social-kpi-row" id="socialKpiRow"></div>
-    <canvas id="soloGroupChart" height="200"></canvas>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Social Mix by Year <em>&middot; solo vs with others</em></div>
-    <canvas id="socialYearChart" height="200"></canvas>
-  </div>
-
-  <div class="card full">
-    <div class="card-title">Companion Countries <em>&middot; top countries visited with each person</em></div>
-    <div class="cc-list" id="companionCountriesList"></div>
   </div>
 
   <div class="card full">
@@ -796,78 +716,6 @@ if(S.cat_drift&&S.cat_drift.length&&S.cat_drift_groups){
   }));
   new Chart(document.getElementById('catDriftChart'),{type:'bar',data:{labels,datasets},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'},ticks:{callback:v=>v+'%'},max:100}}}});
 }
-
-// ── Trip Analytics (Group 3) ───────────────────────────────────────────────
-(function(){
-  const kpis=S.trip_kpis;
-  if(!kpis||!kpis.avg_days) return;
-
-  // KPI strip (3 stats above duration chart)
-  const kpiRow=document.getElementById('tripKpiRow');
-  if(kpiRow) kpiRow.innerHTML=[
-    ['Avg Duration', kpis.avg_days+'d', ''],
-    ['Longest Trip', kpis.longest_days+'d', kpis.longest_name+(kpis.longest_year?' · '+kpis.longest_year:'')],
-    ['Most Countries', kpis.max_countries, kpis.max_countries_name],
-  ].map(([lbl,num,sub])=>`<div class="trip-kpi"><div class="tk-num">${num}</div><div class="tk-lbl">${lbl}</div>${sub?`<div class="tk-sub">${esc(sub)}</div>`:''}</div>`).join('');
-
-  // Trip Duration histogram
-  if(S.trip_duration_hist&&S.trip_duration_hist.length){
-    new Chart(document.getElementById('tripDurChart'),{type:'bar',data:{
-      labels:S.trip_duration_hist.map(d=>d[0]),
-      datasets:[{data:S.trip_duration_hist.map(d=>d[1]),backgroundColor:'rgba(78,205,196,0.7)',borderRadius:4,borderSkipped:false,borderWidth:0}]
-    },options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' trips'}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},beginAtZero:true,ticks:{stepSize:1}}}}});
-  }
-
-  // Furthest destination box
-  const fb=document.getElementById('furthestBox');
-  if(fb&&kpis.furthest_km){
-    fb.innerHTML=`<div class="fb-km">✈ ${kpis.furthest_km.toLocaleString()} km from home</div>`+
-      `<div class="fb-venue">${esc(kpis.furthest_venue)}</div>`+
-      `<div class="fb-loc">${esc(kpis.furthest_city)}${kpis.furthest_city&&kpis.furthest_country?' · ':''}${esc(kpis.furthest_country)}</div>`;
-  }
-
-  // Countries per Trip chart
-  if(S.trip_countries_dist&&S.trip_countries_dist.length){
-    new Chart(document.getElementById('tripCosChart'),{type:'bar',data:{
-      labels:S.trip_countries_dist.map(d=>d[0]+(d[0]==='1'?' country':' countries')),
-      datasets:[{data:S.trip_countries_dist.map(d=>d[1]),backgroundColor:['rgba(232,184,109,.75)','rgba(78,205,196,.75)','rgba(196,77,255,.75)','rgba(99,134,255,.75)'],borderRadius:4,borderSkipped:false,borderWidth:0}]
-    },options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' trips'}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},beginAtZero:true,ticks:{stepSize:1}}}}});
-  }
-})();
-
-// ── Longest Trips Leaderboard ──────────────────────────────────────────────
-(function(){
-  const el=document.getElementById('longestTripsList');
-  if(!el||!S.trip_top_longest||!S.trip_top_longest.length) return;
-  el.innerHTML='<div class="ltrip-list">'+S.trip_top_longest.map(([name,days,cos,year],i)=>{
-    const flags=(cos||[]).map(c=>flagHtml(c,'1.1em')).filter(Boolean).join(' ');
-    return `<div class="ltrip-row">
-      <div class="ltrip-rank">${i+1}</div>
-      <div><div class="ltrip-name">${esc(name)}</div><div class="ltrip-cos" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${flags}</div></div>
-      <div class="ltrip-days">${days}d</div>
-      <div class="ltrip-year">${year}</div>
-    </div>`;
-  }).join('')+'</div>';
-})();
-
-// ── New Countries Timeline ─────────────────────────────────────────────────
-(function(){
-  const list=document.getElementById('newCountryList');
-  if(!list||!S.new_country_by_year)return;
-  S.new_country_by_year.slice().reverse().forEach(([yr,cos])=>{
-    const row=document.createElement('div'); row.className='nc-year-row';
-    const yl=document.createElement('div'); yl.className='nc-year'; yl.textContent=yr;
-    const fl=document.createElement('div'); fl.className='nc-flags';
-    cos.forEach(co=>{
-      const span=document.createElement('span'); span.className='nc-flag-item';
-      span.innerHTML=flagHtml(co,'0.95em')+`<span>${co}</span>`;
-      fl.appendChild(span);
-    });
-    const ct=document.createElement('div'); ct.className='nc-count'; ct.textContent='+'+cos.length;
-    row.appendChild(yl); row.appendChild(fl); row.appendChild(ct);
-    list.appendChild(row);
-  });
-})();
 
 // ── Venue Visit Frequency Distribution ───────────────────────────────────
 if(S.venue_freq_dist&&S.venue_freq_dist.length){
@@ -1058,57 +906,6 @@ if(S.revisit_intervals&&S.revisit_intervals.length){
       <span class="companion-cnt">${c.toLocaleString()}</span>
     </div>`
   ).join('');
-})();
-
-// ── Social Analytics (Group 4) ────────────────────────────────────────────
-(function(){
-  const tot=S.solo_vs_group_totals;
-  if(!tot||!tot.length) return;
-  const [solo,group]=tot, total=solo+group;
-  if(!total) return;
-
-  // KPI strip
-  const kpiRow=document.getElementById('socialKpiRow');
-  if(kpiRow) kpiRow.innerHTML=[
-    ['Solo check-ins',  solo.toLocaleString(),  'color:var(--gold)'],
-    ['With others',     group.toLocaleString(), 'color:var(--teal)'],
-    ['Together rate',   (group/total*100).toFixed(1)+'%', 'color:var(--teal)'],
-  ].map(([lbl,num,style])=>`<div class="social-kpi"><div class="sk-num" style="${style}">${num}</div><div class="sk-lbl">${lbl}</div></div>`).join('');
-
-  // Donut chart — solo vs group overall
-  new Chart(document.getElementById('soloGroupChart'),{type:'doughnut',data:{
-    labels:['Solo','With others'],
-    datasets:[{data:[solo,group],backgroundColor:['rgba(232,184,109,.8)','rgba(78,205,196,.8)'],borderWidth:0,hoverOffset:6}]
-  },options:{responsive:true,cutout:'68%',plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:10}},tooltip:{callbacks:{label:ctx=>{const v=ctx.parsed;const pct=(v/(solo+group)*100).toFixed(1);return ` ${ctx.label}: ${v.toLocaleString()} (${pct}%)`;}}}}}});
-
-  // Stacked 100% bar — solo vs group per year
-  if(S.solo_vs_group_by_year&&S.solo_vs_group_by_year.length){
-    const yrs=S.solo_vs_group_by_year;
-    const totals=yrs.map(([,s,g])=>s+g);
-    new Chart(document.getElementById('socialYearChart'),{type:'bar',data:{
-      labels:yrs.map(d=>d[0]),
-      datasets:[
-        {label:'Solo',       data:yrs.map(([,s,g],i)=>totals[i]?+(s/totals[i]*100).toFixed(1):0), backgroundColor:'rgba(232,184,109,.75)',borderWidth:0},
-        {label:'With others',data:yrs.map(([,s,g],i)=>totals[i]?+(g/totals[i]*100).toFixed(1):0), backgroundColor:'rgba(78,205,196,.75)', borderWidth:0},
-      ]
-    },options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'},ticks:{callback:v=>v+'%'},max:100}}}});
-  }
-})();
-
-// ── Companion Countries ────────────────────────────────────────────────────
-(function(){
-  const el=document.getElementById('companionCountriesList');
-  if(!el||!S.companion_countries||!S.companion_countries.length) return;
-  el.innerHTML='<div class="cc-list">'+S.companion_countries.map(([name,cos])=>{
-    const items=cos.map(([co,cnt])=>{
-      const f=flagHtml(co,'1.05em');
-      return `<span style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-size:.68rem;color:var(--muted)">${f}<span>${esc(co)}</span><span style="font-family:'DM Mono',monospace;color:var(--teal);font-size:.62rem">${cnt}</span></span>`;
-    }).join('');
-    return `<div class="cc-row" style="grid-template-columns:120px 1fr">
-      <div class="cc-name">${esc(name)}</div>
-      <div class="cc-flags" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">${items}</div>
-    </div>`;
-  }).join('')+'</div>';
 })();
 
 // ── Discovery Rate ─────────────────────────────────────────────────────────
