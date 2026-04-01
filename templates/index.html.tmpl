@@ -338,11 +338,62 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   .tabs .tab{font-size:0.56rem;padding:4px 9px;}
   .cat-pill{font-size:0.54rem;padding:3px 8px;}
 }
+
+/* ── GLOBAL SEARCH ── */
+.gs-trigger{position:absolute;top:56px;right:56px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all 0.2s;white-space:nowrap;}
+.gs-trigger:hover{border-color:var(--gold);color:var(--gold);}
+.gs-trigger-icon{font-size:0.85rem;}
+.gs-trigger kbd{font-family:'DM Mono',monospace;font-size:0.52rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:3px;padding:1px 5px;letter-spacing:0;}
+.gs-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:10000;backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding-top:16vh;}
+.gs-overlay.open{display:flex;}
+.gs-modal{background:var(--card);border:1px solid var(--border);border-radius:14px;width:min(560px,92vw);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.7);}
+.gs-input-wrap{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.gs-icon{font-size:1rem;color:var(--muted);}
+.gs-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.95rem;}
+.gs-input::placeholder{color:var(--muted);}
+.gs-esc-hint{font-family:'DM Mono',monospace;font-size:0.52rem;color:var(--muted);background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
+.gs-results{max-height:min(420px,52vh);overflow-y:auto;padding:6px 0;}
+.gs-results::-webkit-scrollbar{width:3px;}
+.gs-results::-webkit-scrollbar-thumb{background:var(--border);}
+.gs-item{display:flex;align-items:center;gap:10px;padding:9px 18px;cursor:pointer;transition:background 0.12s;}
+.gs-item:hover,.gs-item.gs-active{background:rgba(232,184,109,0.08);}
+.gs-item-icon{font-size:0.9rem;width:20px;text-align:center;flex-shrink:0;}
+.gs-item-name{flex:1;font-size:0.85rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gs-item-sub{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);white-space:nowrap;flex-shrink:0;}
+.gs-item-type{font-family:'DM Mono',monospace;font-size:0.50rem;text-transform:uppercase;letter-spacing:0.08em;padding:2px 5px;border-radius:3px;flex-shrink:0;}
+.gs-type-section{background:rgba(232,184,109,0.12);color:var(--gold);}
+.gs-type-country{background:rgba(78,205,196,0.12);color:var(--teal);}
+.gs-type-city{background:rgba(78,205,196,0.08);color:var(--teal);}
+.gs-type-venue{background:rgba(100,100,130,0.18);color:var(--muted);}
+.gs-empty{padding:24px 18px;font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);text-align:center;}
+.gs-group-label{padding:10px 18px 4px;font-family:'DM Mono',monospace;font-size:0.52rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);opacity:0.6;}
+@media(max-width:700px){
+  .gs-trigger{top:50px;right:16px;padding:6px 10px;}
+  .gs-trigger-text{display:none;}
+  .gs-trigger kbd{display:none;}
+}
+
+/* ── MOBILE BOTTOM NAV ── */
+.mob-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:5000;background:rgba(18,21,31,0.96);border-top:1px solid var(--border);backdrop-filter:blur(12px);padding-bottom:env(safe-area-inset-bottom,0);}
+.mob-nav-inner{display:flex;justify-content:space-around;align-items:stretch;}
+.mob-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;gap:3px;cursor:pointer;border:none;background:none;color:var(--muted);transition:color 0.15s;-webkit-tap-highlight-color:transparent;}
+.mob-nav-item.active{color:var(--gold);}
+.mob-nav-icon{font-size:1.1rem;line-height:1;}
+.mob-nav-label{font-family:'DM Mono',monospace;font-size:0.46rem;text-transform:uppercase;letter-spacing:0.06em;}
+@media(max-width:900px){
+  .mob-nav{display:block;}
+  .grid{padding-bottom:80px!important;}
+}
 </style>
 </head>
 <body>
 <header>
   <a href="solution.html" class="solution-link">Dashboard Solution Description</a>
+  <button class="gs-trigger" onclick="openSearch()" aria-label="Search">
+    <span class="gs-trigger-icon">⌕</span>
+    <span class="gs-trigger-text">Search</span>
+    <kbd>⌘K</kbd>
+  </button>
   <div>
     <h1>Check-in Journal</h1>
     <p class="sub">Foursquare &nbsp;&middot;&nbsp; {{DATE_MIN}} &ndash; {{DATE_MAX}}</p>
@@ -359,6 +410,39 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="kpi" id="kpiKm" style="display:none"><div class="num" id="kpiKmNum">—</div><div class="lbl">km Travelled</div></div>
   </div>
 </header>
+
+<!-- ── Global Search Modal ── -->
+<div class="gs-overlay" id="gsOverlay" onclick="if(event.target===this)closeSearch()">
+  <div class="gs-modal" role="dialog" aria-label="Search">
+    <div class="gs-input-wrap">
+      <span class="gs-icon">⌕</span>
+      <input class="gs-input" id="gsInput" type="text" placeholder="Search sections, countries, cities, venues…" autocomplete="off" spellcheck="false">
+      <span class="gs-esc-hint" onclick="closeSearch()">esc</span>
+    </div>
+    <div class="gs-results" id="gsResults"></div>
+  </div>
+</div>
+
+<!-- ── Mobile Bottom Nav ── -->
+<nav class="mob-nav" id="mobNav">
+  <div class="mob-nav-inner">
+    <button class="mob-nav-item active" id="mn-timeline" onclick="document.getElementById('s-timeline').scrollIntoView({behavior:'smooth',block:'start'})">
+      <span class="mob-nav-icon">📅</span><span class="mob-nav-label">Timeline</span>
+    </button>
+    <button class="mob-nav-item" id="mn-countries" onclick="document.getElementById('s-countries').scrollIntoView({behavior:'smooth',block:'start'})">
+      <span class="mob-nav-icon">🌍</span><span class="mob-nav-label">Countries</span>
+    </button>
+    <button class="mob-nav-item" id="mn-cities" onclick="document.getElementById('s-cities').scrollIntoView({behavior:'smooth',block:'start'})">
+      <span class="mob-nav-icon">🏙</span><span class="mob-nav-label">Cities</span>
+    </button>
+    <button class="mob-nav-item" id="mn-venues" onclick="document.getElementById('s-venues').scrollIntoView({behavior:'smooth',block:'start'})">
+      <span class="mob-nav-icon">📍</span><span class="mob-nav-label">Venues</span>
+    </button>
+    <button class="mob-nav-item" id="mn-map" onclick="document.getElementById('s-map').scrollIntoView({behavior:'smooth',block:'start'})">
+      <span class="mob-nav-icon">🗺</span><span class="mob-nav-label">Map</span>
+    </button>
+  </div>
+</nav>
 
 <div class="recent-section">
   <div class="recent-header">
@@ -386,7 +470,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 </div>
 
 <div class="grid">
-  <div class="card full">
+  <div class="card full" id="s-timeline">
     <div class="card-title">Travel Timeline <em>&middot; trips away from Minsk &middot; click a bar for details</em></div>
     <div id="timelineCont"></div>
   </div>
@@ -423,7 +507,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="nc-list" id="newCountryList"></div>
   </div>
 
-  <div class="card full">
+  <div class="card full" id="s-countries">
     <div class="card-title">
       All 62 Countries <em>&middot;</em>
       <div class="tabs">
@@ -435,7 +519,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="pane" id="pane-places"><div class="country-table" id="countriesPlaces"></div></div>
   </div>
 
-  <div class="card full cities-card">
+  <div class="card full cities-card" id="s-cities">
     <div class="card-title">Cities <a href="world_cities.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;float:right;margin-top:2px;">↗ world cities</a>
       <div class="tabs" style="margin-top:6px;">
         <div class="tab active" id="tabCityCheckins" onclick="switchCityTab('checkins',this)">By Check-ins</div>
@@ -491,7 +575,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="s-venues">
     <div class="card-title">Top 500 Venues <em>&middot;&nbsp;unique by venue&nbsp;&middot;&nbsp; scroll &amp; search</em> <a href="venues.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗ full list</a></div>
     <input class="search-box" type="text" placeholder="Search venues..." oninput="filterList('venuesList',this.value)">
     <div class="bar-list" id="venuesList"></div>
@@ -550,7 +634,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <canvas id="discoveryChart" height="200"></canvas>
   </div>
 
-  <div class="card full">
+  <div class="card full" id="s-loyalty">
     <div class="card-title">Venue Loyalty <em>&middot; places visited in 3+ different years</em></div>
     <div class="loyalty-list" id="loyaltyGrid"></div>
   </div>
@@ -563,7 +647,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   <div class="card"><div class="card-title">Venue Visit Frequency <em>&middot; how many venues visited N times</em></div><canvas id="freqDistChart" height="220"></canvas></div>
   <div class="card"><div class="card-title">Revisit Intervals <em>&middot; time between return visits</em></div><canvas id="revisitChart" height="220"></canvas></div>
 
-  <div class="card full">
+  <div class="card full" id="s-calendar">
     <div class="card-title">Activity Calendar <em>&middot; GitHub-style heatmap by day</em></div>
     <div id="heatmapTip" class="heatmap-tooltip"></div>
     <div class="heatmap-outer" id="heatmapCont"></div>
@@ -574,7 +658,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <canvas id="catChart" height="85"></canvas>
   </div>
 
-  <div class="card full">
+  <div class="card full" id="s-map">
     <div class="card-title">Map <em>&middot;</em>
       <div class="tabs">
         <div class="tab active" id="tabHeat" onclick="switchMap('heat')" id="tabHeat">Heatmap</div>
@@ -2359,6 +2443,109 @@ function buildCityMap(){
   });
   cityDotLayer.addTo(cityMapInst);
 }
+
+// ── Global Search ────────────────────────────────────────────────────────────
+(function(){
+  const SECTIONS=[
+    {name:'Travel Timeline',icon:'📅',target:'s-timeline'},
+    {name:'Countries',icon:'🌍',target:'s-countries'},
+    {name:'Cities',icon:'🏙',target:'s-cities'},
+    {name:'Top Venues',icon:'📍',target:'s-venues'},
+    {name:'Venue Loyalty',icon:'♥',target:'s-loyalty'},
+    {name:'Activity Calendar',icon:'📆',target:'s-calendar'},
+    {name:'Map',icon:'🗺',target:'s-map'},
+  ];
+  function scrollToId(id){
+    const el=document.getElementById(id);
+    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+    closeSearch();
+  }
+  window.openSearch=function(){
+    document.getElementById('gsOverlay').classList.add('open');
+    const inp=document.getElementById('gsInput');
+    inp.value='';
+    inp.focus();
+    renderResults('');
+  };
+  window.closeSearch=function(){
+    document.getElementById('gsOverlay').classList.remove('open');
+    document.getElementById('gsInput').value='';
+  };
+  document.addEventListener('keydown',function(e){
+    if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();window.openSearch();}
+    if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open')) window.closeSearch();
+  });
+  document.getElementById('gsInput').addEventListener('input',function(){renderResults(this.value.trim());});
+  document.getElementById('gsInput').addEventListener('keydown',function(e){
+    const items=Array.from(document.querySelectorAll('#gsResults .gs-item'));
+    if(!items.length) return;
+    const active=document.querySelector('#gsResults .gs-item.gs-active');
+    let idx=active?items.indexOf(active):-1;
+    if(e.key==='ArrowDown'){e.preventDefault();idx=(idx+1)%items.length;if(active)active.classList.remove('gs-active');items[idx].classList.add('gs-active');items[idx].scrollIntoView({block:'nearest'});}
+    else if(e.key==='ArrowUp'){e.preventDefault();idx=(idx-1+items.length)%items.length;if(active)active.classList.remove('gs-active');items[idx].classList.add('gs-active');items[idx].scrollIntoView({block:'nearest'});}
+    else if(e.key==='Enter'){const sel=document.querySelector('#gsResults .gs-item.gs-active')||items[0];if(sel)sel.click();}
+  });
+  function makeItem(icon,name,sub,type,targetId){
+    const d=document.createElement('div');
+    d.className='gs-item';
+    d.innerHTML=`<span class="gs-item-icon">${icon}</span><span class="gs-item-name">${esc(name)}</span>${sub?`<span class="gs-item-sub">${esc(sub)}</span>`:''}<span class="gs-item-type gs-type-${type}">${type}</span>`;
+    d.addEventListener('click',()=>scrollToId(targetId));
+    return d;
+  }
+  function renderResults(q){
+    const res=document.getElementById('gsResults');
+    res.innerHTML='';
+    if(!q){
+      SECTIONS.forEach(s=>res.appendChild(makeItem(s.icon,s.name,'','section',s.target)));
+      return;
+    }
+    const ql=q.toLowerCase();
+    let total=0;
+    // sections
+    SECTIONS.forEach(s=>{if(s.name.toLowerCase().includes(ql)){res.appendChild(makeItem(s.icon,s.name,'','section',s.target));total++;}});
+    // countries
+    let cc=0;
+    (S.countries||[]).forEach(([co,n])=>{if(cc>=5)return;if(co.toLowerCase().includes(ql)){res.appendChild(makeItem('🌍',co,n+' check-ins','country','s-countries'));cc++;total++;}});
+    // cities
+    let ci=0;
+    (S.cities||[]).forEach(([name,n,country])=>{if(ci>=8)return;if(name.toLowerCase().includes(ql)){res.appendChild(makeItem('🏙',name,(country||'')+' · '+n+'×','city','s-cities'));ci++;total++;}});
+    // venues
+    let vc=0;
+    (S.venues||[]).forEach(([name,n,city])=>{if(vc>=8)return;if(name.toLowerCase().includes(ql)){res.appendChild(makeItem('📍',name,(city?city+' · ':'')+n+'×','venue','s-venues'));vc++;total++;}});
+    if(!total) res.innerHTML=`<div class="gs-empty">No results for &ldquo;${esc(q)}&rdquo;</div>`;
+  }
+})();
+
+// ── Mobile nav scroll spy ────────────────────────────────────────────────────
+(function(){
+  const NAV=[
+    {id:'s-timeline',nav:'mn-timeline'},
+    {id:'s-countries',nav:'mn-countries'},
+    {id:'s-cities',nav:'mn-cities'},
+    {id:'s-venues',nav:'mn-venues'},
+    {id:'s-map',nav:'mn-map'},
+  ];
+  function updateMobNav(){
+    let activeId=NAV[0].id;
+    NAV.forEach(({id})=>{
+      const el=document.getElementById(id);
+      if(el&&el.getBoundingClientRect().top<=window.innerHeight*0.55) activeId=id;
+    });
+    NAV.forEach(({id,nav})=>{
+      const btn=document.getElementById(nav);
+      if(btn) btn.classList.toggle('active',id===activeId);
+    });
+  }
+  window.addEventListener('scroll',updateMobNav,{passive:true});
+})();
+
+// ── Hash routing on load ─────────────────────────────────────────────────────
+(function(){
+  if(location.hash){
+    const el=document.querySelector(location.hash);
+    if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),400);
+  }
+})();
 
 // ── City pane initialisation ─────────────────────────────────────────────────
 (function(){
