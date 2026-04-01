@@ -23,7 +23,10 @@ A self-updating personal dashboard for your Foursquare/Swarm check-in history.
 
 **Features:** heatmap + dot map + country flag map · charts by year / month / hour / day of week ·
 GitHub-style activity heatmap · travel timeline (Gantt) · trip journal with per-trip maps ·
-searchable cities & venues · venue loyalty · category explorer · recent check-ins with historical weather ·
+trip analytics (duration distribution, countries per trip, longest trips leaderboard, furthest destination) ·
+distance travelled per year · activity streaks · category mix drift · new countries timeline ·
+venue loyalty · regular haunts · revisit intervals · venue visit frequency ·
+searchable cities & venues · category explorer · companions · recent check-ins with historical weather ·
 tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons ·
 **photo gallery** with 21 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
 lazy loading, lightbox, and inline tip photos.

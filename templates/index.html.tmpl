@@ -28,7 +28,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .kpi .lbl{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-top:5px;}
 
 /* ── GRID ── */
-.grid{padding:36px 56px 72px;display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1500px;}
+.grid{padding:16px 56px 72px;display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1500px;}
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;position:relative;overflow:hidden;}
 .card::after{content:'';position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.35;}
 .card.full{grid-column:1/-1;}
@@ -161,6 +161,46 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   .loyalty-row{grid-template-columns:20px 1fr auto 30px;gap:6px;}
 }
 
+/* ── NEW ANALYTICS ── */
+.streak-row{display:flex;gap:28px;flex-wrap:wrap;padding:4px 0 16px;}
+.streak-stat .s-num{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:var(--gold);line-height:1;}
+.streak-stat .s-lbl{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin-top:4px;}
+.nc-year-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.nc-year-row:last-child{border-bottom:none;}
+.nc-year{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);width:38px;flex-shrink:0;}
+.nc-flags{display:flex;flex-wrap:wrap;gap:4px;align-items:center;flex:1;}
+.nc-flag-item{display:flex;align-items:center;gap:3px;font-size:0.68rem;color:var(--text2);white-space:nowrap;}
+.nc-count{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--teal);flex-shrink:0;}
+.nc-list{max-height:420px;overflow-y:auto;padding-right:4px;}
+.nc-list::-webkit-scrollbar{width:3px;}
+.nc-list::-webkit-scrollbar-thumb{background:var(--border);}
+.reg-list{display:flex;flex-direction:column;gap:5px;max-height:520px;overflow-y:auto;padding-right:4px;}
+.reg-list::-webkit-scrollbar{width:3px;}
+.reg-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.reg-row{display:grid;grid-template-columns:26px 1fr 52px 44px;align-items:center;gap:8px;padding:7px 10px;background:var(--card2);border:1px solid var(--border);border-radius:7px;transition:border-color .15s;}
+.reg-row:hover{border-color:rgba(78,205,196,0.4);}
+.reg-rank{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);text-align:right;}
+.reg-name{font-size:.78rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.reg-city{font-size:.60rem;color:var(--muted);}
+.reg-months{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--teal);text-align:right;}
+.reg-cnt{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);text-align:right;}
+.trip-kpi-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.trip-kpi{flex:1;min-width:90px;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.trip-kpi .tk-num{font-family:'DM Mono',monospace;font-size:1.1rem;color:var(--teal);}
+.trip-kpi .tk-lbl{font-size:.58rem;color:var(--muted);margin-top:2px;}
+.trip-kpi .tk-sub{font-size:.60rem;color:var(--text);opacity:.65;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.furthest-box{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;}
+.furthest-box .fb-km{font-family:'DM Mono',monospace;font-size:1.2rem;color:var(--gold);}
+.furthest-box .fb-venue{font-size:.78rem;color:var(--text);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.furthest-box .fb-loc{font-size:.62rem;color:var(--muted);margin-top:2px;}
+.ltrip-list{display:flex;flex-direction:column;gap:5px;}
+.ltrip-row{display:grid;grid-template-columns:28px 1fr 52px 52px;align-items:center;gap:8px;padding:8px 10px;background:var(--card2);border:1px solid var(--border);border-radius:7px;transition:border-color .15s;}
+.ltrip-row:hover{border-color:rgba(78,205,196,0.4);}
+.ltrip-rank{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);text-align:center;}
+.ltrip-name{font-size:.78rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ltrip-cos{font-size:.60rem;color:var(--muted);margin-top:1px;}
+.ltrip-days{font-family:'DM Mono',monospace;font-size:.70rem;color:var(--teal);text-align:right;}
+.ltrip-year{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);text-align:right;}
 
 .recent-section{padding:0 56px 28px;max-width:1500px;}
 .recent-header{display:flex;align-items:baseline;gap:16px;margin-bottom:14px;}
@@ -308,6 +348,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="kpi"><div class="num">{{PLACES}}</div><div class="lbl">Unique Places</div></div>
     {{PHOTOS_KPI}}
     <div class="kpi"><div class="num">{{TRIPS}}</div><div class="lbl">Trips</div></div>
+    <div class="kpi" id="kpiKm" style="display:none"><div class="num" id="kpiKmNum">—</div><div class="lbl">km Travelled</div></div>
   </div>
 </header>
 
@@ -337,29 +378,42 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 </div>
 
 <div class="grid">
-  <div class="card"><div class="card-title">Check-ins by Year</div><canvas id="yearChart" height="210"></canvas></div>
-  <div class="card"><div class="card-title">Monthly Trend</div><canvas id="monthChart" height="210"></canvas></div>
-  <div class="card"><div class="card-title">Hour of Day</div><canvas id="hourChart" height="200"></canvas></div>
-  <div class="card"><div class="card-title">Day of Week</div><canvas id="dowChart" height="200"></canvas></div>
-
-  <div class="card full">
-    <div class="card-title">Activity Calendar <em>&middot; GitHub-style heatmap by day</em></div>
-    <div id="heatmapTip" class="heatmap-tooltip"></div>
-    <div class="heatmap-outer" id="heatmapCont"></div>
-  </div>
-
   <div class="card full">
     <div class="card-title">Travel Timeline <em>&middot; trips away from Minsk &middot; click a bar for details</em></div>
     <div id="timelineCont"></div>
   </div>
 
-  <a class="trips-link-card" href="trips.html">
+  <a class="trips-link-card" href="trips.html" style="align-self:start">
     <div class="tlc-left">
       <div class="tlc-num">{{TRIPS}}</div>
       <div class="tlc-label">Trips documented &nbsp;&middot;&nbsp; view full trip journal →</div>
     </div>
     <div class="tlc-arrow">✈</div>
   </a>
+
+  <!-- ── NEW: Trip Analytics ── -->
+  <div class="card" style="grid-column-start:1">
+    <div class="card-title">Trip Duration <em>&middot; distribution</em></div>
+    <div class="trip-kpi-row" id="tripKpiRow"></div>
+    <canvas id="tripDurChart" height="190"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Countries per Trip</div>
+    <div class="furthest-box" id="furthestBox"></div>
+    <canvas id="tripCosChart" height="190"></canvas>
+  </div>
+
+  <div class="card full">
+    <div class="card-title">Longest Trips <em>&middot; top 10 by duration</em></div>
+    <div id="longestTripsList"></div>
+  </div>
+
+  <!-- ── NEW: New Countries Timeline ── -->
+  <div class="card full">
+    <div class="card-title">New Countries by Year <em>&middot; first visit per country</em></div>
+    <div class="nc-list" id="newCountryList"></div>
+  </div>
 
   <div class="card full">
     <div class="card-title">
@@ -428,6 +482,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
       <div id="worldCitiesList" style="max-height:620px;overflow-y:auto;padding-right:4px;"></div>
     </div>
   </div>
+
   <div class="card">
     <div class="card-title">Top 500 Venues <em>&middot;&nbsp;unique by venue&nbsp;&middot;&nbsp; scroll &amp; search</em> <a href="venues.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗ full list</a></div>
     <input class="search-box" type="text" placeholder="Search venues..." oninput="filterList('venuesList',this.value)">
@@ -438,6 +493,32 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <div class="card-title">Top Companions <em>&middot; check-ins with others</em> <a href="companions.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗ full list</a></div>
     <div id="companionsList"></div>
   </div>
+
+  <div class="card full">
+    <div class="card-title">Category Explorer <em>&middot; top 50 unique venues per category (by check-ins)</em></div>
+    <div class="cat-pills" id="catPills"></div>
+    <div class="bar-list" id="explorerList"></div>
+  </div>
+
+  <div class="card"><div class="card-title">Check-ins by Year</div><canvas id="yearChart" height="210"></canvas></div>
+  <div class="card"><div class="card-title">Monthly Trend</div><canvas id="monthChart" height="210"></canvas></div>
+  <div class="card"><div class="card-title">Hour of Day</div><canvas id="hourChart" height="200"></canvas></div>
+  <div class="card"><div class="card-title">Day of Week</div><canvas id="dowChart" height="200"></canvas></div>
+
+  <!-- ── NEW: Distance + Countries per Year ── -->
+  <div class="card"><div class="card-title">Distance per Year <em>&middot; km between consecutive check-ins</em></div><canvas id="distChart" height="210"></canvas></div>
+  <div class="card"><div class="card-title">Countries per Year</div><canvas id="ctrPerYearChart" height="210"></canvas></div>
+
+  <!-- ── NEW: Streaks + Category Drift ── -->
+  <div class="card">
+    <div class="card-title">Activity Streaks</div>
+    <div class="streak-row">
+      <div class="streak-stat"><div class="s-num" id="longestStreak">—</div><div class="s-lbl">Longest Streak (days)</div></div>
+      <div class="streak-stat"><div class="s-num" id="currentStreak">—</div><div class="s-lbl">Current Streak (days)</div></div>
+    </div>
+    <canvas id="streakCalChart" height="140"></canvas>
+  </div>
+  <div class="card"><div class="card-title">Category Mix by Year <em>&middot; share of top 7 groups</em></div><canvas id="catDriftChart" height="280"></canvas></div>
 
   <div class="card">
     <div class="card-title">Discovery Rate <em>&middot; new vs revisited venues per month</em></div>
@@ -450,14 +531,22 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   </div>
 
   <div class="card full">
-    <div class="card-title">Place Categories <em>&middot; by group</em></div>
-    <canvas id="catChart" height="85"></canvas>
+    <div class="card-title">Regular Haunts <em>&middot; venues visited in the most distinct calendar months</em></div>
+    <div class="reg-list" id="regularsListEl"></div>
+  </div>
+
+  <div class="card"><div class="card-title">Venue Visit Frequency <em>&middot; how many venues visited N times</em></div><canvas id="freqDistChart" height="220"></canvas></div>
+  <div class="card"><div class="card-title">Revisit Intervals <em>&middot; time between return visits</em></div><canvas id="revisitChart" height="220"></canvas></div>
+
+  <div class="card full">
+    <div class="card-title">Activity Calendar <em>&middot; GitHub-style heatmap by day</em></div>
+    <div id="heatmapTip" class="heatmap-tooltip"></div>
+    <div class="heatmap-outer" id="heatmapCont"></div>
   </div>
 
   <div class="card full">
-    <div class="card-title">Category Explorer <em>&middot; top 50 unique venues per category (by check-ins)</em></div>
-    <div class="cat-pills" id="catPills"></div>
-    <div class="bar-list" id="explorerList"></div>
+    <div class="card-title">Place Categories <em>&middot; by group</em></div>
+    <canvas id="catChart" height="85"></canvas>
   </div>
 
   <div class="card full">
@@ -534,6 +623,168 @@ const DOW=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 new Chart(document.getElementById('dowChart'),{type:'bar',data:{labels:S.by_dow.map(x=>DOW[x[0]]),datasets:[{data:S.by_dow.map(x=>x[1]),backgroundColor:S.by_dow.map(x=>x[0]>=4?'rgba(78,205,196,0.75)':'rgba(232,184,109,0.55)'),borderRadius:4,borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'}}}}});
 const CC=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f','#96ceb4'];
 new Chart(document.getElementById('catChart'),{type:'bar',data:{labels:S.cat_groups.map(x=>x[0]),datasets:[{data:S.cat_groups.map(x=>x[1]),backgroundColor:S.cat_groups.map((_,i)=>CC[i%CC.length]),borderRadius:5,borderWidth:0}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.x.toLocaleString()+' check-ins'}}},scales:{x:{grid:{color:'#1a1e2e'}},y:{grid:{display:false},afterFit:s=>{s.width=Math.max(s.width,140);}}}}});
+
+// ── Distance per Year ──────────────────────────────────────────────────────
+if(S.dist_by_year&&S.dist_by_year.length){
+  if(S.total_km){const el=document.getElementById('kpiKm');if(el){el.style.display='';document.getElementById('kpiKmNum').textContent=(S.total_km).toLocaleString();}}
+  new Chart(document.getElementById('distChart'),{type:'bar',data:{labels:S.dist_by_year.map(x=>x[0]),datasets:[{data:S.dist_by_year.map(x=>x[1]),backgroundColor:S.dist_by_year.map((_,i)=>PAL[i%PAL.length]),borderRadius:5,borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+(ctx.parsed.y).toLocaleString()+' km'}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}}}});
+}
+
+// ── Countries per Year ─────────────────────────────────────────────────────
+if(S.countries_per_year&&S.countries_per_year.length){
+  new Chart(document.getElementById('ctrPerYearChart'),{type:'bar',data:{labels:S.countries_per_year.map(x=>x[0]),datasets:[{data:S.countries_per_year.map(x=>x[1]),backgroundColor:'rgba(78,205,196,0.7)',borderRadius:5,borderWidth:0}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y+' countries'}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},ticks:{stepSize:1}}}}});
+}
+
+// ── Streaks ────────────────────────────────────────────────────────────────
+if(S.longest_streak!=null){
+  document.getElementById('longestStreak').textContent=S.longest_streak;
+  document.getElementById('currentStreak').textContent=S.current_streak||0;
+  // Days active per year as a visual bar chart inside the streaks card
+  const activeDays=Object.entries(S.heatmap).sort().map(([yr,days])=>[yr,Object.values(days).filter(v=>v>0).length]);
+  new Chart(document.getElementById('streakCalChart'),{type:'bar',data:{labels:activeDays.map(x=>x[0]),datasets:[{data:activeDays.map(x=>x[1]),backgroundColor:'rgba(232,184,109,0.55)',borderRadius:4,borderWidth:0,label:'Active days'}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.parsed.y+' active days'}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'}}}}});
+}
+
+// ── Category Drift (stacked 100% bar) ────────────────────────────────────
+if(S.cat_drift&&S.cat_drift.length&&S.cat_drift_groups){
+  const DRIFT_PAL=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f'];
+  const labels=S.cat_drift.map(x=>x[0]);
+  const datasets=S.cat_drift_groups.map((grp,gi)=>({
+    label:grp,
+    data:S.cat_drift.map(([_yr,counts])=>{
+      const total=S.cat_drift_groups.reduce((s,g)=>s+(counts[g]||0),0);
+      return total?+((counts[grp]||0)/total*100).toFixed(1):0;
+    }),
+    backgroundColor:DRIFT_PAL[gi%DRIFT_PAL.length],
+    borderWidth:0,
+  }));
+  new Chart(document.getElementById('catDriftChart'),{type:'bar',data:{labels,datasets},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'},ticks:{callback:v=>v+'%'},max:100}}}});
+}
+
+// ── Trip Analytics (Group 3) ───────────────────────────────────────────────
+(function(){
+  const kpis=S.trip_kpis;
+  if(!kpis||!kpis.avg_days) return;
+
+  // KPI strip (3 stats above duration chart)
+  const kpiRow=document.getElementById('tripKpiRow');
+  if(kpiRow) kpiRow.innerHTML=[
+    ['Avg Duration', kpis.avg_days+'d', ''],
+    ['Longest Trip', kpis.longest_days+'d', kpis.longest_name+(kpis.longest_year?' · '+kpis.longest_year:'')],
+    ['Most Countries', kpis.max_countries, kpis.max_countries_name],
+  ].map(([lbl,num,sub])=>`<div class="trip-kpi"><div class="tk-num">${num}</div><div class="tk-lbl">${lbl}</div>${sub?`<div class="tk-sub">${esc(sub)}</div>`:''}</div>`).join('');
+
+  // Trip Duration histogram
+  if(S.trip_duration_hist&&S.trip_duration_hist.length){
+    new Chart(document.getElementById('tripDurChart'),{type:'bar',data:{
+      labels:S.trip_duration_hist.map(d=>d[0]),
+      datasets:[{data:S.trip_duration_hist.map(d=>d[1]),backgroundColor:'rgba(78,205,196,0.7)',borderRadius:4,borderSkipped:false,borderWidth:0}]
+    },options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' trips'}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},beginAtZero:true,ticks:{stepSize:1}}}}});
+  }
+
+  // Furthest destination box
+  const fb=document.getElementById('furthestBox');
+  if(fb&&kpis.furthest_km){
+    fb.innerHTML=`<div class="fb-km">✈ ${kpis.furthest_km.toLocaleString()} km from home</div>`+
+      `<div class="fb-venue">${esc(kpis.furthest_venue)}</div>`+
+      `<div class="fb-loc">${esc(kpis.furthest_city)}${kpis.furthest_city&&kpis.furthest_country?' · ':''}${esc(kpis.furthest_country)}</div>`;
+  }
+
+  // Countries per Trip chart
+  if(S.trip_countries_dist&&S.trip_countries_dist.length){
+    new Chart(document.getElementById('tripCosChart'),{type:'bar',data:{
+      labels:S.trip_countries_dist.map(d=>d[0]+(d[0]==='1'?' country':' countries')),
+      datasets:[{data:S.trip_countries_dist.map(d=>d[1]),backgroundColor:['rgba(232,184,109,.75)','rgba(78,205,196,.75)','rgba(196,77,255,.75)','rgba(99,134,255,.75)'],borderRadius:4,borderSkipped:false,borderWidth:0}]
+    },options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+' trips'}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},beginAtZero:true,ticks:{stepSize:1}}}}});
+  }
+})();
+
+// ── Longest Trips Leaderboard ──────────────────────────────────────────────
+(function(){
+  const el=document.getElementById('longestTripsList');
+  if(!el||!S.trip_top_longest||!S.trip_top_longest.length) return;
+  el.innerHTML='<div class="ltrip-list">'+S.trip_top_longest.map(([name,days,cos,year],i)=>{
+    const flags=(cos||[]).map(c=>flagHtml(c,'1.1em')).filter(Boolean).join(' ');
+    return `<div class="ltrip-row">
+      <div class="ltrip-rank">${i+1}</div>
+      <div><div class="ltrip-name">${esc(name)}</div><div class="ltrip-cos" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">${flags}</div></div>
+      <div class="ltrip-days">${days}d</div>
+      <div class="ltrip-year">${year}</div>
+    </div>`;
+  }).join('')+'</div>';
+})();
+
+// ── New Countries Timeline ─────────────────────────────────────────────────
+(function(){
+  const list=document.getElementById('newCountryList');
+  if(!list||!S.new_country_by_year)return;
+  S.new_country_by_year.slice().reverse().forEach(([yr,cos])=>{
+    const row=document.createElement('div'); row.className='nc-year-row';
+    const yl=document.createElement('div'); yl.className='nc-year'; yl.textContent=yr;
+    const fl=document.createElement('div'); fl.className='nc-flags';
+    cos.forEach(co=>{
+      const span=document.createElement('span'); span.className='nc-flag-item';
+      span.innerHTML=flagHtml(co,'0.95em')+`<span>${co}</span>`;
+      fl.appendChild(span);
+    });
+    const ct=document.createElement('div'); ct.className='nc-count'; ct.textContent='+'+cos.length;
+    row.appendChild(yl); row.appendChild(fl); row.appendChild(ct);
+    list.appendChild(row);
+  });
+})();
+
+// ── Venue Visit Frequency Distribution ───────────────────────────────────
+if(S.venue_freq_dist&&S.venue_freq_dist.length){
+  const oneVisit=S.venue_freq_dist.find(x=>x[0]==='1');
+  const total=S.venue_freq_dist.reduce((s,x)=>s+x[1],0);
+  const pct=oneVisit?Math.round(oneVisit[1]/total*100):0;
+  new Chart(document.getElementById('freqDistChart'),{type:'bar',
+    data:{labels:S.venue_freq_dist.map(x=>x[0]),datasets:[{
+      data:S.venue_freq_dist.map(x=>x[1]),
+      backgroundColor:S.venue_freq_dist.map((_,i)=>i===0?'rgba(232,184,109,0.55)':'rgba(78,205,196,0.65)'),
+      borderRadius:5,borderWidth:0
+    }]},
+    options:{responsive:true,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>{
+        const pctV=Math.round(ctx.parsed.y/total*100);
+        return ` ${ctx.parsed.y.toLocaleString()} venues (${pctV}%)`;
+      }}}},
+      scales:{x:{grid:{display:false},title:{display:true,text:'visits',color:'#4a5270',font:{size:10}}},
+              y:{grid:{color:'#1a1e2e'},ticks:{callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}}}});
+}
+
+// ── Revisit Intervals ─────────────────────────────────────────────────────
+if(S.revisit_intervals&&S.revisit_intervals.length){
+  const totalIv=S.revisit_intervals.reduce((s,x)=>s+x[1],0);
+  new Chart(document.getElementById('revisitChart'),{type:'bar',
+    data:{labels:S.revisit_intervals.map(x=>x[0]),datasets:[{
+      data:S.revisit_intervals.map(x=>x[1]),
+      backgroundColor:S.revisit_intervals.map((_,i)=>PAL[i%PAL.length]),
+      borderRadius:5,borderWidth:0
+    }]},
+    options:{responsive:true,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>{
+        const pctV=totalIv?Math.round(ctx.parsed.y/totalIv*100):0;
+        return ` ${ctx.parsed.y.toLocaleString()} returns (${pctV}%)`;
+      }}}},
+      scales:{x:{grid:{display:false},ticks:{maxRotation:30}},
+              y:{grid:{color:'#1a1e2e'},ticks:{callback:v=>v>=1000?(v/1000).toFixed(1)+'k':v}}}}});
+}
+
+// ── Regular Haunts ────────────────────────────────────────────────────────
+(function(){
+  const list=document.getElementById('regularsListEl');
+  if(!list||!S.venue_regulars)return;
+  const maxM=S.venue_regulars[0]?S.venue_regulars[0][2]:1;
+  S.venue_regulars.forEach(([name,city,months,count,vid],i)=>{
+    const row=document.createElement('div'); row.className='reg-row';
+    row.innerHTML=`
+      <div class="reg-rank">${i+1}</div>
+      <div><div class="reg-name">${name}</div><div class="reg-city">${city}</div></div>
+      <div class="reg-months">${months}<span style="font-size:.52rem;color:var(--muted)"> mo</span></div>
+      <div class="reg-cnt">${count}×</div>`;
+    list.appendChild(row);
+  });
+})();
 
 // ── GitHub Heatmap ─────────────────────────────────────────────────────────
 (function(){

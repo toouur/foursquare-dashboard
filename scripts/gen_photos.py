@@ -197,7 +197,8 @@ a{{color:inherit;text-decoration:none;}}
   <h1>Photos</h1>
   <div class="page-hero-sub">{total + len(tip_photos):,} photos{f' · <a href="#tipPhotosSection" style="color:var(--gold);text-decoration:none;">+ {len(tip_photos)} tip photos ↓</a>' if tip_photos else ''}</div>
   <div class="sort-pills">
-    <div class="sort-pill active" id="sNewest" onclick="setSort('newest')">Newest first</div>
+    <div class="sort-pill active" id="sAll" onclick="resetAll()">All Photos</div>
+    <div class="sort-pill" id="sNewest" onclick="setSort('newest')">Newest first</div>
     <div class="sort-pill" id="sOldest" onclick="setSort('oldest')">Oldest first</div>
   </div>
 </div>
@@ -258,12 +259,17 @@ const citiesPanel = document.getElementById('citiesPanel');
 function toggleCountry(ctr){{
   const row = document.getElementById('ctr-' + ctr.country);
   if(openCountry === ctr.country){{
-    // close
+    // close — back to unfiltered state
     row.classList.remove('open');
     citiesPanel.classList.remove('open');
     citiesPanel.innerHTML = '';
     openCountry = null;
-    setCity(null);
+    activeCity = null;
+    sortOrder = 'newest';
+    document.getElementById('sAll').classList.add('active');
+    document.getElementById('sNewest').classList.remove('active');
+    document.getElementById('sOldest').classList.remove('active');
+    applyFilter();
     return;
   }}
   // close previous
@@ -291,7 +297,8 @@ function toggleCountry(ctr){{
     citiesPanel.appendChild(p);
   }});
   citiesPanel.classList.add('open');
-  setCity(null); // reset city filter, switch to oldest
+  document.getElementById('sAll').classList.remove('active');
+  setCity(null); // reset city filter, apply country filter
 }}
 
 function applyFilter(){{
@@ -303,8 +310,24 @@ function applyFilter(){{
 }}
 function setSort(order){{
   sortOrder=order;
+  document.getElementById('sAll').classList.remove('active');
   document.getElementById('sNewest').classList.toggle('active', order==='newest');
   document.getElementById('sOldest').classList.toggle('active', order==='oldest');
+  applyFilter();
+}}
+function resetAll(){{
+  activeCity=null;
+  if(openCountry){{
+    const prev=document.getElementById('ctr-'+openCountry);
+    if(prev) prev.classList.remove('open');
+  }}
+  openCountry=null;
+  citiesPanel.classList.remove('open');
+  citiesPanel.innerHTML='';
+  sortOrder='newest';
+  document.getElementById('sAll').classList.add('active');
+  document.getElementById('sNewest').classList.remove('active');
+  document.getElementById('sOldest').classList.remove('active');
   applyFilter();
 }}
 function setCity(city){{
@@ -322,6 +345,7 @@ function setCity(city){{
   // switch to oldest when a city is selected
   if(city){{
     sortOrder='oldest';
+    document.getElementById('sAll').classList.remove('active');
     document.getElementById('sNewest').classList.remove('active');
     document.getElementById('sOldest').classList.add('active');
   }}

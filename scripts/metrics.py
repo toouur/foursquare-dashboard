@@ -897,8 +897,238 @@ def process(
     loyal.sort(key=lambda x: (-len(x[2]), -x[3]))
     venue_loyalty = loyal[:100]
 
+    # ── Venue visit-frequency distribution ───────────────────────────────────
+    # How many venues were visited exactly once, twice, …
+    _vvc: Counter = Counter(_vc.values())
+    _freq_buckets = [(1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5'),(10,'6–10'),(20,'11–20'),(50,'21–50'),(999999,'50+')]
+    venue_freq_dist: list = []
+    _prev = 0
+    for _upper, _lbl in _freq_buckets:
+        _n = sum(cnt for v, cnt in _vvc.items() if _prev < v <= _upper)
+        if _n:
+            venue_freq_dist.append([_lbl, _n])
+        _prev = _upper
+
+    # ── Regulars: top venues by distinct calendar months visited ──────────────
+    _reg_months: dict[str, set] = defaultdict(set)
+    for r in rows:
+        vid = r.get("venue_id", "").strip()
+        if not vid:
+            continue
+        try:
+            _d = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc)
+            _reg_months[vid].add((_d.year, _d.month))
+        except (ValueError, OSError):
+            pass
+    _regulars_raw: list = []
+    for vid, _months in _reg_months.items():
+        if len(_months) < 3:
+            continue
+        _nm, _cy = _vi.get(vid, ("", ""))
+        if _nm:
+            _regulars_raw.append([_nm, _cy, len(_months), _vc[vid], vid])
+    _regulars_raw.sort(key=lambda x: (-x[2], -x[3]))
+    venue_regulars = _regulars_raw[:30]
+
+    # ── Revisit interval histogram ────────────────────────────────────────────
+    _venue_ts: dict[str, list] = defaultdict(list)
+    for r in sorted(rows, key=lambda r: int(r.get("date", "0") or "0")):
+        vid = r.get("venue_id", "").strip()
+        if not vid:
+            continue
+        try:
+            _venue_ts[vid].append(int(r["date"]))
+        except (ValueError, TypeError):
+            pass
+    _iv_uppers = [7, 14, 30, 90, 180, 365, 999999]
+    _iv_labels  = ['≤1 week', '1–2 weeks', '2–4 weeks', '1–3 months', '3–6 months', '6–12 months', '> 1 year']
+    _iv_counts  = [0] * len(_iv_uppers)
+    for _ts_list in _venue_ts.values():
+        if len(_ts_list) < 2:
+            continue
+        for _i in range(1, len(_ts_list)):
+            _days = (_ts_list[_i] - _ts_list[_i - 1]) / 86400
+            for _bi, _up in enumerate(_iv_uppers):
+                if _days <= _up:
+                    _iv_counts[_bi] += 1
+                    break
+    revisit_intervals = [[_iv_labels[i], _iv_counts[i]] for i in range(len(_iv_labels))]
+
+    # ── Distance per year (haversine between consecutive check-ins) ────────────
+    import math as _math
+    def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+        R = 6371.0
+        phi1, phi2 = _math.radians(lat1), _math.radians(lat2)
+        dphi = _math.radians(lat2 - lat1)
+        dlam = _math.radians(lng2 - lng1)
+        a = _math.sin(dphi / 2) ** 2 + _math.cos(phi1) * _math.cos(phi2) * _math.sin(dlam / 2) ** 2
+        return R * 2 * _math.asin(_math.sqrt(a))
+
+    _coord_rows: list[tuple[int, float, float]] = []
+    for r in sorted(rows, key=lambda r: int(r.get("date", "0") or "0")):
+        try:
+            lat_f, lng_f = float(r["lat"]), float(r["lng"])
+            if lat_f == 0.0 and lng_f == 0.0:
+                continue
+            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            _coord_rows.append((yr, lat_f, lng_f))
+        except (ValueError, KeyError, TypeError, OSError):
+            pass
+
+    _dist_yr: dict[int, float] = defaultdict(float)
+    for i in range(1, len(_coord_rows)):
+        yr, lat2, lng2 = _coord_rows[i]
+        _, lat1, lng1 = _coord_rows[i - 1]
+        try:
+            d = _haversine(lat1, lng1, lat2, lng2)
+            if d < 20_000:  # filter GPS teleportation artifacts
+                _dist_yr[yr] += d
+        except Exception:
+            pass
+    dist_by_year = sorted([[str(yr), round(v)] for yr, v in _dist_yr.items()])
+    total_km = round(sum(_dist_yr.values()))
+
+    # ── Streak tracker ────────────────────────────────────────────────────────
+    from datetime import date as _date, timedelta as _td
+    _all_dates = sorted({d.date() for d in dates})
+    longest_streak = 0
+    current_streak = 0
+    if _all_dates:
+        streak = 1
+        for i in range(1, len(_all_dates)):
+            if (_all_dates[i] - _all_dates[i - 1]).days == 1:
+                streak += 1
+            else:
+                longest_streak = max(longest_streak, streak)
+                streak = 1
+        longest_streak = max(longest_streak, streak)
+        _today = datetime.now(tz=timezone.utc).date()
+        if _all_dates[-1] >= _today - _td(days=1):
+            current_streak = 1
+            j = len(_all_dates) - 2
+            while j >= 0 and (_all_dates[j + 1] - _all_dates[j]).days == 1:
+                current_streak += 1
+                j -= 1
+
+    # ── New countries by year (first visit per country) ───────────────────────
+    _first_country: dict[str, int] = {}
+    for r in sorted(rows, key=lambda r: int(r.get("date", "0") or "0")):
+        co = r.get("country", "").strip()
+        if co and co not in _first_country:
+            try:
+                _first_country[co] = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            except (ValueError, OSError):
+                pass
+    _ncby: dict[str, list] = defaultdict(list)
+    for co, yr in _first_country.items():
+        _ncby[str(yr)].append(co)
+    new_country_by_year = sorted([[yr, sorted(cos)] for yr, cos in _ncby.items()])
+
+    # ── Countries per year ────────────────────────────────────────────────────
+    _cpy: dict[int, set] = defaultdict(set)
+    for r in rows:
+        co = r.get("country", "").strip()
+        if not co:
+            continue
+        try:
+            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            _cpy[yr].add(co)
+        except (ValueError, OSError):
+            pass
+    countries_per_year = sorted([[str(yr), len(cos)] for yr, cos in _cpy.items()])
+
+    # ── Category drift (top 6 groups share by year) ───────────────────────────
+    _cg_year: dict[int, Counter] = defaultdict(Counter)
+    for r in rows:
+        cat = r.get("category", "").strip()
+        if not cat:
+            continue
+        grp = categorize(cat)
+        if not grp:
+            continue
+        try:
+            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            _cg_year[yr][grp] += 1
+        except (ValueError, OSError):
+            pass
+    _top_grps = [g for g, _ in cat_groups.most_common(7)]
+    cat_drift = sorted([
+        [str(yr), {g: ctr.get(g, 0) for g in _top_grps}]
+        for yr, ctr in _cg_year.items()
+    ])
+
     # ── Trips ─────────────────────────────────────────────────────────────────
     trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags)
+
+    # ── Trip analytics (Group 3) ───────────────────────────────────────────────
+    if trips:
+        _HOME_LAT, _HOME_LNG = 53.9045, 27.5615  # Minsk
+
+        # Duration histogram
+        _dur_buckets = [1, 3, 7, 14, 28, 999]
+        _dur_labels  = ['1 day', '2–3 days', '4–7 days', '1–2 weeks', '2–4 weeks', '4+ weeks']
+        _dur_counts  = [0] * len(_dur_buckets)
+        for _t in trips:
+            _d = _t['duration']
+            for _bi, _up in enumerate(_dur_buckets):
+                if _d <= _up:
+                    _dur_counts[_bi] += 1
+                    break
+        trip_duration_hist = [[_dur_labels[i], _dur_counts[i]] for i in range(len(_dur_labels))]
+
+        # Countries per trip
+        _cpt: dict[str, int] = {'1': 0, '2': 0, '3': 0, '4+': 0}
+        for _t in trips:
+            _n = len(_t['countries'])
+            _k = str(_n) if _n <= 3 else '4+'
+            _cpt[_k] = _cpt.get(_k, 0) + 1
+        trip_countries_dist = [[k, _cpt[k]] for k in ['1', '2', '3', '4+']]
+
+        # Top 10 longest trips
+        _trips_by_dur = sorted(trips, key=lambda _t: -_t['duration'])[:10]
+        trip_top_longest = [
+            [_t['name'], _t['duration'], _t['countries'], _t['start_year']]
+            for _t in _trips_by_dur
+        ]
+
+        # KPIs
+        _avg_dur     = round(sum(_t['duration'] for _t in trips) / len(trips))
+        _longest_t   = max(trips, key=lambda _t: _t['duration'])
+        _most_cos_t  = max(trips, key=lambda _t: len(_t['countries']))
+        _max_dist_km = 0.0
+        _furthest: dict = {'km': 0, 'venue': '', 'city': '', 'country': ''}
+        for _t in trips:
+            for _ck in _t['checkins']:
+                try:
+                    _d = _haversine(_HOME_LAT, _HOME_LNG, float(_ck['lat']), float(_ck['lng']))
+                    if _d > _max_dist_km:
+                        _max_dist_km = _d
+                        _furthest = {
+                            'km':      round(_d),
+                            'venue':   _ck['venue'],
+                            'city':    _ck['city'],
+                            'country': _ck['country'],
+                        }
+                except (TypeError, ValueError):
+                    pass
+        trip_kpis = {
+            'avg_days':           _avg_dur,
+            'longest_days':       _longest_t['duration'],
+            'longest_name':       _longest_t['name'],
+            'longest_year':       _longest_t['start_year'],
+            'max_countries':      len(_most_cos_t['countries']),
+            'max_countries_name': _most_cos_t['name'],
+            'furthest_km':        _furthest['km'],
+            'furthest_venue':     _furthest['venue'],
+            'furthest_city':      _furthest['city'],
+            'furthest_country':   _furthest['country'],
+        }
+    else:
+        trip_duration_hist = []
+        trip_countries_dist = []
+        trip_top_longest = []
+        trip_kpis = {}
+
     timeline = [
         {
             "id":       t["id"],
@@ -989,5 +1219,20 @@ def process(
         "timeline":           timeline,
         "trips_count":        len(trips),
         "recent":             recent,
+        "venue_freq_dist":    venue_freq_dist,
+        "venue_regulars":     venue_regulars,
+        "revisit_intervals":  revisit_intervals,
+        "dist_by_year":       dist_by_year,
+        "total_km":           total_km,
+        "longest_streak":     longest_streak,
+        "current_streak":     current_streak,
+        "new_country_by_year":new_country_by_year,
+        "countries_per_year": countries_per_year,
+        "cat_drift":          cat_drift,
+        "cat_drift_groups":   _top_grps,
+        "trip_duration_hist": trip_duration_hist,
+        "trip_countries_dist":trip_countries_dist,
+        "trip_top_longest":   trip_top_longest,
+        "trip_kpis":          trip_kpis,
     }
     return stats, trips

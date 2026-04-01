@@ -322,6 +322,28 @@ For trips where `trip_tags[_name_ts]` contains `"bicycle"`: scans backward up to
 - Badge: `+N` overlay on card when check-in has multiple photos
 - Tip photo opens in new tab (`window.open`) rather than inline lightbox
 
+### Analytics computed in `metrics.py` (beyond trips)
+
+All keys are injected into `const S={...}` in `index.html`:
+
+| Key | Description |
+|-----|-------------|
+| `dist_by_year` | `[[year, km], …]` — haversine sum between consecutive check-ins per year |
+| `total_km` | Total lifetime km (used for KPI strip) |
+| `longest_streak` / `current_streak` | Consecutive active days |
+| `new_country_by_year` | `[[year, [country, …]], …]` — first-visit countries grouped by year |
+| `countries_per_year` | `[[year, count], …]` |
+| `cat_drift` / `cat_drift_groups` | Stacked 100% share of top 7 category groups per year |
+| `venue_freq_dist` | `[[label, count], …]` — how many venues visited N times (buckets 1–50+) |
+| `venue_regulars` | Top 30 venues by distinct calendar months visited (min 3); `[name, city, months, count, vid]` |
+| `revisit_intervals` | `[[label, count], …]` — time between return visits (7 buckets ≤1wk → >1yr) |
+| `trip_duration_hist` | `[[label, count], …]` — trip duration buckets (1d, 2–3d, 4–7d, 1–2wk, 2–4wk, 4+wk) |
+| `trip_countries_dist` | `[[label, count], …]` — trips by number of countries (1, 2, 3, 4+) |
+| `trip_top_longest` | Top 10 trips by duration: `[name, days, countries[], year]`; full country list (no truncation) |
+| `trip_kpis` | `{avg_days, longest_days, longest_name, longest_year, max_countries, max_countries_name, furthest_km, furthest_venue, furthest_city, furthest_country}` — furthest is max haversine from home (53.9045°N 27.5615°E) |
+
+**`trip_top_longest` gotcha:** countries list is **not truncated** — pass full list to JS so all flags render. Earlier versions used `[:5]` which silently dropped flags for trips with 6+ countries.
+
 ### World-cities continent-aware matching
 `index.html.tmpl` and `gen_worldcities.py` both have a `CTRY_CONT` JavaScript dict and a `matchVisited`/`getVisitCount` function that guards against false city matches across continents (e.g., Malta's "Rabat" ≠ Morocco's "Rabat"). Any change to this logic must be kept in sync between both files.
 
