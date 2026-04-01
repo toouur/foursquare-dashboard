@@ -183,6 +183,28 @@ a{{color:inherit;text-decoration:none;}}
 .city-pill:hover:not(.active){{border-color:var(--teal);color:var(--teal);}}
 .city-pill-all{{border-color:var(--gold);color:var(--gold);}}
 .city-pill-all:hover,.city-pill-all.active{{background:var(--gold);color:#0b0d13;border-color:var(--gold);}}
+@media(max-width:700px){{
+  .topnav{{padding:12px 16px;gap:12px;}}
+  .page-hero{{padding:22px 16px 16px;}}
+  .city-filter{{padding:6px 16px 0;}}
+  .cities-panel{{padding:6px 16px 8px;}}
+  .gallery-grid{{padding:10px 10px 48px;}}
+}}
+@media(max-width:480px){{
+  .topnav{{padding:10px 12px;gap:8px;}}
+  .topnav a{{font-size:.56rem;letter-spacing:.08em;}}
+  .page-hero{{padding:16px 12px 12px;}}
+  .page-hero h1{{font-size:1.6rem;}}
+  .page-hero-sub{{font-size:.60rem;}}
+  .sort-pills{{gap:5px;margin-top:10px;}}
+  .sort-pill{{font-size:.55rem;padding:4px 9px;}}
+  .city-filter{{padding:4px 12px 0;}}
+  .country-label{{font-size:.56rem;}}
+  .cities-panel{{padding:4px 12px 6px;gap:3px;}}
+  .city-pill{{font-size:.52rem;padding:2px 7px;}}
+  .gallery-grid{{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:3px;padding:8px 8px 32px;}}
+  .load-more{{padding:9px 20px;font-size:.58rem;}}
+}}
 </style>
 </head>
 <body>

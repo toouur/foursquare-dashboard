@@ -41,7 +41,22 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .ci-venue a:hover{color:var(--gold);}
 .ci-cat{font-size:0.68rem;color:var(--teal);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
 .person-name[href]{text-decoration:none;color:var(--gold);}.person-name[href]:hover{opacity:.8;}.ci-loc{font-size:0.72rem;color:var(--muted);font-family:"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",'DM Sans',sans-serif;}
-@media(max-width:700px){.layout{grid-template-columns:1fr;}.sidebar{max-height:180px;border-right:none;border-bottom:1px solid var(--border);}.main{padding:16px;}}
+@media(max-width:700px){
+  header{padding:16px 16px 12px;}
+  .layout{grid-template-columns:1fr;}
+  .sidebar{max-height:160px;border-right:none;border-bottom:1px solid var(--border);}
+  .main{padding:14px;}
+  .search-box{width:100%;max-width:100%;}
+  .person-name{font-size:1.6rem;}
+  td,th{padding:7px 8px;font-size:.76rem;}
+  .ci-date,.ci-time{font-size:.64rem;}
+}
+@media(max-width:480px){
+  .person-name{font-size:1.3rem;}
+  table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  td,th{padding:6px 8px;font-size:.72rem;}
+  .ci-loc{display:none;}
+}
 </style>
 </head>
 <body>
