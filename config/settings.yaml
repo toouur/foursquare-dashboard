@@ -16,3 +16,9 @@ dashboard:
 output:
   index_html: index.html
   trips_html: trips.html
+
+# Override the "first visit" year for a country in the New Countries by Year timeline.
+# Covers both legacy and current API spellings of the same country.
+new_country_year_overrides:
+  "Türkiye": 2020
+  "Turkey":  2020

@@ -201,6 +201,14 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .ltrip-cos{font-size:.60rem;color:var(--muted);margin-top:1px;}
 .ltrip-days{font-family:'DM Mono',monospace;font-size:.70rem;color:var(--teal);text-align:right;}
 .ltrip-year{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);text-align:right;}
+.cc-list{display:flex;flex-direction:column;gap:5px;}
+.cc-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:8px 12px;background:var(--card2);border:1px solid var(--border);border-radius:7px;}
+.cc-name{font-size:.78rem;color:var(--text);}
+.cc-flags{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+.social-kpi-row{display:flex;gap:10px;margin-bottom:16px;}
+.social-kpi{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.social-kpi .sk-num{font-family:'DM Mono',monospace;font-size:1.2rem;}
+.social-kpi .sk-lbl{font-size:.58rem;color:var(--muted);margin-top:2px;}
 
 .recent-section{padding:0 56px 28px;max-width:1500px;}
 .recent-header{display:flex;align-items:baseline;gap:16px;margin-bottom:14px;}
@@ -492,6 +500,23 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   <div class="card">
     <div class="card-title">Top Companions <em>&middot; check-ins with others</em> <a href="companions.html" style="font-size:.65rem;color:var(--gold);text-decoration:none;font-family:'DM Mono',monospace;opacity:.8;">↗ full list</a></div>
     <div id="companionsList"></div>
+  </div>
+
+  <!-- ── NEW: Social Analytics ── -->
+  <div class="card">
+    <div class="card-title">Solo vs Together</div>
+    <div class="social-kpi-row" id="socialKpiRow"></div>
+    <canvas id="soloGroupChart" height="200"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Social Mix by Year <em>&middot; solo vs with others</em></div>
+    <canvas id="socialYearChart" height="200"></canvas>
+  </div>
+
+  <div class="card full">
+    <div class="card-title">Companion Countries <em>&middot; top countries visited with each person</em></div>
+    <div class="cc-list" id="companionCountriesList"></div>
   </div>
 
   <div class="card full">
@@ -921,6 +946,57 @@ if(S.revisit_intervals&&S.revisit_intervals.length){
       <span class="companion-cnt">${c.toLocaleString()}</span>
     </div>`
   ).join('');
+})();
+
+// ── Social Analytics (Group 4) ────────────────────────────────────────────
+(function(){
+  const tot=S.solo_vs_group_totals;
+  if(!tot||!tot.length) return;
+  const [solo,group]=tot, total=solo+group;
+  if(!total) return;
+
+  // KPI strip
+  const kpiRow=document.getElementById('socialKpiRow');
+  if(kpiRow) kpiRow.innerHTML=[
+    ['Solo check-ins',  solo.toLocaleString(),  'color:var(--gold)'],
+    ['With others',     group.toLocaleString(), 'color:var(--teal)'],
+    ['Together rate',   (group/total*100).toFixed(1)+'%', 'color:var(--teal)'],
+  ].map(([lbl,num,style])=>`<div class="social-kpi"><div class="sk-num" style="${style}">${num}</div><div class="sk-lbl">${lbl}</div></div>`).join('');
+
+  // Donut chart — solo vs group overall
+  new Chart(document.getElementById('soloGroupChart'),{type:'doughnut',data:{
+    labels:['Solo','With others'],
+    datasets:[{data:[solo,group],backgroundColor:['rgba(232,184,109,.8)','rgba(78,205,196,.8)'],borderWidth:0,hoverOffset:6}]
+  },options:{responsive:true,cutout:'68%',plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12,padding:10}},tooltip:{callbacks:{label:ctx=>{const v=ctx.parsed;const pct=(v/(solo+group)*100).toFixed(1);return ` ${ctx.label}: ${v.toLocaleString()} (${pct}%)`;}}}}}});
+
+  // Stacked 100% bar — solo vs group per year
+  if(S.solo_vs_group_by_year&&S.solo_vs_group_by_year.length){
+    const yrs=S.solo_vs_group_by_year;
+    const totals=yrs.map(([,s,g])=>s+g);
+    new Chart(document.getElementById('socialYearChart'),{type:'bar',data:{
+      labels:yrs.map(d=>d[0]),
+      datasets:[
+        {label:'Solo',       data:yrs.map(([,s,g],i)=>totals[i]?+(s/totals[i]*100).toFixed(1):0), backgroundColor:'rgba(232,184,109,.75)',borderWidth:0},
+        {label:'With others',data:yrs.map(([,s,g],i)=>totals[i]?+(g/totals[i]*100).toFixed(1):0), backgroundColor:'rgba(78,205,196,.75)', borderWidth:0},
+      ]
+    },options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'},ticks:{callback:v=>v+'%'},max:100}}}});
+  }
+})();
+
+// ── Companion Countries ────────────────────────────────────────────────────
+(function(){
+  const el=document.getElementById('companionCountriesList');
+  if(!el||!S.companion_countries||!S.companion_countries.length) return;
+  el.innerHTML='<div class="cc-list">'+S.companion_countries.map(([name,cos])=>{
+    const items=cos.map(([co,cnt])=>{
+      const f=flagHtml(co,'1.05em');
+      return `<span style="display:inline-flex;align-items:center;gap:3px;white-space:nowrap;font-size:.68rem;color:var(--muted)">${f}<span>${esc(co)}</span><span style="font-family:'DM Mono',monospace;color:var(--teal);font-size:.62rem">${cnt}</span></span>`;
+    }).join('');
+    return `<div class="cc-row" style="grid-template-columns:120px 1fr">
+      <div class="cc-name">${esc(name)}</div>
+      <div class="cc-flags" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">${items}</div>
+    </div>`;
+  }).join('')+'</div>';
 })();
 
 // ── Discovery Rate ─────────────────────────────────────────────────────────

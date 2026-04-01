@@ -632,6 +632,7 @@ def process(
     trip_end_overrides: dict[int, int] | None = None,
     trip_start_overrides: dict[int, int] | None = None,
     trip_tags: dict[int, list[str]] | None = None,
+    new_country_year_overrides: dict[str, int] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
     Compute all dashboard metrics from pre-transformed rows.
@@ -846,6 +847,54 @@ def process(
                 seen_in_row.add(name)
     companions = [[n, c] for n, c in comp_raw.most_common(30)]
 
+    # ── Social analytics (Group 4) ────────────────────────────────────────────
+    def _has_companion(r: dict) -> bool:
+        if r.get("with_name", "").strip():
+            return True
+        if r.get("created_by_name", "").strip():
+            return True
+        ov = r.get("overlaps_name", "").strip()
+        return bool(ov and ov != "-")
+
+    _social_yr: dict[int, list] = defaultdict(lambda: [0, 0])  # [solo, group]
+    for r in rows:
+        try:
+            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+        except (ValueError, OSError):
+            continue
+        _social_yr[yr][1 if _has_companion(r) else 0] += 1
+
+    solo_vs_group_by_year = sorted([[str(yr), v[0], v[1]] for yr, v in _social_yr.items()])
+    _total_solo  = sum(v[0] for v in _social_yr.values())
+    _total_group = sum(v[1] for v in _social_yr.values())
+    solo_vs_group_totals = [_total_solo, _total_group]
+
+    # Companions by country — top 15 companions, top 5 countries each
+    _comp_cos: dict[str, Counter] = defaultdict(Counter)
+    for r in rows:
+        co = r.get("country", "").strip()
+        if not co:
+            continue
+        _seen: set = set()
+        for name in [n.strip() for n in r.get("with_name", "").replace(" ,", ",").split(",")]:
+            if name and name not in _seen:
+                _comp_cos[name][co] += 1
+                _seen.add(name)
+        cb = r.get("created_by_name", "").strip()
+        if cb and cb not in _seen:
+            _comp_cos[cb][co] += 1
+            _seen.add(cb)
+        for name in [n.strip() for n in r.get("overlaps_name", "").replace(" ,", ",").split(",") if n.strip() != "-"]:
+            if name and name not in _seen:
+                _comp_cos[name][co] += 1
+                _seen.add(name)
+
+    _top15 = [n for n, _ in comp_raw.most_common(15)]
+    companion_countries = [
+        [name, [[co, cnt] for co, cnt in _comp_cos[name].most_common()]]
+        for name in _top15 if name in _comp_cos
+    ]
+
     # ── Day heatmap ───────────────────────────────────────────────────────────
     heatmap: dict[str, dict] = defaultdict(dict)
     for d in dates:
@@ -1019,6 +1068,10 @@ def process(
                 _first_country[co] = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
             except (ValueError, OSError):
                 pass
+    if new_country_year_overrides:
+        for co, yr in new_country_year_overrides.items():
+            if co in _first_country:
+                _first_country[co] = yr
     _ncby: dict[str, list] = defaultdict(list)
     for co, yr in _first_country.items():
         _ncby[str(yr)].append(co)
@@ -1213,6 +1266,9 @@ def process(
         "all_coords":         all_coords,
         "venues_heatmap":     venues_heatmap,
         "companions":         companions,
+        "solo_vs_group_by_year": solo_vs_group_by_year,
+        "solo_vs_group_totals":  solo_vs_group_totals,
+        "companion_countries":   companion_countries,
         "heatmap":            heatmap,
         "discovery_rate":     discovery_rate,
         "venue_loyalty":      venue_loyalty,

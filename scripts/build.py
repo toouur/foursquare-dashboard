@@ -172,8 +172,13 @@ if __name__ == "__main__":
             trip_tags = {int(k): v for k, v in json.load(fh).items()}
         log.info("Loaded %d trip tag(s) from %s", len(trip_tags), trip_tags_path)
 
+    nc_yr_overrides: dict[str, int] = {
+        str(k): int(v)
+        for k, v in settings.get("new_country_year_overrides", {}).items()
+    }
+
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
-    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags)
+    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides)
 
     # ── Auto-populate trip_names.json with new trips ──────────────────────────
     # Any trip whose _name_ts is not yet in trip_names.json gets added with its
