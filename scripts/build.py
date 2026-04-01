@@ -81,6 +81,7 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     trips_html = trips_html.replace('{{TOTAL_TRIPS}}', str(len(trips)))
     trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     trips_html = trips_html.replace('{{PIX_DIR_JSON}}', pix_dir_json)
+    trips_html = trips_html.replace('{{STATS}}', json.dumps(data, ensure_ascii=False).replace('</', '<\\/'))
     trips_path = os.path.join(out_dir, 'trips.html')
     with open(trips_path, 'w', encoding='utf-8') as f: f.write(trips_html)
     print(f"Built ->{trips_path}  ({len(trips_html)//1024:,} KB)")

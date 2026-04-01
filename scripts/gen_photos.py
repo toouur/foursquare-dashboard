@@ -211,7 +211,6 @@ a{{color:inherit;text-decoration:none;}}
 
 <nav class="topnav">
   <a href="index.html" class="topnav-logo">Check-in Journal</a>
-  <a href="index.html">← Dashboard</a>
   <a href="photos.html">Photos</a>
 </nav>
 
