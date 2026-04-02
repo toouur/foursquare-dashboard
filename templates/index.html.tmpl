@@ -377,7 +377,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
     <kbd>⌘K</kbd>
   </button>
   <div>
-    <h1>Check-in Journal</h1>
+    <h1 id="top">Check-in Journal</h1>
     <p class="sub">Foursquare &nbsp;&middot;&nbsp; {{DATE_MIN}} &ndash; {{DATE_MAX}}</p>
     <p class="updated">Updated {{UPDATED}}</p>
   </div>
@@ -2149,7 +2149,7 @@ function buildCityMap(){
 </div>
 <!-- Floating side nav -->
 <nav class="side-nav" id="sideNav" aria-label="Section shortcuts">
-  <a class="sn-item active" id="sn-home" href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">Home</span></a>
+  <a class="sn-item active" id="sn-home" href="#top" onclick="document.getElementById('top').scrollIntoView({behavior:'smooth',block:'start'});return false;"><span class="sn-icon">🏠</span><span class="sn-lbl">Home</span></a>
   <div class="sn-sep"></div>
   <button class="sn-item" id="sn-timeline" onclick="document.getElementById('s-timeline').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">📅</span><span class="sn-lbl">Time</span></button>
   <button class="sn-item" id="sn-countries" onclick="document.getElementById('s-countries').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🌍</span><span class="sn-lbl">Countries</span></button>
