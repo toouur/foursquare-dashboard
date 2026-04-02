@@ -118,6 +118,8 @@ def main() -> None:
                         help="Max new check-ins to process this run (0 = unlimited)")
     parser.add_argument("--recheck-days", type=int, default=0,
                         help="Re-check already-indexed check-ins from the last N days for late-added photos")
+    parser.add_argument("--checkin-ids", default="",
+                        help="Comma-separated check-in IDs to force-probe (bypasses CSV pending logic)")
     args = parser.parse_args()
 
     photos_path = Path(args.out)
@@ -168,14 +170,23 @@ def main() -> None:
             print(f"Re-check window: last {args.recheck_days} days → {len(recheck_ids)} already-indexed check-in(s)",
                   file=sys.stderr)
 
-    # Only process check-ins newer than export cutoff and not yet indexed,
-    # plus any already-indexed ones in the recheck window.
-    pending = [r["checkin_id"] for r in rows
-               if r.get("checkin_id", "").strip()
-               and (
-                   (r["checkin_id"].strip() not in known and int(r.get("date", 0) or 0) > cutoff_ts)
-                   or r["checkin_id"].strip() in recheck_ids
-               )]
+    # --checkin-ids: force-probe specific IDs, bypassing all other logic
+    forced_ids = [cid.strip() for cid in args.checkin_ids.split(",") if cid.strip()] if args.checkin_ids else []
+    if forced_ids:
+        # Remove from index so they are always re-fetched
+        for cid in forced_ids:
+            photos_by_checkin.pop(cid, None)
+        pending = forced_ids
+        print(f"Forced check-in IDs: {', '.join(forced_ids)}", file=sys.stderr)
+    else:
+        # Only process check-ins newer than export cutoff and not yet indexed,
+        # plus any already-indexed ones in the recheck window.
+        pending = [r["checkin_id"] for r in rows
+                   if r.get("checkin_id", "").strip()
+                   and (
+                       (r["checkin_id"].strip() not in known and int(r.get("date", 0) or 0) > cutoff_ts)
+                       or r["checkin_id"].strip() in recheck_ids
+                   )]
 
     if args.limit:
         pending = pending[:args.limit]

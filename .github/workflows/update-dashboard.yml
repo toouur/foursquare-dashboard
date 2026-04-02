@@ -129,8 +129,7 @@ jobs:
               --csv   private-data/checkins.csv \
               --out   private-data/photos.json \
               --pix-dir private-data/pix \
-              --sleep 0.3 \
-              --recheck-days 30 >> "$GITHUB_OUTPUT"
+              --sleep 0.3 >> "$GITHUB_OUTPUT"
           fi
 
       # ── 4d. Upload new photos to Cloudflare R2 ──────────────────────────────

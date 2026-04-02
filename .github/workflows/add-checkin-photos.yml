@@ -1,0 +1,124 @@
+# .github/workflows/add-checkin-photos.yml
+#
+# Manual workflow: fetch photos for one or more specific check-in IDs,
+# upload new files to Cloudflare R2, commit updated photos.json to the
+# private data repo, rebuild the dashboard, and push to deploy.
+#
+# Usage: Actions → "Add photos for check-ins" → Run workflow
+#        Paste one or more check-in IDs (comma-separated) in the input.
+
+name: Add photos for check-ins
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      checkin_ids:
+        description: 'Check-in ID(s) — comma-separated (e.g. ABC123,DEF456)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  add-photos:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout public repo ───────────────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Checkout private data repo ────────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 3. Python setup ──────────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Fetch photos for the specified check-in IDs ───────────────────────
+      - name: Fetch photos for specified check-in IDs
+        id: fetch_photos
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          python scripts/fetch_photos.py \
+            --token "$FOURSQUARE_TOKEN" \
+            --csv   private-data/checkins.csv \
+            --out   private-data/photos.json \
+            --pix-dir private-data/pix \
+            --checkin-ids "${{ github.event.inputs.checkin_ids }}" \
+            --sleep 0.5 >> "$GITHUB_OUTPUT"
+
+      # ── 5. Upload new photos to Cloudflare R2 ──────────────────────────────
+      - name: Upload new photos to R2
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID:         ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME:        ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          pip install awscli --quiet
+          aws s3 sync private-data/pix/ s3://${R2_BUCKET_NAME}/pix/ \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --no-progress
+
+      # ── 6. Commit updated photos.json to private data repo ───────────────────
+      - name: Commit updated photos.json to data repo
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add photos.json
+          if git diff --cached --quiet; then
+            echo "No changes to photos.json."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "chore: add photos for check-ins [${TIMESTAMP}]"
+            git push
+          fi
+          cd ..
+
+      # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
+      - name: Rebuild dashboard
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          PIX_URL_ARG=""
+          if [ -n "$R2_PUBLIC_URL" ]; then
+            PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"
+          fi
+          python scripts/build.py \
+            --input private-data/checkins.csv \
+            --config-dir config \
+            --output-dir . \
+            --photos private-data/photos.json \
+            $PIX_URL_ARG
+
+      # ── 8. Commit rebuilt HTML → Cloudflare Pages auto-deploys ───────────────
+      - name: Commit updated HTML files
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html stats.html search.html search-index.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "chore: add check-in photos [${TIMESTAMP}]"
+            git pull --rebase
+            git push
+          fi
