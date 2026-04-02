@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://4sq.andrei-patsiomkin.workers.dev/sitemap.xml

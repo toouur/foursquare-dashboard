@@ -125,7 +125,17 @@ def build_page(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Photos Gallery</title>
+<title>Photos — Check-in Journal</title>
+<meta name="description" content="Venue and place photos from Foursquare check-ins, organised by trip and location across 62 countries.">
+<link rel="canonical" href="https://4sq.andrei-patsiomkin.workers.dev/photos.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Check-in Journal">
+<meta property="og:title" content="Photos — Check-in Journal">
+<meta property="og:description" content="Venue and place photos from Foursquare check-ins, organised by trip and location across 62 countries.">
+<meta property="og:url" content="https://4sq.andrei-patsiomkin.workers.dev/photos.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Photos — Check-in Journal">
+<meta name="twitter:description" content="Venue and place photos from Foursquare check-ins, organised by trip and location across 62 countries.">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
 <style>
