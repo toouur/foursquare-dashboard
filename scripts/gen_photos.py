@@ -149,6 +149,17 @@ a{{color:inherit;text-decoration:none;}}
 .topnav a{{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);transition:color .2s;}}
 .topnav a:hover{{color:var(--gold);}}
 .topnav-current{{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--text);}}
+.gs-btn{{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .2s;white-space:nowrap;}}
+.gs-btn:hover{{border-color:var(--gold);color:var(--gold);}}
+.gs-btn kbd{{font-family:'DM Mono',monospace;font-size:.52rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:1px 5px;letter-spacing:0;}}
+@media(max-width:520px){{.gs-btn kbd{{display:none;}}}}
+.gs-overlay{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding-top:16vh;}}.gs-overlay.open{{display:flex;}}
+.gs-modal{{background:var(--card);border:1px solid var(--border);border-radius:14px;width:min(560px,92vw);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.7);}}
+.gs-input-wrap{{display:flex;align-items:center;gap:10px;padding:14px 18px;}}
+.gs-icon{{font-size:1rem;color:var(--muted);}}
+.gs-input{{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.95rem;}}
+.gs-input::placeholder{{color:var(--muted);}}
+.gs-esc-hint{{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}}
 
 .page-hero{{padding:40px 48px 28px;border-bottom:1px solid var(--border);}}
 .page-hero h1{{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px;}}
@@ -223,7 +234,11 @@ a{{color:inherit;text-decoration:none;}}
 <nav class="topnav">
   <a href="index.html" class="topnav-logo">Check-in Journal</a>
   <span class="topnav-current">Photos</span>
+  <button class="gs-btn" style="margin-left:auto" onclick="gsOpen()"><span>⌕</span> Search<kbd>⌘K</kbd></button>
 </nav>
+<div class="gs-overlay" id="gsOverlay" onclick="if(event.target===this)gsClose()">
+  <div class="gs-modal"><div class="gs-input-wrap"><span class="gs-icon">⌕</span><input class="gs-input" id="gsInput" type="text" placeholder="Search venues, cities, trips…" autocomplete="off" spellcheck="false"><span class="gs-esc-hint" onclick="gsClose()">esc</span></div></div>
+</div>
 
 <div class="page-hero">
   <h1>Photos</h1>
@@ -432,6 +447,12 @@ if(TIP_PHOTOS.length){{
 }}
 
 function openTipGallery(idx){{galMode='tips';tipGalIdx=idx;showGalItem();document.getElementById('gallery').classList.add('open');}}
+</script>
+<script>
+function gsOpen(){{document.getElementById('gsOverlay').classList.add('open');document.getElementById('gsInput').focus();}}
+function gsClose(){{document.getElementById('gsOverlay').classList.remove('open');}}
+document.getElementById('gsInput').addEventListener('keydown',function(e){{if(e.key==='Enter'&&this.value.trim()){{location.href='search.html?q='+encodeURIComponent(this.value.trim());}}if(e.key==='Escape')gsClose();}});
+document.addEventListener('keydown',function(e){{if((e.metaKey||e.ctrlKey)&&e.key==='k'){{e.preventDefault();gsOpen();}}if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open'))gsClose();}});
 </script>
 </body>
 </html>"""

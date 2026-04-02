@@ -28,6 +28,17 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .topnav a{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
 .topnav a:hover{color:var(--gold);}
 .topnav-current{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--text);}
+.gs-btn{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .2s;white-space:nowrap;}
+.gs-btn:hover{border-color:var(--gold);color:var(--gold);}
+.gs-btn kbd{font-family:'DM Mono',monospace;font-size:.52rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:1px 5px;letter-spacing:0;}
+@media(max-width:520px){.gs-btn kbd{display:none;}}
+.gs-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding-top:16vh;}.gs-overlay.open{display:flex;}
+.gs-modal{background:var(--card);border:1px solid var(--border);border-radius:14px;width:min(560px,92vw);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.7);}
+.gs-input-wrap{display:flex;align-items:center;gap:10px;padding:14px 18px;}
+.gs-icon{font-size:1rem;color:var(--muted);}
+.gs-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.95rem;}
+.gs-input::placeholder{color:var(--muted);}
+.gs-esc-hint{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
 .topnav a:visited{color:#4a5270;}
 .topnav-logo:visited{color:#e8b86d;}
 .layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 57px);}
@@ -112,7 +123,11 @@ tr:hover td{background:rgba(255,255,255,.02);}
   <a href="index.html" class="topnav-logo">Check-in Journal</a>
   <span class="topnav-current">Companions</span>
   <a href="#social-analytics" style="margin-left:auto;">Social Analytics ↓</a>
+  <button class="gs-btn" onclick="gsOpen()"><span>⌕</span> Search<kbd>⌘K</kbd></button>
 </nav>
+<div class="gs-overlay" id="gsOverlay" onclick="if(event.target===this)gsClose()">
+  <div class="gs-modal"><div class="gs-input-wrap"><span class="gs-icon">⌕</span><input class="gs-input" id="gsInput" type="text" placeholder="Search venues, cities, trips…" autocomplete="off" spellcheck="false"><span class="gs-esc-hint" onclick="gsClose()">esc</span></div></div>
+</div>
 <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Companions</h1>
 <div class="layout">
   <div class="sidebar" id="sidebar"></div>
@@ -212,6 +227,7 @@ function show(idx){
 const p=new URLSearchParams(location.search).get('person');
 const idx=p?COMP.findIndex(c=>c[0]===p):0;
 show(idx>=0?idx:0);
+(function(){const _q=new URLSearchParams(location.search).get('q');if(_q&&!p){const ql=_q.toLowerCase();const fi=COMP.findIndex(c=>(c[0]||'').toLowerCase().includes(ql));if(fi>=0)show(fi);}})();
 </script>
 
 <!-- ── SOCIAL ANALYTICS ── -->
@@ -322,6 +338,12 @@ show(idx>=0?idx:0);
     }).join('');
   }
 })();
+</script>
+<script>
+function gsOpen(){document.getElementById('gsOverlay').classList.add('open');document.getElementById('gsInput').focus();}
+function gsClose(){document.getElementById('gsOverlay').classList.remove('open');}
+document.getElementById('gsInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&this.value.trim()){location.href='search.html?q='+encodeURIComponent(this.value.trim());}if(e.key==='Escape')gsClose();});
+document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();gsOpen();}if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open'))gsClose();});
 </script>
 </body>
 </html>

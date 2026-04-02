@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Search — Check-in Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--text2:#9ba3c0;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+a{color:inherit;text-decoration:none;}
+
+.topnav{display:flex;align-items:center;gap:20px;padding:18px 40px;border-bottom:1px solid var(--border);background:var(--card);}
+.topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
+.topnav a{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--text);}
+.topnav-search{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:.62rem;font-family:'DM Mono',monospace;letter-spacing:.04em;outline:none;width:130px;margin-left:auto;}
+.topnav-search:focus{border-color:var(--gold);}
+.topnav-search::placeholder{color:var(--muted);}
+
+.search-wrap{max-width:860px;margin:0 auto;padding:40px 24px 80px;}
+.search-hero{margin-bottom:32px;}
+.search-hero h1{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:900;color:var(--gold);margin-bottom:16px;}
+.search-input-row{display:flex;gap:10px;align-items:center;}
+.search-main{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 18px;color:var(--text);font-size:1rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .15s;}
+.search-main:focus{border-color:var(--gold);}
+.search-main::placeholder{color:var(--muted);}
+.search-count{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--muted);margin-top:10px;min-height:1.2em;}
+
+.results-wrap{display:flex;flex-direction:column;gap:28px;}
+.result-group{}
+.result-group-header{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.result-group-label{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);}
+.result-group-count{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);}
+.result-cards{display:flex;flex-direction:column;gap:6px;}
+.result-card{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;transition:border-color .15s,background .15s;cursor:pointer;}
+.result-card:hover{border-color:var(--gold);background:var(--card2);}
+.rc-icon{font-size:1rem;flex-shrink:0;width:20px;text-align:center;}
+.rc-main{flex:1;min-width:0;}
+.rc-name{font-size:.88rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rc-sub{font-size:.72rem;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.rc-meta{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);flex-shrink:0;}
+.rc-arrow{font-size:.7rem;color:var(--muted);flex-shrink:0;transition:color .15s;}
+.result-card:hover .rc-arrow{color:var(--gold);}
+.show-more{margin-top:8px;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);cursor:pointer;letter-spacing:.08em;text-transform:uppercase;padding:6px 0;transition:color .15s;}
+.show-more:hover{color:var(--gold);}
+
+.empty{text-align:center;padding:60px 0;color:var(--muted);font-size:.88rem;}
+.empty-icon{font-size:2rem;margin-bottom:12px;}
+.loading{text-align:center;padding:60px 0;color:var(--muted);font-size:.88rem;}
+
+@media(max-width:600px){
+  .topnav{padding:14px 16px;gap:14px;}
+  .topnav-search{display:none;}
+  .search-wrap{padding:24px 16px 60px;}
+  .search-hero h1{font-size:1.4rem;}
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">Check-in Journal</a>
+  <span class="topnav-current">Search</span>
+</nav>
+
+<div class="search-wrap">
+  <div class="search-hero">
+    <h1>Search</h1>
+    <div class="search-input-row">
+      <input class="search-main" id="qInput" type="text" placeholder="Venues, cities, trips, tips, companions…" autofocus>
+    </div>
+    <div class="search-count" id="countLine"></div>
+  </div>
+  <div class="results-wrap" id="results"></div>
+</div>
+
+<script>
+(function(){
+  const ICONS = {venue:'📍',city:'🏙️',trip:'✈️',tip:'💬',companion:'👤'};
+  const LABELS = {venue:'Venues',city:'Cities',trip:'Trips',tip:'Tips',companion:'Companions'};
+  const LINKS = {
+    venue:     n => 'venues.html?q=' + enc(n),
+    city:      n => 'world_cities.html?q=' + enc(n),
+    trip:      n => 'trips.html?q=' + enc(n),
+    tip:       (n, item) => 'tips.html?q=' + enc(item.n || n),
+    companion: n => 'companions.html?q=' + enc(n),
+  };
+  const ORDER = ['venue','city','trip','tip','companion'];
+  const SHOW_INIT = 8;
+
+  function enc(s){ return encodeURIComponent(s||''); }
+
+  let index = null;
+  let query = '';
+  const shown = {};
+
+  function sub(item){
+    if(item.t==='venue') return [item.c, item.co, item.cat].filter(Boolean).join(' · ');
+    if(item.t==='city')  return item.co || '';
+    if(item.t==='trip')  return item.d ? item.d.slice(0,7) : '';
+    if(item.t==='tip')   return [item.c, item.co].filter(Boolean).join(', ');
+    return '';
+  }
+  function meta(item){
+    if(item.cnt != null && item.t !== 'tip') return item.cnt + (item.t==='venue'||item.t==='companion'||item.t==='city' ? '×' : '');
+    return '';
+  }
+  function link(item){ return (LINKS[item.t]||LINKS.venue)(item.n, item); }
+
+  function search(q){
+    if(!index) return {};
+    const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if(!words.length) return {};
+    const grouped = {};
+    for(const item of index.items){
+      if(words.every(w => item.q.includes(w))){
+        (grouped[item.t] = grouped[item.t]||[]).push(item);
+      }
+    }
+    return grouped;
+  }
+
+  function renderGroups(grouped){
+    const wrap = document.getElementById('results');
+    const countEl = document.getElementById('countLine');
+    if(!query.trim()){wrap.innerHTML='';countEl.textContent='';return;}
+    const total = Object.values(grouped).reduce((s,a)=>s+a.length,0);
+    if(total===0){
+      countEl.textContent='';
+      wrap.innerHTML='<div class="empty"><div class="empty-icon">🔍</div>No results for "'+esc(query)+'"</div>';
+      return;
+    }
+    countEl.textContent = total.toLocaleString() + ' result' + (total===1?'':'s');
+    wrap.innerHTML='';
+    for(const type of ORDER){
+      const items = grouped[type];
+      if(!items||!items.length) continue;
+      const limit = shown[type] || SHOW_INIT;
+      const visible = items.slice(0,limit);
+      const grp = document.createElement('div');
+      grp.className='result-group';
+      grp.innerHTML=
+        '<div class="result-group-header"><span class="result-group-label">'+LABELS[type]+'</span><span class="result-group-count">'+items.length+'</span></div>'+
+        '<div class="result-cards" id="cards-'+type+'"></div>'+
+        (items.length>limit?'<div class="show-more" id="more-'+type+'">Show '+(items.length-limit)+' more ↓</div>':'');
+      wrap.appendChild(grp);
+      renderCards(type, visible);
+      if(items.length>limit){
+        document.getElementById('more-'+type).onclick=function(){
+          shown[type]=(shown[type]||SHOW_INIT)+20;
+          renderAll();
+        };
+      }
+    }
+  }
+
+  function renderCards(type, items){
+    const el = document.getElementById('cards-'+type);
+    if(!el) return;
+    el.innerHTML='';
+    for(const item of items){
+      const s = sub(item);
+      const m = meta(item);
+      const href = link(item);
+      const card = document.createElement('a');
+      card.className='result-card';
+      card.href=href;
+      card.innerHTML=
+        '<span class="rc-icon">'+ICONS[type]+'</span>'+
+        '<span class="rc-main">'+
+          '<span class="rc-name">'+esc(item.n)+'</span>'+
+          (s?'<span class="rc-sub">'+esc(s)+'</span>':'')+
+        '</span>'+
+        (m?'<span class="rc-meta">'+esc(m)+'</span>':'')+
+        '<span class="rc-arrow">→</span>';
+      el.appendChild(card);
+    }
+  }
+
+  let _lastGrouped = {};
+  function renderAll(){
+    renderGroups(_lastGrouped);
+  }
+
+  function run(q){
+    query = q;
+    Object.keys(shown).forEach(k=>delete shown[k]);
+    _lastGrouped = search(q);
+    renderGroups(_lastGrouped);
+  }
+
+  function esc(s){
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  const inp = document.getElementById('qInput');
+  let debounce;
+  inp.addEventListener('input',function(){
+    clearTimeout(debounce);
+    debounce=setTimeout(()=>run(inp.value),120);
+  });
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='Enter'){clearTimeout(debounce);run(inp.value);}
+  });
+
+  // Load index then handle URL param
+  const wrap = document.getElementById('results');
+  wrap.innerHTML='<div class="loading">Loading index…</div>';
+  fetch('search-index.json').then(r=>r.json()).then(data=>{
+    index=data;
+    wrap.innerHTML='';
+    const _q=new URLSearchParams(location.search).get('q');
+    if(_q){inp.value=_q;run(_q);}
+  }).catch(()=>{
+    wrap.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Could not load search index.</div>';
+  });
+})();
+</script>
+</body>
+</html>

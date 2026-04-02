@@ -376,6 +376,7 @@ if __name__ == "__main__":
         (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {}),
         (_here / "gen_tips.py",       "tips.html",         "tips.html.tmpl",         {"tips_path": str(tips_path), "pix_url": _pix_dir_uri}),
         (_here / "gen_stats.py",      "stats.html",        "stats.html.tmpl",        {"stats_data": data}),
+        (_here / "gen_search.py",     "search.html",       "search.html.tmpl",       {"rows": rows, "all_tips": all_tips, "trips": trips, "metrics": data}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il

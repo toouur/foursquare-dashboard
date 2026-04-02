@@ -116,6 +116,8 @@ def main() -> None:
                         help=f"Seconds between API calls (default {_SLEEP})")
     parser.add_argument("--limit",   type=int, default=0,
                         help="Max new check-ins to process this run (0 = unlimited)")
+    parser.add_argument("--recheck-days", type=int, default=0,
+                        help="Re-check already-indexed check-ins from the last N days for late-added photos")
     args = parser.parse_args()
 
     photos_path = Path(args.out)
@@ -151,11 +153,29 @@ def main() -> None:
         cutoff_str = "none"
     print(f"Export cutoff: {cutoff_ts} ({cutoff_str})", file=sys.stderr)
 
-    # Only process check-ins newer than export cutoff and not yet indexed
+    # Check-ins to re-check: already indexed but within --recheck-days window
+    recheck_ids: set[str] = set()
+    if args.recheck_days:
+        now_ts = int(datetime.now(tz=timezone.utc).timestamp())
+        recheck_from = now_ts - args.recheck_days * 86400
+        recheck_ids = {
+            r["checkin_id"].strip() for r in rows
+            if r.get("checkin_id", "").strip()
+            and r["checkin_id"].strip() in known
+            and int(r.get("date", 0) or 0) >= recheck_from
+        }
+        if recheck_ids:
+            print(f"Re-check window: last {args.recheck_days} days → {len(recheck_ids)} already-indexed check-in(s)",
+                  file=sys.stderr)
+
+    # Only process check-ins newer than export cutoff and not yet indexed,
+    # plus any already-indexed ones in the recheck window.
     pending = [r["checkin_id"] for r in rows
                if r.get("checkin_id", "").strip()
-               and r["checkin_id"].strip() not in known
-               and int(r.get("date", 0) or 0) > cutoff_ts]
+               and (
+                   (r["checkin_id"].strip() not in known and int(r.get("date", 0) or 0) > cutoff_ts)
+                   or r["checkin_id"].strip() in recheck_ids
+               )]
 
     if args.limit:
         pending = pending[:args.limit]
@@ -193,10 +213,13 @@ def main() -> None:
                         downloaded += 1
                         print(f"  ↓ {fname}", file=sys.stderr)
 
+        prev_filenames = photos_by_checkin.get(cid, [])
+        new_count = len([f for f in filenames if f not in prev_filenames])
         photos_by_checkin[cid] = filenames
-        if filenames:
-            print(f"  {cid}: {len(filenames)} photo(s)", file=sys.stderr)
-            added_photos += len(filenames)
+        if new_count > 0:
+            note = f" (+{new_count} new)" if cid in recheck_ids else ""
+            print(f"  {cid}: {len(filenames)} photo(s){note}", file=sys.stderr)
+            added_photos += new_count
             added_checkins += 1
 
         if i % 50 == 49:
