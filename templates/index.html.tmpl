@@ -328,20 +328,6 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .gs-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.95rem;}
 .gs-input::placeholder{color:var(--muted);}
 .gs-esc-hint{font-family:'DM Mono',monospace;font-size:0.52rem;color:var(--muted);background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
-.gs-results{max-height:min(420px,52vh);overflow-y:auto;padding:6px 0;}
-.gs-results::-webkit-scrollbar{width:3px;}
-.gs-results::-webkit-scrollbar-thumb{background:var(--border);}
-.gs-item{display:flex;align-items:center;gap:10px;padding:9px 18px;cursor:pointer;transition:background 0.12s;}
-.gs-item:hover,.gs-item.gs-active{background:rgba(232,184,109,0.08);}
-.gs-item-icon{font-size:0.9rem;width:20px;text-align:center;flex-shrink:0;}
-.gs-item-name{flex:1;font-size:0.85rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.gs-item-sub{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);white-space:nowrap;flex-shrink:0;}
-.gs-item-type{font-family:'DM Mono',monospace;font-size:0.50rem;text-transform:uppercase;letter-spacing:0.08em;padding:2px 5px;border-radius:3px;flex-shrink:0;}
-.gs-type-section{background:rgba(232,184,109,0.12);color:var(--gold);}
-.gs-type-country{background:rgba(78,205,196,0.12);color:var(--teal);}
-.gs-type-city{background:rgba(78,205,196,0.08);color:var(--teal);}
-.gs-type-venue{background:rgba(100,100,130,0.18);color:var(--muted);}
-.gs-empty{padding:24px 18px;font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);text-align:center;}
 .gs-group-label{padding:10px 18px 4px;font-family:'DM Mono',monospace;font-size:0.52rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);opacity:0.6;}
 @media(max-width:700px){
   .gs-trigger{top:50px;right:16px;padding:6px 10px;}
@@ -412,10 +398,9 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   <div class="gs-modal" role="dialog" aria-label="Search">
     <div class="gs-input-wrap">
       <span class="gs-icon">⌕</span>
-      <input class="gs-input" id="gsInput" type="text" placeholder="Search sections, countries, cities, venues…" autocomplete="off" spellcheck="false">
+      <input class="gs-input" id="gsInput" type="text" placeholder="Search check-ins, venues, cities…" autocomplete="off" spellcheck="false">
       <span class="gs-esc-hint" onclick="closeSearch()">esc</span>
     </div>
-    <div class="gs-results" id="gsResults"></div>
   </div>
 </div>
 
@@ -2087,26 +2072,9 @@ function buildCityMap(){
 
 // ── Global Search ────────────────────────────────────────────────────────────
 (function(){
-  const SECTIONS=[
-    {name:'Travel Timeline',icon:'📅',target:'s-timeline'},
-    {name:'Countries',icon:'🌍',target:'s-countries'},
-    {name:'Cities',icon:'🏙',target:'s-cities'},
-    {name:'Top Venues',icon:'📍',target:'s-venues'},
-    {name:'Venue Loyalty',icon:'♥',target:'s-loyalty'},
-    {name:'Activity Calendar',icon:'📆',target:'s-calendar'},
-    {name:'Map',icon:'🗺',target:'s-map'},
-  ];
-  function scrollToId(id){
-    const el=document.getElementById(id);
-    if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
-    closeSearch();
-  }
   window.openSearch=function(){
     document.getElementById('gsOverlay').classList.add('open');
-    const inp=document.getElementById('gsInput');
-    inp.value='';
-    inp.focus();
-    renderResults('');
+    document.getElementById('gsInput').focus();
   };
   window.closeSearch=function(){
     document.getElementById('gsOverlay').classList.remove('open');
@@ -2116,45 +2084,10 @@ function buildCityMap(){
     if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();window.openSearch();}
     if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open')) window.closeSearch();
   });
-  document.getElementById('gsInput').addEventListener('input',function(){renderResults(this.value.trim());});
   document.getElementById('gsInput').addEventListener('keydown',function(e){
-    const items=Array.from(document.querySelectorAll('#gsResults .gs-item'));
-    if(!items.length) return;
-    const active=document.querySelector('#gsResults .gs-item.gs-active');
-    let idx=active?items.indexOf(active):-1;
-    if(e.key==='ArrowDown'){e.preventDefault();idx=(idx+1)%items.length;if(active)active.classList.remove('gs-active');items[idx].classList.add('gs-active');items[idx].scrollIntoView({block:'nearest'});}
-    else if(e.key==='ArrowUp'){e.preventDefault();idx=(idx-1+items.length)%items.length;if(active)active.classList.remove('gs-active');items[idx].classList.add('gs-active');items[idx].scrollIntoView({block:'nearest'});}
-    else if(e.key==='Enter'){const sel=document.querySelector('#gsResults .gs-item.gs-active')||items[0];if(sel)sel.click();}
+    if(e.key==='Enter'&&this.value.trim()) location.href='search.html?q='+encodeURIComponent(this.value.trim());
+    if(e.key==='Escape') window.closeSearch();
   });
-  function makeItem(icon,name,sub,type,targetId){
-    const d=document.createElement('div');
-    d.className='gs-item';
-    d.innerHTML=`<span class="gs-item-icon">${icon}</span><span class="gs-item-name">${esc(name)}</span>${sub?`<span class="gs-item-sub">${esc(sub)}</span>`:''}<span class="gs-item-type gs-type-${type}">${type}</span>`;
-    d.addEventListener('click',()=>scrollToId(targetId));
-    return d;
-  }
-  function renderResults(q){
-    const res=document.getElementById('gsResults');
-    res.innerHTML='';
-    if(!q){
-      SECTIONS.forEach(s=>res.appendChild(makeItem(s.icon,s.name,'','section',s.target)));
-      return;
-    }
-    const ql=q.toLowerCase();
-    let total=0;
-    // sections
-    SECTIONS.forEach(s=>{if(s.name.toLowerCase().includes(ql)){res.appendChild(makeItem(s.icon,s.name,'','section',s.target));total++;}});
-    // countries
-    let cc=0;
-    (S.countries||[]).forEach(([co,n])=>{if(cc>=5)return;if(co.toLowerCase().includes(ql)){res.appendChild(makeItem('🌍',co,n+' check-ins','country','s-countries'));cc++;total++;}});
-    // cities
-    let ci=0;
-    (S.cities||[]).forEach(([name,n,country])=>{if(ci>=8)return;if(name.toLowerCase().includes(ql)){res.appendChild(makeItem('🏙',name,(country||'')+' · '+n+'×','city','s-cities'));ci++;total++;}});
-    // venues
-    let vc=0;
-    (S.venues||[]).forEach(([name,n,city])=>{if(vc>=8)return;if(name.toLowerCase().includes(ql)){res.appendChild(makeItem('📍',name,(city?city+' · ':'')+n+'×','venue','s-venues'));vc++;total++;}});
-    if(!total) res.innerHTML=`<div class="gs-empty">No results for &ldquo;${esc(q)}&rdquo;</div>`;
-  }
 })();
 
 // ── Mobile nav scroll spy ────────────────────────────────────────────────────

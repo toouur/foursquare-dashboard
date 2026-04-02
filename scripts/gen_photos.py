@@ -160,6 +160,14 @@ a{{color:inherit;text-decoration:none;}}
 .gs-input{{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.95rem;}}
 .gs-input::placeholder{{color:var(--muted);}}
 .gs-esc-hint{{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}}
+.side-nav{{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}}
+.side-nav a{{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;}}
+.side-nav a:hover{{background:rgba(255,255,255,.06);color:var(--text);}}
+.side-nav a.active{{color:var(--gold);}}
+.sn-icon{{font-size:.95rem;line-height:1;}}
+.sn-lbl{{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}}
+.sn-sep{{width:32px;height:1px;background:var(--border);margin:0 auto;}}
+@media(max-width:900px){{.side-nav{{display:none;}}}}
 
 .page-hero{{padding:40px 48px 28px;border-bottom:1px solid var(--border);}}
 .page-hero h1{{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px;}}
@@ -454,6 +462,18 @@ function gsClose(){{document.getElementById('gsOverlay').classList.remove('open'
 document.getElementById('gsInput').addEventListener('keydown',function(e){{if(e.key==='Enter'&&this.value.trim()){{location.href='search.html?q='+encodeURIComponent(this.value.trim());}}if(e.key==='Escape')gsClose();}});
 document.addEventListener('keydown',function(e){{if((e.metaKey||e.ctrlKey)&&e.key==='k'){{e.preventDefault();gsOpen();}}if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open'))gsClose();}});
 </script>
+<nav class="side-nav" aria-label="Page shortcuts">
+  <a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">Home</span></a>
+  <div class="sn-sep"></div>
+  <a href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">Trips</span></a>
+  <a href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">Feed</span></a>
+  <a href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">Tips</span></a>
+  <a href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">With</span></a>
+  <a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">Venues</span></a>
+  <a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">Cities</span></a>
+  <a href="photos.html" class="active"><span class="sn-icon">📷</span><span class="sn-lbl">Photos</span></a>
+  <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">Stats</span></a>
+</nav>
 </body>
 </html>"""
 
