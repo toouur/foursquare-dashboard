@@ -52,8 +52,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 .back-link:hover{opacity:1;}
 
+.topnav{display:flex;align-items:center;gap:20px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;z-index:200;}
 .topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;margin-right:4px;white-space:nowrap;}
 .topnav-logo:hover{opacity:.85;}
+.topnav a{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--text);}
 
 .tb-nav{display:flex;align-items:center;gap:6px;}
 
@@ -249,9 +253,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <div class="page">
 
-  <div class="topbar">
-
+  <nav class="topnav">
     <a href="index.html" class="topnav-logo">Check-in Journal</a>
+    <span class="topnav-current">Feed</span>
+  </nav>
+
+  <div class="topbar">
 
     <h1>Check-in Feed</h1>
 

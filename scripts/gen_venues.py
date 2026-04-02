@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #!/usr/bin/env python3
-"""Generate venues.html - top 500 venues page."""
+"""Generate venues.html - all unique venues page."""
 import csv, json, sys
 from collections import defaultdict, Counter
 from datetime import datetime, timezone
@@ -30,7 +30,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None):
         vm[vid]['vid'] = vid
         ts = int(r.get('date',0) or 0)
         if ts: vm[vid]['years'].add(datetime.fromtimestamp(ts, tz=timezone.utc).year)
-    venues = sorted(vm.values(), key=lambda v: -v['count'])[:500]
+    venues = sorted(vm.values(), key=lambda v: -v['count'])
     vout = [[v['name'],v['city'],v['country'],v['category'],v['count'],sorted(v['years']),v['vid']] for v in venues]
     vj = json.dumps(vout, ensure_ascii=False, separators=(',',':'))
     html = TEMPLATE.replace('VENUES_DATA_PLACEHOLDER', vj)

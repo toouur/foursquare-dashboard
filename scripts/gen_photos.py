@@ -148,6 +148,7 @@ a{{color:inherit;text-decoration:none;}}
 .topnav-logo{{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);}}
 .topnav a{{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);transition:color .2s;}}
 .topnav a:hover{{color:var(--gold);}}
+.topnav-current{{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--text);}}
 
 .page-hero{{padding:40px 48px 28px;border-bottom:1px solid var(--border);}}
 .page-hero h1{{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px;}}
@@ -221,7 +222,7 @@ a{{color:inherit;text-decoration:none;}}
 
 <nav class="topnav">
   <a href="index.html" class="topnav-logo">Check-in Journal</a>
-  <a href="photos.html">Photos</a>
+  <span class="topnav-current">Photos</span>
 </nav>
 
 <div class="page-hero">

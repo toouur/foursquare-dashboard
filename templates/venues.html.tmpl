@@ -8,17 +8,17 @@
 
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
-<title>Top Venues — Check-in Journal</title>
-<meta name="description" content="Top 500 most-visited venues from 65,000+ personal Foursquare check-ins, ranked by visit count with links to Foursquare.">
+<title>Venues — Check-in Journal</title>
+<meta name="description" content="All unique venues from 65,000+ personal Foursquare check-ins, ranked by visit count with links to Foursquare.">
 <link rel="canonical" href="https://4sq.andrei-patsiomkin.workers.dev/venues.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Check-in Journal">
-<meta property="og:title" content="Top Venues — Check-in Journal">
-<meta property="og:description" content="Top 500 most-visited venues from 65,000+ personal Foursquare check-ins, ranked by visit count with links to Foursquare.">
+<meta property="og:title" content="Venues — Check-in Journal">
+<meta property="og:description" content="All unique venues from 65,000+ personal Foursquare check-ins, ranked by visit count with links to Foursquare.">
 <meta property="og:url" content="https://4sq.andrei-patsiomkin.workers.dev/venues.html">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Top Venues — Check-in Journal">
-<meta name="twitter:description" content="Top 500 most-visited venues from 65,000+ personal Foursquare check-ins, ranked by visit count with links to Foursquare.">
+<meta name="twitter:title" content="Venues — Check-in Journal">
+<meta name="twitter:description" content="All unique venues from 65,000+ personal Foursquare check-ins, ranked by visit count with links to Foursquare.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 
@@ -36,15 +36,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 
 
 
-header{padding:22px 40px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
-
-.back-link{color:var(--gold);text-decoration:none;font-size:.76rem;font-weight:600;opacity:.8;letter-spacing:.04em;display:inline-block;margin-bottom:7px;}
-
-.back-link:hover{opacity:1;}
-
-header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:900;line-height:1.1;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .16em;display:inline-block;}
-
-.hdr-sub{font-size:.74rem;color:var(--muted);margin-top:2px;}
+.topnav{display:flex;align-items:center;gap:20px;padding:18px 40px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;}
+.topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
+.topnav a{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--text);}
 
 
 
@@ -122,7 +118,7 @@ td{padding:10px 16px;vertical-align:middle;}
 
 @media(max-width:700px){
 
-  header{padding:14px 16px 10px;}
+  .topnav{padding:14px 16px;}
 
   .controls{padding:8px 12px;}
 
@@ -160,13 +156,10 @@ td{padding:10px 16px;vertical-align:middle;}
 
 <body>
 
-<header>
-  <a class="back-link" href="index.html">← Check-in Journal</a>
-  <h1>Top 500 Venues</h1>
-
-  <div class="hdr-sub">Unique places · sorted by check-in count · click to open on Foursquare</div>
-
-</header>
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">Check-in Journal</a>
+  <span class="topnav-current">Venues</span>
+</nav>
 
 <div class="controls">
 
@@ -304,7 +297,7 @@ function render(){
 
 
 
-  // Render all rows (500 is fine)
+  // Render all rows
 
   tbody.innerHTML=data.map((v,i)=>{
 

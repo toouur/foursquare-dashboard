@@ -20,10 +20,11 @@
 :root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
-header{padding:20px 36px 14px;border-bottom:1px solid var(--border);}
-.back-link{color:var(--gold);text-decoration:none;font-size:.75rem;font-weight:600;opacity:.8;letter-spacing:.04em;display:inline-block;margin-bottom:6px;}
-.back-link:hover{opacity:1;}
-header h1{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:900;line-height:1.1;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .15em;display:inline-block;}
+.topnav{display:flex;align-items:center;gap:20px;padding:18px 36px;border-bottom:1px solid var(--border);background:var(--card);}
+.topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
+.topnav a{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--text);}
 .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 36px;border-bottom:1px solid var(--border);background:var(--card);position:sticky;top:0;z-index:50;}
 .pill{background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s;color:var(--muted);letter-spacing:.04em;}
 .pill.active{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
@@ -48,10 +49,10 @@ header h1{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3vw,2.4rem
 </style>
 </head>
 <body>
-<header>
-  <a class="back-link" href="index.html">← Check-in Journal</a>
-  <h1>World Cities</h1>
-</header>
+<nav class="topnav">
+  <a href="index.html" class="topnav-logo">Check-in Journal</a>
+  <span class="topnav-current">World Cities</span>
+</nav>
 <div class="controls" id="controls">
   <div class="pill active" onclick="filterCont('ALL',this)">All</div>
   <div class="pill" onclick="filterCont('EU',this)">Europe</div>

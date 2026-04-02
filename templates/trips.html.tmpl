@@ -31,7 +31,8 @@ a{color:inherit;}
 .topnav{display:flex;align-items:center;gap:20px;padding:18px 56px;border-bottom:1px solid var(--border);background:var(--card);}
 .topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
 .topnav a{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
-.topnav a:hover,.topnav a.active{color:var(--gold);}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--text);}
 
 /* ── VIEWS ── */
 #listView,#detailView{min-height:calc(100vh - 57px);}
@@ -206,7 +207,7 @@ a{color:inherit;}
 
 <nav class="topnav">
   <a href="index.html" class="topnav-logo">Check-in Journal</a>
-  <a href="trips.html" class="active">Trips</a>
+  <span class="topnav-current">Trip Journal</span>
   <a href="#trip-analytics" style="margin-left:auto;">Trip Analytics ↓</a>
 </nav>
 

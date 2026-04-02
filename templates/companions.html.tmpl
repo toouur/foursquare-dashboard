@@ -26,9 +26,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .topnav{display:flex;align-items:center;gap:20px;padding:18px 56px;border-bottom:1px solid var(--border);background:var(--card);}
 .topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
 .topnav a{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
-.topnav a:hover,.topnav a.active{color:var(--gold);}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--text);}
 .topnav a:visited{color:#4a5270;}
-.topnav a.active:visited,.topnav-logo:visited{color:#e8b86d;}
+.topnav-logo:visited{color:#e8b86d;}
 .layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 57px);}
 .sidebar{border-right:1px solid var(--border);overflow-y:auto;max-height:calc(100vh - 57px);position:sticky;top:0;}
 .sidebar::-webkit-scrollbar{width:3px;}
@@ -109,7 +110,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 <body>
 <nav class="topnav">
   <a href="index.html" class="topnav-logo">Check-in Journal</a>
-  <a href="companions.html" class="active">Companions</a>
+  <span class="topnav-current">Companions</span>
   <a href="#social-analytics" style="margin-left:auto;">Social Analytics ↓</a>
 </nav>
 <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Companions</h1>

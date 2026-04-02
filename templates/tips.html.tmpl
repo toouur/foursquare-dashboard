@@ -29,8 +29,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .topbar h1{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d 50%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .12em;display:inline-block;white-space:nowrap;}
 .back-link{color:var(--gold);text-decoration:none;font-size:.72rem;font-weight:600;opacity:.8;white-space:nowrap;}
 .back-link:hover{opacity:1;}
+.topnav{display:flex;align-items:center;gap:20px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;}
 .topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;margin-right:4px;white-space:nowrap;}
 .topnav-logo:hover{opacity:.85;}
+.topnav a{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--text);}
 .tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
 .srch{background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--text);font-size:.73rem;outline:none;width:185px;}
 .srch:focus{border-color:var(--gold);}
@@ -117,8 +121,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </head>
 <body>
 <div class="page">
-  <div class="topbar">
+  <nav class="topnav">
     <a href="index.html" class="topnav-logo">Check-in Journal</a>
+    <span class="topnav-current">Tips</span>
+  </nav>
+  <div class="topbar">
     <h1>Tips</h1>
     <button class="sbtn act" id="sDate" onclick="sortBy('date',this)">By Date</button>
     <button class="sbtn" id="sAgree" onclick="sortBy('agree',this)">👍 By Agree</button>

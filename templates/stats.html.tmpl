@@ -27,10 +27,10 @@ a{color:inherit;}
 .topnav{display:flex;align-items:center;gap:20px;padding:18px 56px;border-bottom:1px solid var(--border);background:var(--card);}
 .topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;margin-right:8px;}
 .topnav a{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
-.topnav a:hover,.topnav a.active{color:var(--gold);}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--text);}
 /* visited: must use literal hex, not var() */
 .topnav a:visited{color:#4a5270;}
-.topnav a.active:visited{color:#e8b86d;}
 
 /* ── PAGE HEADER ── */
 .page-header{padding:36px 56px 28px;border-bottom:1px solid var(--border);background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);}
@@ -123,7 +123,7 @@ a{color:inherit;}
 
 <nav class="topnav">
   <a href="index.html" class="topnav-logo">Check-in Journal</a>
-  <a href="stats.html" class="active">Statistics</a>
+  <span class="topnav-current">Statistics</span>
 </nav>
 
 <div class="page-header">
