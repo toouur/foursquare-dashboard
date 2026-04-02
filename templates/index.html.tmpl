@@ -2137,6 +2137,7 @@ function buildCityMap(){
   };
 })();
 </script>
+<footer style="text-align:center;padding:24px 20px 32px;font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted);">Designed by <a href="https://t.me/toouur" style="color:var(--gold);text-decoration:none;" target="_blank" rel="noopener">@toouur</a></footer>
 <!-- Photo lightbox for recent photos section -->
 <div id="rcGallery" onclick="if(event.target===this)rcgClose()">
   <img id="rcGallery-img" src="" alt="">
@@ -2148,6 +2149,8 @@ function buildCityMap(){
 </div>
 <!-- Floating side nav -->
 <nav class="side-nav" id="sideNav" aria-label="Section shortcuts">
+  <a class="sn-item active" id="sn-home" href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">Home</span></a>
+  <div class="sn-sep"></div>
   <button class="sn-item" id="sn-timeline" onclick="document.getElementById('s-timeline').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">📅</span><span class="sn-lbl">Time</span></button>
   <button class="sn-item" id="sn-countries" onclick="document.getElementById('s-countries').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🌍</span><span class="sn-lbl">Countries</span></button>
   <button class="sn-item" id="sn-cities" onclick="document.getElementById('s-cities').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🏙</span><span class="sn-lbl">Cities</span></button>
@@ -2174,11 +2177,13 @@ function buildCityMap(){
   ];
   function updateActive(){
     var scrollY=window.scrollY||window.pageYOffset;
-    var best=0;
+    var best=-1;
     for(var i=0;i<sections.length;i++){
       var el=document.getElementById(sections[i].id);
       if(el&&el.getBoundingClientRect().top+scrollY<=scrollY+window.innerHeight*0.5) best=i;
     }
+    var homeBtn=document.getElementById('sn-home');
+    if(homeBtn) homeBtn.classList.toggle('active',best===-1);
     for(var j=0;j<sections.length;j++){
       var btn=document.getElementById(sections[j].btn);
       if(btn) btn.classList.toggle('active',j===best);

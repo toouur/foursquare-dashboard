@@ -110,10 +110,11 @@ footer a:hover{text-decoration:underline;}
     <div class="section-body">
       <p>
         A personal analytics dashboard that ingests every Foursquare/Swarm check-in and renders it into
-        <strong>eight pages</strong>: a main analytics dashboard, a trip journal with per-trip maps,
+        <strong>ten pages</strong>: a main analytics dashboard, a trip journal with per-trip maps,
         a companions tracker, a full check-in feed with historical weather, a tips explorer with country/city
         tabs, closed/deleted-venue badges, view counts, and filter buttons, a venue loyalty explorer,
-        a world cities map, and this engineering write-up — all committed to git and served via Cloudflare Pages CDN.
+        a world cities map, a full-text search page, a photo gallery with 21 000+ images, a stats overview,
+        and this engineering write-up — all committed to git and served via Cloudflare Pages CDN.
       </p>
       <p>
         Beyond rendering, the system maintains a <strong>data integrity pipeline</strong>: a manual archive
@@ -138,7 +139,7 @@ footer a:hover{text-decoration:underline;}
       <div class="stat-lbl">Check-in → Live Deploy</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">8</div>
+      <div class="stat-num">10</div>
       <div class="stat-lbl">Generated HTML Pages</div>
     </div>
     <div class="stat-item">
@@ -211,7 +212,7 @@ footer a:hover{text-decoration:underline;}
       </p>
       <p>
         GitHub Actions then fetches the updated check-in data from the private data repository,
-        rebuilds all six HTML pages, commits and pushes to <code>main</code>. Cloudflare Pages
+        rebuilds all ten HTML pages, commits and pushes to <code>main</code>. Cloudflare Pages
         detects the push and deploys automatically — no build command needed, since the HTML is
         already pre-built.
       </p>
@@ -790,14 +791,18 @@ python scripts/build.py \
 
 <span class="cm">
 # Internal execution order:
-#  1. transform.py  — apply 3-layer city/country normalisation
-#  2. metrics.py    — compute aggregations, trip detection, centroids
-#  3. index.html    — rendered from templates/index.html.tmpl
-#  4. trips.html    — rendered from templates/trips.html.tmpl
-#  5. gen_companions.py  → companions.html
-#  6. gen_feed.py        → feed.html
-#  7. gen_venues.py      → venues.html
-#  8. gen_worldcities.py → world_cities.html</span>
+#  1. transform.py      — apply 3-layer city/country normalisation
+#  2. metrics.py        — compute aggregations, trip detection, centroids
+#  3. index.html        — rendered from templates/index.html.tmpl
+#  4. trips.html        — rendered from templates/trips.html.tmpl
+#  5. gen_companions.py → companions.html
+#  6. gen_feed.py       → feed.html
+#  7. gen_venues.py     → venues.html
+#  8. gen_worldcities.py → world_cities.html
+#  9. gen_tips.py       → tips.html
+# 10. gen_photos.py     → photos.html
+# 11. gen_stats.py      → stats.html
+# 12. gen_search.py     → search.html + search-index.json</span>
     </div>
   </div>
 
@@ -938,7 +943,7 @@ python scripts/build.py \
 </div>
 
 <footer>
-  <a href="index.html">← Back to Dashboard</a>
+  Idea by Andrei Patsiomkin
   &nbsp;&nbsp;·&nbsp;&nbsp;
   Built with <a href="https://claude.ai/code" target="_blank">Claude Code</a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
