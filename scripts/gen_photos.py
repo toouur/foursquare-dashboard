@@ -473,6 +473,7 @@ document.addEventListener('keydown',function(e){{if((e.metaKey||e.ctrlKey)&&e.ke
   <a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">Cities</span></a>
   <a href="photos.html" class="active"><span class="sn-icon">📷</span><span class="sn-lbl">Photos</span></a>
   <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">Stats</span></a>
+  <a href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">Rated</span></a>
 </nav>
 </body>
 </html>"""

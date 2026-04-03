@@ -442,6 +442,14 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
   <div class="recent-scroll" id="tipsScroll"></div>
 </div>
 
+<div class="recent-section" id="ratingsFeedSection" style="display:none">
+  <div class="recent-header">
+    <a class="recent-title" href="ratings.html" style="text-decoration:none;">Liked Places ↗</a>
+    <span class="recent-sub" id="ratingsSub"></span>
+  </div>
+  <div class="recent-scroll" id="ratingsScroll"></div>
+</div>
+
 <div class="recent-section" id="photosFeedSection" style="display:none">
   <div class="recent-header">
     <a class="recent-title" href="photos.html" style="text-decoration:none;">Photos ↗</a>
@@ -1666,6 +1674,31 @@ function filterList(id,q){
   }).join('');
 })();
 
+// ── Liked places recent section ───────────────────────────────────────────────
+(function(){
+  var ratings={{RATINGS_RECENT_JSON}};
+  var counts={{RATINGS_COUNTS}};
+  if(!ratings||!ratings.length)return;
+  const catIcon=window._catIcon||(()=>'');
+  document.getElementById('ratingsFeedSection').style.display='';
+  document.getElementById('ratingsSub').textContent=counts.likes.toLocaleString()+' liked places';
+  const scroll=document.getElementById('ratingsScroll');
+  scroll.innerHTML=ratings.map(v=>{
+    const vUrl=v.url||'';
+    const tag=vUrl?'a':'div', href=vUrl?` href="${vUrl}" target="_blank" rel="noopener"`:'';
+    const f=(v.nc||v.country)?flagHtml(v.nc||v.country):'';
+    const loc=[(v.nci||v.city),(v.nc||v.country)].filter(Boolean).join(', ');
+    const closedBadge=v.closed?'<span class="rc-closed">CLOSED</span>':'';
+    return `<${tag}${href} class="recent-card tip-card" style="${vUrl?'text-decoration:none;cursor:pointer;':''}">
+      <div class="rc-venue-row"><div class="rc-venue">${esc(v.name||'Unknown venue')}${closedBadge}</div>${catIcon(v.category||'')}</div>
+      <div class="rc-tip-foot">
+        <span class="rc-location">${f} ${esc(loc)}</span>
+        <span class="rc-date">${v.last_date||''}</span>
+      </div>
+    </${tag}>`;
+  }).join('');
+})();
+
 // ── Recent photos section ─────────────────────────────────────────────────────
 (function(){
   const photos={{PHOTOS_RECENT_JSON}};
@@ -2165,6 +2198,7 @@ function buildCityMap(){
   <a class="sn-item" href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">Cities</span></a>
   <a class="sn-item" href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">Photos</span></a>
   <a class="sn-item" href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">Stats</span></a>
+  <a class="sn-item" href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">Rated</span></a>
 </nav>
 <script>
 (function(){

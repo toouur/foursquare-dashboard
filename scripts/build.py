@@ -109,6 +109,9 @@ if __name__ == "__main__":
     parser.add_argument("--pix-url",     default=None,
                         help="Base URL for photos (e.g. https://pub-xxx.r2.dev). "
                              "Overrides local pix/ dir resolution.")
+    parser.add_argument("--ratings",     default=None,
+                        help="Path to venueRatings.json (Foursquare export). "
+                             "Falls back to venueRatings.json sibling of --input.")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -326,6 +329,86 @@ if __name__ == "__main__":
 
     tips_count = len(all_tips)
 
+    # ── Load venue ratings for index.html feed and ratings.html ──────────────
+    ratings_path = Path(args.ratings) if args.ratings else Path(args.input).resolve().parent / "venueRatings.json"
+    ratings_recent_json = "[]"
+    ratings_counts_json = '{"likes":0,"neutral":0,"dislikes":0}'
+    _all_ratings: dict = {"venueLikes": [], "venueOkays": [], "venueDislikes": []}
+    if ratings_path.exists():
+        _all_ratings = json.loads(ratings_path.read_text(encoding="utf-8"))
+
+        # Build per-venue metadata from checkins (most recent visit per venue)
+        _venue_meta: dict = {}
+        for r in sorted(rows, key=lambda x: int(x.get("date", 0) or 0)):
+            vid = r.get("venue_id", "").strip()
+            if not vid:
+                continue
+            _ts = int(r.get("date", 0) or 0)
+            _venue_meta[vid] = {
+                "city":    r.get("city", ""),
+                "country": r.get("country", ""),
+                "category": r.get("category", ""),
+                "lat":     r.get("lat", ""),
+                "lng":     r.get("lng", ""),
+                "last_ts": _ts,
+            }
+
+        # Build closed-venue set from tips
+        _closed_venues: set = {
+            t.get("venue_id", "") for t in all_tips
+            if t.get("closed") and t.get("venue_id")
+        }
+
+        def _enrich(entries: list, rating: str) -> list:
+            result = []
+            for e in entries:
+                vid = e.get("id", "").strip()
+                if not vid:
+                    continue
+                meta = _venue_meta.get(vid, {})
+                raw_country = meta.get("country", "")
+                raw_city = meta.get("city", "")
+                nc  = _CTRY_NORM.get(raw_country, raw_country)
+                nci = _city_merge.get(raw_city, raw_city)
+                last_ts = meta.get("last_ts", 0)
+                date_str = ""
+                if last_ts:
+                    from datetime import datetime, timezone as _tz
+                    date_str = datetime.fromtimestamp(last_ts, tz=_tz.utc).strftime("%d %b %Y")
+                result.append({
+                    "id":       vid,
+                    "name":     e.get("name", ""),
+                    "url":      e.get("url", ""),
+                    "rating":   rating,
+                    "city":     raw_city,
+                    "country":  raw_country,
+                    "nc":       nc,
+                    "nci":      nci,
+                    "category": meta.get("category", ""),
+                    "lat":      meta.get("lat", ""),
+                    "lng":      meta.get("lng", ""),
+                    "last_ts":  last_ts,
+                    "last_date": date_str,
+                    "closed":   vid in _closed_venues,
+                })
+            result.sort(key=lambda x: -x["last_ts"])
+            return result
+
+        _likes    = _enrich(_all_ratings.get("venueLikes",   []), "like")
+        _neutral  = _enrich(_all_ratings.get("venueOkays",   []), "neutral")
+        _dislikes = _enrich(_all_ratings.get("venueDislikes",[]), "dislike")
+
+        ratings_counts_json = json.dumps({
+            "likes":   len(_likes),
+            "neutral": len(_neutral),
+            "dislikes": len(_dislikes),
+        })
+        ratings_recent_json = json.dumps(_likes[:10], ensure_ascii=False).replace("</", "<\\/")
+        log.info("Loaded ratings: %d likes, %d neutral, %d dislikes",
+                 len(_likes), len(_neutral), len(_dislikes))
+    else:
+        _likes = _neutral = _dislikes = []
+
     # ── Compute total photo count and recent 30 photos for index.html ─────────
     tip_photo_count = sum(1 for t in all_tips if t.get("photo")) if _pix_dir_uri else 0
     total_photos = (sum(len(v) for v in _photos_by_checkin.values()) if _photos_by_checkin else 0) + tip_photo_count
@@ -357,11 +440,13 @@ if __name__ == "__main__":
     build(data, trips, out_dir=args.output_dir,
           pix_dir_json=json.dumps(_pix_dir_uri),
           extra_replacements={
-              "{{TIPS_RECENT}}":         tips_recent_json,
-              "{{TIPS_COUNT}}":          f"{tips_count:,}",
-              "{{PHOTOS_KPI}}":           f'<div class="kpi"><div class="num">{total_photos:,}</div><div class="lbl">Photos</div></div>' if total_photos else '',
-              "{{PHOTOS_RECENT_JSON}}":  recent_photos_json,
-              "{{SWARM_USER_ID}}":       fs_user_id,
+              "{{TIPS_RECENT}}":           tips_recent_json,
+              "{{TIPS_COUNT}}":            f"{tips_count:,}",
+              "{{PHOTOS_KPI}}":            f'<div class="kpi"><div class="num">{total_photos:,}</div><div class="lbl">Photos</div></div>' if total_photos else '',
+              "{{PHOTOS_RECENT_JSON}}":    recent_photos_json,
+              "{{SWARM_USER_ID}}":         fs_user_id,
+              "{{RATINGS_RECENT_JSON}}":   ratings_recent_json,
+              "{{RATINGS_COUNTS}}":        ratings_counts_json,
           })
 
     if args.cat_list:
@@ -377,6 +462,7 @@ if __name__ == "__main__":
         (_here / "gen_tips.py",       "tips.html",         "tips.html.tmpl",         {"tips_path": str(tips_path), "pix_url": _pix_dir_uri}),
         (_here / "gen_stats.py",      "stats.html",        "stats.html.tmpl",        {"stats_data": data}),
         (_here / "gen_search.py",     "search.html",       "search.html.tmpl",       {"rows": rows, "all_tips": all_tips, "trips": trips, "metrics": data}),
+        (_here / "gen_ratings.py",    "ratings.html",      "ratings.html.tmpl",      {"likes": _likes, "neutral": _neutral, "dislikes": _dislikes}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il
