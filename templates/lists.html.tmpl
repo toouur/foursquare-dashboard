@@ -111,12 +111,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .vc-visited{font-family:'DM Mono',monospace;font-size:.48rem;color:var(--teal);border:1px solid rgba(78,201,176,.4);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
 .vc-saved{font-family:'DM Mono',monospace;font-size:.48rem;color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
 .vc-rating{font-size:.80rem;flex-shrink:0;}
-.vc-foot{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.vc-foot{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:nowrap;overflow:hidden;}
 .vc-cat{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.06em;color:var(--teal);white-space:nowrap;flex-shrink:0;}
 .vc-sep{color:var(--border);font-size:.6rem;flex-shrink:0;}
-.vc-loc{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;}
+.vc-loc{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;flex-shrink:1;}
 .vc-loc .fi{width:1.1em;height:.85em;border-radius:2px;flex-shrink:0;background-size:cover;background-position:50%;display:inline-block;}
-.vc-loc-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vc-loc-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .vc-date{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);white-space:nowrap;margin-left:auto;flex-shrink:0;}
 
 @media(max-width:700px){
