@@ -112,6 +112,9 @@ if __name__ == "__main__":
     parser.add_argument("--ratings",     default=None,
                         help="Path to venueRatings.json (Foursquare export). "
                              "Falls back to venueRatings.json sibling of --input.")
+    parser.add_argument("--lists",       default=None,
+                        help="Path to lists.json (Foursquare export). "
+                             "Falls back to lists.json sibling of --input.")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -329,6 +332,29 @@ if __name__ == "__main__":
 
     tips_count = len(all_tips)
 
+    # ── Build per-venue metadata from checkins (most recent visit per venue) ──
+    # Used by both ratings and lists loading blocks below.
+    _venue_meta: dict = {}
+    for r in sorted(rows, key=lambda x: int(x.get("date", 0) or 0)):
+        vid = r.get("venue_id", "").strip()
+        if not vid:
+            continue
+        _ts = int(r.get("date", 0) or 0)
+        _venue_meta[vid] = {
+            "city":    r.get("city", ""),
+            "country": r.get("country", ""),
+            "category": r.get("category", ""),
+            "lat":     r.get("lat", ""),
+            "lng":     r.get("lng", ""),
+            "last_ts": _ts,
+        }
+
+    # Build closed-venue set from tips
+    _closed_venues: set = {
+        t.get("venue_id", "") for t in all_tips
+        if t.get("closed") and t.get("venue_id")
+    }
+
     # ── Load venue ratings for index.html feed and ratings.html ──────────────
     ratings_path = Path(args.ratings) if args.ratings else Path(args.input).resolve().parent / "venueRatings.json"
     ratings_recent_json = "[]"
@@ -336,28 +362,6 @@ if __name__ == "__main__":
     _all_ratings: dict = {"venueLikes": [], "venueOkays": [], "venueDislikes": []}
     if ratings_path.exists():
         _all_ratings = json.loads(ratings_path.read_text(encoding="utf-8"))
-
-        # Build per-venue metadata from checkins (most recent visit per venue)
-        _venue_meta: dict = {}
-        for r in sorted(rows, key=lambda x: int(x.get("date", 0) or 0)):
-            vid = r.get("venue_id", "").strip()
-            if not vid:
-                continue
-            _ts = int(r.get("date", 0) or 0)
-            _venue_meta[vid] = {
-                "city":    r.get("city", ""),
-                "country": r.get("country", ""),
-                "category": r.get("category", ""),
-                "lat":     r.get("lat", ""),
-                "lng":     r.get("lng", ""),
-                "last_ts": _ts,
-            }
-
-        # Build closed-venue set from tips
-        _closed_venues: set = {
-            t.get("venue_id", "") for t in all_tips
-            if t.get("closed") and t.get("venue_id")
-        }
 
         def _enrich(entries: list, rating: str) -> list:
             result = []
@@ -375,24 +379,29 @@ if __name__ == "__main__":
                 if last_ts:
                     from datetime import datetime, timezone as _tz
                     date_str = datetime.fromtimestamp(last_ts, tz=_tz.utc).strftime("%d %b %Y")
+                created_at = int(e.get("createdAt") or 0)
                 result.append({
-                    "id":       vid,
-                    "name":     e.get("name", ""),
-                    "url":      e.get("url", ""),
-                    "rating":   rating,
-                    "city":     raw_city,
-                    "country":  raw_country,
-                    "nc":       nc,
-                    "nci":      nci,
-                    "category": meta.get("category", ""),
-                    "lat":      meta.get("lat", ""),
-                    "lng":      meta.get("lng", ""),
-                    "last_ts":  last_ts,
-                    "last_date": date_str,
-                    "closed":   vid in _closed_venues,
-                    "rate_idx": i,
+                    "id":         vid,
+                    "name":       e.get("name", ""),
+                    "url":        e.get("url", ""),
+                    "rating":     rating,
+                    "city":       raw_city,
+                    "country":    raw_country,
+                    "nc":         nc,
+                    "nci":        nci,
+                    "category":   meta.get("category", ""),
+                    "lat":        meta.get("lat", ""),
+                    "lng":        meta.get("lng", ""),
+                    "last_ts":    last_ts,
+                    "last_date":  date_str,
+                    "closed":     vid in _closed_venues,
+                    "rate_idx":   i,
+                    "created_at": created_at,
                 })
-            # preserve export order (index 0 = most recently rated in Foursquare export)
+            # Sort by rating date (createdAt from fetch_ratings.py) if available,
+            # else preserve export order (index 0 = most recently rated).
+            if any(e["created_at"] for e in result):
+                result.sort(key=lambda x: -x["created_at"])
             return result
 
         _likes    = _enrich(_all_ratings.get("venueLikes",   []), "like")
@@ -437,6 +446,82 @@ if __name__ == "__main__":
             })
         recent_photos_json = json.dumps(_recent_photos, ensure_ascii=False).replace("</", "<\\/")
 
+    # ── Load lists.json for lists.html ───────────────────────────────────────
+    lists_path = Path(args.lists) if args.lists else Path(args.input).resolve().parent / "lists.json"
+    _lists_data_json = "[]"
+    if lists_path.exists():
+        try:
+            _raw_lists = json.loads(lists_path.read_text(encoding="utf-8"))
+            _raw_items = _raw_lists if isinstance(_raw_lists, list) else _raw_lists.get("items", [])
+            # Build rating lookup: venue_id → rating string
+            _rating_lookup: dict = {}
+            for _rv in _all_ratings.get("venueLikes",   []):
+                if _rv.get("id"): _rating_lookup[_rv["id"]] = "like"
+            for _rv in _all_ratings.get("venueOkays",   []):
+                if _rv.get("id"): _rating_lookup[_rv["id"]] = "neutral"
+            for _rv in _all_ratings.get("venueDislikes",[]):
+                if _rv.get("id"): _rating_lookup[_rv["id"]] = "dislike"
+            # Build visited set: venue_ids that appear in checkins
+            _visited_vids: set = {r.get("venue_id","").strip() for r in rows if r.get("venue_id","").strip()}
+            _lists_out = []
+            for lst in _raw_items:
+                _photo = lst.get("photo") or {}
+                _cover = ""
+                if _photo.get("prefix") and _photo.get("suffix"):
+                    _cover = _photo["prefix"] + "100x100" + _photo["suffix"]
+                _list_items = (lst.get("listItems") or {}).get("items") or []
+                _venues_out = []
+                for li in _list_items:
+                    _v = li.get("venue") or {}
+                    _vid = str(_v.get("id") or "").strip()
+                    if not _vid:
+                        continue
+                    _meta = _venue_meta.get(_vid, {})
+                    _raw_country = _meta.get("country", "")
+                    _raw_city    = _meta.get("city", "")
+                    _nc  = _CTRY_NORM.get(_raw_country, _raw_country)
+                    _nci = _city_merge.get(_raw_city, _raw_city)
+                    _last_ts = _meta.get("last_ts", 0)
+                    _ld = ""
+                    if _last_ts:
+                        _ld = datetime.fromtimestamp(_last_ts, tz=timezone.utc).strftime("%d %b %Y")
+                    _vout: dict = {"id": _vid, "n": (_v.get("name") or "").strip()}
+                    _u = (_v.get("canonicalUrl") or "").strip()
+                    if _u: _vout["u"] = _u
+                    _cat = _meta.get("category", "")
+                    if _cat: _vout["cat"] = _cat
+                    _lat = _meta.get("lat", "")
+                    _lng = _meta.get("lng", "")
+                    if _lat: _vout["lat"] = _lat
+                    if _lng: _vout["lng"] = _lng
+                    if _last_ts: _vout["lts"] = _last_ts
+                    if _ld: _vout["ld"] = _ld
+                    if _vid in _closed_venues: _vout["cl"] = True
+                    _r = _rating_lookup.get(_vid)
+                    if _r: _vout["r"] = _r
+                    _nc_val = _nc or _raw_country
+                    _nci_val = _nci or _raw_city
+                    if _nc_val: _vout["nc"] = _nc_val
+                    if _nci_val: _vout["nci"] = _nci_val
+                    if _raw_city: _vout["city"] = _raw_city
+                    if _raw_country: _vout["country"] = _raw_country
+                    _vout["visited"] = _vid in _visited_vids
+                    _venues_out.append(_vout)
+                _lists_out.append({
+                    "id":     str(lst.get("id") or ""),
+                    "name":   (lst.get("name") or "").strip(),
+                    "url":    (lst.get("canonicalUrl") or "").strip(),
+                    "cover":  _cover,
+                    "count":  len(_venues_out),
+                    "venues": _venues_out,
+                })
+            _lists_data_json = json.dumps(_lists_out, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+            log.info("Loaded %d lists from %s", len(_lists_out), lists_path)
+        except Exception as _le:
+            log.warning("Failed to load lists.json: %s", _le)
+    else:
+        log.info("lists.json not found at %s — skipping lists.html", lists_path)
+
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir,
           pix_dir_json=json.dumps(_pix_dir_uri),
@@ -464,6 +549,7 @@ if __name__ == "__main__":
         (_here / "gen_stats.py",      "stats.html",        "stats.html.tmpl",        {"stats_data": data}),
         (_here / "gen_search.py",     "search.html",       "search.html.tmpl",       {"rows": rows, "all_tips": all_tips, "trips": trips, "metrics": data}),
         (_here / "gen_ratings.py",    "ratings.html",      "ratings.html.tmpl",      {"likes": _likes, "neutral": _neutral, "dislikes": _dislikes}),
+        (_here / "gen_lists.py",      "lists.html",        "lists.html.tmpl",        {"lists_data_json": _lists_data_json}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il
