@@ -57,10 +57,15 @@ jobs:
 
       - name: Build dashboard (verify only — no commit or deploy)
         run: |
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
           python scripts/build.py \
             --input private-data/checkins.csv \
             --config-dir config \
-            --output-dir .
+            --output-dir . \
+            $RATINGS_ARG $LISTS_ARG
 
   # ── Update: fetch → skip if no new check-ins → rebuild → commit → deploy ──
   update:
@@ -132,7 +137,33 @@ jobs:
               --sleep 0.3 >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 4d. Upload new photos to Cloudflare R2 ──────────────────────────────
+      # ── 4d. Fetch updated venue ratings ─────────────────────────────────────
+      - name: Fetch venue ratings
+        id: fetch_ratings
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          if [ -z "$FOURSQUARE_TOKEN" ]; then
+            echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping ratings fetch."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/fetch_ratings.py --token "$FOURSQUARE_TOKEN" --out private-data/venueRatings.json >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 4e. Fetch updated lists ───────────────────────────────────────────────
+      - name: Fetch Foursquare lists
+        id: fetch_lists
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          if [ -z "$FOURSQUARE_TOKEN" ]; then
+            echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping lists fetch."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/fetch_lists.py --token "$FOURSQUARE_TOKEN" --out private-data/lists.json >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 4f. Upload new photos to Cloudflare R2 ──────────────────────────────
       - name: Upload new photos to R2
         if: steps.fetch_photos.outputs.CHANGED == 'true'
         env:
@@ -148,19 +179,30 @@ jobs:
 
       # ── 5. Exit gracefully if nothing changed ────────────────────────────────
       - name: Skip if no new data
-        if: github.event_name != 'workflow_dispatch' && steps.fetch.outputs.CHANGED != 'true' && steps.fetch_tips.outputs.CHANGED != 'true' && steps.fetch_photos.outputs.CHANGED != 'true'
+        if: |
+          github.event_name != 'workflow_dispatch' &&
+          steps.fetch.outputs.CHANGED != 'true' &&
+          steps.fetch_tips.outputs.CHANGED != 'true' &&
+          steps.fetch_photos.outputs.CHANGED != 'true' &&
+          steps.fetch_ratings.outputs.CHANGED != 'true' &&
+          steps.fetch_lists.outputs.CHANGED != 'true'
         run: |
-          echo "No new check-ins, tips, or photos — nothing to rebuild or deploy."
+          echo "No new data — nothing to rebuild or deploy."
           exit 0
 
       # ── 6. Commit updated data files to private data repo ────────────────────
       - name: Commit updated data files to data repo
-        if: steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_photos.outputs.CHANGED == 'true'
+        if: |
+          steps.fetch.outputs.CHANGED == 'true' ||
+          steps.fetch_tips.outputs.CHANGED == 'true' ||
+          steps.fetch_photos.outputs.CHANGED == 'true' ||
+          steps.fetch_ratings.outputs.CHANGED == 'true' ||
+          steps.fetch_lists.outputs.CHANGED == 'true'
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add checkins.csv tips.json photos.json
+          git add checkins.csv tips.json photos.json venueRatings.json lists.json
           if git diff --cached --quiet; then
             echo "Nothing to commit in data repo."
           else
@@ -172,7 +214,13 @@ jobs:
 
       # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
-        if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_photos.outputs.CHANGED == 'true'
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          steps.fetch.outputs.CHANGED == 'true' ||
+          steps.fetch_tips.outputs.CHANGED == 'true' ||
+          steps.fetch_photos.outputs.CHANGED == 'true' ||
+          steps.fetch_ratings.outputs.CHANGED == 'true' ||
+          steps.fetch_lists.outputs.CHANGED == 'true'
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
@@ -184,20 +232,34 @@ jobs:
           if [ -f private-data/photos.json ]; then
             PHOTOS_ARG="--photos private-data/photos.json"
           fi
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then
+            RATINGS_ARG="--ratings private-data/venueRatings.json"
+          fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then
+            LISTS_ARG="--lists private-data/lists.json"
+          fi
           python scripts/build.py \
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
-            $PHOTOS_ARG $PIX_URL_ARG
+            $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
       # ── 8. Commit HTML to public repo → Cloudflare Pages auto-deploys ────────
       - name: Commit updated HTML files
-        if: github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_photos.outputs.CHANGED == 'true'
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          steps.fetch.outputs.CHANGED == 'true' ||
+          steps.fetch_tips.outputs.CHANGED == 'true' ||
+          steps.fetch_photos.outputs.CHANGED == 'true' ||
+          steps.fetch_ratings.outputs.CHANGED == 'true' ||
+          steps.fetch_lists.outputs.CHANGED == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html
+          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html lists.html ratings.html
 
           if git diff --cached --quiet; then
             echo "Nothing to commit."

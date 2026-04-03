@@ -477,8 +477,9 @@ if __name__ == "__main__":
                     if not _vid:
                         continue
                     _meta = _venue_meta.get(_vid, {})
-                    _raw_country = _meta.get("country", "")
-                    _raw_city    = _meta.get("city", "")
+                    _vloc = _v.get("location") or {}
+                    _raw_country = _meta.get("country", "") or _vloc.get("country", "")
+                    _raw_city    = _meta.get("city", "") or _vloc.get("city", "")
                     _nc  = _CTRY_NORM.get(_raw_country, _raw_country)
                     _nci = _city_merge.get(_raw_city, _raw_city)
                     _last_ts = _meta.get("last_ts", 0)
@@ -489,9 +490,13 @@ if __name__ == "__main__":
                     _u = (_v.get("canonicalUrl") or "").strip()
                     if _u: _vout["u"] = _u
                     _cat = _meta.get("category", "")
+                    if not _cat:
+                        _vcats = _v.get("categories") or []
+                        if _vcats:
+                            _cat = ((_vcats[0].get("name") or "").strip())
                     if _cat: _vout["cat"] = _cat
-                    _lat = _meta.get("lat", "")
-                    _lng = _meta.get("lng", "")
+                    _lat = _meta.get("lat", "") or str(_vloc.get("lat", "") or "")
+                    _lng = _meta.get("lng", "") or str(_vloc.get("lng", "") or "")
                     if _lat: _vout["lat"] = _lat
                     if _lng: _vout["lng"] = _lng
                     if _last_ts: _vout["lts"] = _last_ts
@@ -507,13 +512,23 @@ if __name__ == "__main__":
                     if _raw_country: _vout["country"] = _raw_country
                     _vout["visited"] = _vid in _visited_vids
                     _venues_out.append(_vout)
+                _upd_raw = lst.get("updatedAt") or 0
+                try:
+                    _upd_ts = int(_upd_raw)
+                except (ValueError, TypeError):
+                    try:
+                        from datetime import datetime as _dt2
+                        _upd_ts = int(_dt2.fromisoformat(str(_upd_raw).replace("Z","")).timestamp())
+                    except Exception:
+                        _upd_ts = 0
                 _lists_out.append({
-                    "id":     str(lst.get("id") or ""),
-                    "name":   (lst.get("name") or "").strip(),
-                    "url":    (lst.get("canonicalUrl") or "").strip(),
-                    "cover":  _cover,
-                    "count":  len(_venues_out),
-                    "venues": _venues_out,
+                    "id":       str(lst.get("id") or ""),
+                    "name":     (lst.get("name") or "").strip(),
+                    "url":      (lst.get("canonicalUrl") or "").strip(),
+                    "cover":    _cover,
+                    "count":    len(_venues_out),
+                    "venues":   _venues_out,
+                    "updatedAt": _upd_ts,
                 })
             _lists_data_json = json.dumps(_lists_out, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
             log.info("Loaded %d lists from %s", len(_lists_out), lists_path)
@@ -533,6 +548,7 @@ if __name__ == "__main__":
               "{{SWARM_USER_ID}}":         fs_user_id,
               "{{RATINGS_RECENT_JSON}}":   ratings_recent_json,
               "{{RATINGS_COUNTS}}":        ratings_counts_json,
+              "{{LISTS_COUNT}}":           str(len(json.loads(_lists_data_json))),
           })
 
     if args.cat_list:

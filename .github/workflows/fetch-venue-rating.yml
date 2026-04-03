@@ -1,0 +1,122 @@
+# .github/workflows/fetch-venue-rating.yml
+#
+# Manual workflow: retrieve the current Foursquare rating (like / neutral / dislike)
+# for specific venue IDs, sync their metadata into venueRatings.json, and rebuild.
+#
+# Use when a venue is already rated on Foursquare but missing from the local
+# venueRatings.json (e.g. after a fresh export, or to backfill createdAt timestamps).
+#
+# How it works:
+#   1. Fetches venue details from /v2/venues/{id} (name, url, like status).
+#   2. Checks the venuedislikes list to distinguish neutral from dislike.
+#   3. Searches the matching rating list for the createdAt timestamp.
+#   4. Updates venueRatings.json, rebuilds, and commits.
+#
+# Trigger: Actions tab → "Fetch venue rating" → Run workflow
+#
+# Required secrets:
+#   FOURSQUARE_TOKEN  — Foursquare OAuth token
+#   DATA_REPO_PAT     — Fine-grained PAT with Contents read/write on foursquare-data
+
+name: Fetch venue rating
+
+on:
+  workflow_dispatch:
+    inputs:
+      venue_id:
+        description: "Venue ID(s) to fetch, comma-separated"
+        required: true
+      no_created_at:
+        description: "Skip createdAt lookup (faster — avoids scanning the full likes list)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-rating:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout public repo (scripts live here) ───────────────────────
+      - uses: actions/checkout@v4
+
+      # ── 2. Checkout private data repo ────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 3. Python setup ──────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Fetch rating for venue(s) ─────────────────────────────────────
+      - name: Fetch venue rating
+        id: fetch
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          ARGS="--token $FOURSQUARE_TOKEN --venue-id ${{ github.event.inputs.venue_id }} --out private-data/venueRatings.json"
+          if [ "${{ github.event.inputs.no_created_at }}" = "true" ]; then
+            ARGS="$ARGS --no-created-at"
+          fi
+          python scripts/fetch_venue_rating.py $ARGS >> "$GITHUB_OUTPUT"
+
+      # ── 5. Commit updated venueRatings.json ──────────────────────────────
+      - name: Commit to private data repo
+        if: steps.fetch.outputs.CHANGED == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add venueRatings.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            VID="${{ github.event.inputs.venue_id }}"
+            git commit -m "fix(ratings): sync rating for venue ${VID}"
+            git push
+          fi
+          cd ..
+
+      # ── 6. Rebuild dashboard ─────────────────────────────────────────────
+      - name: Rebuild dashboard
+        if: steps.fetch.outputs.CHANGED == 'true'
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          PIX_URL_ARG=""
+          if [ -n "$R2_PUBLIC_URL" ]; then PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"; fi
+          PHOTOS_ARG=""
+          if [ -f private-data/photos.json ]; then PHOTOS_ARG="--photos private-data/photos.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          python scripts/build.py \
+            --input private-data/checkins.csv \
+            --config-dir config \
+            --output-dir . \
+            --ratings private-data/venueRatings.json \
+            $PHOTOS_ARG $PIX_URL_ARG $LISTS_ARG
+
+      # ── 7. Commit rebuilt HTML ────────────────────────────────────────────
+      - name: Commit updated HTML
+        if: steps.fetch.outputs.CHANGED == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html ratings.html
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            VID="${{ github.event.inputs.venue_id }}"
+            git commit -m "fix(ratings): rebuild after syncing venue ${VID}"
+            git push
+          fi

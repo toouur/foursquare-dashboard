@@ -59,6 +59,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .lists-search-wrap{padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .lists-search{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-size:.73rem;outline:none;}
 .lists-search:focus{border-color:var(--gold);}
+.sort-bar{display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.sort-btn{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.07em;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.sort-btn:hover{border-color:var(--gold);color:var(--gold);}
+.sort-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(232,184,109,.08);}
 .lists-scroll{flex:1;overflow-y:auto;padding:6px;}
 .lists-scroll::-webkit-scrollbar{width:3px;}
 .lists-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
@@ -75,7 +79,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* ── Right panel: detail ── */
 .detail-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
 .detail-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.88rem;}
-.detail-header{padding:10px 14px 8px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;}
+.detail-header{padding:8px 70px 8px 14px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;}
 .dh-name{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:900;color:var(--gold);line-height:1.2;}
 .dh-name a{color:inherit;text-decoration:none;}
 .dh-name a:hover{opacity:.8;}
@@ -91,14 +95,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .leaflet-popup-content{margin:10px 14px;}
 
 /* ── Venue feed ── */
-.venues-scroll{flex:1;overflow-y:auto;padding:8px 10px;}
+.venues-scroll{flex:1;overflow-y:auto;padding:8px 70px 8px 10px;}
 .venues-scroll::-webkit-scrollbar{width:3px;}
 .venues-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
 .vcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 13px 9px;margin-bottom:6px;cursor:pointer;transition:border-color .15s;position:relative;overflow:hidden;}
 .vcard::after{content:'';position:absolute;top:0;left:14px;right:14px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.15;}
 .vcard:hover{border-color:rgba(232,184,109,.3);}
 .vcard.sel{border-color:var(--gold);}
-.vc-head{display:flex;align-items:flex-start;gap:7px;margin-bottom:5px;}
+.vc-head{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
 .vc-cat-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
 .vc-name{font-size:.84rem;font-weight:700;line-height:1.28;flex:1;}
 .vc-name a{color:var(--text);text-decoration:none;}
@@ -107,10 +111,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .vc-visited{font-family:'DM Mono',monospace;font-size:.48rem;color:var(--teal);border:1px solid rgba(78,201,176,.4);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
 .vc-saved{font-family:'DM Mono',monospace;font-size:.48rem;color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
 .vc-rating{font-size:.80rem;flex-shrink:0;}
-.vc-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;}
-.vc-loc{font-size:.68rem;color:var(--muted);display:inline-flex;align-items:center;gap:3px;}
-.vc-cat{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.06em;color:var(--teal);white-space:nowrap;}
-.vc-date{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);white-space:nowrap;}
+.vc-foot{display:flex;align-items:center;gap:6px;margin-top:4px;}
+.vc-cat{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.06em;color:var(--teal);white-space:nowrap;flex-shrink:0;}
+.vc-sep{color:var(--border);font-size:.6rem;flex-shrink:0;}
+.vc-loc{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden;}
+.vc-loc .fi{width:1.1em;height:.85em;border-radius:2px;flex-shrink:0;background-size:cover;background-position:50%;display:inline-block;}
+.vc-loc-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vc-date{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);white-space:nowrap;margin-left:auto;flex-shrink:0;}
 
 @media(max-width:700px){
   .lists-panel{width:100%;border-right:none;display:none;}
@@ -140,11 +147,16 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="lists-search-wrap">
         <input class="lists-search" id="listSearch" type="text" placeholder="Filter lists…" oninput="filterLists(this.value)" autocomplete="off">
       </div>
+      <div class="sort-bar">
+        <button class="sort-btn" id="srtAZ" onclick="setSort('az')">A–Z</button>
+        <button class="sort-btn active" id="srtUpdated" onclick="setSort('updated')">Last Updated</button>
+        <button class="sort-btn" id="srtVisited" onclick="setSort('visited')">Recent Visit</button>
+      </div>
       <div class="lists-scroll" id="listsScroll"></div>
     </div>
     <div class="detail-panel" id="detailPanel">
       <div class="detail-empty" id="detailEmpty">← Select a list</div>
-      <div id="detailContent" style="display:none;flex:1;display:none;flex-direction:column;overflow:hidden;">
+      <div id="detailContent" style="display:none;flex-direction:column;overflow:hidden;flex:1;">
         <div class="detail-header" id="detailHeader"></div>
         <div id="map" style="display:none;"></div>
         <div class="venues-scroll" id="venuesScroll"></div>
@@ -158,7 +170,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 const LISTS = LISTS_DATA_PLACEHOLDER;
 
 const CTRY_CODE = {"Belarus":"by","Moldova":"md","Poland":"pl","Russia":"ru","Ukraine":"ua","Germany":"de","France":"fr","Italy":"it","Spain":"es","Turkey":"tr","Türkiye":"tr","Sweden":"se","Denmark":"dk","Norway":"no","Finland":"fi","Austria":"at","Switzerland":"ch","Netherlands":"nl","Belgium":"be","Portugal":"pt","Czech Republic":"cz","Czechia":"cz","Hungary":"hu","Slovakia":"sk","Romania":"ro","Bulgaria":"bg","Croatia":"hr","Slovenia":"si","Serbia":"rs","Bosnia and Herzegovina":"ba","Montenegro":"me","North Macedonia":"mk","Albania":"al","Kosovo":"xk","Estonia":"ee","Latvia":"lv","Lithuania":"lt","Greece":"gr","Cyprus":"cy","Malta":"mt","Iceland":"is","Ireland":"ie","United Kingdom":"gb","Georgia":"ge","Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","Uzbekistan":"uz","Kyrgyzstan":"kg","Tajikistan":"tj","Turkmenistan":"tm","Mongolia":"mn","China":"cn","Japan":"jp","South Korea":"kr","Taiwan":"tw","India":"in","Thailand":"th","Vietnam":"vn","Indonesia":"id","Singapore":"sg","Malaysia":"my","Pakistan":"pk","Nepal":"np","Qatar":"qa","UAE":"ae","United Arab Emirates":"ae","Saudi Arabia":"sa","Jordan":"jo","Israel":"il","Iraq":"iq","Lebanon":"lb","Iran":"ir","Egypt":"eg","Morocco":"ma","Tunisia":"tn","South Africa":"za","United States":"us","Canada":"ca","Mexico":"mx","Brazil":"br","Argentina":"ar","Chile":"cl","Colombia":"co","Peru":"pe","Australia":"au","New Zealand":"nz","Holy See (Vatican City State)":"va","San Marino":"sm","Monaco":"mc"};
-function flagHtml(c){const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span class="fi fi-${code}" style="border-radius:2px;font-size:.85em;vertical-align:middle;"></span> `:''}
+function flagHtml(c){const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span class="fi fi-${code}"></span>`:''}
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const CAT_ICON={'Coffee Shop':['☕','#6F4E37'],'Café':['☕','#6F4E37'],'Bakery':['🥐','#C8860A'],'Restaurant':['🍽️','#C0392B'],'Fast Food Restaurant':['🍔','#E67E22'],'Pizzeria':['🍕','#E74C3C'],'Burger Joint':['🍔','#D35400'],'Italian Restaurant':['🍝','#C0392B'],'Kebab Restaurant':['🌯','#E67E22'],'Cafeteria':['🥣','#D4A017'],'Corporate Cafeteria':['🥣','#D4A017'],'Food Court':['🍱','#E67E22'],'Grocery Store':['🛒','#27AE60'],'Supermarket':['🛒','#219A52'],'Convenience Store':['🏪','#2ECC71'],'Market':['🛒','#27AE60'],'Gourmet Store':['🧀','#F39C12'],'Candy Store':['🍬','#F06292'],'Farmers Market':['🥦','#27AE60'],'Bar':['🍺','#F39C12'],'Beer Bar':['🍺','#E67E22'],'Pub':['🍻','#D4A017'],'Hookah Bar':['💨','#8E44AD'],'Cocktail Bar':['🍸','#E74C3C'],'Wine Bar':['🍷','#922B21'],'Wine Store':['🍷','#7B241C'],'Liquor Store':['🥃','#784212'],'Lounge':['🛋️','#5D6D7E'],'Gastropub':['🍖','#CA6F1E'],'Brewery':['🍻','#BA4A00'],'Nightclub':['🎵','#6C3483'],'Night Club':['🎵','#6C3483'],'Karaoke Bar':['🎤','#7D3C98'],'Beer Garden':['🍻','#D4A017'],'Beach Bar':['🍹','#2980B9'],'Dive Bar':['🍺','#7B241C'],'Sports Bar':['📺','#2C3E50'],'Rock Club':['🎸','#6C3483'],'Hotel Bar':['🍸','#2C3E50'],'Irish Pub':['🍀','#27AE60'],'Beer Store':['🍺','#D4A017'],'Speakeasy':['🥃','#4A235A'],'Whisky Bar':['🥃','#784212'],'Buffet':['🍱','#E67E22'],'Brasserie':['🍺','#D4A017'],'Hotel':['🏨','#2C3E50'],'Hostel':['🛏️','#34495E'],'Bed and Breakfast':['🛏️','#4A235A'],'Inn':['🏠','#2E4053'],'Apartment or Condo':['🏠','#1A5276'],'Home (private)':['🏠','#17202A'],'Resort':['🏖️','#2980B9'],'Lodging':['🛏️','#5D6D7E'],'Metro Station':['🚇','#2980B9'],'Rail Station':['🚉','#1A5276'],'Train':['🚂','#E74C3C'],'Tram Station':['🚃','#2471A3'],'Light Rail Station':['🚈','#2980B9'],'Platform':['🚉','#1F618D'],'Bus Line':['🚌','#27AE60'],'Bus Station':['🚌','#1E8449'],'Bus Stop':['🚏','#239B56'],'Airport Terminal':['✈️','#2471A3'],'International Airport':['✈️','#154360'],'Airport Gate':['✈️','#1A5276'],'Airport':['✈️','#154360'],'Airport Lounge':['🛋️','#21618C'],'Travel Lounge':['🛋️','#21618C'],'Plane':['✈️','#2980B9'],'Boat or Ferry':['⛴️','#117A65'],'Border Crossing':['🛂','#717D7E'],'Taxi':['🚕','#F4D03F'],'Parking':['🅿️','#2980B9'],'Fuel Station':['⛽','#E67E22'],'Cable Car':['🚡','#8E44AD'],'Ski Chairlift':['🚡','#2980B9'],'Marine Terminal':['⚓','#1A5276'],'Port':['🚢','#154360'],'Harbor or Marina':['⛵','#2980B9'],'Pier':['🎣','#2471A3'],'Travel and Transportation':['✈️','#2980B9'],'Transportation Service':['🚐','#27AE60'],'Park':['🌳','#1E8449'],'Plaza':['🏛️','#2E86C1'],'Pedestrian Plaza':['🚶','#2E86C1'],'Beach':['🏖️','#F39C12'],'Mountain':['⛰️','#7F8C8D'],'Hiking Trail':['🥾','#6E2F1A'],'Garden':['🌸','#1E8449'],'Scenic Lookout':['🔭','#1A5276'],'Waterfront':['🌊','#2471A3'],'River':['🌊','#2980B9'],'Lake':['🏞️','#2471A3'],'Island':['🏝️','#27AE60'],'Bike Trail':['🚴','#E67E22'],'Other Great Outdoors':['🌲','#186A3B'],'Cemetery':['🪦','#5D6D7E'],'Ski Area':['⛷️','#85C1E9'],'Bridge':['🌉','#626567'],'Fountain':['⛲','#5DADE2'],'National Park':['🌲','#186A3B'],'Nature Preserve':['🌿','#1E8449'],'Forest':['🌲','#186A3B'],'Botanical Garden':['🌺','#1E8449'],'Waterfall':['💦','#2980B9'],'Canal':['🚤','#2471A3'],'Bay':['🌊','#2980B9'],'Campground':['⛺','#186A3B'],'Playground':['🛝','#E74C3C'],'Tree':['🌳','#1E8449'],'Lighthouse':['🔦','#F39C12'],'Volcano':['🌋','#E74C3C'],'Cave':['🦇','#616A6B'],'Field':['🌾','#27AE60'],'Hill':['⛰️','#784212'],'Vineyard':['🍇','#922B21'],'Farm':['🚜','#27AE60'],'Museum':['🏛️','#7D3C98'],'Art Museum':['🎨','#884EA0'],'History Museum':['📜','#6E2F1A'],'Art Gallery':['🖼️','#7D3C98'],'Monument':['🗽','#626567'],'Historic and Protected Site':['🏰','#784212'],'Castle':['🏰','#6E2F1A'],'Palace':['🏯','#784212'],'Public Art':['🎨','#7D3C98'],'Street Art':['🎨','#8E44AD'],'Theater':['🎭','#922B21'],'Concert Hall':['🎼','#922B21'],'Movie Theater':['🎬','#C0392B'],'Cultural Center':['🎭','#7D3C98'],'Exhibit':['🖼️','#7D3C98'],'Exhibition':['🖼️','#8E44AD'],'Science Museum':['🔬','#1A5276'],'Amusement Park':['🎡','#E74C3C'],'Memorial Site':['🕯️','#626567'],'Library':['📚','#1A5276'],'Amphitheater':['🎭','#8E44AD'],'Music Venue':['🎸','#8E44AD'],'Opera House':['🎭','#6C3483'],'Attraction':['⭐','#D4A017'],'Zoo':['🦁','#D4A017'],'Aquarium':['🐠','#2980B9'],'Casino':['🎲','#C0392B'],'Escape Room':['🔐','#8E44AD'],'Event Space':['🎪','#C0392B'],'Church':['⛪','#7D3C98'],'Mosque':['🕌','#117A65'],'Temple':['🛕','#B9770E'],'Monastery':['🙏','#6E2F1A'],'Synagogue':['✡️','#1A5276'],'Shrine':['⛩️','#C0392B'],'Buddhist Temple':['☸️','#D4A017'],'Hindu Temple':['🛕','#E67E22'],'Shopping Mall':['🛍️','#E91E63'],'Department Store':['🏬','#C0392B'],'Clothing Store':['👔','#8E44AD'],'Shoe Store':['👟','#D35400'],'Electronics Store':['💻','#2471A3'],'Mobile Phone Store':['📱','#2E86C1'],'Bookstore':['📚','#1A5276'],'Furniture and Home Store':['🛋️','#784212'],'Cosmetics Store':['💄','#F06292'],'Bicycle Store':['🚲','#27AE60'],'Big Box Store':['📦','#7F8C8D'],'Flea Market':['🏷️','#D35400'],'Hardware Store':['🔧','#7F8C8D'],'Miscellaneous Store':['🏪','#E67E22'],'Souvenir Store':['🛍️','#D4A017'],'Gift Store':['🎁','#E91E8C'],'Jewelry Store':['💍','#D4A017'],'Antique Store':['🏺','#D4A017'],'Outdoor Supply Store':['⛺','#27AE60'],'Sporting Goods Retail':['⚽','#27AE60'],'Fruit and Vegetable Store':['🥦','#27AE60'],'Butcher':['🥩','#C0392B'],'Fish Market':['🐟','#2980B9'],'Pharmacy':['💊','#27AE60'],'Drugstore':['💊','#27AE60'],'Health Food Store':['🥗','#1E8449'],'Gym':['💪','#E74C3C'],'Bath House':['♨️','#1ABC9C'],'Spa':['💆','#1ABC9C'],'Medical Center':['🏥','#E74C3C'],'Hospital':['🏥','#E74C3C'],'Yoga Studio':['🧘','#27AE60'],'Hair Salon':['✂️','#F06292'],'Swimming Pool':['🏊','#2980B9'],'Sauna':['♨️','#E74C3C'],'Bank':['🏦','#1A5276'],'Office':['🏢','#2C3E50'],'Post Office':['📮','#E74C3C'],'Police Station':['👮','#2471A3'],'City Hall':['🏛️','#1A5276'],'Government Building':['🏛️','#154360'],'University':['🎓','#154360'],'Business Center':['🏢','#2C3E50'],'Coworking Space':['💻','#2C3E50'],'Embassy or Consulate':['🏛️','#1A5276'],'Chinese Restaurant':['🥢','#C0392B'],'Japanese Restaurant':['🍱','#C0392B'],'Korean Restaurant':['🍚','#E74C3C'],'Vietnamese Restaurant':['🍜','#27AE60'],'Thai Restaurant':['🍛','#F39C12'],'Indian Restaurant':['🍛','#E67E22'],'Turkish Restaurant':['🌯','#C0392B'],'Greek Restaurant':['🫒','#27AE60'],'French Restaurant':['🥐','#2980B9'],'Spanish Restaurant':['🥘','#E74C3C'],'German Restaurant':['🍺','#C8860A'],'Mexican Restaurant':['🌮','#27AE60'],'American Restaurant':['🍔','#E67E22'],'Middle Eastern Restaurant':['🧆','#D35400'],'Russian Restaurant':['🥟','#C0392B'],'Ukrainian Restaurant':['🌻','#F39C12'],'Belarusian Restaurant':['🥟','#27AE60'],'Eastern European Restaurant':['🍲','#C0392B'],'Diner':['🍳','#E67E22'],'Bistro':['🍽️','#C0392B'],'Dessert Shop':['🍰','#F06292'],'Ice Cream Parlor':['🍦','#F06292'],'Pastry Shop':['🥐','#C8860A'],'Coffee Roaster':['☕','#4A235A'],'Cafe, Coffee, and Tea House':['☕','#6F4E37'],'Blini House':['🫓','#C8860A'],'Pelmeni House':['🥟','#C8860A'],'Dumpling Restaurant':['🥟','#E67E22'],'Ramen Restaurant':['🍜','#E74C3C'],'Sushi Restaurant':['🍣','#C0392B'],'Steak House':['🥩','#922B21'],'Steakhouse':['🥩','#922B21'],'Seafood Restaurant':['🦐','#2980B9'],'Food Truck':['🚚','#E67E22'],'BBQ Joint':['🔥','#C0392B'],'Vegan and Vegetarian Restaurant':['🥦','#27AE60'],'Breakfast Spot':['🥞','#F39C12'],'Tea Room':['🫖','#27AE60'],'Bubble Tea Shop':['🧋','#8E44AD'],'Hot Dog Joint':['🌭','#E67E22'],'Taco Restaurant':['🌮','#27AE60'],'Trattoria':['🍝','#C0392B'],'Deli':['🥪','#D4A017'],'Sandwich Spot':['🥪','#D4A017'],'Shawarma Restaurant':['🌯','#D35400'],'Doner Restaurant':['🌯','#E67E22'],'Romanian Restaurant':['🥘','#C0392B'],'Polish Restaurant':['🥟','#C0392B'],'Modern European Restaurant':['🍽️','#C0392B'],'Asian Restaurant':['🥢','#C0392B'],'Noodle Restaurant':['🍜','#E67E22'],'Bagel Shop':['🥯','#C8860A'],'Comfort Food Restaurant':['🥘','#D4A017'],'Winery':['🍇','#922B21'],'Christmas Market':['🎄','#27AE60']};
@@ -167,9 +179,37 @@ function catIcon(cat){const e=CAT_ICON[cat||''];return e?{em:e[0],bg:e[1]}:{em:'
 const RATING_EMOJI={'like':'❤️','neutral':'😐','dislike':'💔'};
 
 // ── List rendering ────────────────────────────────────────────────────────────
-let filteredLists = LISTS.slice();
+let _sortMode = 'updated';
+let filteredLists = [];
 let selIdx = -1;
 let map = null, mapMarkers = [];
+
+function _maxVisitTs(lst){
+  return Math.max(0,...(lst.venues||[]).map(v=>v.lts||0));
+}
+
+function _applySortFilter(q){
+  const lq = (q||'').toLowerCase();
+  let base = lq ? LISTS.filter(l=>(l.name||'').toLowerCase().includes(lq)) : LISTS.slice();
+  if(_sortMode==='az'){
+    base.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  } else if(_sortMode==='updated'){
+    base.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+  } else if(_sortMode==='visited'){
+    base.sort((a,b)=>_maxVisitTs(b)-_maxVisitTs(a));
+  }
+  filteredLists = base;
+}
+
+function setSort(mode){
+  _sortMode = mode;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  const map2={'az':'srtAZ','updated':'srtUpdated','visited':'srtVisited'};
+  const btn=document.getElementById(map2[mode]);
+  if(btn) btn.classList.add('active');
+  _applySortFilter(document.getElementById('listSearch').value);
+  renderListItems();
+}
 
 function renderListItems(){
   const el = document.getElementById('listsScroll');
@@ -188,8 +228,7 @@ function renderListItems(){
 }
 
 function filterLists(q){
-  const lq = q.toLowerCase();
-  filteredLists = lq ? LISTS.filter(l=>(l.name||'').toLowerCase().includes(lq)) : LISTS.slice();
+  _applySortFilter(q);
   renderListItems();
 }
 
@@ -230,7 +269,7 @@ function selectList(idx){
     const bounds = [];
     (lst.venues||[]).forEach((v,vi)=>{
       if(!v.lat||!v.lng) return;
-      const col = v.visited ? '#4ec9b0' : '#6b7280';
+      const col = v.visited ? '#4ec9b0' : '#e8b86d';
       const m = L.circleMarker([parseFloat(v.lat),parseFloat(v.lng)],{radius:5,fillColor:col,fillOpacity:.75,color:col,weight:1}).addTo(map);
       const loc = [v.nci||v.city,v.nc||v.country].filter(Boolean).join(', ');
       m.bindPopup(`<b>${esc(v.n||'')}</b><br><span style="font-size:.75rem;color:#9ca3af;">${esc(loc)}</span>`,{maxWidth:200});
@@ -246,12 +285,17 @@ function selectList(idx){
   // Venue cards
   document.getElementById('venuesScroll').innerHTML = (lst.venues||[]).map((v,vi)=>{
     const{em,bg}=catIcon(v.cat||'');
-    const loc = [v.nci||v.city, v.nc||v.country].filter(Boolean).join(', ');
-    const f = (v.nc||v.country) ? flagHtml(v.nc||v.country) : '';
     const closedBadge = v.cl ? '<span class="vc-closed">CLOSED</span>' : '';
     const visitBadge = v.visited ? '<span class="vc-visited">✓ visited</span>' : '<span class="vc-saved">saved</span>';
     const ratingBadge = v.r ? `<span class="vc-rating">${RATING_EMOJI[v.r]||''}</span>` : '';
     const nameLabel = v.u ? `<a href="${esc(v.u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(v.n||'Unknown venue')}</a>` : esc(v.n||'Unknown venue');
+    const flag = (v.nc||v.country) ? flagHtml(v.nc||v.country) : '';
+    const locParts = [v.nci||v.city, v.nc||v.country].filter(Boolean);
+    const locStr = esc(locParts.join(', '));
+    const locHtml = (flag||locStr)
+      ? `<span class="vc-sep">·</span><span class="vc-loc">${flag}${locStr?`<span class="vc-loc-text">${locStr}</span>`:''}</span>`
+      : '';
+    const dateHtml = v.ld ? `<span class="vc-date">${v.ld}</span>` : '';
     return `<div class="vcard" id="lvc_${vi}" onclick="selectVenue(${vi},${idx})">
       <div class="vc-head">
         <div class="vc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>
@@ -260,8 +304,7 @@ function selectList(idx){
       </div>
       <div class="vc-foot">
         <span class="vc-cat">${esc(v.cat||'')}</span>
-        <span class="vc-loc">${f}${esc(loc)}</span>
-        <span class="vc-date">${v.ld||''}</span>
+        ${locHtml}${dateHtml}
       </div>
     </div>`;
   }).join('');
@@ -279,8 +322,9 @@ function selectVenue(vi, listIdx){
   }
 }
 
+_applySortFilter('');
 renderListItems();
-if(LISTS.length) selectList(0);
+if(filteredLists.length) selectList(LISTS.indexOf(filteredLists[0]));
 </script>
 <script>
 function gsOpen(){document.getElementById('gsOverlay').classList.add('open');document.getElementById('gsInput').focus();}

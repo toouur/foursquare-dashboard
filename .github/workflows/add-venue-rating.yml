@@ -1,0 +1,147 @@
+# .github/workflows/add-venue-rating.yml
+#
+# Manual workflow: rate one or more Foursquare venues (like / neutral / dislike),
+# update venueRatings.json in the private data repo, and rebuild the dashboard.
+#
+# Use this to add ratings for venues that don't appear in the export lists —
+# especially neutrals and dislikes which Foursquare doesn't include in exports.
+#
+# Venue can be identified by:
+#   - venue_id:   Foursquare venue ID(s), comma-separated
+#   - checkin_id: Check-in ID(s) from checkins.csv, comma-separated
+#                 (the script resolves venue IDs from the CSV automatically)
+#
+# Trigger: Actions tab → "Add venue rating" → Run workflow
+#
+# Required secrets:
+#   FOURSQUARE_TOKEN  — Foursquare OAuth token
+#   DATA_REPO_PAT     — Fine-grained PAT with Contents read/write on foursquare-data
+
+name: Add venue rating
+
+on:
+  workflow_dispatch:
+    inputs:
+      rating:
+        description: "Rating to apply"
+        required: true
+        type: choice
+        options:
+          - like
+          - neutral
+          - dislike
+      venue_id:
+        description: "Venue ID(s), comma-separated (optional if checkin_id provided)"
+        required: false
+        default: ""
+      checkin_id:
+        description: "Check-in ID(s) from checkins.csv, comma-separated (optional if venue_id provided)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  add-rating:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Validate inputs ────────────────────────────────────────────────
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ github.event.inputs.venue_id }}" ] && [ -z "${{ github.event.inputs.checkin_id }}" ]; then
+            echo "::error::At least one of venue_id or checkin_id must be provided."
+            exit 1
+          fi
+
+      # ── 2. Checkout public repo (scripts live here) ───────────────────────
+      - uses: actions/checkout@v4
+
+      # ── 3. Checkout private data repo ────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 4. Python setup ──────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 5. Rate venue(s) and update venueRatings.json ────────────────────
+      - name: Rate venue
+        id: rate
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          ARGS="--token $FOURSQUARE_TOKEN --rating ${{ github.event.inputs.rating }} --out private-data/venueRatings.json --csv private-data/checkins.csv"
+          if [ -n "${{ github.event.inputs.venue_id }}" ]; then
+            ARGS="$ARGS --venue-id ${{ github.event.inputs.venue_id }}"
+          fi
+          if [ -n "${{ github.event.inputs.checkin_id }}" ]; then
+            ARGS="$ARGS --checkin-id ${{ github.event.inputs.checkin_id }}"
+          fi
+          python scripts/rate_venue.py $ARGS >> "$GITHUB_OUTPUT"
+
+      # ── 6. Commit updated venueRatings.json to private data repo ─────────
+      - name: Commit to private data repo
+        if: steps.rate.outputs.CHANGED == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add venueRatings.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            RATING="${{ github.event.inputs.rating }}"
+            VID="${{ github.event.inputs.venue_id }}"
+            CID="${{ github.event.inputs.checkin_id }}"
+            LABEL="${VID:-checkin:${CID}}"
+            git commit -m "fix(ratings): add ${RATING} for ${LABEL}"
+            git push
+          fi
+          cd ..
+
+      # ── 7. Rebuild dashboard ─────────────────────────────────────────────
+      - name: Rebuild dashboard
+        if: steps.rate.outputs.CHANGED == 'true'
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          PIX_URL_ARG=""
+          if [ -n "$R2_PUBLIC_URL" ]; then PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"; fi
+          PHOTOS_ARG=""
+          if [ -f private-data/photos.json ]; then PHOTOS_ARG="--photos private-data/photos.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          python scripts/build.py \
+            --input private-data/checkins.csv \
+            --config-dir config \
+            --output-dir . \
+            --ratings private-data/venueRatings.json \
+            $PHOTOS_ARG $PIX_URL_ARG $LISTS_ARG
+
+      # ── 8. Commit rebuilt HTML to public repo ────────────────────────────
+      - name: Commit updated HTML
+        if: steps.rate.outputs.CHANGED == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html ratings.html
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            RATING="${{ github.event.inputs.rating }}"
+            VID="${{ github.event.inputs.venue_id }}"
+            CID="${{ github.event.inputs.checkin_id }}"
+            LABEL="${VID:-checkin:${CID}}"
+            git commit -m "fix(ratings): rebuild after ${RATING} for ${LABEL}"
+            git push
+          fi
