@@ -118,9 +118,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
   <div class="topbar">
     <h1>Rated Places</h1>
-    <button class="sbtn act" id="fLike"    onclick="setFilter('like',this)">👍 Liked <span id="cntLike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
+    <button class="sbtn act" id="fLike"    onclick="setFilter('like',this)">❤️ Liked <span id="cntLike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
     <button class="sbtn"     id="fNeutral" onclick="setFilter('neutral',this)">😐 Neutral <span id="cntNeutral" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
-    <button class="sbtn"     id="fDislike" onclick="setFilter('dislike',this)">👎 Disliked <span id="cntDislike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
+    <button class="sbtn"     id="fDislike" onclick="setFilter('dislike',this)">💔 Disliked <span id="cntDislike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
     <button class="sbtn"     id="fClosed"  onclick="toggleClosed(this)">Closed only</button>
     <div class="tb-right">
       <input class="srch" id="srch" type="text" placeholder="Search venues, cities…" oninput="onSearch(this.value)">
@@ -150,7 +150,7 @@ const CAT_ICON={'Coffee Shop':['☕','#6F4E37'],'Café':['☕','#6F4E37'],'Baker
 function catIcon(cat){const e=CAT_ICON[cat||''];return e?{em:e[0],bg:e[1]}:{em:'📍',bg:'#4a5270'};}
 
 const RATING_COLOR={'like':'#e8b86d','neutral':'#6b7280','dislike':'#ef4444'};
-const RATING_EMOJI={'like':'👍','neutral':'😐','dislike':'👎'};
+const RATING_EMOJI={'like':'❤️','neutral':'😐','dislike':'💔'};
 
 // ── Map ──────────────────────────────────────────────────────────────────────
 const map=L.map('map',{preferCanvas:true}).setView([30,15],2);

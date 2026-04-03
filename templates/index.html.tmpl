@@ -1681,7 +1681,7 @@ function filterList(id,q){
   if(!ratings||!ratings.length)return;
   const catIcon=window._catIcon||(()=>'');
   document.getElementById('ratingsFeedSection').style.display='';
-  document.getElementById('ratingsSub').textContent=counts.likes.toLocaleString()+' liked places';
+  document.getElementById('ratingsSub').textContent='❤️ '+counts.likes.toLocaleString()+' liked places';
   const scroll=document.getElementById('ratingsScroll');
   scroll.innerHTML=ratings.map(v=>{
     const vUrl=v.url||'';

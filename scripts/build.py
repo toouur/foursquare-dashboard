@@ -361,7 +361,7 @@ if __name__ == "__main__":
 
         def _enrich(entries: list, rating: str) -> list:
             result = []
-            for e in entries:
+            for i, e in enumerate(entries):
                 vid = e.get("id", "").strip()
                 if not vid:
                     continue
@@ -390,8 +390,9 @@ if __name__ == "__main__":
                     "last_ts":  last_ts,
                     "last_date": date_str,
                     "closed":   vid in _closed_venues,
+                    "rate_idx": i,
                 })
-            result.sort(key=lambda x: -x["last_ts"])
+            # preserve export order (index 0 = most recently rated in Foursquare export)
             return result
 
         _likes    = _enrich(_all_ratings.get("venueLikes",   []), "like")
@@ -403,7 +404,7 @@ if __name__ == "__main__":
             "neutral": len(_neutral),
             "dislikes": len(_dislikes),
         })
-        ratings_recent_json = json.dumps(_likes[:10], ensure_ascii=False).replace("</", "<\\/")
+        ratings_recent_json = json.dumps(_likes[:30], ensure_ascii=False).replace("</", "<\\/")
         log.info("Loaded ratings: %d likes, %d neutral, %d dislikes",
                  len(_likes), len(_neutral), len(_dislikes))
     else:
