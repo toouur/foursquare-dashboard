@@ -88,6 +88,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .vc-cat{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.06em;color:var(--teal);white-space:nowrap;}
 .vc-date{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);white-space:nowrap;}
 .vc-rating{font-size:.85rem;}
+.yr-hdr{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);opacity:.7;padding:10px 4px 4px;border-bottom:1px solid var(--border);margin-bottom:6px;}
 
 /* ── Map popup ── */
 .leaflet-popup-content-wrapper{background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.80rem;}
@@ -122,6 +123,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <button class="sbtn"     id="fNeutral" onclick="setFilter('neutral',this)">😐 Neutral <span id="cntNeutral" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
     <button class="sbtn"     id="fDislike" onclick="setFilter('dislike',this)">💔 Disliked <span id="cntDislike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
     <button class="sbtn"     id="fClosed"  onclick="toggleClosed(this)">Closed only</button>
+    <select class="sbtn" id="fYear" onchange="setYear(this.value)" style="padding:4px 7px;cursor:pointer;"></select>
     <div class="tb-right">
       <input class="srch" id="srch" type="text" placeholder="Search venues, cities…" oninput="onSearch(this.value)">
       <span class="badge" id="badge"></span>
@@ -168,7 +170,19 @@ ALL.forEach((v,i)=>{
 });
 
 // ── Filter state ─────────────────────────────────────────────────────────────
-let filterRating='like', query='', showClosed=false;
+let filterRating='like', query='', showClosed=false, yearFilter=0;
+
+// Populate year select
+(function(){
+  const yearsSet=new Set();
+  ALL.forEach(v=>{if(v.created_at)yearsSet.add(new Date(v.created_at*1000).getFullYear());});
+  const sel=document.getElementById('fYear');
+  const defOpt=document.createElement('option');
+  defOpt.value='0';defOpt.textContent='All years';sel.appendChild(defOpt);
+  [...yearsSet].sort((a,b)=>b-a).forEach(y=>{
+    const o=document.createElement('option');o.value=y;o.textContent=y;sel.appendChild(o);
+  });
+})();
 
 // Update button counts
 document.getElementById('cntLike').textContent   = COUNTS.likes    ? '('+COUNTS.likes+')'    : '';
@@ -181,6 +195,7 @@ function getFiltered(){
     const v=ALL[i];
     if(v.rating!==filterRating)return false;
     if(showClosed&&!v.closed)return false;
+    if(yearFilter&&(!v.created_at||new Date(v.created_at*1000).getFullYear()!==yearFilter))return false;
     if(!q)return true;
     return (v.name||'').toLowerCase().includes(q)||(v.city||'').toLowerCase().includes(q)||(v.country||'').toLowerCase().includes(q)||(v.category||'').toLowerCase().includes(q);
   });
@@ -189,6 +204,7 @@ function getFiltered(){
 function render(){
   const idx=getFiltered();
   document.getElementById('badge').textContent=idx.length+' / '+ALL.filter(v=>v.rating===filterRating).length+' venues';
+  let prevYear=null;
   document.getElementById('feedScroll').innerHTML=idx.map(i=>{
     const v=ALL[i];
     const{em,bg}=catIcon(v.category||'');
@@ -197,7 +213,10 @@ function render(){
     const f=(v.nc||v.country)?flagHtml(v.nc||v.country):'';
     const closedBadge=v.closed?'<span class="vc-closed">CLOSED</span>':'';
     const venueLabel=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(v.name||'Unknown venue')}</a>`:esc(v.name||'Unknown venue');
-    return `<div class="vcard" id="vc_${i}" onclick="selectVenue(${i})">
+    const yr=v.created_at?new Date(v.created_at*1000).getFullYear():null;
+    let hdr='';
+    if(yr&&yr!==prevYear){hdr=`<div class="yr-hdr">${yr}</div>`;prevYear=yr;}
+    return hdr+`<div class="vcard" id="vc_${i}" onclick="selectVenue(${i})">
       <div class="vc-head">
         <div class="vc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>
         <div class="vc-name">${venueLabel}${closedBadge}</div>
@@ -235,6 +254,7 @@ function setFilter(r,btn){
 }
 function toggleClosed(btn){showClosed=!showClosed;btn.classList.toggle('act');render();}
 function onSearch(v){query=v;render();}
+function setYear(v){yearFilter=parseInt(v)||0;render();}
 
 render();
 
