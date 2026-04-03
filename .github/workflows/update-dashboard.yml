@@ -150,19 +150,6 @@ jobs:
             python scripts/fetch_ratings.py --token "$FOURSQUARE_TOKEN" --out private-data/venueRatings.json >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 4e. Fetch updated lists ───────────────────────────────────────────────
-      - name: Fetch Foursquare lists
-        id: fetch_lists
-        env:
-          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
-        run: |
-          if [ -z "$FOURSQUARE_TOKEN" ]; then
-            echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping lists fetch."
-            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
-          else
-            python scripts/fetch_lists.py --token "$FOURSQUARE_TOKEN" --out private-data/lists.json >> "$GITHUB_OUTPUT"
-          fi
-
       # ── 4f. Upload new photos to Cloudflare R2 ──────────────────────────────
       - name: Upload new photos to R2
         if: steps.fetch_photos.outputs.CHANGED == 'true'
@@ -184,8 +171,7 @@ jobs:
           steps.fetch.outputs.CHANGED != 'true' &&
           steps.fetch_tips.outputs.CHANGED != 'true' &&
           steps.fetch_photos.outputs.CHANGED != 'true' &&
-          steps.fetch_ratings.outputs.CHANGED != 'true' &&
-          steps.fetch_lists.outputs.CHANGED != 'true'
+          steps.fetch_ratings.outputs.CHANGED != 'true'
         run: |
           echo "No new data — nothing to rebuild or deploy."
           exit 0
@@ -196,8 +182,7 @@ jobs:
           steps.fetch.outputs.CHANGED == 'true' ||
           steps.fetch_tips.outputs.CHANGED == 'true' ||
           steps.fetch_photos.outputs.CHANGED == 'true' ||
-          steps.fetch_ratings.outputs.CHANGED == 'true' ||
-          steps.fetch_lists.outputs.CHANGED == 'true'
+          steps.fetch_ratings.outputs.CHANGED == 'true'
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
@@ -221,8 +206,7 @@ jobs:
           steps.fetch.outputs.CHANGED == 'true' ||
           steps.fetch_tips.outputs.CHANGED == 'true' ||
           steps.fetch_photos.outputs.CHANGED == 'true' ||
-          steps.fetch_ratings.outputs.CHANGED == 'true' ||
-          steps.fetch_lists.outputs.CHANGED == 'true'
+          steps.fetch_ratings.outputs.CHANGED == 'true'
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
@@ -255,13 +239,16 @@ jobs:
           steps.fetch.outputs.CHANGED == 'true' ||
           steps.fetch_tips.outputs.CHANGED == 'true' ||
           steps.fetch_photos.outputs.CHANGED == 'true' ||
-          steps.fetch_ratings.outputs.CHANGED == 'true' ||
-          steps.fetch_lists.outputs.CHANGED == 'true'
+          steps.fetch_ratings.outputs.CHANGED == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html lists.html ratings.html
+          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html stats.html search.html search-index.json
+          # Only update ratings.html if ratings data was available during the build
+          [ -f private-data/venueRatings.json ] && git add ratings.html || true
+          # Only update lists.html if lists data was available during the build
+          [ -f private-data/lists.json ] && git add lists.html || true
 
           if git diff --cached --quiet; then
             echo "Nothing to commit."

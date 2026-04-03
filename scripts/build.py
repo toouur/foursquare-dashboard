@@ -332,7 +332,7 @@ if __name__ == "__main__":
 
     tips_count = len(all_tips)
 
-    # ── Build per-venue metadata from checkins (most recent visit per venue) ──
+    # ── Build per-venue metadata from checkins (first & last visit per venue) ──
     # Used by both ratings and lists loading blocks below.
     _venue_meta: dict = {}
     for r in sorted(rows, key=lambda x: int(x.get("date", 0) or 0)):
@@ -340,13 +340,15 @@ if __name__ == "__main__":
         if not vid:
             continue
         _ts = int(r.get("date", 0) or 0)
+        _first_ts = _venue_meta[vid]["first_ts"] if vid in _venue_meta else _ts
         _venue_meta[vid] = {
-            "city":    r.get("city", ""),
-            "country": r.get("country", ""),
+            "city":     r.get("city", ""),
+            "country":  r.get("country", ""),
             "category": r.get("category", ""),
-            "lat":     r.get("lat", ""),
-            "lng":     r.get("lng", ""),
-            "last_ts": _ts,
+            "lat":      r.get("lat", ""),
+            "lng":      r.get("lng", ""),
+            "last_ts":  _ts,
+            "first_ts": _first_ts,
         }
 
     # Build closed-venue set from tips
@@ -482,10 +484,11 @@ if __name__ == "__main__":
                     _raw_city    = _meta.get("city", "") or _vloc.get("city", "")
                     _nc  = _CTRY_NORM.get(_raw_country, _raw_country)
                     _nci = _city_merge.get(_raw_city, _raw_city)
-                    _last_ts = _meta.get("last_ts", 0)
+                    _last_ts  = _meta.get("last_ts", 0)
+                    _first_ts = _meta.get("first_ts", 0)
                     _ld = ""
-                    if _last_ts:
-                        _ld = datetime.fromtimestamp(_last_ts, tz=timezone.utc).strftime("%d %b %Y")
+                    if _first_ts:
+                        _ld = datetime.fromtimestamp(_first_ts, tz=timezone.utc).strftime("%d %b %Y")
                     _vout: dict = {"id": _vid, "n": (_v.get("name") or "").strip()}
                     _u = (_v.get("canonicalUrl") or "").strip()
                     if _u: _vout["u"] = _u
