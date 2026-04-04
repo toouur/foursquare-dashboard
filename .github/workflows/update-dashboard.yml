@@ -134,6 +134,7 @@ jobs:
               --csv   private-data/checkins.csv \
               --out   private-data/photos.json \
               --pix-dir private-data/pix \
+              --recheck-days 1 \
               --sleep 0.3 >> "$GITHUB_OUTPUT"
           fi
 
