@@ -115,6 +115,9 @@ if __name__ == "__main__":
     parser.add_argument("--lists",       default=None,
                         help="Path to lists.json (Foursquare export). "
                              "Falls back to lists.json sibling of --input.")
+    parser.add_argument("--trips-out",   default=None,
+                        help="Write slim trips metadata JSON to this path "
+                             "(used by sync_to_d1.py; excludes checkins/coords arrays).")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -263,6 +266,30 @@ if __name__ == "__main__":
             ts_key = str(t["_name_ts"])
             if ts_key in new_name_entries:
                 t["name"] = new_name_entries[ts_key]
+
+    # ── Write slim trips metadata JSON (for D1 sync) ─────────────────────────
+    if args.trips_out:
+        _slim_trips = []
+        for t in trips:
+            _slim_trips.append({
+                "id":            t["id"],
+                "name":          t["name"],
+                "start_date":    t["start_date"],
+                "end_date":      t["end_date"],
+                "start_ts":      t["start_ts"],
+                "start_year":    t["start_year"],
+                "duration":      t["duration"],
+                "checkin_count": t["checkin_count"],
+                "unique_places": t["unique_places"],
+                "countries":     t["countries"],
+                "cities":        t["cities"],
+                "tags":          t.get("tags", []),
+                "top_cats":      t.get("top_cats", []),
+            })
+        Path(args.trips_out).write_text(
+            json.dumps(_slim_trips, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        log.info("Wrote slim trips metadata → %s  (%d trips)", args.trips_out, len(_slim_trips))
 
     # ── Patch trips with photos per check-in from photos.json (if provided) ──
     _photos_by_checkin: dict = {}

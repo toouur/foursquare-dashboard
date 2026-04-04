@@ -65,6 +65,7 @@ jobs:
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
+            --trips-out /tmp/trips_meta.json \
             $RATINGS_ARG $LISTS_ARG
 
   # ── Update: fetch → skip if no new check-ins → rebuild → commit → deploy ──
@@ -231,6 +232,7 @@ jobs:
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
+            --trips-out private-data/trips_meta.json \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
       # ── 7b. Sync data to Cloudflare D1 ──────────────────────────────────────
@@ -255,9 +257,11 @@ jobs:
             python scripts/sync_to_d1.py \
               --csv             private-data/checkins.csv \
               --tips            private-data/tips.json \
+              --trips           private-data/trips_meta.json \
               --tips-changed    ${{ steps.fetch_tips.outputs.CHANGED    || 'false' }} \
               --ratings-changed ${{ steps.fetch_ratings.outputs.CHANGED || 'false' }} \
               --lists-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
+              --trips-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
               $RATINGS_ARG $LISTS_ARG
           fi
 

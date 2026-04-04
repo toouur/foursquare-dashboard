@@ -40,7 +40,7 @@ export async function onRequestGet({ request, env }) {
   }
 
   // Run all D1 queries in parallel
-  const [venueRes, cityRes, tipRes, compRes, overlapRes] = await Promise.all([
+  const [venueRes, cityRes, tipRes, compRes, overlapRes, tripRes] = await Promise.all([
     env.DB.prepare(
       'SELECT name, category, city, country, checkin_count ' +
       'FROM venues WHERE name LIKE ?1 OR city LIKE ?1 OR category LIKE ?1 ' +
@@ -74,6 +74,13 @@ export async function onRequestGet({ request, env }) {
       'SELECT overlaps_name, COUNT(*) AS cnt FROM checkins ' +
       "WHERE overlaps_name LIKE ?1 AND overlaps_name IS NOT NULL AND overlaps_name != '-' " +
       'GROUP BY overlaps_name LIMIT 60'
+    ).bind(like).all(),
+
+    env.DB.prepare(
+      'SELECT id, name, start_date, end_date, checkin_count, countries, cities ' +
+      'FROM trips ' +
+      'WHERE name LIKE ?1 OR countries LIKE ?1 OR cities LIKE ?1 ' +
+      'ORDER BY start_ts DESC LIMIT 20'
     ).bind(like).all(),
   ]);
 
@@ -115,9 +122,6 @@ export async function onRequestGet({ request, env }) {
         cnt: c.cnt     || 0,
       })),
 
-    // Trips are not yet stored in D1 — placeholder for future Phase 3
-    trip: [],
-
     tip: (tipRes.results || [])
       .filter(t => matches(t.venue, t.text, t.city, t.country))
       .map(t => ({
@@ -126,6 +130,20 @@ export async function onRequestGet({ request, env }) {
         tx: (t.text  || '').slice(0, 120),
         c:  t.city   || null,
         co: t.country || null,
+      })),
+
+    trip: (tripRes.results || [])
+      .filter(t => {
+        const countries = tryParseJson(t.countries, []);
+        const cities    = tryParseJson(t.cities, []);
+        return matches(t.name, ...countries, ...cities);
+      })
+      .map(t => ({
+        t:   'trip',
+        n:   t.name,
+        d:   t.start_date || null,
+        cnt: t.checkin_count || 0,
+        id:  t.id,
       })),
 
     companion: [...compMap.entries()]
@@ -141,4 +159,9 @@ export async function onRequestOptions() {
 
 function jsonResp(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: HEADERS });
+}
+
+function tryParseJson(str, fallback = []) {
+  if (!str) return fallback;
+  try { return JSON.parse(str); } catch { return fallback; }
 }

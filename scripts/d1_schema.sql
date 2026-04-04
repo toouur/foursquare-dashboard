@@ -103,6 +103,23 @@ CREATE TABLE IF NOT EXISTS list_venues (
     PRIMARY KEY (list_id, venue_id)
 );
 
+-- ── Trips (computed from checkins via metrics.py) ─────────────────────────────
+CREATE TABLE IF NOT EXISTS trips (
+    id            INTEGER PRIMARY KEY,   -- sequential, 1-based (same as trips.html order)
+    name          TEXT,
+    start_date    TEXT,                  -- ISO date "YYYY-MM-DD"
+    end_date      TEXT,                  -- ISO date "YYYY-MM-DD"
+    start_ts      INTEGER,               -- unix timestamp of first check-in
+    start_year    INTEGER,
+    duration      INTEGER,               -- days
+    checkin_count INTEGER DEFAULT 0,
+    unique_places INTEGER DEFAULT 0,
+    countries     TEXT,                  -- JSON array e.g. ["Italy","France"]
+    cities        TEXT,                  -- JSON array e.g. ["Rome","Paris"]
+    tags          TEXT,                  -- JSON array e.g. ["bicycle"]
+    top_cats      TEXT                   -- JSON array of [category, count] pairs
+);
+
 -- ── Indexes ───────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_checkins_id       ON checkins(id);
 CREATE INDEX IF NOT EXISTS idx_checkins_venue_id ON checkins(venue_id);
@@ -111,3 +128,5 @@ CREATE INDEX IF NOT EXISTS idx_checkins_city     ON checkins(city);
 CREATE INDEX IF NOT EXISTS idx_tips_venue_id     ON tips(venue_id);
 CREATE INDEX IF NOT EXISTS idx_list_venues_list  ON list_venues(list_id);
 CREATE INDEX IF NOT EXISTS idx_ratings_rating    ON ratings(rating);
+CREATE INDEX IF NOT EXISTS idx_trips_start_ts    ON trips(start_ts);
+CREATE INDEX IF NOT EXISTS idx_trips_name        ON trips(name);

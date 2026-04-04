@@ -97,6 +97,12 @@ SQL_LIST_VENUES = (
     "lat,lng,address,city,state,cc,country,formatted_address,visited,last_visit_ts) "
     "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 )
+SQL_TRIPS = (
+    "INSERT OR REPLACE INTO trips "
+    "(id,name,start_date,end_date,start_ts,start_year,duration,"
+    "checkin_count,unique_places,countries,cities,tags,top_cats) "
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
+)
 
 
 # -- Loaders ------------------------------------------------------------------
@@ -185,6 +191,28 @@ def parse_ratings(ratings_path: str):
     return rows
 
 
+def parse_trips(trips_path: str):
+    data = json.load(open(trips_path, encoding="utf-8"))
+    rows = []
+    for t in data:
+        rows.append([
+            _int(t.get("id")),
+            _str(t.get("name")),
+            _str(t.get("start_date")),
+            _str(t.get("end_date")),
+            _int(t.get("start_ts")),
+            _int(t.get("start_year")),
+            _int(t.get("duration")),
+            _int(t.get("checkin_count")),
+            _int(t.get("unique_places")),
+            json.dumps(t.get("countries") or [], ensure_ascii=False),
+            json.dumps(t.get("cities") or [], ensure_ascii=False),
+            json.dumps(t.get("tags") or [], ensure_ascii=False),
+            json.dumps(t.get("top_cats") or [], ensure_ascii=False),
+        ])
+    return rows
+
+
 def parse_lists(lists_path: str, visited_vids: set):
     data = json.load(open(lists_path, encoding="utf-8"))
     raw = data.get("items") or (data if isinstance(data, list) else [])
@@ -242,6 +270,8 @@ def main() -> None:
     ap.add_argument("--tips",    required=True)
     ap.add_argument("--ratings", required=True)
     ap.add_argument("--lists",   required=True)
+    ap.add_argument("--trips",   default=None,
+                    help="Path to trips_meta.json (written by build.py --trips-out)")
     ap.add_argument("--schema",  default=str(HERE / "d1_schema.sql"))
     ap.add_argument("--token",   help="CF_D1_TOKEN override")
     ap.add_argument("--tips-changed",    dest="tips_changed",
@@ -253,6 +283,9 @@ def main() -> None:
     ap.add_argument("--lists-changed",   dest="lists_changed",
                     default="true", choices=("true", "false"),
                     help="Skip lists/list_venues upsert when 'false' (pass fetch CHANGED output)")
+    ap.add_argument("--trips-changed",   dest="trips_changed",
+                    default="true", choices=("true", "false"),
+                    help="Skip trips upsert when 'false' (pass fetch CHANGED output)")
     args = ap.parse_args()
 
     token = args.token or os.environ.get("CF_D1_TOKEN", "")
@@ -265,7 +298,7 @@ def main() -> None:
     d1.apply_schema(args.schema)
 
     # Snapshot counts before sync -- used to detect unexpected shrinkage
-    _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues")
+    _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues", "trips")
     counts_before: dict[str, int] = {}
     for tbl in _TABLES:
         try:
@@ -321,6 +354,17 @@ def main() -> None:
         changed = True
     else:
         print("  ratings  : skipped (no new ratings this run)", flush=True)
+
+    # Trips -- full upsert only when checkins changed (trip detection uses checkins)
+    if args.trips_changed == "true" and args.trips:
+        if Path(args.trips).exists():
+            trip_rows = parse_trips(args.trips)
+            d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
+            changed = True
+        else:
+            print(f"  trips    : file not found: {args.trips}", flush=True)
+    else:
+        print("  trips    : skipped (no new check-ins this run)", flush=True)
 
     # Lists -- full upsert only when checkins changed (visited status) this run
     if args.lists_changed == "true":

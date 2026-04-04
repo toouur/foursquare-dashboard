@@ -379,9 +379,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 // [ts, date, time, venue, city, country, cat, vid, lat, lng]
 
-const ALL=FEED_DATA_PLACEHOLDER;
+let ALL=[];
 
-const YM_IDX=YM_INDEX_PLACEHOLDER;
+let YM_IDX={};
 
 
 
@@ -929,7 +929,7 @@ function gapFor(sec){
 
 
 
-let DATA=ALL, pos=[], totalH=0;
+let DATA=ALL, pos=[], totalH=0; let isFiltered=false;
 
 function buildPos(data){
 
@@ -1235,27 +1235,33 @@ const ymCnts={};
 const ydCnts={};   // "YYYY-MM-DD" → count
 const YD_IDX={};   // "YYYY-MM-DD" → first checkin index
 
-ALL.forEach((r,i)=>{
+function addToCalCounts(items,startIdx){
 
   // r[1] is local date string like "03 Mar 2025" — use it for calendar so counts match displayed dates
 
-  const parts=(r[1]||'').split(' ');
+  items.forEach((r,j)=>{
 
-  if(parts.length===3){
+    const i=startIdx+j;
 
-    const mo=MOS.indexOf(parts[1])+1;
+    const parts=(r[1]||'').split(' ');
 
-    if(mo>0){
-      const ym=`${parts[2]}-${String(mo).padStart(2,'0')}`;
-      ymCnts[ym]=(ymCnts[ym]||0)+1;
-      const ymd=`${ym}-${parts[0]}`;
-      ydCnts[ymd]=(ydCnts[ymd]||0)+1;
-      if(!(ymd in YD_IDX)) YD_IDX[ymd]=i;
+    if(parts.length===3){
+
+      const mo=MOS.indexOf(parts[1])+1;
+
+      if(mo>0){
+        const ym=`${parts[2]}-${String(mo).padStart(2,'0')}`;
+        ymCnts[ym]=(ymCnts[ym]||0)+1;
+        const ymd=`${ym}-${parts[0]}`;
+        ydCnts[ymd]=(ydCnts[ymd]||0)+1;
+        if(!(ymd in YD_IDX)) YD_IDX[ymd]=i;
+      }
+
     }
 
-  }
+  });
 
-});
+}
 
 let selYM=null;
 
@@ -1364,6 +1370,8 @@ function onSearch(q){
 
   const ql=q.trim().toLowerCase();
 
+  isFiltered=!!ql;
+
   DATA=ql?ALL.filter(r=>(r[3]||'').toLowerCase().includes(ql)||(r[4]||'').toLowerCase().includes(ql)||(r[5]||'').toLowerCase().includes(ql)||(r[6]||'').toLowerCase().includes(ql)):ALL;
 
   lastR=[-1,-1];
@@ -1386,20 +1394,58 @@ function onSearch(q){
 
 // ── Init ──
 
-buildPos(ALL);
-
-document.getElementById('vsSizer').style.height=totalH+'px';
-
-document.getElementById('badge').textContent=ALL.length.toLocaleString()+' check-ins';
-
-renderCal();
-
-renderVis();
-
-activate(0, false);
-
 window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
-(function(){const _q=new URLSearchParams(location.search).get('q');if(_q){const _inp=document.getElementById('srch');if(_inp){_inp.value=_q;onSearch(_q);}}})();
+
+(async function init(){
+  const PG=200;
+
+  // 1. Lightweight fetch: get YM_IDX and total for calendar (no item data)
+  try{
+    const yr=await(await fetch('/api/feed?ym=1')).json();
+    YM_IDX=yr.ym_index||{};
+    const tot=yr.total||0;
+    document.getElementById('badge').textContent=tot.toLocaleString()+' check-ins';
+    renderCal();
+  }catch(e){}
+
+  // 2. First page — render immediately
+  let firstData={items:[],has_more:false,total:0};
+  try{firstData=await(await fetch(`/api/feed?offset=0&limit=${PG}`)).json();}catch(e){}
+  const firstItems=firstData.items||[];
+  ALL.push(...firstItems);
+  addToCalCounts(firstItems,0);
+  buildPos(ALL);
+  document.getElementById('vsSizer').style.height=totalH+'px';
+  if(!Object.keys(YM_IDX).length) renderCal();
+  renderVis();
+  if(ALL.length) activate(0,false);
+
+  // Handle ?q= URL param after first page is ready
+  const _q=new URLSearchParams(location.search).get('q');
+  if(_q){const _inp=document.getElementById('srch');if(_inp){_inp.value=_q;onSearch(_q);}}
+
+  // 3. Background: progressively fetch remaining pages
+  const total=firstData.total||0;
+  let offset=ALL.length;
+  while(offset<total){
+    let d={items:[],has_more:false};
+    try{d=await(await fetch(`/api/feed?offset=${offset}&limit=${PG}`)).json();}catch(e){break;}
+    const items=d.items||[];
+    if(!items.length) break;
+    const prev=ALL.length;
+    ALL.push(...items);
+    addToCalCounts(items,prev);
+    offset=ALL.length;
+    if(!isFiltered){
+      buildPos(ALL);
+      document.getElementById('vsSizer').style.height=totalH+'px';
+      lastR=[-1,-1];
+      renderVis();
+    }
+    document.getElementById('badge').textContent=(isFiltered?DATA.length:ALL.length).toLocaleString()+' check-ins';
+    if(!d.has_more) break;
+  }
+})();
 
 </script>
 <script>
