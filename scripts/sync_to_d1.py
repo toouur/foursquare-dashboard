@@ -59,8 +59,8 @@ def _str(v) -> str | None:
 
 # -- SQL templates ------------------------------------------------------------
 
-SQL_CHECKINS_IGNORE = (
-    "INSERT OR IGNORE INTO checkins "
+SQL_CHECKINS_NEW = (
+    "INSERT INTO checkins "
     "(id,date,venue_id,venue,venue_url,city,state,country,neighborhood,lat,lng,"
     "address,category,shout,source_app,source_url,with_name,with_id,"
     "created_by_name,created_by_id,overlaps_name,overlaps_id) "
@@ -270,7 +270,7 @@ def main() -> None:
 
     # Upsert checkins (INSERT OR IGNORE -- safe to re-run)
     if new_checkin_rows:
-        d1.batch_upsert(SQL_CHECKINS_IGNORE, new_checkin_rows, label="checkins (new)")
+        d1.batch_upsert(SQL_CHECKINS_NEW, new_checkin_rows, label="checkins (new)")
 
     # Upsert only affected venues
     if new_venue_ids:

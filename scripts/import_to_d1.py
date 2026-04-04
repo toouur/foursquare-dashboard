@@ -257,7 +257,7 @@ def load_lists(lists_path: str, visited_vids: set) -> tuple[list[list], list[lis
 # -- SQL templates ------------------------------------------------------------
 
 SQL_CHECKINS = (
-    "INSERT OR REPLACE INTO checkins "
+    "INSERT INTO checkins "
     "(id,date,venue_id,venue,venue_url,city,state,country,neighborhood,lat,lng,"
     "address,category,shout,source_app,source_url,with_name,with_id,"
     "created_by_name,created_by_id,overlaps_name,overlaps_id) "
@@ -311,12 +311,6 @@ def main() -> None:
     d1.configure(token)
     skip = set(args.skip or [])
 
-    # Drop all tables so schema changes take effect cleanly
-    print("-- Dropping existing tables ...")
-    for tbl in ("list_venues", "lists", "ratings", "tips", "venues", "checkins"):
-        d1.query(f"DROP TABLE IF EXISTS {tbl}")
-    print("   done")
-
     print("-- Applying schema ...")
     d1.apply_schema(args.schema)
 
@@ -347,7 +341,11 @@ def main() -> None:
     print("-- Inserting ...")
 
     if "checkins" not in skip:
-        d1.raw_upsert(SQL_CHECKINS, checkin_rows, label="checkins")
+        result = d1.query("SELECT MAX(date) AS max_date FROM checkins")
+        max_date = (result[0].get("max_date") or 0) if result else 0
+        rows_to_insert = [r for r in checkin_rows if r[1] > max_date]
+        print(f"  checkins: {len(rows_to_insert):,} new rows (max_date in D1 = {max_date})")
+        d1.raw_upsert(SQL_CHECKINS, rows_to_insert, label="checkins")
     else:
         print("  checkins: skipped")
 

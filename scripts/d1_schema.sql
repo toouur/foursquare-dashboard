@@ -3,7 +3,8 @@
 
 -- ── Core check-ins ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS checkins (
-    id               TEXT    PRIMARY KEY,   -- checkin_id from CSV
+    seq              INTEGER PRIMARY KEY,   -- auto-increment row order (preserves CSV duplicates)
+    id               TEXT    NOT NULL,      -- checkin_id from CSV (not unique — duplicates allowed)
     date             INTEGER NOT NULL,      -- unix timestamp
     venue_id         TEXT,
     venue            TEXT,
@@ -103,6 +104,7 @@ CREATE TABLE IF NOT EXISTS list_venues (
 );
 
 -- ── Indexes ───────────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_checkins_id       ON checkins(id);
 CREATE INDEX IF NOT EXISTS idx_checkins_venue_id ON checkins(venue_id);
 CREATE INDEX IF NOT EXISTS idx_checkins_date     ON checkins(date);
 CREATE INDEX IF NOT EXISTS idx_checkins_city     ON checkins(city);
