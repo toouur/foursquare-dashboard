@@ -250,6 +250,17 @@ def main() -> None:
     print("D1 sync: applying schema ...", flush=True)
     d1.apply_schema(args.schema)
 
+    # Snapshot counts before sync -- used to detect unexpected shrinkage
+    _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues")
+    counts_before: dict[str, int] = {}
+    for tbl in _TABLES:
+        try:
+            res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
+            counts_before[tbl] = res[0].get("n", 0) if res else 0
+        except Exception:
+            counts_before[tbl] = 0
+    print(f"D1 sync: counts before = {counts_before}", flush=True)
+
     # Get current max checkin date from D1
     result = d1.query("SELECT MAX(date) AS max_date FROM checkins")
     max_date = (result[0].get("max_date") or 0) if result else 0
@@ -294,6 +305,30 @@ def main() -> None:
     list_rows, lv_rows = parse_lists(args.lists, visited_vids)
     d1.batch_upsert(SQL_LISTS,       list_rows, label="lists    ")
     d1.batch_upsert(SQL_LIST_VENUES, lv_rows,   label="list_venues")
+
+    # Post-sync count check -- alert if any table shrank
+    in_gha = os.environ.get("GITHUB_ACTIONS") == "true"
+    alerts: list[str] = []
+    for tbl in _TABLES:
+        try:
+            res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
+            after = res[0].get("n", 0) if res else 0
+        except Exception:
+            after = counts_before.get(tbl, 0)
+        before = counts_before.get(tbl, 0)
+        delta = after - before
+        status = f"+{delta}" if delta >= 0 else str(delta)
+        print(f"  {tbl}: {before} -> {after} ({status})", flush=True)
+        if after < before:
+            msg = f"D1 ALERT: {tbl} shrank from {before} to {after} (lost {before - after} rows) -- review immediately"
+            alerts.append(msg)
+            if in_gha:
+                print(f"::warning::{msg}", flush=True)
+            else:
+                print(f"WARNING: {msg}", flush=True)
+
+    if not alerts:
+        print("D1 sync: all counts stable or growing", flush=True)
 
     print(f"CHANGED={'true' if changed else 'false'}", flush=True)
     print("D1 sync: done", flush=True)
