@@ -83,13 +83,9 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, **kwargs):
         seen.add(name)
         items.append({"t": "companion", "n": name, "cnt": cnt, "q": name.lower()})
 
-    # ── Write search-index.json ───────────────────────────────────────────────
-    idx_path = Path(out_path).parent / "search-index.json"
-    idx_path.write_text(
-        json.dumps({"v": 1, "items": items}, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8",
-    )
-    print(f"search-index.json -> {idx_path}  ({idx_path.stat().st_size // 1024}KB, {len(items):,} items)")
+    # search-index.json is no longer written — search is now served by the
+    # Cloudflare Pages Function at /api/search (functions/api/search.js).
+    # The `items` list is kept above for potential future use (e.g. trips table).
 
     # ── Write search.html ────────────────────────────────────────────────────
     TEMPLATE = Path(tmpl_path).read_text(encoding="utf-8")

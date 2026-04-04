@@ -1,0 +1,15 @@
+# Cloudflare Pages project configuration
+# Used for local dev: `npx wrangler pages dev . --d1 DB=52210bd9-a019-415e-8f12-6a73b42278f9`
+#
+# Production D1 binding must also be set in Cloudflare dashboard:
+#   Pages → foursquare-dashboard → Settings → Functions → D1 database bindings
+#   Variable name: DB  |  D1 database: swarmdata (52210bd9-a019-415e-8f12-6a73b42278f9)
+
+name                    = "foursquare-dashboard"
+pages_build_output_dir  = "."
+compatibility_date      = "2025-01-01"
+
+[[d1_databases]]
+binding     = "DB"
+database_name = "swarmdata"
+database_id = "52210bd9-a019-415e-8f12-6a73b42278f9"
