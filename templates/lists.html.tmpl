@@ -127,6 +127,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .vc-loc .fi{width:1.1em;height:.85em;border-radius:2px;flex-shrink:0;background-size:cover;background-position:50%;display:inline-block;}
 .vc-loc-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .vc-date{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);white-space:nowrap;margin-left:auto;flex-shrink:0;}
+.vc-dist{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--teal);white-space:nowrap;flex-shrink:0;margin-left:auto;}
+
+/* ── Geolocation ── */
+#geobar{padding:5px 10px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;display:flex;align-items:center;gap:8px;}
+.locate-btn{font-family:'DM Mono',monospace;font-size:.56rem;text-transform:uppercase;letter-spacing:.08em;padding:4px 10px;background:var(--card2);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.locate-btn:hover{border-color:var(--teal);color:var(--teal);}
+.locate-btn.located{border-color:var(--teal);color:var(--teal);}
+#locateStatus{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);}
+.geo-marker{background:none!important;border:none!important;}
+.geo-dot{width:12px;height:12px;background:#4fc3f7;border-radius:50%;border:2px solid white;position:absolute;top:4px;left:4px;box-shadow:0 0 4px rgba(79,195,247,.8);}
+.geo-ring{width:20px;height:20px;background:rgba(79,195,247,.25);border-radius:50%;position:absolute;top:0;left:0;animation:geo-pulse 2s ease-out infinite;}
+@keyframes geo-pulse{0%{opacity:.8;transform:scale(.8);}100%{opacity:0;transform:scale(2.2);}}
 
 @media(max-width:700px){
   .lists-panel{width:100%;border-right:none;display:none;}
@@ -167,6 +179,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="detail-empty" id="detailEmpty">← Select a list</div>
       <div id="detailContent" style="display:none;flex-direction:column;overflow:hidden;flex:1;">
         <div class="detail-header" id="detailHeader"></div>
+        <div id="geobar" style="display:none;">
+          <button class="locate-btn" id="locateBtn" onclick="geoLocate()">📍 Locate me</button>
+          <span id="locateStatus"></span>
+        </div>
         <div id="map" style="display:none;"></div>
         <div class="venues-scroll" id="venuesScroll"></div>
       </div>
@@ -192,6 +208,53 @@ let _sortMode = 'updated';
 let filteredLists = [];
 let selIdx = -1;
 let map = null, mapMarkers = [];
+let userLat = null, userLng = null, userMarker = null;
+
+function haversine(a,b,c,d){
+  const R=6371,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180,
+    e=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)*Math.sin(dN/2);
+  return R*2*Math.atan2(Math.sqrt(e),Math.sqrt(1-e));
+}
+function fmtDist(km){return km<1?Math.round(km*1000)+'\u2009m':km.toFixed(1)+'\u2009km';}
+
+function geoLocate(){
+  if(!navigator.geolocation){document.getElementById('locateStatus').textContent='Not supported';return;}
+  const btn=document.getElementById('locateBtn');
+  const st=document.getElementById('locateStatus');
+  st.textContent='Locating\u2026';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    userLat=pos.coords.latitude;userLng=pos.coords.longitude;
+    st.textContent='Located \u2713';
+    btn.classList.add('located');
+    if(map){
+      if(userMarker) map.removeLayer(userMarker);
+      const icon=L.divIcon({
+        html:'<div class="geo-dot"></div><div class="geo-ring"></div>',
+        className:'geo-marker',iconSize:[20,20],iconAnchor:[10,10]
+      });
+      userMarker=L.marker([userLat,userLng],{icon}).addTo(map);
+      userMarker.bindPopup('<b>You are here</b>');
+    }
+    updateDistances();
+  },function(e){
+    st.textContent=e.code===1?'Permission denied':'Location error';
+  },{enableHighAccuracy:true,timeout:10000});
+}
+
+function updateDistances(){
+  if(userLat===null||selIdx<0) return;
+  const lst=LISTS[selIdx];
+  if(!lst) return;
+  (lst.venues||[]).forEach(function(v,vi){
+    const el=document.getElementById('lvc_dist_'+vi);
+    if(!el) return;
+    if(v.lat&&v.lng){
+      const d=haversine(userLat,userLng,parseFloat(v.lat),parseFloat(v.lng));
+      el.textContent=fmtDist(d);
+      el.style.display='';
+    }
+  });
+}
 
 function _maxVisitTs(lst){
   return Math.max(0,...(lst.venues||[]).map(v=>v.lts||0));
@@ -269,6 +332,7 @@ function selectList(idx){
   const mapEl = document.getElementById('map');
   if(withCoords){
     mapEl.style.display = 'block';
+    document.getElementById('geobar').style.display = 'flex';
     if(!map){
       map = L.map('map',{preferCanvas:true}).setView([30,15],2);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
@@ -289,6 +353,15 @@ function selectList(idx){
     setTimeout(()=>map.invalidateSize(),50);
   } else {
     mapEl.style.display = 'none';
+    document.getElementById('geobar').style.display = 'none';
+  }
+
+  // Re-add user marker if location already known
+  if(userLat!==null&&map&&withCoords){
+    if(userMarker) map.removeLayer(userMarker);
+    const icon=L.divIcon({html:'<div class="geo-dot"></div><div class="geo-ring"></div>',className:'geo-marker',iconSize:[20,20],iconAnchor:[10,10]});
+    userMarker=L.marker([userLat,userLng],{icon}).addTo(map);
+    userMarker.bindPopup('<b>You are here</b>');
   }
 
   // Venue cards
@@ -314,9 +387,11 @@ function selectList(idx){
       <div class="vc-foot">
         <span class="vc-cat">${esc(v.cat||'')}</span>
         ${locHtml}${dateHtml}
+        ${v.lat&&v.lng?`<span class="vc-dist" id="lvc_dist_${vi}" style="display:none"></span>`:''}
       </div>
     </div>`;
   }).join('');
+  if(userLat!==null) updateDistances();
 }
 
 function selectVenue(vi, listIdx){
