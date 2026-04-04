@@ -400,10 +400,10 @@ if __name__ == "__main__":
                     "rate_idx":   i,
                     "created_at": created_at,
                 })
-            # Sort by rating date (createdAt from fetch_ratings.py) if available,
-            # else preserve export order (index 0 = most recently rated).
-            if any(e["created_at"] for e in result):
-                result.sort(key=lambda x: -x["created_at"])
+            # Preserve the source list order (rate_idx = position in venueRatings.json).
+            # For API-fetched items this IS the exact chronological like order
+            # (index 0 = most recently liked). created_at is kept for year-header display only.
+            result.sort(key=lambda x: x["rate_idx"])
             return result
 
         _likes    = _enrich(_all_ratings.get("venueLikes",   []), "like")

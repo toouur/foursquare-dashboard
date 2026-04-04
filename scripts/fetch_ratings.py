@@ -164,7 +164,10 @@ def main() -> None:
         fresh_likes = None
 
     if fresh_likes is not None:
-        # Merge: preserve createdAt and any extra fields from existing entry
+        # Merge: API items first (in exact API order = newest-liked first),
+        # then append historical items that no longer appear in the API response
+        # (un-liked or removed venues we want to preserve).
+        fresh_ids = {item["id"] for item in fresh_likes}
         merged_likes = []
         for item in fresh_likes:
             old = existing_likes_by_id.get(item["id"], {})
@@ -172,6 +175,10 @@ def main() -> None:
             if "createdAt" not in merged_item:
                 merged_item["createdAt"] = 0
             merged_likes.append(merged_item)
+        # Preserve historical entries absent from the current API response
+        for entry in existing.get("venueLikes", []):
+            if entry.get("id") and entry["id"] not in fresh_ids:
+                merged_likes.append(entry)
 
         old_count = len(existing.get("venueLikes", []))
         log.info("venueLikes: %d → %d items (delta: %+d)",
