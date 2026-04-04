@@ -172,7 +172,7 @@ ALL.forEach((v,i)=>{
 // ── Filter state ─────────────────────────────────────────────────────────────
 let filterRating='like', query='', showClosed=false, yearFilter=0;
 
-// Populate year select
+// Populate year select (by first-visit year)
 (function(){
   const yearsSet=new Set();
   ALL.forEach(v=>{if(v.created_at)yearsSet.add(new Date(v.created_at*1000).getFullYear());});
@@ -183,6 +183,7 @@ let filterRating='like', query='', showClosed=false, yearFilter=0;
     const o=document.createElement('option');o.value=y;o.textContent=y;sel.appendChild(o);
   });
 })();
+function fmtDate(ts){if(!ts)return'';const d=new Date(ts*1000);return d.getDate().toString().padStart(2,'0')+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear();}
 
 // Update button counts
 document.getElementById('cntLike').textContent   = COUNTS.likes    ? '('+COUNTS.likes+')'    : '';
@@ -203,6 +204,8 @@ function getFiltered(){
 
 function render(){
   const idx=getFiltered();
+  // rate_idx = exact web list position (scraped from foursquare.com/list/venuelikes)
+  idx.sort((a,b)=>ALL[a].rate_idx-ALL[b].rate_idx);
   document.getElementById('badge').textContent=idx.length+' / '+ALL.filter(v=>v.rating===filterRating).length+' venues';
   let prevYear=null;
   document.getElementById('feedScroll').innerHTML=idx.map(i=>{
@@ -225,7 +228,7 @@ function render(){
       <div class="vc-foot">
         <span class="vc-cat">${esc(v.category||'')}</span>
         <span class="vc-loc">${f}${esc(loc)}</span>
-        <span class="vc-date">${v.last_date||''}</span>
+        <span class="vc-date">${fmtDate(v.created_at)||''}</span>
       </div>
     </div>`;
   }).join('');
