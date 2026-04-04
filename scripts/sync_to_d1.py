@@ -210,7 +210,7 @@ def main() -> None:
     d1.configure(token)
 
     # ── Schema (idempotent) ────────────────────────────────────────────────────
-    print("D1 sync: applying schema …", flush=True)
+    print("D1 sync: applying schema ...", flush=True)
     d1.apply_schema(args.schema)
 
     # ── Get current max checkin date from D1 ──────────────────────────────────
@@ -259,7 +259,7 @@ def main() -> None:
     d1.batch_upsert(SQL_LIST_VENUES, lv_rows,   label="list_venues")
 
     print(f"CHANGED={'true' if changed else 'false'}", flush=True)
-    print("D1 sync: done ✓", flush=True)
+    print("D1 sync: done", flush=True)
 
 
 if __name__ == "__main__":

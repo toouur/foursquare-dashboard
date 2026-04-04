@@ -30,6 +30,11 @@ import d1_client as d1
 
 HERE = Path(__file__).parent
 
+# Force UTF-8 output on Windows
+if sys.stdout.encoding.lower() != "utf-8":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -275,24 +280,24 @@ def main() -> None:
     d1.configure(token)
     skip = set(args.skip or [])
 
-    print("── Applying schema …")
+    print("-- Applying schema ...")
     d1.apply_schema(args.schema)
 
     # ── Load all data ──────────────────────────────────────────────────────────
-    print("\n── Loading checkins.csv …")
+    print("\n-- Loading checkins.csv ...")
     checkin_rows, venue_meta = load_checkins(args.csv)
     visited_vids = {r[1] for r in checkin_rows if r[1]}  # venue_id column
     print(f"  {len(checkin_rows):,} check-ins, {len(venue_meta):,} unique venues")
 
-    print("── Loading tips.json …")
+    print("-- Loading tips.json ...")
     tip_rows = load_tips(args.tips)
     print(f"  {len(tip_rows):,} tips")
 
-    print("── Loading venueRatings.json …")
+    print("-- Loading venueRatings.json ...")
     rating_rows = load_ratings(args.ratings)
     print(f"  {len(rating_rows):,} ratings")
 
-    print("── Loading lists.json …")
+    print("-- Loading lists.json ...")
     list_rows, lv_rows = load_lists(args.lists, visited_vids)
     print(f"  {len(list_rows):,} lists, {len(lv_rows):,} list-venue entries")
 
@@ -301,7 +306,7 @@ def main() -> None:
     print("  (D1 free tier: 100K writes/day — run with --skip if you hit the limit)\n")
 
     # ── Insert ─────────────────────────────────────────────────────────────────
-    print("── Inserting …")
+    print("-- Inserting ...")
 
     if "checkins" not in skip:
         d1.batch_upsert(SQL_CHECKINS, checkin_rows, label="checkins")
@@ -334,7 +339,7 @@ def main() -> None:
     else:
         print("  list_venues: skipped")
 
-    print("\n✓  Import complete.")
+    print("\nImport complete.")
 
 
 if __name__ == "__main__":

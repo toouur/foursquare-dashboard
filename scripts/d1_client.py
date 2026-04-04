@@ -58,7 +58,7 @@ def batch(statements: list[dict], retries: int = 4) -> None:
         )
         if r.status_code == 429:
             wait = int(r.headers.get("Retry-After", 60))
-            print(f"\n  Rate-limited — waiting {wait}s …", flush=True)
+            print(f"\n  Rate-limited - waiting {wait}s ...", flush=True)
             time.sleep(wait)
             continue
         r.raise_for_status()
@@ -89,7 +89,7 @@ def batch_upsert(
         batch(stmts)
         done = min(i + chunk, n)
         print(f"\r  {label}: {done}/{n}", end="", flush=True)
-    print(f"\r  {label}: {n}/{n} ✓       ")
+    print(f"\r  {label}: {n}/{n} done    ")
     return n
 
 
