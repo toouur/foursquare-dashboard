@@ -20,6 +20,11 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+body.light{--bg:#eeebe5;--card:#faf8f4;--card2:#e8e4dc;--border:#ccc8be;--gold:#965508;--teal:#1a6e68;--muted:#626678;--text:#1c1e2c;--text2:#4a4e68;}
+body.light header{background:linear-gradient(160deg,#e4e0d8 0%,#eceae4 70%);}
+body.light .side-nav{background:rgba(238,235,229,0.96);}
+body.light .side-nav a:hover,body.light .side-nav button:hover{background:rgba(0,0,0,.06);}
+body.light .heatmap-tooltip,body.light .map-status{background:rgba(238,235,229,0.97);}
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 .page{display:flex;flex-direction:column;height:100vh;}
@@ -43,12 +48,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .gs-input::placeholder{color:var(--muted);}
 .gs-esc-hint{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
 .side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}
-.side-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;}
-.side-nav a:hover{background:rgba(255,255,255,.06);color:var(--text);}
-.side-nav a.active{color:var(--gold);}
-.sn-icon{font-size:.95rem;line-height:1;}
-.sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}
-.sn-sep{width:32px;height:1px;background:var(--border);margin:0 auto;}
+.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
+.side-nav a:hover,.side-nav button:hover{background:rgba(255,255,255,.06);color:var(--text);}
+.side-nav a.active,.side-nav button.active{color:var(--gold);}
+.side-nav .sn-icon{font-size:.95rem;line-height:1;display:inline-block;transition:transform .15s;}
+.side-nav a:hover .sn-icon,.side-nav button:hover .sn-icon{transform:scale(1.28);}
+.side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}
+.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:2px auto;}
+.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:3px auto;border-radius:1px;}
 @media(max-width:900px){.side-nav{display:none;}}
 
 /* ── Topbar ── */
@@ -270,18 +277,20 @@ document.getElementById('gsInput').addEventListener('keydown',function(e){if(e.k
 document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();gsOpen();}if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open'))gsClose();});
 </script>
 <nav class="side-nav" aria-label="Page shortcuts">
-  <a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">Home</span></a>
+  <a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
+  <div class="sn-sep--pages"></div>
+  <a href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">FEED</span></a>
+  <a href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">TIPS</span></a>
+  <a class="active" href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">RATED</span></a>
+  <a href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">PHOTOS</span></a>
+  <a href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">TRIPS</span></a>
+  <a href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">LISTS</span></a>
+  <a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">WORLD CITIES</span></a>
+  <a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">TOTAL PLACES</span></a>
+  <a href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">WITH</span></a>
+  <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
   <div class="sn-sep"></div>
-  <a href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">Trips</span></a>
-  <a href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">Feed</span></a>
-  <a href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">Tips</span></a>
-  <a href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">With</span></a>
-  <a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">Venues</span></a>
-  <a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">Cities</span></a>
-  <a href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">Photos</span></a>
-  <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">Stats</span></a>
-  <a href="ratings.html" class="active"><span class="sn-icon">⭐</span><span class="sn-lbl">Rated</span></a>
-  <a href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">Lists</span></a>
+  <button id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
 </nav>
 </body>
 </html>

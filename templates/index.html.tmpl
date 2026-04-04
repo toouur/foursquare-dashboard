@@ -23,6 +23,11 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <style>
 :root{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}
+body.light{--bg:#eeebe5;--card:#faf8f4;--card2:#e8e4dc;--border:#ccc8be;--gold:#965508;--teal:#1a6e68;--muted:#626678;--text:#1c1e2c;--text2:#4a4e68;}
+body.light header{background:linear-gradient(160deg,#e4e0d8 0%,#eceae4 70%);}
+body.light .side-nav{background:rgba(238,235,229,0.96);}
+body.light .side-nav a:hover,body.light .side-nav button:hover{background:rgba(0,0,0,.06);}
+body.light .heatmap-tooltip,body.light .map-status{background:rgba(238,235,229,0.97);}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 
@@ -350,9 +355,11 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
 .side-nav a:hover,.side-nav button:hover{background:rgba(255,255,255,.06);color:var(--text);}
 .side-nav a.active,.side-nav button.active{color:var(--gold);}
-.side-nav .sn-icon{font-size:.95rem;line-height:1;}
+.side-nav .sn-icon{font-size:.95rem;line-height:1;display:inline-block;transition:transform .15s;}
+.side-nav a:hover .sn-icon,.side-nav button:hover .sn-icon{transform:scale(1.28);}
 .side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}
-.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:0 auto;}
+.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:2px auto;}
+.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:3px auto;border-radius:1px;}
 @media(max-width:900px){.side-nav{display:none;}}
 
 /* ── MOBILE BOTTOM NAV ── */
@@ -2246,24 +2253,25 @@ function buildCityMap(){
 </div>
 <!-- Floating side nav -->
 <nav class="side-nav" id="sideNav" aria-label="Section shortcuts">
-  <a class="sn-item active" id="sn-home" href="#top" onclick="document.getElementById('top').scrollIntoView({behavior:'smooth',block:'start'});return false;"><span class="sn-icon">🏠</span><span class="sn-lbl">Home</span></a>
+  <a class="sn-item active" id="sn-home" href="#top" onclick="document.getElementById('top').scrollIntoView({behavior:'smooth',block:'start'});return false;"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
+  <button class="sn-item" id="sn-timeline" onclick="document.getElementById('s-timeline').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">📅</span><span class="sn-lbl">TIMELINE</span></button>
+  <button class="sn-item" id="sn-countries" onclick="document.getElementById('s-countries').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🌍</span><span class="sn-lbl">COUNTRIES</span></button>
+  <button class="sn-item" id="sn-cities" onclick="document.getElementById('s-cities').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🏙</span><span class="sn-lbl">CITIES</span></button>
+  <button class="sn-item" id="sn-venues" onclick="document.getElementById('s-venues').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">📍</span><span class="sn-lbl">VENUES</span></button>
+  <button class="sn-item" id="sn-map" onclick="document.getElementById('s-map').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🗺</span><span class="sn-lbl">MAP</span></button>
+  <div class="sn-sep--pages"></div>
+  <a class="sn-item" href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">FEED</span></a>
+  <a class="sn-item" href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">TIPS</span></a>
+  <a class="sn-item" href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">RATED</span></a>
+  <a class="sn-item" href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">PHOTOS</span></a>
+  <a class="sn-item" href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">TRIPS</span></a>
+  <a class="sn-item" href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">LISTS</span></a>
+  <a class="sn-item" href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">WORLD CITIES</span></a>
+  <a class="sn-item" href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">TOTAL PLACES</span></a>
+  <a class="sn-item" href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">WITH</span></a>
+  <a class="sn-item" href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
   <div class="sn-sep"></div>
-  <button class="sn-item" id="sn-timeline" onclick="document.getElementById('s-timeline').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">📅</span><span class="sn-lbl">Time</span></button>
-  <button class="sn-item" id="sn-countries" onclick="document.getElementById('s-countries').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🌍</span><span class="sn-lbl">Countries</span></button>
-  <button class="sn-item" id="sn-cities" onclick="document.getElementById('s-cities').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🏙</span><span class="sn-lbl">Cities</span></button>
-  <button class="sn-item" id="sn-venues" onclick="document.getElementById('s-venues').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">📍</span><span class="sn-lbl">Venues</span></button>
-  <button class="sn-item" id="sn-map" onclick="document.getElementById('s-map').scrollIntoView({behavior:'smooth',block:'start'})"><span class="sn-icon">🗺</span><span class="sn-lbl">Map</span></button>
-  <div class="sn-sep"></div>
-  <a class="sn-item" href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">Trips</span></a>
-  <a class="sn-item" href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">Feed</span></a>
-  <a class="sn-item" href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">Tips</span></a>
-  <a class="sn-item" href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">With</span></a>
-  <a class="sn-item" href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">Venues</span></a>
-  <a class="sn-item" href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">Cities</span></a>
-  <a class="sn-item" href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">Photos</span></a>
-  <a class="sn-item" href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">Stats</span></a>
-  <a class="sn-item" href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">Rated</span></a>
-  <a class="sn-item" href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">Lists</span></a>
+  <button class="sn-item" id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
 </nav>
 <script>
 (function(){
@@ -2290,6 +2298,22 @@ function buildCityMap(){
   }
   window.addEventListener('scroll',updateActive,{passive:true});
   updateActive();
+})();
+(function(){
+  var btn=document.getElementById('snThemeToggle');
+  var ico=document.getElementById('snThemeIcon');
+  var lbl=document.getElementById('snThemeLbl');
+  function apply(light){
+    document.body.classList.toggle('light',light);
+    ico.textContent=light?'🌙':'☀️';
+    lbl.textContent=light?'DARK':'LIGHT';
+  }
+  apply(localStorage.getItem('fsq-theme')==='light');
+  btn.addEventListener('click',function(){
+    var isLight=document.body.classList.toggle('light');
+    localStorage.setItem('fsq-theme',isLight?'light':'dark');
+    apply(isLight);
+  });
 })();
 </script>
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
