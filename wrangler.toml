@@ -5,7 +5,7 @@
 #   Pages → foursquare-dashboard → Settings → Functions → D1 database bindings
 #   Variable name: DB  |  D1 database: swarmdata (52210bd9-a019-415e-8f12-6a73b42278f9)
 
-name                    = "foursquare-dashboard"
+name                    = "4sq"
 pages_build_output_dir  = "."
 compatibility_date      = "2025-01-01"
 
