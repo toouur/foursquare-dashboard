@@ -96,7 +96,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .vc-loc{font-size:.70rem;color:var(--muted);display:inline-flex;align-items:center;gap:3px;}
 .vc-cat{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.06em;color:var(--teal);white-space:nowrap;}
 .vc-date{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);white-space:nowrap;}
-.vc-rating{font-size:.85rem;}
+.vc-rating{font-size:.85rem;display:inline-block;}
+.leaflet-rating-icon{background:none!important;border:none!important;}
 .yr-hdr{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:var(--gold);opacity:.7;padding:10px 4px 4px;border-bottom:1px solid var(--border);margin-bottom:6px;}
 
 /* ── Map popup ── */
@@ -128,9 +129,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
   <div class="topbar">
     <h1>Rated Places</h1>
-    <button class="sbtn act" id="fLike"    onclick="setFilter('like',this)">❤️ Liked <span id="cntLike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
-    <button class="sbtn"     id="fNeutral" onclick="setFilter('neutral',this)">😐 Neutral <span id="cntNeutral" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
-    <button class="sbtn"     id="fDislike" onclick="setFilter('dislike',this)">💔 Disliked <span id="cntDislike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
+    <button class="sbtn act" id="fLike"    onclick="setFilter('like',this)"><span>❤️</span> Liked <span id="cntLike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
+    <button class="sbtn"     id="fNeutral" onclick="setFilter('neutral',this)"><span style="filter:grayscale(1) brightness(0.55)">😐</span> Neutral <span id="cntNeutral" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
+    <button class="sbtn"     id="fDislike" onclick="setFilter('dislike',this)"><span style="filter:saturate(0.25) brightness(0.55)">💔</span> Disliked <span id="cntDislike" style="opacity:.55;font-size:.65rem;font-family:'DM Mono',monospace;"></span></button>
     <button class="sbtn"     id="fClosed"  onclick="toggleClosed(this)">Closed only</button>
     <select class="sbtn" id="fYear" onchange="setYear(this.value)" style="padding:4px 7px;cursor:pointer;"></select>
     <div class="tb-right">
@@ -160,19 +161,29 @@ const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&g
 const CAT_ICON={'Coffee Shop':['☕','#6F4E37'],'Café':['☕','#6F4E37'],'Bakery':['🥐','#C8860A'],'Restaurant':['🍽️','#C0392B'],'Fast Food Restaurant':['🍔','#E67E22'],'Pizzeria':['🍕','#E74C3C'],'Burger Joint':['🍔','#D35400'],'Italian Restaurant':['🍝','#C0392B'],'Kebab Restaurant':['🌯','#E67E22'],'Cafeteria':['🥣','#D4A017'],'Corporate Cafeteria':['🥣','#D4A017'],'Food Court':['🍱','#E67E22'],'Grocery Store':['🛒','#27AE60'],'Supermarket':['🛒','#219A52'],'Convenience Store':['🏪','#2ECC71'],'Market':['🛒','#27AE60'],'Gourmet Store':['🧀','#F39C12'],'Candy Store':['🍬','#F06292'],'Farmers Market':['🥦','#27AE60'],'Bar':['🍺','#F39C12'],'Beer Bar':['🍺','#E67E22'],'Pub':['🍻','#D4A017'],'Hookah Bar':['💨','#8E44AD'],'Cocktail Bar':['🍸','#E74C3C'],'Wine Bar':['🍷','#922B21'],'Wine Store':['🍷','#7B241C'],'Liquor Store':['🥃','#784212'],'Lounge':['🛋️','#5D6D7E'],'Gastropub':['🍖','#CA6F1E'],'Brewery':['🍻','#BA4A00'],'Nightclub':['🎵','#6C3483'],'Night Club':['🎵','#6C3483'],'Karaoke Bar':['🎤','#7D3C98'],'Beer Garden':['🍻','#D4A017'],'Beach Bar':['🍹','#2980B9'],'Dive Bar':['🍺','#7B241C'],'Sports Bar':['📺','#2C3E50'],'Rock Club':['🎸','#6C3483'],'Hotel Bar':['🍸','#2C3E50'],'Irish Pub':['🍀','#27AE60'],'Beer Store':['🍺','#D4A017'],'Speakeasy':['🥃','#4A235A'],'Whisky Bar':['🥃','#784212'],'Buffet':['🍱','#E67E22'],'Brasserie':['🍺','#D4A017'],'Hotel':['🏨','#2C3E50'],'Hostel':['🛏️','#34495E'],'Bed and Breakfast':['🛏️','#4A235A'],'Inn':['🏠','#2E4053'],'Apartment or Condo':['🏠','#1A5276'],'Home (private)':['🏠','#17202A'],'Resort':['🏖️','#2980B9'],'Lodging':['🛏️','#5D6D7E'],'Metro Station':['🚇','#2980B9'],'Rail Station':['🚉','#1A5276'],'Train':['🚂','#E74C3C'],'Tram Station':['🚃','#2471A3'],'Light Rail Station':['🚈','#2980B9'],'Platform':['🚉','#1F618D'],'Bus Line':['🚌','#27AE60'],'Bus Station':['🚌','#1E8449'],'Bus Stop':['🚏','#239B56'],'Airport Terminal':['✈️','#2471A3'],'International Airport':['✈️','#154360'],'Airport Gate':['✈️','#1A5276'],'Airport':['✈️','#154360'],'Airport Lounge':['🛋️','#21618C'],'Travel Lounge':['🛋️','#21618C'],'Plane':['✈️','#2980B9'],'Boat or Ferry':['⛴️','#117A65'],'Border Crossing':['🛂','#717D7E'],'Taxi':['🚕','#F4D03F'],'Parking':['🅿️','#2980B9'],'Fuel Station':['⛽','#E67E22'],'Cable Car':['🚡','#8E44AD'],'Ski Chairlift':['🚡','#2980B9'],'Marine Terminal':['⚓','#1A5276'],'Port':['🚢','#154360'],'Harbor or Marina':['⛵','#2980B9'],'Pier':['🎣','#2471A3'],'Travel and Transportation':['✈️','#2980B9'],'Transportation Service':['🚐','#27AE60'],'Park':['🌳','#1E8449'],'Plaza':['🏛️','#2E86C1'],'Pedestrian Plaza':['🚶','#2E86C1'],'Beach':['🏖️','#F39C12'],'Mountain':['⛰️','#7F8C8D'],'Hiking Trail':['🥾','#6E2F1A'],'Garden':['🌸','#1E8449'],'Scenic Lookout':['🔭','#1A5276'],'Waterfront':['🌊','#2471A3'],'River':['🌊','#2980B9'],'Lake':['🏞️','#2471A3'],'Island':['🏝️','#27AE60'],'Bike Trail':['🚴','#E67E22'],'Other Great Outdoors':['🌲','#186A3B'],'Cemetery':['🪦','#5D6D7E'],'Ski Area':['⛷️','#85C1E9'],'Bridge':['🌉','#626567'],'Fountain':['⛲','#5DADE2'],'National Park':['🌲','#186A3B'],'Nature Preserve':['🌿','#1E8449'],'Forest':['🌲','#186A3B'],'Botanical Garden':['🌺','#1E8449'],'Waterfall':['💦','#2980B9'],'Canal':['🚤','#2471A3'],'Bay':['🌊','#2980B9'],'Campground':['⛺','#186A3B'],'Playground':['🛝','#E74C3C'],'Tree':['🌳','#1E8449'],'Lighthouse':['🔦','#F39C12'],'Volcano':['🌋','#E74C3C'],'Cave':['🦇','#616A6B'],'Field':['🌾','#27AE60'],'Hill':['⛰️','#784212'],'Vineyard':['🍇','#922B21'],'Farm':['🚜','#27AE60'],'Museum':['🏛️','#7D3C98'],'Art Museum':['🎨','#884EA0'],'History Museum':['📜','#6E2F1A'],'Art Gallery':['🖼️','#7D3C98'],'Monument':['🗽','#626567'],'Historic and Protected Site':['🏰','#784212'],'Castle':['🏰','#6E2F1A'],'Palace':['🏯','#784212'],'Public Art':['🎨','#7D3C98'],'Street Art':['🎨','#8E44AD'],'Theater':['🎭','#922B21'],'Concert Hall':['🎼','#922B21'],'Movie Theater':['🎬','#C0392B'],'Cultural Center':['🎭','#7D3C98'],'Exhibit':['🖼️','#7D3C98'],'Exhibition':['🖼️','#8E44AD'],'Science Museum':['🔬','#1A5276'],'Amusement Park':['🎡','#E74C3C'],'Memorial Site':['🕯️','#626567'],'Library':['📚','#1A5276'],'Amphitheater':['🎭','#8E44AD'],'Music Venue':['🎸','#8E44AD'],'Opera House':['🎭','#6C3483'],'Attraction':['⭐','#D4A017'],'Zoo':['🦁','#D4A017'],'Aquarium':['🐠','#2980B9'],'Casino':['🎲','#C0392B'],'Escape Room':['🔐','#8E44AD'],'Event Space':['🎪','#C0392B'],'Church':['⛪','#7D3C98'],'Mosque':['🕌','#117A65'],'Temple':['🛕','#B9770E'],'Monastery':['🙏','#6E2F1A'],'Synagogue':['✡️','#1A5276'],'Shrine':['⛩️','#C0392B'],'Buddhist Temple':['☸️','#D4A017'],'Hindu Temple':['🛕','#E67E22'],'Shopping Mall':['🛍️','#E91E63'],'Department Store':['🏬','#C0392B'],'Clothing Store':['👔','#8E44AD'],'Shoe Store':['👟','#D35400'],'Electronics Store':['💻','#2471A3'],'Mobile Phone Store':['📱','#2E86C1'],'Bookstore':['📚','#1A5276'],'Furniture and Home Store':['🛋️','#784212'],'Cosmetics Store':['💄','#F06292'],'Bicycle Store':['🚲','#27AE60'],'Big Box Store':['📦','#7F8C8D'],'Flea Market':['🏷️','#D35400'],'Hardware Store':['🔧','#7F8C8D'],'Miscellaneous Store':['🏪','#E67E22'],'Souvenir Store':['🛍️','#D4A017'],'Gift Store':['🎁','#E91E8C'],'Jewelry Store':['💍','#D4A017'],'Antique Store':['🏺','#D4A017'],'Outdoor Supply Store':['⛺','#27AE60'],'Sporting Goods Retail':['⚽','#27AE60'],'Fruit and Vegetable Store':['🥦','#27AE60'],'Butcher':['🥩','#C0392B'],'Fish Market':['🐟','#2980B9'],'Pharmacy':['💊','#27AE60'],'Drugstore':['💊','#27AE60'],'Health Food Store':['🥗','#1E8449'],'Gym':['💪','#E74C3C'],'Bath House':['♨️','#1ABC9C'],'Spa':['💆','#1ABC9C'],'Medical Center':['🏥','#E74C3C'],'Hospital':['🏥','#E74C3C'],'Yoga Studio':['🧘','#27AE60'],'Hair Salon':['✂️','#F06292'],'Swimming Pool':['🏊','#2980B9'],'Sauna':['♨️','#E74C3C'],'Bank':['🏦','#1A5276'],'Office':['🏢','#2C3E50'],'Post Office':['📮','#E74C3C'],'Police Station':['👮','#2471A3'],'City Hall':['🏛️','#1A5276'],'Government Building':['🏛️','#154360'],'University':['🎓','#154360'],'Business Center':['🏢','#2C3E50'],'Coworking Space':['💻','#2C3E50'],'Embassy or Consulate':['🏛️','#1A5276'],'Chinese Restaurant':['🥢','#C0392B'],'Japanese Restaurant':['🍱','#C0392B'],'Korean Restaurant':['🍚','#E74C3C'],'Vietnamese Restaurant':['🍜','#27AE60'],'Thai Restaurant':['🍛','#F39C12'],'Indian Restaurant':['🍛','#E67E22'],'Turkish Restaurant':['🌯','#C0392B'],'Greek Restaurant':['🫒','#27AE60'],'French Restaurant':['🥐','#2980B9'],'Spanish Restaurant':['🥘','#E74C3C'],'German Restaurant':['🍺','#C8860A'],'Mexican Restaurant':['🌮','#27AE60'],'American Restaurant':['🍔','#E67E22'],'Middle Eastern Restaurant':['🧆','#D35400'],'Russian Restaurant':['🥟','#C0392B'],'Ukrainian Restaurant':['🌻','#F39C12'],'Belarusian Restaurant':['🥟','#27AE60'],'Eastern European Restaurant':['🍲','#C0392B'],'Diner':['🍳','#E67E22'],'Bistro':['🍽️','#C0392B'],'Dessert Shop':['🍰','#F06292'],'Ice Cream Parlor':['🍦','#F06292'],'Pastry Shop':['🥐','#C8860A'],'Coffee Roaster':['☕','#4A235A'],'Cafe, Coffee, and Tea House':['☕','#6F4E37'],'Blini House':['🫓','#C8860A'],'Pelmeni House':['🥟','#C8860A'],'Dumpling Restaurant':['🥟','#E67E22'],'Ramen Restaurant':['🍜','#E74C3C'],'Sushi Restaurant':['🍣','#C0392B'],'Steak House':['🥩','#922B21'],'Steakhouse':['🥩','#922B21'],'Seafood Restaurant':['🦐','#2980B9'],'Food Truck':['🚚','#E67E22'],'BBQ Joint':['🔥','#C0392B'],'Vegan and Vegetarian Restaurant':['🥦','#27AE60'],'Breakfast Spot':['🥞','#F39C12'],'Tea Room':['🫖','#27AE60'],'Bubble Tea Shop':['🧋','#8E44AD'],'Hot Dog Joint':['🌭','#E67E22'],'Taco Restaurant':['🌮','#27AE60'],'Trattoria':['🍝','#C0392B'],'Deli':['🥪','#D4A017'],'Sandwich Spot':['🥪','#D4A017'],'Shawarma Restaurant':['🌯','#D35400'],'Doner Restaurant':['🌯','#E67E22'],'Romanian Restaurant':['🥘','#C0392B'],'Polish Restaurant':['🥟','#C0392B'],'Modern European Restaurant':['🍽️','#C0392B'],'Asian Restaurant':['🥢','#C0392B'],'Noodle Restaurant':['🍜','#E67E22'],'Bagel Shop':['🥯','#C8860A'],'Comfort Food Restaurant':['🥘','#D4A017'],'Winery':['🍇','#922B21'],'Christmas Market':['🎄','#27AE60']};
 function catIcon(cat){const e=CAT_ICON[cat||''];return e?{em:e[0],bg:e[1]}:{em:'📍',bg:'#4a5270'};}
 
-const RATING_COLOR={'like':'#e8b86d','neutral':'#6b7280','dislike':'#ef4444'};
 const RATING_EMOJI={'like':'❤️','neutral':'😐','dislike':'💔'};
+const RATING_FILTER={'like':'','neutral':'filter:grayscale(1) brightness(0.55)','dislike':'filter:saturate(0.25) brightness(0.55)'};
+
+function ratingDivIcon(rating,selected){
+  const sz=selected?20:14;
+  const filt=RATING_FILTER[rating]||'';
+  return L.divIcon({
+    html:'<span style="font-size:'+sz+'px;line-height:1;display:block;'+filt+'">'+RATING_EMOJI[rating]+'</span>',
+    className:'leaflet-rating-icon',
+    iconSize:[sz+2,sz+2],
+    iconAnchor:[(sz+2)/2,(sz+2)/2],
+  });
+}
 
 // ── Map ──────────────────────────────────────────────────────────────────────
 const map=L.map('map',{preferCanvas:true}).setView([30,15],2);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
 
 const markers={};
-let selMarker=null;
+let selMarker=null,selIdx=-1;
 ALL.forEach((v,i)=>{
   if(!v.lat||!v.lng)return;
-  const col=RATING_COLOR[v.rating]||'#e8b86d';
-  const m=L.circleMarker([parseFloat(v.lat),parseFloat(v.lng)],{radius:5,fillColor:col,fillOpacity:.75,color:col,weight:1}).addTo(map);
+  const m=L.marker([parseFloat(v.lat),parseFloat(v.lng)],{icon:ratingDivIcon(v.rating,false)}).addTo(map);
   const loc=[v.nci||v.city,v.nc||v.country].filter(Boolean).join(', ');
   m.bindPopup(`<b>${esc(v.name||'')}</b><br><span style="font-size:.75rem;color:#9ca3af;">${esc(loc)}</span><br><span style="font-size:.78rem;">${RATING_EMOJI[v.rating]||''} ${esc(v.category||'')}</span>`,{maxWidth:220});
   markers[i]=m;
@@ -232,7 +243,7 @@ function render(){
       <div class="vc-head">
         <div class="vc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>
         <div class="vc-name">${venueLabel}${closedBadge}</div>
-        <span class="vc-rating">${RATING_EMOJI[v.rating]||''}</span>
+        <span class="vc-rating"${RATING_FILTER[v.rating]?' style="'+RATING_FILTER[v.rating]+'"':''}>${RATING_EMOJI[v.rating]||''}</span>
       </div>
       <div class="vc-foot">
         <span class="vc-cat">${esc(v.category||'')}</span>
@@ -244,15 +255,14 @@ function render(){
 }
 
 function selectVenue(i){
-  if(selMarker)selMarker.setStyle({radius:5,weight:1});
+  if(selMarker&&selIdx>=0)selMarker.setIcon(ratingDivIcon(ALL[selIdx].rating,false));
   document.querySelectorAll('.vcard.sel').forEach(el=>el.classList.remove('sel'));
   const el=document.getElementById('vc_'+i);
   if(el){el.classList.add('sel');el.scrollIntoView({block:'nearest',behavior:'smooth'});}
   const m=markers[i];
   if(m){
-    const col=RATING_COLOR[ALL[i].rating]||'#e8b86d';
-    m.setStyle({radius:9,weight:2,color:col});
-    selMarker=m;
+    m.setIcon(ratingDivIcon(ALL[i].rating,true));
+    selMarker=m;selIdx=i;
     map.panTo(m.getLatLng(),{animate:true});
     m.openPopup();
   }
