@@ -191,33 +191,11 @@ def main() -> None:
         log.info("venueLikes: keeping existing %d items", len(existing.get("venueLikes", [])))
         result["venueLikes"] = existing.get("venueLikes", [])
 
-    # ── Okays / Dislikes: endpoints return 402; preserve existing ────────────
-    for json_key, list_id in [("venueOkays", "venueokays"), ("venueDislikes", "venuedislikes")]:
-        log.info("Attempting %s …", list_id)
-        try:
-            fresh = fetch_venue_list(token, list_id)
-        except Exception as exc:
-            log.error("Failed to fetch %s: %s", list_id, exc)
-            fresh = None
-
-        if fresh is not None:
-            old_by_id = {e["id"]: e for e in existing.get(json_key, []) if e.get("id")}
-            merged = []
-            for item in fresh:
-                old = old_by_id.get(item["id"], {})
-                merged_item = {**old, **item}
-                if "createdAt" not in merged_item:
-                    merged_item["createdAt"] = 0
-                merged.append(merged_item)
-            result[json_key] = merged
-            old_count = len(existing.get(json_key, []))
-            log.info("%s: %d → %d items (delta: %+d)",
-                     json_key, old_count, len(merged), len(merged) - old_count)
-            if merged != existing.get(json_key, []):
-                changed = True
-        else:
-            log.info("%s: keeping existing %d items", list_id, len(existing.get(json_key, [])))
-            result[json_key] = existing.get(json_key, [])
+    # ── Okays / Dislikes: endpoints always return 402; preserve existing ────────
+    for json_key in ("venueOkays", "venueDislikes"):
+        existing_items = existing.get(json_key, [])
+        log.info("%s: preserving existing %d items (endpoint not accessible)", json_key, len(existing_items))
+        result[json_key] = existing_items
 
     if changed:
         out_path.parent.mkdir(parents=True, exist_ok=True)
