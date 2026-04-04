@@ -253,8 +253,11 @@ jobs:
             echo "⚠️  CF_D1_TOKEN not set — skipping D1 sync."
           else
             python scripts/sync_to_d1.py \
-              --csv     private-data/checkins.csv \
-              --tips    private-data/tips.json \
+              --csv             private-data/checkins.csv \
+              --tips            private-data/tips.json \
+              --tips-changed    ${{ steps.fetch_tips.outputs.CHANGED    || 'false' }} \
+              --ratings-changed ${{ steps.fetch_ratings.outputs.CHANGED || 'false' }} \
+              --lists-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
               $RATINGS_ARG $LISTS_ARG
           fi
 

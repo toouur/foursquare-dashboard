@@ -8,6 +8,11 @@ Strategy:
   checkins   -> INSERT OR IGNORE (append-only; never overwrites existing rows)
   venues     -> INSERT OR REPLACE only for venues touched by new check-ins
   tips       -> INSERT OR REPLACE all (~1.9K rows -- counts change over time)
+               skipped when --tips-changed=false (CI passes fetch_tips output)
+  ratings    -> INSERT OR REPLACE all (~3.7K rows)
+               skipped when --ratings-changed=false (CI passes fetch_ratings output)
+  lists      -> INSERT OR REPLACE all + rebuild list_venues (~18K rows)
+               skipped when --lists-changed=false (CI passes fetch/checkins output)
   ratings    -> INSERT OR REPLACE all (~3.7K rows -- new likes added each run)
   lists      -> INSERT OR REPLACE all + rebuild list_venues (~small)
 
@@ -239,6 +244,15 @@ def main() -> None:
     ap.add_argument("--lists",   required=True)
     ap.add_argument("--schema",  default=str(HERE / "d1_schema.sql"))
     ap.add_argument("--token",   help="CF_D1_TOKEN override")
+    ap.add_argument("--tips-changed",    dest="tips_changed",
+                    default="true", choices=("true", "false"),
+                    help="Skip tips upsert when 'false' (pass fetch_tips CHANGED output)")
+    ap.add_argument("--ratings-changed", dest="ratings_changed",
+                    default="true", choices=("true", "false"),
+                    help="Skip ratings upsert when 'false' (pass fetch_ratings CHANGED output)")
+    ap.add_argument("--lists-changed",   dest="lists_changed",
+                    default="true", choices=("true", "false"),
+                    help="Skip lists/list_venues upsert when 'false' (pass fetch CHANGED output)")
     args = ap.parse_args()
 
     token = args.token or os.environ.get("CF_D1_TOKEN", "")
@@ -292,19 +306,30 @@ def main() -> None:
         ]
         d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
 
-    # Tips -- full upsert (counts change, new tips added)
-    tip_rows = parse_tips(args.tips)
-    d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
-    changed = changed or bool(tip_rows)
+    # Tips -- full upsert only when tips file changed this run
+    if args.tips_changed == "true":
+        tip_rows = parse_tips(args.tips)
+        d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
+        changed = True
+    else:
+        print("  tips     : skipped (no new tips this run)", flush=True)
 
-    # Ratings -- full upsert
-    rating_rows = parse_ratings(args.ratings)
-    d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
+    # Ratings -- full upsert only when ratings file changed this run
+    if args.ratings_changed == "true":
+        rating_rows = parse_ratings(args.ratings)
+        d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
+        changed = True
+    else:
+        print("  ratings  : skipped (no new ratings this run)", flush=True)
 
-    # Lists -- full upsert
-    list_rows, lv_rows = parse_lists(args.lists, visited_vids)
-    d1.batch_upsert(SQL_LISTS,       list_rows, label="lists    ")
-    d1.batch_upsert(SQL_LIST_VENUES, lv_rows,   label="list_venues")
+    # Lists -- full upsert only when checkins changed (visited status) this run
+    if args.lists_changed == "true":
+        list_rows, lv_rows = parse_lists(args.lists, visited_vids)
+        d1.batch_upsert(SQL_LISTS,       list_rows, label="lists    ")
+        d1.batch_upsert(SQL_LIST_VENUES, lv_rows,   label="list_venues")
+        changed = True
+    else:
+        print("  lists    : skipped (no new check-ins this run)", flush=True)
 
     # Post-sync count check -- alert if any table shrank
     in_gha = os.environ.get("GITHUB_ACTIONS") == "true"

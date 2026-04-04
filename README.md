@@ -26,7 +26,8 @@ GitHub-style activity heatmap · travel timeline (Gantt) · trip journal with pe
 trip analytics (duration distribution, countries per trip, longest trips leaderboard, furthest destination) ·
 distance travelled per year · activity streaks · category mix drift · new countries timeline ·
 venue loyalty · regular haunts · revisit intervals · venue visit frequency ·
-searchable cities & venues · category explorer · companions · recent check-ins with historical weather ·
+**live full-text search** (venues, cities, tips, companions — powered by Cloudflare D1, no static index file) ·
+category explorer · companions · recent check-ins with historical weather ·
 tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons ·
 **photo gallery** with 21 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
 lazy loading, lightbox, and inline tip photos.
@@ -41,20 +42,35 @@ lazy loading, lightbox, and inline tip photos.
 │   ├── fetch_checkins.py        # Fetch check-ins from Foursquare API → data/checkins.csv
 │   ├── fetch_tips.py            # Fetch tips → data/tips.json (incremental + venue sweep)
 │   ├── fetch_photos.py          # Fetch check-in photos from Foursquare data export → data/photos.json
+│   ├── fetch_ratings.py         # Fetch venue ratings (likes/okays/dislikes) → venueRatings.json
+│   ├── fetch_lists.py           # Fetch Foursquare lists → lists.json
 │   ├── transform.py             # Data cleaning: country fixes, city normalisation
 │   ├── metrics.py               # All aggregation + trip-detection logic
-│   ├── build.py                 # CLI entry point: checkins.csv → index.html + trips.html
+│   ├── build.py                 # CLI entry point: checkins.csv → all HTML pages
 │   ├── gen_companions.py        # Generates companions.html
 │   ├── gen_feed.py              # Generates feed.html (infinite-scroll with weather)
+│   ├── gen_lists.py             # Generates lists.html
 │   ├── gen_photos.py            # Generates photos.html (full gallery, city filter, tip photos)
+│   ├── gen_ratings.py           # Generates ratings.html
+│   ├── gen_search.py            # Generates search.html (no longer writes search-index.json)
+│   ├── gen_stats.py             # Generates stats.html
 │   ├── gen_tips.py              # Generates tips.html (country/city tabs, map, CLOSED badges)
 │   ├── gen_venues.py            # Generates venues.html (top 500 venues)
 │   ├── gen_worldcities.py       # Generates world_cities.html
+│   ├── sync_to_d1.py            # Incremental CI sync of all data to Cloudflare D1
+│   ├── d1_client.py             # Low-level D1 HTTP client (batch upsert, schema apply)
+│   ├── import_to_d1.py          # One-time bulk import to D1 (uses /raw endpoint)
+│   ├── sync_venue_changes.py    # Diffs archived vs fresh checkins; patches tips.json metadata
 │   └── find_closed_venue_tips.py  # One-time utility: find tips on closed venues via browser cookies
+├── functions/
+│   └── api/
+│       └── search.js            # Cloudflare Pages Function: /api/search?q= (D1-backed)
 ├── data/
 │   ├── checkins.csv          # Your check-in data — gitignored, lives in private repo
-│   ├── tips.json             # Your tips data — gitignored, lives in private repo alongside checkins.csv
-│   └── photos.json           # Photo index {checkin_id: [filenames]} — gitignored, lives in private repo
+│   ├── tips.json             # Your tips data — gitignored, lives in private repo
+│   ├── photos.json           # Photo index {checkin_id: [filenames]} — gitignored, lives in private repo
+│   ├── venueRatings.json     # Venue ratings — gitignored, lives in private repo
+│   └── lists.json            # Foursquare lists — gitignored, lives in private repo
 ├── workers/
 │   └── checkin-poller/       # Cloudflare Worker: polls Foursquare every minute,
 │       ├── worker.js         #   triggers GitHub Actions on new check-in
@@ -73,7 +89,9 @@ lazy loading, lightbox, and inline tip photos.
 ├── templates/
 │   ├── index.html.tmpl       # Template for index.html
 │   ├── trips.html.tmpl       # Template for trips.html
-│   └── tips.html.tmpl        # Template for tips.html
+│   ├── tips.html.tmpl        # Template for tips.html
+│   ├── search.html.tmpl      # Template for search.html (queries /api/search)
+│   └── ...                   # One template per generated page
 ├── index.html                # Main dashboard (built by CI, committed)
 ├── trips.html                # Trip journal (built by CI, committed)
 ├── companions.html           # Companions page (built by CI)
@@ -81,9 +99,12 @@ lazy loading, lightbox, and inline tip photos.
 ├── tips.html                 # Tips page (built by CI)
 ├── venues.html               # Top venues (built by CI)
 ├── world_cities.html         # World cities explorer (built by CI)
+├── ratings.html              # Venue ratings page (built by CI)
+├── lists.html                # Foursquare lists page (built by CI)
+├── search.html               # Search page — queries live D1 via /api/search (built by CI)
 ├── requirements.txt          # Python deps (requests, pyyaml, timezonefinder)
 ├── netlify.toml              # Netlify config (builds disabled — CI-only deploys)
-└── wrangler.jsonc            # Cloudflare Pages config
+└── wrangler.toml             # Cloudflare Pages + D1 binding config
 ```
 
 ---
@@ -122,11 +143,12 @@ The dashboard repo can be **public** — check-in data is stored separately in a
 2. Source: **Deploy from a branch** · Branch: `main` / `(root)`
 3. Your site will be at `https://YOUR_USERNAME.github.io/REPO_NAME/`
 
-**Option B — Cloudflare Pages**
-1. Connect the repo in the Cloudflare dashboard
+**Option B — Cloudflare Pages** (recommended — includes live search via D1)
+1. Connect the repo in the Cloudflare dashboard (Workers & Pages → Create → Pages → Connect to Git)
 2. Build command: *(leave empty — HTML is pre-built by CI)*
-3. Build output: `/` (repo root)
-4. The `wrangler.jsonc` is already configured
+3. Build output directory: `/` (repo root)
+4. After first deploy: Settings → Functions → D1 database bindings → add `DB` → `swarmdata`
+5. The `wrangler.toml` is already configured with the D1 binding for local dev
 
 **Option C — Netlify**
 1. Connect the repo in the Netlify dashboard
@@ -357,6 +379,41 @@ Required GitHub secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT
 
 ---
 
+## Search (Cloudflare D1 + Pages Functions)
+
+Search is powered by a **Cloudflare Pages Function** (`functions/api/search.js`) that queries a **D1 SQLite database** (`swarmdata`) at runtime. The old static `search-index.json` (6+ MB) is no longer generated — the search page opens instantly and queries on demand.
+
+### What's stored in D1
+
+| Table | Contents | Sync strategy |
+|-------|----------|---------------|
+| `checkins` | All check-ins (all source columns) | Append-only — only new rows inserted |
+| `venues` | Venue metadata + visit counts | Updated only for venues touched by new check-ins |
+| `tips` | All tips with counts | Full upsert only when tips file changed (`--tips-changed`) |
+| `ratings` | Venue likes/okays/dislikes | Full upsert only when ratings file changed (`--ratings-changed`) |
+| `lists` / `list_venues` | Foursquare lists + visited status | Full upsert only when checkins changed (`--lists-changed`) |
+
+### D1 sync setup
+
+1. Create a D1 database in the Cloudflare dashboard: Workers & Pages → D1 → Create database → name it `swarmdata`
+2. Note the database ID and add these secrets to your GitHub repo:
+   - `CF_D1_TOKEN` — Cloudflare API token with D1 Edit permission
+   - `CF_ACCOUNT_ID` — your Cloudflare account ID
+   - `CF_D1_DATABASE_ID` — the database ID from step 1
+3. Add the D1 binding to your Pages project (see Cloudflare Pages setup step 4 above)
+4. Trigger a manual `workflow_dispatch` run to perform the initial full sync
+
+### Search API
+
+`GET /api/search?q=<query>` — returns JSON:
+```json
+{ "venue": [...], "city": [...], "trip": [], "tip": [...], "companion": [...] }
+```
+
+Companion results aggregate all three source fields: `with_name`, `created_by_name`, and `overlaps_name` (comma-separated in the DB, split at query time).
+
+---
+
 ## Data flow
 
 ```
@@ -373,6 +430,10 @@ data/photos.json + data/pix/           (optional, local only)
 
 Cloudflare R2 (pix/ prefix)            (deployed site)
   → build.py --pix-url → same pages with R2 URLs instead of local file:// URIs
+
+data/checkins.csv + tips.json + ...    (CI sync, incremental)
+  → sync_to_d1.py → Cloudflare D1 (swarmdata)
+  → functions/api/search.js → /api/search?q= (live queries from search.html)
 ```
 
 ## Dependencies

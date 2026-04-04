@@ -42,6 +42,26 @@ python scripts/fetch_tips.py --full --sweep --csv data/checkins.csv --out data/t
   --pix-dir C:/Users/toouur/Documents/GitHub/foursquare-data/pix/
 ```
 
+### D1 sync (manual / local)
+```bash
+export CF_D1_TOKEN=your_token
+export CF_ACCOUNT_ID=your_account_id
+export CF_D1_DATABASE_ID=52210bd9-a019-415e-8f12-6a73b42278f9
+python scripts/sync_to_d1.py \
+  --csv     C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --tips    C:/Users/toouur/Documents/GitHub/foursquare-data/tips.json \
+  --ratings C:/Users/toouur/Documents/GitHub/foursquare-data/venueRatings.json \
+  --lists   C:/Users/toouur/Documents/GitHub/foursquare-data/lists.json
+# Force full re-sync of all tables (ignore change flags):
+#   --tips-changed true --ratings-changed true --lists-changed true
+```
+
+### Local D1 dev (Wrangler)
+```bash
+npx wrangler pages dev . --d1 DB=52210bd9-a019-415e-8f12-6a73b42278f9
+# Tests /api/search against the remote D1 database locally
+```
+
 ### Local preview
 ```bash
 python -m http.server 8000
@@ -66,6 +86,9 @@ python -m http.server 8000
 - Photos generation: `scripts/gen_photos.py`
 - Tips fetch: `scripts/fetch_tips.py`
 - Check-ins fetch: `scripts/fetch_checkins.py`
+- D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
+- Search API (Cloudflare Pages Function): `functions/api/search.js`
+- Pages config: `wrangler.toml`
 - Config: `config/city_merge.yaml`, `config/city_fixes.json`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
 
 ## Stable Implementation Notes
@@ -75,6 +98,9 @@ python -m http.server 8000
 - Tips UI normalization path: country via `CTRY_NORM`, city via `city_merge.yaml`.
 - `window._catIcon = catIcon` is used so index tips can reuse category icon logic from check-ins block.
 - Build placeholders are simple string substitution (`{{PLACEHOLDER}}`), not Jinja.
+- Search is served by `functions/api/search.js` (Cloudflare Pages Function at `/api/search?q=`). It queries D1 directly — no static `search-index.json` is generated or committed.
+- `sync_to_d1.py` is incremental: checkins append-only, venues only for touched IDs, tips/ratings/lists gated by `--tips-changed` / `--ratings-changed` / `--lists-changed` flags (CI passes fetch step outputs).
+- Companion search covers all three source fields: `with_name`, `created_by_name` (UNION query), and `overlaps_name` (comma-separated, split in JS).
 
 ## Known Gotchas
 
@@ -82,13 +108,18 @@ python -m http.server 8000
 - CSS `:visited` does not reliably support CSS variables; use literal color values when needed.
 - Chart/config brace balance errors break pages silently; validate after edits.
 - Companion name overrides require exact `with_name` string matches.
+- Building locally without `--photos` and `--pix-url` will emit `const photos=[]` in `index.html`, wiping the recent photos feed. Always pass both args when rebuilding a production-intended HTML file, or restore from git before committing.
+- The D1 binding (`DB`) must be configured in the Cloudflare Pages dashboard (Settings → Functions → D1 database bindings). Without it, `/api/search` returns 503.
 
 ## Deployment Notes
 
-- Deploy target: Cloudflare Pages (auto on push to `main`).
+- Deploy target: Cloudflare Pages (auto on push to `main`). Project name: `4sq` (`wrangler.toml`).
 - Photo hosting: Cloudflare R2 under `/pix` prefix.
+- Search backend: Cloudflare D1 database `swarmdata` (ID `52210bd9-a019-415e-8f12-6a73b42278f9`), queried by `functions/api/search.js`.
+- D1 binding must be added manually in CF dashboard: Pages → 4sq → Settings → Functions → D1 database bindings → Variable: `DB`, database: `swarmdata`.
 - Common required secrets in CI:
-  `FOURSQUARE_TOKEN`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`.
+  `FOURSQUARE_TOKEN`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`,
+  `CF_D1_TOKEN`, `CF_ACCOUNT_ID`, `CF_D1_DATABASE_ID`.
 
 ## Working Style
 
