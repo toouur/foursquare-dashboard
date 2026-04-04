@@ -8,6 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}
+body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;--text2:#373b58;}
+body.light header{background:linear-gradient(160deg,#d6d1c8 0%,#dedad1 70%);}
+body.light .c-card,body.light .cs-block,body.light .stat-strip,body.light .stack-item{box-shadow:0 2px 8px rgba(0,0,0,.10);}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.6;}
 
@@ -943,12 +946,18 @@ python scripts/build.py \
 </div>
 
 <footer>
-  Idea by <span style="color:var(--gold);">Andrei Patsiomkin</span>
+  Idea by <a href="https://app.foursquare.com/user/29447180" target="_blank" rel="noopener" style="color:var(--gold);">Andrei Patsiomkin</a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   Built with <a href="https://claude.ai/code" target="_blank">Claude Code</a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   Deployed on <a href="https://pages.cloudflare.com" target="_blank">Cloudflare Pages</a>
 </footer>
 
+<script>
+(function(){
+  function apply(light){document.body.classList.toggle('light',light);}
+  apply(localStorage.getItem('fsq-theme')==='light');
+})();
+</script>
 </body>
 </html>

@@ -8,9 +8,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--text2:#9ba3c0;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;--text2:#373b58;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
 a{color:inherit;text-decoration:none;}
+body.light a{color:var(--teal);}
+body.light .topnav{background:var(--card);}
+body.light .result-card{box-shadow:0 2px 6px rgba(0,0,0,.08);}
 
 .topnav{display:flex;align-items:center;gap:20px;padding:18px 40px;border-bottom:1px solid var(--border);background:var(--card);}
 .topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
@@ -218,6 +222,12 @@ a{color:inherit;text-decoration:none;}
   }).catch(()=>{
     wrap.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>Could not load search index.</div>';
   });
+})();
+</script>
+<script>
+(function(){
+  function apply(light){document.body.classList.toggle('light',light);}
+  apply(localStorage.getItem('fsq-theme')==='light');
 })();
 </script>
 </body>
