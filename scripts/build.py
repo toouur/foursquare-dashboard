@@ -381,7 +381,7 @@ if __name__ == "__main__":
                 if last_ts:
                     from datetime import datetime, timezone as _tz
                     date_str = datetime.fromtimestamp(last_ts, tz=_tz.utc).strftime("%d %b %Y")
-                created_at = int(e.get("createdAt") or 0)
+                created_at = int(e.get("createdAt") or 0) or int(meta.get("first_ts") or 0)
                 result.append({
                     "id":         vid,
                     "name":       e.get("name", ""),
