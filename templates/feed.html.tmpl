@@ -31,11 +31,13 @@
 <style>
 
 :root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
-body.light{--bg:#eeebe5;--card:#faf8f4;--card2:#e8e4dc;--border:#ccc8be;--gold:#965508;--teal:#1a6e68;--muted:#626678;--text:#1c1e2c;--text2:#4a4e68;}
-body.light header{background:linear-gradient(160deg,#e4e0d8 0%,#eceae4 70%);}
-body.light .side-nav{background:rgba(238,235,229,0.96);}
-body.light .side-nav a:hover,body.light .side-nav button:hover{background:rgba(0,0,0,.06);}
-body.light .heatmap-tooltip,body.light .map-status{background:rgba(238,235,229,0.97);}
+body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;--text2:#373b58;}
+body.light header{background:linear-gradient(160deg,#d6d1c8 0%,#dedad1 70%);}
+body.light .side-nav{background:rgba(220,215,208,0.97);}
+body.light .side-nav a:hover,body.light .side-nav button:hover{background:rgba(0,0,0,.08);}
+body.light .heatmap-tooltip,body.light .map-status{background:rgba(220,215,208,0.97);}
+body.light .card{box-shadow:0 2px 8px rgba(0,0,0,.10);}
+body.light a{color:var(--teal);}
 
 *{box-sizing:border-box;margin:0;padding:0;}
 
@@ -1423,6 +1425,24 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
   <button id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
 </nav>
 
+<script>
+(function(){
+  var btn=document.getElementById('snThemeToggle');
+  var ico=document.getElementById('snThemeIcon');
+  var lbl=document.getElementById('snThemeLbl');
+  function apply(light){
+    document.body.classList.toggle('light',light);
+    if(ico) ico.textContent=light?'\u{1F319}':'\u2600\uFE0F';
+    if(lbl) lbl.textContent=light?'DARK':'LIGHT';
+  }
+  apply(localStorage.getItem('fsq-theme')==='light');
+  if(btn) btn.addEventListener('click',function(){
+    var isLight=document.body.classList.toggle('light');
+    localStorage.setItem('fsq-theme',isLight?'light':'dark');
+    apply(isLight);
+  });
+})();
+</script>
 </body>
 
 </html>
