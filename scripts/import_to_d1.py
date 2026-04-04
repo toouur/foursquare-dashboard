@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-import_to_d1.py — One-time full import of all Foursquare data into Cloudflare D1.
+import_to_d1.py -- One-time full import of all Foursquare data into Cloudflare D1.
 
 Usage (local, first run):
     export CF_D1_TOKEN=cfat_...
@@ -23,6 +23,7 @@ import csv
 import json
 import os
 import sys
+import io
 from collections import defaultdict
 from pathlib import Path
 
@@ -32,11 +33,10 @@ HERE = Path(__file__).parent
 
 # Force UTF-8 output on Windows
 if sys.stdout.encoding.lower() != "utf-8":
-    import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers ------------------------------------------------------------------
 
 def _float(v) -> float | None:
     try:
@@ -52,13 +52,19 @@ def _int(v, default=0) -> int:
         return default
 
 
-# ── Loaders ───────────────────────────────────────────────────────────────────
+def _str(v) -> str | None:
+    s = (v or "").strip()
+    return s or None
+
+
+# -- Loaders ------------------------------------------------------------------
 
 def load_checkins(csv_path: str) -> tuple[list[list], dict]:
     """
     Returns (rows_for_checkins_table, venue_meta_dict).
     venue_meta keyed by venue_id: {name, category, lat, lng, city, country,
                                    first_ts, last_ts, count}
+    All 22 CSV columns are stored.
     """
     rows: list[list] = []
     venue_meta: dict = defaultdict(lambda: {
@@ -68,27 +74,36 @@ def load_checkins(csv_path: str) -> tuple[list[list], dict]:
 
     with open(csv_path, encoding="utf-8-sig", newline="") as fh:
         for row in csv.DictReader(fh):
-            cid = (row.get("checkin_id") or "").strip()
+            cid = _str(row.get("checkin_id"))
             if not cid:
                 continue
             ts  = _int(row.get("date"))
-            vid = (row.get("venue_id") or "").strip()
+            vid = _str(row.get("venue_id"))
             lat = _float(row.get("lat"))
             lng = _float(row.get("lng"))
             rows.append([
-                cid, ts,
-                vid or None,
-                (row.get("venue") or "").strip() or None,
-                (row.get("city") or "").strip() or None,
-                (row.get("state") or "").strip() or None,
-                (row.get("country") or "").strip() or None,
-                (row.get("neighborhood") or "").strip() or None,
-                lat, lng,
-                (row.get("address") or "").strip() or None,
-                (row.get("category") or "").strip() or None,
-                (row.get("shout") or "").strip() or None,
-                (row.get("with_name") or "").strip() or None,
-                (row.get("with_id") or "").strip() or None,
+                cid,
+                ts,
+                vid,
+                _str(row.get("venue")),
+                _str(row.get("venue_url")),
+                _str(row.get("city")),
+                _str(row.get("state")),
+                _str(row.get("country")),
+                _str(row.get("neighborhood")),
+                lat,
+                lng,
+                _str(row.get("address")),
+                _str(row.get("category")),
+                _str(row.get("shout")),
+                _str(row.get("source_app")),
+                _str(row.get("source_url")),
+                _str(row.get("with_name")),
+                _str(row.get("with_id")),
+                _str(row.get("created_by_name")),
+                _str(row.get("created_by_id")),
+                _str(row.get("overlaps_name")),
+                _str(row.get("overlaps_id")),
             ])
 
             if vid:
@@ -98,10 +113,10 @@ def load_checkins(csv_path: str) -> tuple[list[list], dict]:
                     m["first_ts"] = ts
                 if ts and ts > m["last_ts"]:
                     m["last_ts"]   = ts
-                    m["name"]     = (row.get("venue") or "").strip()
-                    m["category"] = (row.get("category") or "").strip()
-                    m["city"]     = (row.get("city") or "").strip()
-                    m["country"]  = (row.get("country") or "").strip()
+                    m["name"]     = _str(row.get("venue")) or ""
+                    m["category"] = _str(row.get("category")) or ""
+                    m["city"]     = _str(row.get("city")) or ""
+                    m["country"]  = _str(row.get("country")) or ""
                 if lat is not None:
                     m["lat"] = lat
                 if lng is not None:
@@ -134,13 +149,14 @@ def load_tips(tips_path: str) -> list[list]:
         rows.append([
             t.get("id"),
             _int(t.get("ts")),
-            (t.get("text") or "").strip() or None,
-            (t.get("venue") or "").strip() or None,
-            (t.get("venue_id") or "").strip() or None,
-            (t.get("city") or "").strip() or None,
-            (t.get("country") or "").strip() or None,
-            _float(t.get("lat")), _float(t.get("lng")),
-            (t.get("category") or "").strip() or None,
+            _str(t.get("text")),
+            _str(t.get("venue")),
+            _str(t.get("venue_id")),
+            _str(t.get("city")),
+            _str(t.get("country")),
+            _float(t.get("lat")),
+            _float(t.get("lng")),
+            _str(t.get("category")),
             _int(t.get("agree_count")),
             _int(t.get("disagree_count")),
             1 if t.get("closed") else 0,
@@ -154,19 +170,19 @@ def load_ratings(ratings_path: str) -> list[list]:
     rows = []
     for rating_key, label in (
         ("venueLikes",    "like"),
-        ("venueNeutrals", "neutral"),
+        ("venueOkays",   "okay"),
         ("venueDislikes", "dislike"),
     ):
         for v in data.get(rating_key) or []:
-            vid = (v.get("id") or "").strip()
-            if not vid:
-                continue
-            rows.append([
-                vid,
-                (v.get("name") or "").strip() or None,
-                label,
-                _int(v.get("createdAt")),
-            ])
+            vid = _str(v.get("id"))
+            if vid:
+                rows.append([
+                    vid,
+                    _str(v.get("name")),
+                    _str(v.get("url")),
+                    label,
+                    _int(v.get("createdAt")),
+                ])
     return rows
 
 
@@ -178,49 +194,59 @@ def load_lists(lists_path: str, visited_vids: set) -> tuple[list[list], list[lis
     lv_rows:   list[list] = []
 
     for lst in raw_lists:
-        lid = str(lst.get("id") or "").strip()
+        lid = _str(str(lst.get("id") or ""))
         if not lid:
             continue
 
-        # cover URL
         ph = lst.get("photo") or {}
-        cover = ""
+        cover = None
         if ph.get("prefix") and ph.get("suffix"):
             cover = ph["prefix"] + "100x100" + ph["suffix"]
 
-        # updatedAt
-        upd_raw = lst.get("updatedAt") or 0
-        try:
-            upd_ts = int(upd_raw)
-        except (ValueError, TypeError):
-            upd_ts = 0
-
         list_rows.append([
             lid,
-            (lst.get("name") or "").strip() or None,
-            (lst.get("canonicalUrl") or "").strip() or None,
-            cover or None,
-            upd_ts,
+            _str(lst.get("name")),
+            _str(lst.get("canonicalUrl")),
+            cover,
+            _int(lst.get("updatedAt")),
         ])
 
-        items = (lst.get("listItems") or {}).get("items") or []
-        for li in items:
+        for li in (lst.get("listItems") or {}).get("items") or []:
             v = li.get("venue") or {}
-            vid = str(v.get("id") or "").strip()
+            vid = _str(str(v.get("id") or ""))
             if not vid:
                 continue
-            loc = v.get("location") or {}
+            loc  = v.get("location") or {}
             cats = v.get("categories") or []
-            cat = (cats[0].get("name") or "").strip() if cats else ""
-            lat = _float(loc.get("lat"))
-            lng = _float(loc.get("lng"))
+            cat  = cats[0] if cats else {}
+            icon = cat.get("icon") or {}
+
+            # formatted_address may be a list or string
+            fa_raw = loc.get("formattedAddress")
+            if isinstance(fa_raw, list):
+                formatted_address = ", ".join(fa_raw)
+            else:
+                formatted_address = _str(fa_raw)
+
             lv_rows.append([
-                lid, vid,
-                (v.get("name") or "").strip() or None,
-                cat or None,
-                lat, lng,
-                (loc.get("city") or "").strip() or None,
-                (loc.get("country") or "").strip() or None,
+                lid,
+                vid,
+                _int(li.get("createdAt")),
+                _str(v.get("name")),
+                _str(v.get("canonicalUrl")),
+                _str(cat.get("name")),
+                _str(cat.get("id")),
+                _str(cat.get("shortName")),
+                _str(icon.get("prefix")),
+                _str(icon.get("suffix")),
+                _float(loc.get("lat")),
+                _float(loc.get("lng")),
+                _str(loc.get("address")),
+                _str(loc.get("city")),
+                _str(loc.get("state")),
+                _str(loc.get("cc")),
+                _str(loc.get("country")),
+                formatted_address,
                 1 if vid in visited_vids else 0,
                 0,  # last_visit_ts populated on sync
             ])
@@ -228,39 +254,44 @@ def load_lists(lists_path: str, visited_vids: set) -> tuple[list[list], list[lis
     return list_rows, lv_rows
 
 
-# ── SQL templates ─────────────────────────────────────────────────────────────
+# -- SQL templates ------------------------------------------------------------
 
 SQL_CHECKINS = (
     "INSERT OR REPLACE INTO checkins "
-    "(id,date,venue_id,venue,city,state,country,neighborhood,lat,lng,address,category,shout,with_name,with_id) "
-    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    "(id,date,venue_id,venue,venue_url,city,state,country,neighborhood,lat,lng,"
+    "address,category,shout,source_app,source_url,with_name,with_id,"
+    "created_by_name,created_by_id,overlaps_name,overlaps_id) "
+    "VALUES"
 )
 SQL_VENUES = (
     "INSERT OR REPLACE INTO venues "
     "(id,name,category,lat,lng,city,country,checkin_count,first_checkin_at,last_checkin_at) "
-    "VALUES (?,?,?,?,?,?,?,?,?,?)"
+    "VALUES"
 )
 SQL_TIPS = (
     "INSERT OR REPLACE INTO tips "
-    "(id,ts,text,venue,venue_id,city,country,lat,lng,category,agree_count,disagree_count,closed,view_count) "
-    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    "(id,ts,text,venue,venue_id,city,country,lat,lng,category,"
+    "agree_count,disagree_count,closed,view_count) "
+    "VALUES"
 )
 SQL_RATINGS = (
     "INSERT OR REPLACE INTO ratings "
-    "(venue_id,venue_name,rating,created_at) "
-    "VALUES (?,?,?,?)"
+    "(venue_id,venue_name,venue_url,rating,created_at) "
+    "VALUES"
 )
 SQL_LISTS = (
-    "INSERT OR REPLACE INTO lists (id,name,url,cover,updated_at) VALUES (?,?,?,?,?)"
+    "INSERT OR REPLACE INTO lists (id,name,url,cover,updated_at) VALUES"
 )
 SQL_LIST_VENUES = (
     "INSERT OR REPLACE INTO list_venues "
-    "(list_id,venue_id,venue_name,category,lat,lng,city,country,visited,last_visit_ts) "
-    "VALUES (?,?,?,?,?,?,?,?,?,?)"
+    "(list_id,venue_id,created_at,venue_name,venue_url,category,category_id,"
+    "category_short_name,category_icon_prefix,category_icon_suffix,"
+    "lat,lng,address,city,state,cc,country,formatted_address,visited,last_visit_ts) "
+    "VALUES"
 )
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# -- Main ---------------------------------------------------------------------
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Full one-time D1 import")
@@ -280,13 +311,19 @@ def main() -> None:
     d1.configure(token)
     skip = set(args.skip or [])
 
+    # Drop all tables so schema changes take effect cleanly
+    print("-- Dropping existing tables ...")
+    for tbl in ("list_venues", "lists", "ratings", "tips", "venues", "checkins"):
+        d1.query(f"DROP TABLE IF EXISTS {tbl}")
+    print("   done")
+
     print("-- Applying schema ...")
     d1.apply_schema(args.schema)
 
-    # ── Load all data ──────────────────────────────────────────────────────────
+    # -- Load all data ---------------------------------------------------------
     print("\n-- Loading checkins.csv ...")
     checkin_rows, venue_meta = load_checkins(args.csv)
-    visited_vids = {r[1] for r in checkin_rows if r[1]}  # venue_id column
+    visited_vids = {r[2] for r in checkin_rows if r[2]}  # index 2 = venue_id
     print(f"  {len(checkin_rows):,} check-ins, {len(venue_meta):,} unique venues")
 
     print("-- Loading tips.json ...")
@@ -301,41 +338,42 @@ def main() -> None:
     list_rows, lv_rows = load_lists(args.lists, visited_vids)
     print(f"  {len(list_rows):,} lists, {len(lv_rows):,} list-venue entries")
 
-    total_rows = len(checkin_rows) + len(venue_meta) + len(tip_rows) + len(rating_rows) + len(list_rows) + len(lv_rows)
+    total_rows = (len(checkin_rows) + len(venue_meta) + len(tip_rows)
+                  + len(rating_rows) + len(list_rows) + len(lv_rows))
     print(f"\n  Total rows to write: {total_rows:,}")
-    print("  (D1 free tier: 100K writes/day — run with --skip if you hit the limit)\n")
+    print("  (D1 free tier: 100K writes/day -- run with --skip if you hit the limit)\n")
 
-    # ── Insert ─────────────────────────────────────────────────────────────────
+    # -- Insert ----------------------------------------------------------------
     print("-- Inserting ...")
 
     if "checkins" not in skip:
-        d1.batch_upsert(SQL_CHECKINS, checkin_rows, label="checkins")
+        d1.raw_upsert(SQL_CHECKINS, checkin_rows, label="checkins")
     else:
         print("  checkins: skipped")
 
     if "venues" not in skip:
         venue_rows = build_venue_rows(venue_meta)
-        d1.batch_upsert(SQL_VENUES, venue_rows, label="venues  ")
+        d1.raw_upsert(SQL_VENUES, venue_rows, label="venues  ")
     else:
         print("  venues: skipped")
 
     if "tips" not in skip:
-        d1.batch_upsert(SQL_TIPS, tip_rows, label="tips    ")
+        d1.raw_upsert(SQL_TIPS, tip_rows, label="tips    ")
     else:
         print("  tips: skipped")
 
     if "ratings" not in skip:
-        d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings ")
+        d1.raw_upsert(SQL_RATINGS, rating_rows, label="ratings ")
     else:
         print("  ratings: skipped")
 
     if "lists" not in skip:
-        d1.batch_upsert(SQL_LISTS, list_rows, label="lists   ")
+        d1.raw_upsert(SQL_LISTS, list_rows, label="lists   ")
     else:
         print("  lists: skipped")
 
     if "list_venues" not in skip:
-        d1.batch_upsert(SQL_LIST_VENUES, lv_rows, label="list_venues")
+        d1.raw_upsert(SQL_LIST_VENUES, lv_rows, label="list_venues")
     else:
         print("  list_venues: skipped")
 

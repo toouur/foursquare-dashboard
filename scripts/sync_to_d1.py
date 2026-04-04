@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-sync_to_d1.py — Incremental CI sync: upserts only changed data to D1.
+sync_to_d1.py -- Incremental CI sync: upserts only changed data to D1.
 
 Strategy:
-  checkins   → INSERT OR IGNORE (append-only; never overwrites existing rows)
-  venues     → INSERT OR REPLACE only for venues touched by new check-ins
-  tips       → INSERT OR REPLACE all (~1.9K rows — counts change over time)
-  ratings    → INSERT OR REPLACE all (~3.7K rows — new likes added each run)
-  lists      → INSERT OR REPLACE all + rebuild list_venues (~small)
+  checkins   -> INSERT OR IGNORE (append-only; never overwrites existing rows)
+  venues     -> INSERT OR REPLACE only for venues touched by new check-ins
+  tips       -> INSERT OR REPLACE all (~1.9K rows -- counts change over time)
+  ratings    -> INSERT OR REPLACE all (~3.7K rows -- new likes added each run)
+  lists      -> INSERT OR REPLACE all + rebuild list_venues (~small)
 
 Outputs CHANGED=true/false to stdout (captured by GitHub Actions).
 
@@ -36,7 +36,7 @@ import d1_client as d1
 HERE = Path(__file__).parent
 
 
-# ── Shared helpers (same as import_to_d1) ────────────────────────────────────
+# -- Helpers ------------------------------------------------------------------
 
 def _float(v):
     try:
@@ -52,12 +52,19 @@ def _int(v, default=0):
         return default
 
 
-# ── SQL templates ─────────────────────────────────────────────────────────────
+def _str(v) -> str | None:
+    s = (v or "").strip()
+    return s or None
+
+
+# -- SQL templates ------------------------------------------------------------
 
 SQL_CHECKINS_IGNORE = (
     "INSERT OR IGNORE INTO checkins "
-    "(id,date,venue_id,venue,city,state,country,neighborhood,lat,lng,address,category,shout,with_name,with_id) "
-    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    "(id,date,venue_id,venue,venue_url,city,state,country,neighborhood,lat,lng,"
+    "address,category,shout,source_app,source_url,with_name,with_id,"
+    "created_by_name,created_by_id,overlaps_name,overlaps_id) "
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 )
 SQL_VENUES = (
     "INSERT OR REPLACE INTO venues "
@@ -66,25 +73,28 @@ SQL_VENUES = (
 )
 SQL_TIPS = (
     "INSERT OR REPLACE INTO tips "
-    "(id,ts,text,venue,venue_id,city,country,lat,lng,category,agree_count,disagree_count,closed,view_count) "
+    "(id,ts,text,venue,venue_id,city,country,lat,lng,category,"
+    "agree_count,disagree_count,closed,view_count) "
     "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 )
 SQL_RATINGS = (
     "INSERT OR REPLACE INTO ratings "
-    "(venue_id,venue_name,rating,created_at) "
-    "VALUES (?,?,?,?)"
+    "(venue_id,venue_name,venue_url,rating,created_at) "
+    "VALUES (?,?,?,?,?)"
 )
 SQL_LISTS = (
     "INSERT OR REPLACE INTO lists (id,name,url,cover,updated_at) VALUES (?,?,?,?,?)"
 )
 SQL_LIST_VENUES = (
     "INSERT OR REPLACE INTO list_venues "
-    "(list_id,venue_id,venue_name,category,lat,lng,city,country,visited,last_visit_ts) "
-    "VALUES (?,?,?,?,?,?,?,?,?,?)"
+    "(list_id,venue_id,created_at,venue_name,venue_url,category,category_id,"
+    "category_short_name,category_icon_prefix,category_icon_suffix,"
+    "lat,lng,address,city,state,cc,country,formatted_address,visited,last_visit_ts) "
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 )
 
 
-# ── Loaders (identical logic to import_to_d1, kept local for independence) ───
+# -- Loaders ------------------------------------------------------------------
 
 def parse_checkins(csv_path: str):
     rows = []
@@ -94,27 +104,36 @@ def parse_checkins(csv_path: str):
     })
     with open(csv_path, encoding="utf-8-sig", newline="") as fh:
         for row in csv.DictReader(fh):
-            cid = (row.get("checkin_id") or "").strip()
+            cid = _str(row.get("checkin_id"))
             if not cid:
                 continue
             ts  = _int(row.get("date"))
-            vid = (row.get("venue_id") or "").strip()
+            vid = _str(row.get("venue_id"))
             lat = _float(row.get("lat"))
             lng = _float(row.get("lng"))
             rows.append([
-                cid, ts,
-                vid or None,
-                (row.get("venue") or "").strip() or None,
-                (row.get("city") or "").strip() or None,
-                (row.get("state") or "").strip() or None,
-                (row.get("country") or "").strip() or None,
-                (row.get("neighborhood") or "").strip() or None,
-                lat, lng,
-                (row.get("address") or "").strip() or None,
-                (row.get("category") or "").strip() or None,
-                (row.get("shout") or "").strip() or None,
-                (row.get("with_name") or "").strip() or None,
-                (row.get("with_id") or "").strip() or None,
+                cid,
+                ts,
+                vid,
+                _str(row.get("venue")),
+                _str(row.get("venue_url")),
+                _str(row.get("city")),
+                _str(row.get("state")),
+                _str(row.get("country")),
+                _str(row.get("neighborhood")),
+                lat,
+                lng,
+                _str(row.get("address")),
+                _str(row.get("category")),
+                _str(row.get("shout")),
+                _str(row.get("source_app")),
+                _str(row.get("source_url")),
+                _str(row.get("with_name")),
+                _str(row.get("with_id")),
+                _str(row.get("created_by_name")),
+                _str(row.get("created_by_id")),
+                _str(row.get("overlaps_name")),
+                _str(row.get("overlaps_id")),
             ])
             if vid:
                 m = venue_meta[vid]
@@ -123,10 +142,10 @@ def parse_checkins(csv_path: str):
                     m["first_ts"] = ts
                 if ts and ts > m["last_ts"]:
                     m["last_ts"]   = ts
-                    m["name"]     = (row.get("venue") or "").strip()
-                    m["category"] = (row.get("category") or "").strip()
-                    m["city"]     = (row.get("city") or "").strip()
-                    m["country"]  = (row.get("country") or "").strip()
+                    m["name"]     = _str(row.get("venue")) or ""
+                    m["category"] = _str(row.get("category")) or ""
+                    m["city"]     = _str(row.get("city")) or ""
+                    m["country"]  = _str(row.get("country")) or ""
                 if lat is not None:
                     m["lat"] = lat
                 if lng is not None:
@@ -138,13 +157,13 @@ def parse_tips(tips_path: str):
     tips = json.load(open(tips_path, encoding="utf-8"))
     return [[
         t.get("id"), _int(t.get("ts")),
-        (t.get("text") or "").strip() or None,
-        (t.get("venue") or "").strip() or None,
-        (t.get("venue_id") or "").strip() or None,
-        (t.get("city") or "").strip() or None,
-        (t.get("country") or "").strip() or None,
+        _str(t.get("text")),
+        _str(t.get("venue")),
+        _str(t.get("venue_id")),
+        _str(t.get("city")),
+        _str(t.get("country")),
         _float(t.get("lat")), _float(t.get("lng")),
-        (t.get("category") or "").strip() or None,
+        _str(t.get("category")),
         _int(t.get("agree_count")), _int(t.get("disagree_count")),
         1 if t.get("closed") else 0, _int(t.get("view_count")),
     ] for t in tips]
@@ -153,11 +172,11 @@ def parse_tips(tips_path: str):
 def parse_ratings(ratings_path: str):
     data = json.load(open(ratings_path, encoding="utf-8"))
     rows = []
-    for key, label in (("venueLikes", "like"), ("venueNeutrals", "neutral"), ("venueDislikes", "dislike")):
+    for key, label in (("venueLikes", "like"), ("venueOkays", "okay"), ("venueDislikes", "dislike")):
         for v in data.get(key) or []:
-            vid = (v.get("id") or "").strip()
+            vid = _str(v.get("id"))
             if vid:
-                rows.append([vid, (v.get("name") or "").strip() or None, label, _int(v.get("createdAt"))])
+                rows.append([vid, _str(v.get("name")), _str(v.get("url")), label, _int(v.get("createdAt"))])
     return rows
 
 
@@ -166,33 +185,51 @@ def parse_lists(lists_path: str, visited_vids: set):
     raw = data.get("items") or (data if isinstance(data, list) else [])
     list_rows, lv_rows = [], []
     for lst in raw:
-        lid = str(lst.get("id") or "").strip()
+        lid = _str(str(lst.get("id") or ""))
         if not lid:
             continue
         ph = lst.get("photo") or {}
         cover = (ph.get("prefix", "") + "100x100" + ph.get("suffix", "")) if ph.get("prefix") and ph.get("suffix") else None
-        upd_ts = _int(lst.get("updatedAt"))
-        list_rows.append([lid, (lst.get("name") or "").strip() or None,
-                           (lst.get("canonicalUrl") or "").strip() or None, cover, upd_ts])
+        list_rows.append([lid, _str(lst.get("name")),
+                          _str(lst.get("canonicalUrl")), cover, _int(lst.get("updatedAt"))])
         for li in (lst.get("listItems") or {}).get("items") or []:
             v = li.get("venue") or {}
-            vid = str(v.get("id") or "").strip()
+            vid = _str(str(v.get("id") or ""))
             if not vid:
                 continue
-            loc = v.get("location") or {}
+            loc  = v.get("location") or {}
             cats = v.get("categories") or []
-            cat = (cats[0].get("name") or "").strip() if cats else None
+            cat  = cats[0] if cats else {}
+            icon = cat.get("icon") or {}
+            fa_raw = loc.get("formattedAddress")
+            if isinstance(fa_raw, list):
+                formatted_address = ", ".join(fa_raw)
+            else:
+                formatted_address = _str(fa_raw)
             lv_rows.append([
-                lid, vid, (v.get("name") or "").strip() or None, cat,
+                lid, vid,
+                _int(li.get("createdAt")),
+                _str(v.get("name")),
+                _str(v.get("canonicalUrl")),
+                _str(cat.get("name")),
+                _str(cat.get("id")),
+                _str(cat.get("shortName")),
+                _str(icon.get("prefix")),
+                _str(icon.get("suffix")),
                 _float(loc.get("lat")), _float(loc.get("lng")),
-                (loc.get("city") or "").strip() or None,
-                (loc.get("country") or "").strip() or None,
-                1 if vid in visited_vids else 0, 0,
+                _str(loc.get("address")),
+                _str(loc.get("city")),
+                _str(loc.get("state")),
+                _str(loc.get("cc")),
+                _str(loc.get("country")),
+                formatted_address,
+                1 if vid in visited_vids else 0,
+                0,
             ])
     return list_rows, lv_rows
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# -- Main ---------------------------------------------------------------------
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Incremental D1 sync for CI")
@@ -209,16 +246,16 @@ def main() -> None:
         sys.exit("Set CF_D1_TOKEN env var or pass --token")
     d1.configure(token)
 
-    # ── Schema (idempotent) ────────────────────────────────────────────────────
+    # Schema (idempotent -- CREATE IF NOT EXISTS, no drops)
     print("D1 sync: applying schema ...", flush=True)
     d1.apply_schema(args.schema)
 
-    # ── Get current max checkin date from D1 ──────────────────────────────────
+    # Get current max checkin date from D1
     result = d1.query("SELECT MAX(date) AS max_date FROM checkins")
     max_date = (result[0].get("max_date") or 0) if result else 0
     print(f"D1 sync: last known checkin timestamp = {max_date}", flush=True)
 
-    # ── Parse CSV ─────────────────────────────────────────────────────────────
+    # Parse CSV
     all_checkin_rows, venue_meta = parse_checkins(args.csv)
     visited_vids = {r[2] for r in all_checkin_rows if r[2]}  # index 2 = venue_id
 
@@ -231,11 +268,11 @@ def main() -> None:
 
     changed = bool(new_checkin_rows)
 
-    # ── Upsert checkins (INSERT OR IGNORE — safe to re-run) ───────────────────
+    # Upsert checkins (INSERT OR IGNORE -- safe to re-run)
     if new_checkin_rows:
         d1.batch_upsert(SQL_CHECKINS_IGNORE, new_checkin_rows, label="checkins (new)")
 
-    # ── Upsert only affected venues ───────────────────────────────────────────
+    # Upsert only affected venues
     if new_venue_ids:
         venue_rows = [
             [vid, m["name"] or None, m["category"] or None, m["lat"], m["lng"],
@@ -244,16 +281,16 @@ def main() -> None:
         ]
         d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
 
-    # ── Tips — full upsert (counts change, new tips added) ───────────────────
+    # Tips -- full upsert (counts change, new tips added)
     tip_rows = parse_tips(args.tips)
     d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
     changed = changed or bool(tip_rows)
 
-    # ── Ratings — full upsert ─────────────────────────────────────────────────
+    # Ratings -- full upsert
     rating_rows = parse_ratings(args.ratings)
     d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
 
-    # ── Lists — full upsert ───────────────────────────────────────────────────
+    # Lists -- full upsert
     list_rows, lv_rows = parse_lists(args.lists, visited_vids)
     d1.batch_upsert(SQL_LISTS,       list_rows, label="lists    ")
     d1.batch_upsert(SQL_LIST_VENUES, lv_rows,   label="list_venues")

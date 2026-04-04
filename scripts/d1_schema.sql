@@ -1,23 +1,30 @@
 -- Cloudflare D1 schema for swarmdata
--- Run via import_to_d1.py or sync_to_d1.py — idempotent (IF NOT EXISTS everywhere)
+-- Run via import_to_d1.py (full recreate) or sync_to_d1.py (IF NOT EXISTS)
 
 -- ── Core check-ins ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS checkins (
-    id           TEXT    PRIMARY KEY,   -- checkin_id from CSV
-    date         INTEGER NOT NULL,      -- unix timestamp
-    venue_id     TEXT,
-    venue        TEXT,
-    city         TEXT,
-    state        TEXT,
-    country      TEXT,
-    neighborhood TEXT,
-    lat          REAL,
-    lng          REAL,
-    address      TEXT,
-    category     TEXT,
-    shout        TEXT,
-    with_name    TEXT,
-    with_id      TEXT
+    id               TEXT    PRIMARY KEY,   -- checkin_id from CSV
+    date             INTEGER NOT NULL,      -- unix timestamp
+    venue_id         TEXT,
+    venue            TEXT,
+    venue_url        TEXT,
+    city             TEXT,
+    state            TEXT,
+    country          TEXT,
+    neighborhood     TEXT,
+    lat              REAL,
+    lng              REAL,
+    address          TEXT,
+    category         TEXT,
+    shout            TEXT,
+    source_app       TEXT,
+    source_url       TEXT,
+    with_name        TEXT,
+    with_id          TEXT,
+    created_by_name  TEXT,
+    created_by_id    TEXT,
+    overlaps_name    TEXT,
+    overlaps_id      TEXT
 );
 
 -- ── Unique venues (aggregated from checkins) ──────────────────────────────────
@@ -52,11 +59,12 @@ CREATE TABLE IF NOT EXISTS tips (
     view_count     INTEGER DEFAULT 0
 );
 
--- ── Venue ratings (like / neutral / dislike) ──────────────────────────────────
+-- ── Venue ratings (like / okay / dislike) ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS ratings (
     venue_id   TEXT PRIMARY KEY,
     venue_name TEXT,
-    rating     TEXT,               -- 'like' | 'neutral' | 'dislike'
+    venue_url  TEXT,
+    rating     TEXT,               -- 'like' | 'okay' | 'dislike'
     created_at INTEGER DEFAULT 0
 );
 
@@ -71,16 +79,26 @@ CREATE TABLE IF NOT EXISTS lists (
 
 -- ── List venue membership ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS list_venues (
-    list_id       TEXT    NOT NULL,
-    venue_id      TEXT    NOT NULL,
-    venue_name    TEXT,
-    category      TEXT,
-    lat           REAL,
-    lng           REAL,
-    city          TEXT,
-    country       TEXT,
-    visited       INTEGER DEFAULT 0,
-    last_visit_ts INTEGER DEFAULT 0,
+    list_id                TEXT    NOT NULL,
+    venue_id               TEXT    NOT NULL,
+    created_at             INTEGER DEFAULT 0,
+    venue_name             TEXT,
+    venue_url              TEXT,
+    category               TEXT,
+    category_id            TEXT,
+    category_short_name    TEXT,
+    category_icon_prefix   TEXT,
+    category_icon_suffix   TEXT,
+    lat                    REAL,
+    lng                    REAL,
+    address                TEXT,
+    city                   TEXT,
+    state                  TEXT,
+    cc                     TEXT,
+    country                TEXT,
+    formatted_address      TEXT,
+    visited                INTEGER DEFAULT 0,
+    last_visit_ts          INTEGER DEFAULT 0,
     PRIMARY KEY (list_id, venue_id)
 );
 
