@@ -130,6 +130,28 @@ def patch_tips(
     return tips, patch_records
 
 
+def _write_diffs(changes: list[dict], out_path: str) -> None:
+    """
+    Write venue diffs to a JSON file consumable by sync_to_d1.py --venue-changes.
+    Format: [{venue_id, field, old_value, new_value, detected_at}, ...]
+    detected_at = current unix timestamp (best available approximation).
+    """
+    import time as _time
+    ts = int(_time.time())
+    records = []
+    for ch in changes:
+        for field, (old_v, new_v) in ch["fields"].items():
+            records.append({
+                "venue_id":    ch["venue_id"],
+                "field":       field,
+                "old_value":   old_v or None,
+                "new_value":   new_v or None,
+                "detected_at": ts,
+            })
+    Path(out_path).write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+    log.info("Wrote %d diff record(s) to %s", len(records), out_path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Diff two checkins.csv snapshots and sync venue changes into tips.json"
@@ -137,6 +159,8 @@ def main() -> None:
     parser.add_argument("--old",     required=True, help="Path to the archived (old) checkins.csv")
     parser.add_argument("--new",     required=True, help="Path to the freshly-fetched checkins.csv")
     parser.add_argument("--tips",    required=True, help="Path to tips.json")
+    parser.add_argument("--out",     default=None,
+                        help="Write venue diffs as JSON to this path (for sync_to_d1.py --venue-changes)")
     parser.add_argument("--dry-run", action="store_true", help="Report changes without writing")
     args = parser.parse_args()
 
@@ -198,6 +222,8 @@ def main() -> None:
 
     if args.dry_run:
         log.info("Dry run — tips.json not written.")
+        if args.out and changes:
+            _write_diffs(changes, args.out)
         return
 
     if patch_records:
@@ -207,6 +233,9 @@ def main() -> None:
         log.info("Saved %s", tips_path)
     else:
         log.info("tips.json unchanged.")
+
+    if args.out and changes:
+        _write_diffs(changes, args.out)
 
 
 if __name__ == "__main__":

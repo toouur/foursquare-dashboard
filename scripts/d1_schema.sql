@@ -120,6 +120,16 @@ CREATE TABLE IF NOT EXISTS trips (
     top_cats      TEXT                   -- JSON array of [category, count] pairs
 );
 
+-- ── Venue change history (from sync_venue_changes.py diffs) ─────────────────
+CREATE TABLE IF NOT EXISTS venue_changes (
+    venue_id    TEXT    NOT NULL,
+    field       TEXT    NOT NULL,   -- 'venue' | 'city' | 'country' | 'lat' | 'lng' | 'category'
+    old_value   TEXT,
+    new_value   TEXT,
+    detected_at INTEGER NOT NULL,   -- unix timestamp of snapshot diff
+    PRIMARY KEY (venue_id, field, detected_at)
+);
+
 -- ── Indexes ───────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_checkins_id       ON checkins(id);
 CREATE INDEX IF NOT EXISTS idx_checkins_venue_id ON checkins(venue_id);

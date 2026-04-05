@@ -103,6 +103,11 @@ SQL_TRIPS = (
     "checkin_count,unique_places,countries,cities,tags,top_cats) "
     "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
 )
+SQL_VENUE_CHANGES = (
+    "INSERT OR REPLACE INTO venue_changes "
+    "(venue_id,field,old_value,new_value,detected_at) "
+    "VALUES (?,?,?,?,?)"
+)
 
 
 # -- Loaders ------------------------------------------------------------------
@@ -286,6 +291,10 @@ def main() -> None:
     ap.add_argument("--trips-changed",   dest="trips_changed",
                     default="false", choices=("true", "false"),
                     help="Sync trips when 'true' (pass fetch CHANGED output; default false)")
+    ap.add_argument("--venue-changes", dest="venue_changes", default=None,
+                    help="Path to venue diffs JSON from sync_venue_changes.py --out; "
+                         "applies targeted UPDATE checkins SET field WHERE venue_id + "
+                         "inserts audit rows into venue_changes table")
     args = ap.parse_args()
 
     token = args.token or os.environ.get("CF_D1_TOKEN", "")
@@ -298,7 +307,7 @@ def main() -> None:
     d1.apply_schema(args.schema)
 
     # Snapshot counts before sync -- used to detect unexpected shrinkage
-    _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues", "trips")
+    _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues", "trips", "venue_changes")
     counts_before: dict[str, int] = {}
     for tbl in _TABLES:
         try:
@@ -365,6 +374,37 @@ def main() -> None:
             print(f"  trips    : file not found: {args.trips}", flush=True)
     else:
         print("  trips    : skipped (no new check-ins this run)", flush=True)
+
+    # Venue changes -- targeted UPDATE of checkins rows + audit log
+    if args.venue_changes and Path(args.venue_changes).exists():
+        diffs = json.load(open(args.venue_changes, encoding="utf-8"))
+        # Only these fields are safe to UPDATE from a venue diff
+        ALLOWED_FIELDS = {"venue", "city", "country", "lat", "lng", "category"}
+        # Group diffs by venue_id
+        by_venue: dict[str, list] = {}
+        for rec in diffs:
+            vid = rec.get("venue_id")
+            field = rec.get("field")
+            if vid and field in ALLOWED_FIELDS:
+                by_venue.setdefault(vid, []).append(rec)
+        if by_venue:
+            print(f"  venue_changes: applying {len(diffs)} diff(s) across {len(by_venue)} venue(s)", flush=True)
+            for vid, recs in by_venue.items():
+                # One UPDATE per venue covering all changed fields at once
+                set_clauses = ", ".join(f"{r['field']}=?" for r in recs)
+                set_vals = [r["new_value"] for r in recs]
+                d1.query(f"UPDATE checkins SET {set_clauses} WHERE venue_id=?", set_vals + [vid])
+            # Audit log: insert all diff records into venue_changes
+            vc_rows = [
+                [r["venue_id"], r["field"], r.get("old_value"), r.get("new_value"), r.get("detected_at", 0)]
+                for r in diffs if r.get("venue_id") and r.get("field") in ALLOWED_FIELDS
+            ]
+            d1.batch_upsert(SQL_VENUE_CHANGES, vc_rows, label="venue_changes")
+            changed = True
+        else:
+            print("  venue_changes: no valid diffs found", flush=True)
+    elif args.venue_changes:
+        print(f"  venue_changes: file not found: {args.venue_changes}", flush=True)
 
     # Lists -- full upsert only when checkins changed (visited status) this run
     if args.lists_changed == "true":
