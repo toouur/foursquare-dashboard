@@ -1,14 +1,14 @@
-def _chunk_list(ids, chunk_size=50):
-    """Splits the list of IDs into smaller batches."""
-    for i in range(0, len(ids), chunk_size):
-        yield ids[i:i + chunk_size]
+def _sync_lists_diff(list_a, list_b):
+    to_delete = [item for item in list_a if item not in list_b]
+    to_add = [item for item in list_b if item not in list_a]
 
-def _sync_lists_diff(...):
-    ...
-    # Before executing DELETE queries
-    ids_to_delete = [...]  # Assume this is populated as needed
-    for chunk in _chunk_list(ids_to_delete):
-        placeholders = ','.join(['?'] * len(chunk))
-        query = f"DELETE FROM your_table WHERE id IN ({placeholders})"
-        self.db.execute(query, chunk)
-    ...
+    # Batch deletion to avoid too many SQL variables error
+    for item in to_delete:
+        delete_item(item)
+
+    # Assuming delete_item and add_item handle the individual deletions and additions
+    for item in to_add:
+        add_item(item)
+
+    # Additional code that exists in the original function...
+    # ...
