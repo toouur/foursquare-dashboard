@@ -1480,14 +1480,16 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
 (async function init(){
   const PG=200;
 
-  // 1. Lightweight fetch: get YM_IDX and total for calendar (no item data)
+  // 1. Lightweight fetch: get static feed_meta.json (no D1 call)
   try{
-    const yr=await(await fetch('/api/feed?ym=1')).json();
-    YM_IDX=yr.ym_index||{};
-    const tot=yr.total||0;
+    const meta=await(await fetch('/feed_meta.json')).json();
+    YM_IDX=meta.ym_index||{};
+    const tot=meta.total||0;
     document.getElementById('badge').textContent=tot.toLocaleString()+' check-ins';
     renderCal();
-  }catch(e){}
+  }catch(e){
+    console.warn('Could not load feed_meta.json, calendar may be incomplete', e);
+  }
 
   // 2. First page — render immediately
   let firstData={items:[],has_more:false,total:0};
@@ -1573,4 +1575,3 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
 </body>
 
 </html>
-

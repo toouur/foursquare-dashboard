@@ -4,27 +4,29 @@
 /**
  * Cloudflare Pages Function — /api/feed
  *
- * GET /api/feed?offset=0&limit=200
- *   Returns paginated check-in records with timezone-aware local date/time.
- *   Response: { items: [...], total: N, has_more: bool }
- *   Each item: [ts, local_date, local_time, venue, city, country, category, venue_id, lat, lng, checkin_id]
- *
- * GET /api/feed?ym=1
- *   Returns only { ym_index: {"YYYY-MM": rowIndex, ...}, total: N }
- *   Used by feed.html to seed the calendar jump without fetching all data.
+ * GET /api/feed?limit=20&cursor=1234567890
+ *   → Cursor-based infinite scroll (fast, O(1) reads)
+ *   Response: { items: [...], has_more: bool, next_cursor: int|null }
  *
  * GET /api/feed?month=YYYY-MM
- *   Returns all check-ins in that calendar month (UTC boundaries), newest-first.
+ *   → Returns all check‑ins in that calendar month (UTC boundaries)
  *   Response: { items: [...], total: N }
- *   Used by feed.html for instant month-view jumps without loading all data.
+ *
+ * GET /api/feed?resolve=1234567890
+ *   → Returns a cursor that loads items *older than* the given timestamp.
+ *     Useful for jumping to a specific date (e.g., oldest check‑in).
+ *   Response: { cursor: int|null }
+ *
+ * The month index (ym_index) and total count are now static JSON (feed_meta.json)
+ * generated at build time – this function no longer queries D1 for them.
  */
 
 const HEADERS = {
   'Content-Type': 'application/json',
-  'Cache-Control': 'public, max-age=300',
+  'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
 };
 
-// Country → IANA timezone (mirrors gen_feed.py COUNTRY_TZ)
+// Country → IANA timezone (same as original)
 const COUNTRY_TZ = {
   'Belarus':'Europe/Minsk','Moldova':'Europe/Chisinau','Poland':'Europe/Warsaw',
   'Ukraine':'Europe/Kyiv','Italy':'Europe/Rome','Romania':'Europe/Bucharest',
@@ -110,7 +112,6 @@ function formatLocal(ts, tz) {
     const parts = fmt.formatToParts(d);
     const p = {};
     for (const { type, value } of parts) p[type] = value;
-    // "03 Mar 2025" and "14:30"
     const dateStr = `${p.day} ${p.month} ${p.year}`;
     const timeStr = `${p.hour}:${p.minute}`;
     return [dateStr, timeStr];
@@ -150,58 +151,82 @@ export async function onRequestGet({ request, env }) {
     return jsonResp({ error: 'DB binding not configured' }, 503);
   }
 
-  const url    = new URL(request.url);
-  const wantYm = url.searchParams.get('ym') === '1';
+  const url = new URL(request.url);
 
-  if (wantYm) {
-    // Return ym_index + total only (no item data)
-    const totalRes = await env.DB.prepare('SELECT COUNT(*) AS n FROM checkins').all();
-    const total = totalRes.results?.[0]?.n || 0;
-
-    // Fetch all timestamps in descending order to build ym_index
-    const tsRes = await env.DB.prepare(
-      'SELECT date FROM checkins ORDER BY date DESC'
-    ).all();
-    const ym_index = {};
-    (tsRes.results || []).forEach((row, i) => {
-      const d = new Date(row.date * 1000);
-      const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
-      if (!(ym in ym_index)) ym_index[ym] = i;
-    });
-    return jsonResp({ ym_index, total });
+  // --------------------------------------------------------------
+  // 1. Helper: resolve timestamp to cursor (for jumping to a date)
+  // --------------------------------------------------------------
+  const resolveTs = url.searchParams.get('resolve');
+  if (resolveTs !== null) {
+    const ts = parseInt(resolveTs, 10);
+    if (isNaN(ts)) {
+      return jsonResp({ error: 'Invalid timestamp' }, 400);
+    }
+    // Find the first check‑in with date <= ts, then return that date as cursor.
+    // This ensures loading with cursor=result will show items older than that date.
+    const row = await env.DB.prepare(
+      'SELECT date FROM checkins WHERE date <= ?1 ORDER BY date DESC LIMIT 1'
+    ).bind(ts).first();
+    const cursor = row?.date ?? null;
+    return jsonResp({ cursor });
   }
 
-  // GET /api/feed?month=YYYY-MM — return all check-ins for a calendar month
+  // --------------------------------------------------------------
+  // 2. Month view (returns all check‑ins for a given calendar month)
+  // --------------------------------------------------------------
   const wantMonth = url.searchParams.get('month');
   if (wantMonth && /^\d{4}-\d{2}$/.test(wantMonth)) {
     const [yr, mo] = wantMonth.split('-').map(Number);
     const tsStart = Math.floor(Date.UTC(yr, mo - 1, 1) / 1000);
-    const tsEnd   = Math.floor(Date.UTC(yr, mo,     1) / 1000); // first moment of next month
+    const tsEnd   = Math.floor(Date.UTC(yr, mo,     1) / 1000);
     const dataRes = await env.DB.prepare(
       'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
       'FROM checkins WHERE date >= ?1 AND date < ?2 ORDER BY date DESC'
     ).bind(tsStart, tsEnd).all();
-    const rows  = dataRes.results || [];
+    const rows = dataRes.results || [];
     const items = mapRows(rows, {});
     return jsonResp({ items, total: items.length });
   }
 
-  const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
-  const limit  = Math.min(1000, Math.max(1, parseInt(url.searchParams.get('limit') || '200', 10)));
+  // --------------------------------------------------------------
+  // 3. Cursor‑based infinite scroll (default)
+  // --------------------------------------------------------------
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
+  const cursor = url.searchParams.get('cursor'); // Unix timestamp integer
 
-  const [dataRes, totalRes] = await Promise.all([
-    env.DB.prepare(
-      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
-      'FROM checkins ORDER BY date DESC LIMIT ?1 OFFSET ?2'
-    ).bind(limit, offset).all(),
-    env.DB.prepare('SELECT COUNT(*) AS n FROM checkins').all(),
-  ]);
+  let query = `
+    SELECT date, venue, city, country, category, venue_id, lat, lng, id
+    FROM checkins
+  `;
+  const params = [];
 
-  const total = totalRes.results?.[0]?.n || 0;
-  const rows  = dataRes.results || [];
-  const items = mapRows(rows, {});
+  if (cursor && !isNaN(parseInt(cursor, 10))) {
+    query += ` WHERE date < ?1`;
+    params.push(parseInt(cursor, 10));
+  }
 
-  return jsonResp({ items, total, has_more: offset + rows.length < total });
+  query += ` ORDER BY date DESC LIMIT ?2`;
+  params.push(limit + 1); // fetch one extra to detect has_more
+
+  const dataRes = await env.DB.prepare(query).bind(...params).all();
+  const rows = dataRes.results || [];
+
+  let has_more = false;
+  let items = rows;
+  if (rows.length > limit) {
+    has_more = true;
+    items = rows.slice(0, limit);
+  }
+
+  const next_cursor = has_more ? items[items.length - 1].date : null;
+  const tzCache = {};
+  const mappedItems = mapRows(items, tzCache);
+
+  return jsonResp({
+    items: mappedItems,
+    has_more,
+    next_cursor,
+  });
 }
 
 export async function onRequestOptions() {
