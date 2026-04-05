@@ -339,8 +339,30 @@ The **Archive check-in snapshot** workflow (Actions tab → manual trigger) does
 3. Diffs the archived CSV against the fresh one — detects renamed venues, moved locations, category changes
 4. Patches any matching `tips.json` entries with updated venue metadata (no extra API calls — uses the already-fresh check-in data)
 5. Commits the archive, updated `checkins.csv`, updated `tips.json`, and `checkins_anomalies.json` to the private data repo
+6. **Syncs venue changes to D1** — applies targeted `UPDATE checkins SET field WHERE venue_id` for each changed venue and records an audit row in the `venue_changes` table
 
 Venue diff is done by `scripts/sync_venue_changes.py`. It compares these fields per venue_id: `venue`, `city`, `country`, `lat`, `lng`, `category`.
+
+After the archive workflow completes, run the D1 sync manually from the public repo:
+
+```bash
+# 1. Generate diffs JSON (--dry-run skips tips.json re-patch since it was already done by the workflow)
+python scripts/sync_venue_changes.py \
+  --old private-data/archive/checkins_PREV.csv \
+  --new private-data/checkins.csv \
+  --tips private-data/tips.json \
+  --out  /tmp/venue_diffs.json \
+  --dry-run
+
+# 2. Apply to D1: targeted UPDATE checkins + insert audit rows into venue_changes
+python scripts/sync_to_d1.py \
+  --csv     private-data/checkins.csv \
+  --tips    private-data/tips.json \
+  --ratings private-data/venueRatings.json \
+  --lists   private-data/lists.json \
+  --trips   trips_meta.json \
+  --venue-changes /tmp/venue_diffs.json
+```
 
 ---
 
