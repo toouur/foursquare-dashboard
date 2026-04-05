@@ -40,7 +40,7 @@ lazy loading, lightbox, and inline tip photos.
 .
 ├── scripts/
 │   ├── fetch_checkins.py        # Fetch check-ins from Foursquare API → data/checkins.csv
-│   ├── fetch_tips.py            # Fetch tips → data/tips.json (incremental + venue sweep)
+│   ├── fetch_tips.py            # Fetch tips → data/tips.json (incremental in CI; sweep is manual/one-time)
 │   ├── fetch_photos.py          # Fetch check-in photos from Foursquare data export → data/photos.json
 │   ├── fetch_ratings.py         # Fetch venue ratings (likes/okays/dislikes) → venueRatings.json
 │   ├── fetch_lists.py           # Fetch Foursquare lists → lists.json
@@ -184,7 +184,7 @@ pip install -r requirements.txt
 export FOURSQUARE_TOKEN=your_token_here
 python scripts/fetch_checkins.py
 
-# Fetch tips (incremental)
+# Fetch tips (incremental — same as CI)
 python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out data/tips.json
 
 # Fetch photos from Foursquare data export (only new check-ins since last index)
@@ -211,17 +211,27 @@ python -m http.server 8000
 # Force full re-fetch (ignore existing CSV)
 python scripts/fetch_checkins.py --full
 
-# Tips: force full re-fetch + venue sweep (finds tips on closed venues)
+# Tips: force full re-fetch (all tips, no sweep)
+python scripts/fetch_tips.py --full --out data/tips.json
+
+# Tips: add a single known tip on a closed venue by its Foursquare tip ID
+# Use this when you know a specific tip was missed (e.g. from a new export comparison)
+python scripts/fetch_tips.py --add-tip-id 645265a53112b8775c114ecb
+
+# Tips: one-time venue sweep — probes every venue in checkins.csv that has no tip yet
+# Use this to bulk-discover tips on closed venues (not run in CI — manual exercise only)
+# After the sweep, any sweep-discovered tip is automatically marked closed=True
 python scripts/fetch_tips.py --full --sweep --csv data/checkins.csv
 
-# Tips: recover tips missing from API using a Foursquare data export
+# Tips: bulk reconciliation via Foursquare data export
+# Use when you suspect the API is missing tips compared to a fresh export
 # 1. Download your export from foursquare.com/settings/data-export
-# 2. Locate tips.json inside the extracted archive
-# 3. Run find_closed_venue_tips.py to cross-check and import missing tips:
+# 2. Extract the archive — locate tips.json inside
+# 3. Cross-check against current tips.json and import missing tips:
 python scripts/find_closed_venue_tips.py \
   --token "$FOURSQUARE_TOKEN" --cookies cookies.txt \
   --csv data/checkins.csv --tips data/tips.json
-# Then verify closed/deleted status of new tips against venue pages (requires cookies)
+# Requires browser session cookies to verify closed/deleted status via venue pages
 
 # Custom paths / home city
 python scripts/build.py --input data/checkins.csv --home-city "Minsk" --config-dir config
@@ -379,6 +389,56 @@ Required GitHub secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT
 
 ---
 
+## Tips
+
+### How tips are fetched in CI
+
+The hourly CI run calls `fetch_tips.py` with no special flags — **incremental mode only**:
+
+```bash
+python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out private-data/tips.json --csv private-data/checkins.csv
+```
+
+This hits `/users/self/tips` sorted by recency and stops as soon as it reaches a timestamp already in `tips.json`. It only adds tips on **active venues** — which is all that the normal flow needs. The `tips.json` dataset has been fully reconciled against the Foursquare data export (see below), so the only new tips arriving via CI are ones you genuinely just wrote.
+
+### Adding a tip on a closed venue
+
+If you write a tip on a venue and later discover it wasn't picked up (because the venue closed), add it by ID:
+
+```bash
+python scripts/fetch_tips.py --add-tip-id <tip_id> --out data/tips.json
+```
+
+The tip is fetched via `/v2/tips/{id}`, automatically marked `closed=True`, and merged into `tips.json`.
+
+### One-time venue sweep (manual)
+
+The `--sweep` mode probes every venue in `checkins.csv` that has **no tip yet** in the current `tips.json`, calling `/venues/{vid}/tips?filter=self` for each. This was used once to discover tips on closed venues that `/users/self/tips` silently omitted. Any tip found only via the sweep is marked `closed=True`.
+
+This is **not run in CI** — it is a manual exercise for bulk recovery:
+
+```bash
+python scripts/fetch_tips.py --full --sweep --csv data/checkins.csv --out data/tips.json
+```
+
+The sweep skips venues that already have at least one tip in `tips.json` (matched by `venue_id`), so it only probes venues with zero known tips.
+
+### Bulk reconciliation via Foursquare data export
+
+If you want to verify nothing is missing against the authoritative Foursquare export:
+
+1. Download your data export from `foursquare.com/settings/data-export`
+2. Extract the archive — locate `tips.json` inside
+3. Run `find_closed_venue_tips.py` to diff and import missing tips, verifying closed/deleted status via venue pages (requires browser session cookies)
+
+```bash
+python scripts/find_closed_venue_tips.py \
+  --token "$FOURSQUARE_TOKEN" --cookies cookies.txt \
+  --csv data/checkins.csv --tips data/tips.json
+```
+
+---
+
 ## Search (Cloudflare D1 + Pages Functions)
 
 Search is powered by a **Cloudflare Pages Function** (`functions/api/search.js`) that queries a **D1 SQLite database** (`swarmdata`) at runtime. The old static `search-index.json` (6+ MB) is no longer generated — the search page opens instantly and queries on demand.
@@ -389,9 +449,10 @@ Search is powered by a **Cloudflare Pages Function** (`functions/api/search.js`)
 |-------|----------|---------------|
 | `checkins` | All check-ins (all source columns) | Append-only — only new rows inserted |
 | `venues` | Venue metadata + visit counts | Updated only for venues touched by new check-ins |
-| `tips` | All tips with counts | Full upsert only when tips file changed (`--tips-changed`) |
-| `ratings` | Venue likes/okays/dislikes | Full upsert only when ratings file changed (`--ratings-changed`) |
+| `tips` | All tips with counts | Full upsert only when tips changed (`--tips-changed`) |
+| `ratings` | Venue likes (okays/dislikes return 402) | Full upsert only when ratings changed (`--ratings-changed`) |
 | `lists` / `list_venues` | Foursquare lists + visited status | Full upsert only when checkins changed (`--lists-changed`) |
+| `trips` | Trip metadata (name, dates, countries, cities) | Full upsert only when checkins changed (`--trips-changed`) |
 
 ### D1 sync setup
 
@@ -434,6 +495,7 @@ Cloudflare R2 (pix/ prefix)            (deployed site)
 data/checkins.csv + tips.json + ...    (CI sync, incremental)
   → sync_to_d1.py → Cloudflare D1 (swarmdata)
   → functions/api/search.js → /api/search?q= (live queries from search.html)
+  → functions/api/feed.js   → /api/feed?offset=N (paginated feed for feed.html)
 ```
 
 ## Dependencies

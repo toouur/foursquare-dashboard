@@ -115,9 +115,10 @@ if __name__ == "__main__":
     parser.add_argument("--lists",       default=None,
                         help="Path to lists.json (Foursquare export). "
                              "Falls back to lists.json sibling of --input.")
-    parser.add_argument("--trips-out",   default=None,
+    parser.add_argument("--trips-out",   default="trips_meta.json",
                         help="Write slim trips metadata JSON to this path "
-                             "(used by sync_to_d1.py; excludes checkins/coords arrays).")
+                             "(used by sync_to_d1.py; excludes checkins/coords arrays). "
+                             "Defaults to trips_meta.json in the current directory.")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):

@@ -65,7 +65,6 @@ jobs:
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
-            --trips-out /tmp/trips_meta.json \
             $RATINGS_ARG $LISTS_ARG
 
   # ── Update: fetch → skip if no new check-ins → rebuild → commit → deploy ──
@@ -232,7 +231,6 @@ jobs:
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
-            --trips-out private-data/trips_meta.json \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
       # ── 7b. Sync data to Cloudflare D1 ──────────────────────────────────────
@@ -257,7 +255,7 @@ jobs:
             python scripts/sync_to_d1.py \
               --csv             private-data/checkins.csv \
               --tips            private-data/tips.json \
-              --trips           private-data/trips_meta.json \
+              --trips           trips_meta.json \
               --tips-changed    ${{ steps.fetch_tips.outputs.CHANGED    || 'false' }} \
               --ratings-changed ${{ steps.fetch_ratings.outputs.CHANGED || 'false' }} \
               --lists-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
@@ -277,7 +275,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html stats.html search.html
+          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html stats.html search.html trips_meta.json
           # Only update ratings.html if ratings data was available during the build
           [ -f private-data/venueRatings.json ] && git add ratings.html || true
           # Only update lists.html if lists data was available during the build

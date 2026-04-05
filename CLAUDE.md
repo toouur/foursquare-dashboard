@@ -51,9 +51,10 @@ python scripts/sync_to_d1.py \
   --csv     C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
   --tips    C:/Users/toouur/Documents/GitHub/foursquare-data/tips.json \
   --ratings C:/Users/toouur/Documents/GitHub/foursquare-data/venueRatings.json \
-  --lists   C:/Users/toouur/Documents/GitHub/foursquare-data/lists.json
+  --lists   C:/Users/toouur/Documents/GitHub/foursquare-data/lists.json \
+  --trips   trips_meta.json
 # Force full re-sync of all tables (ignore change flags):
-#   --tips-changed true --ratings-changed true --lists-changed true
+#   --tips-changed true --ratings-changed true --lists-changed true --trips-changed true
 ```
 
 ### Local D1 dev (Wrangler)
