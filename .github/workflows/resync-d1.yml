@@ -1,0 +1,101 @@
+# .github/workflows/resync-d1.yml
+#
+# Manual workflow to force a full wipe + reinsert of selected D1 tables.
+#
+# Use after:
+#   • Foursquare data export comparison (ratings neutrals/dislikes updated)
+#   • Bulk tip edits or deletions
+#   • Trip recalculation edge cases
+#   • List membership overhaul
+#
+# Required repository secrets (same as update-dashboard.yml):
+#   DATA_REPO_PAT      — Fine-grained PAT with Contents read on toouur/foursquare-data
+#   CF_D1_TOKEN        — Cloudflare API token with D1:Edit permission
+#   CF_ACCOUNT_ID      — Cloudflare account ID
+#   CF_D1_DATABASE_ID  — D1 database ID
+
+name: Force resync D1 tables
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      resync_ratings:
+        description: "Ratings — DELETE + full INSERT OR REPLACE from venueRatings.json"
+        type: boolean
+        default: false
+      resync_tips:
+        description: "Tips — DELETE + full INSERT OR REPLACE from tips.json"
+        type: boolean
+        default: false
+      resync_trips:
+        description: "Trips — DELETE + full INSERT OR REPLACE from trips_meta.json"
+        type: boolean
+        default: false
+      resync_lists:
+        description: "Lists + list_venues — DELETE + full INSERT OR REPLACE from lists.json"
+        type: boolean
+        default: false
+
+jobs:
+  resync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Force resync selected D1 tables
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          if [ -z "$CF_D1_TOKEN" ]; then
+            echo "CF_D1_TOKEN not set — cannot run."
+            exit 1
+          fi
+
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then
+            RATINGS_ARG="--ratings private-data/venueRatings.json"
+          fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then
+            LISTS_ARG="--lists private-data/lists.json"
+          fi
+
+          FORCE_FLAGS=""
+          if [ "${{ inputs.resync_ratings }}" = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-ratings"; fi
+          if [ "${{ inputs.resync_tips }}"    = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-tips";    fi
+          if [ "${{ inputs.resync_trips }}"   = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-trips";   fi
+          if [ "${{ inputs.resync_lists }}"   = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-lists";   fi
+
+          if [ -z "$FORCE_FLAGS" ]; then
+            echo "No tables selected — nothing to do."
+            exit 0
+          fi
+
+          echo "Running force resync with flags:$FORCE_FLAGS"
+
+          python scripts/sync_to_d1.py \
+            --csv   private-data/checkins.csv \
+            --tips  private-data/tips.json \
+            --trips trips_meta.json \
+            $RATINGS_ARG $LISTS_ARG \
+            $FORCE_FLAGS

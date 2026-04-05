@@ -53,8 +53,22 @@ python scripts/sync_to_d1.py \
   --ratings C:/Users/toouur/Documents/GitHub/foursquare-data/venueRatings.json \
   --lists   C:/Users/toouur/Documents/GitHub/foursquare-data/lists.json \
   --trips   trips_meta.json
-# Force full re-sync of all tables (ignore change flags):
-#   --tips-changed true --ratings-changed true --lists-changed true --trips-changed true
+```
+
+### D1 force resync (after data export / manual correction)
+Use `--force-*` flags to DELETE and fully reinsert a table, bypassing CI change gates.
+Use after Foursquare data export comparison (neutrals/dislikes updated), or when rows
+need to be removed (un-rated venues, deleted tips, list overhaul).
+```bash
+# Force resync individual tables (combine as needed):
+python scripts/sync_to_d1.py \
+  --csv     C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --tips    C:/Users/toouur/Documents/GitHub/foursquare-data/tips.json \
+  --ratings C:/Users/toouur/Documents/GitHub/foursquare-data/venueRatings.json \
+  --lists   C:/Users/toouur/Documents/GitHub/foursquare-data/lists.json \
+  --trips   trips_meta.json \
+  --force-ratings --force-tips --force-trips --force-lists
+# Or via GitHub Actions: Actions → "Force resync D1 tables" → tick the tables to reset
 ```
 
 ### After "Archive check-in snapshot" — sync venue changes to D1

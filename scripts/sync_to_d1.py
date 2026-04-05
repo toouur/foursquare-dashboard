@@ -4,17 +4,23 @@
 """
 sync_to_d1.py -- Incremental CI sync: upserts only changed data to D1.
 
-Strategy:
+Strategy (CI):
   checkins   -> INSERT OR IGNORE (append-only; never overwrites existing rows)
   venues     -> INSERT OR REPLACE only for venues touched by new check-ins
   tips       -> INSERT OR REPLACE all (~1.9K rows -- counts change over time)
-               skipped when --tips-changed=false (CI passes fetch_tips output)
-  ratings    -> INSERT OR REPLACE all (~3.7K rows)
-               skipped when --ratings-changed=false (CI passes fetch_ratings output)
-  lists      -> INSERT OR REPLACE all + rebuild list_venues (~18K rows)
-               skipped when --lists-changed=false (CI passes fetch/checkins output)
-  ratings    -> INSERT OR REPLACE all (~3.7K rows -- new likes added each run)
-  lists      -> INSERT OR REPLACE all + rebuild list_venues (~small)
+               skipped when --tips-changed=false
+  ratings    -> INSERT OR IGNORE (append-only; likes only on CI, no deletions)
+               skipped when --ratings-changed=false
+  trips      -> INSERT OR REPLACE (counts update when new check-in joins old trip)
+               skipped when --trips-changed=false
+  lists      -> smart diff: delete removed lists/venues, upsert current state
+               skipped when --lists-changed=false
+
+Force-resync flags (manual / post-export):
+  --force-ratings   DELETE FROM ratings; full INSERT OR REPLACE from JSON
+  --force-tips      DELETE FROM tips;    full INSERT OR REPLACE from JSON
+  --force-trips     DELETE FROM trips;   full INSERT OR REPLACE from JSON
+  --force-lists     DELETE FROM lists + list_venues; full INSERT OR REPLACE
 
 Outputs CHANGED=true/false to stdout (captured by GitHub Actions).
 
@@ -84,6 +90,11 @@ SQL_TIPS = (
 )
 SQL_RATINGS = (
     "INSERT OR REPLACE INTO ratings "
+    "(venue_id,venue_name,venue_url,rating,created_at) "
+    "VALUES (?,?,?,?,?)"
+)
+SQL_RATINGS_IGNORE = (
+    "INSERT OR IGNORE INTO ratings "
     "(venue_id,venue_name,venue_url,rating,created_at) "
     "VALUES (?,?,?,?,?)"
 )
@@ -267,14 +278,57 @@ def parse_lists(lists_path: str, visited_vids: set):
     return list_rows, lv_rows
 
 
+# -- Helpers ------------------------------------------------------------------
+
+def _sync_lists_diff(list_rows: list, lv_rows: list) -> None:
+    """
+    Smart diff sync for lists and list_venues — no full table wipe.
+
+    Handles all four cases without touching unrelated rows:
+      • New list        → inserted by batch_upsert(SQL_LISTS)
+      • Deleted list    → DELETE WHERE id NOT IN (current list IDs)
+      • Renamed list    → overwritten by INSERT OR REPLACE
+      • New venue       → inserted by batch_upsert(SQL_LIST_VENUES)
+      • Removed venue   → per-list DELETE + reinsert (targeted; single param per DELETE)
+      • visited change  → overwritten by INSERT OR REPLACE
+    """
+    current_list_ids = [row[0] for row in list_rows]
+
+    # Remove lists (and their venue memberships) no longer in current data.
+    # list count is small (~18), well within the 90-param D1 limit.
+    if current_list_ids:
+        ph = ",".join("?" * len(current_list_ids))
+        d1.query(f"DELETE FROM list_venues WHERE list_id NOT IN ({ph})", current_list_ids)
+        d1.query(f"DELETE FROM lists WHERE id NOT IN ({ph})", current_list_ids)
+    else:
+        # No lists at all — clear everything
+        d1.query("DELETE FROM list_venues")
+        d1.query("DELETE FROM lists")
+
+    # Upsert all current lists (handles new + renamed)
+    d1.batch_upsert(SQL_LISTS, list_rows, label="lists    ")
+
+    # Per-list: delete ALL existing venue memberships, then reinsert current ones.
+    # This is targeted (one DELETE per list) and handles added/removed/changed items.
+    by_list: dict[str, list] = {}
+    for row in lv_rows:
+        by_list.setdefault(row[0], []).append(row)
+    for lid in by_list:
+        d1.query("DELETE FROM list_venues WHERE list_id=?", [lid])
+
+    d1.batch_upsert(SQL_LIST_VENUES, lv_rows, label="list_venues")
+
+
 # -- Main ---------------------------------------------------------------------
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Incremental D1 sync for CI")
     ap.add_argument("--csv",     required=True)
     ap.add_argument("--tips",    required=True)
-    ap.add_argument("--ratings", required=True)
-    ap.add_argument("--lists",   required=True)
+    ap.add_argument("--ratings", default=None,
+                    help="Path to venueRatings.json (optional; required if --ratings-changed or --force-ratings)")
+    ap.add_argument("--lists",   default=None,
+                    help="Path to lists.json (optional; required if --lists-changed or --force-lists)")
     ap.add_argument("--trips",   default=None,
                     help="Path to trips_meta.json (written by build.py --trips-out)")
     ap.add_argument("--schema",  default=str(HERE / "d1_schema.sql"))
@@ -295,6 +349,15 @@ def main() -> None:
                     help="Path to venue diffs JSON from sync_venue_changes.py --out; "
                          "applies targeted UPDATE checkins SET field WHERE venue_id + "
                          "inserts audit rows into venue_changes table")
+    # Force-resync flags: bypass change gates, DELETE table, then full INSERT OR REPLACE
+    ap.add_argument("--force-ratings", dest="force_ratings", action="store_true",
+                    help="DELETE FROM ratings then full INSERT OR REPLACE (manual resync)")
+    ap.add_argument("--force-tips",    dest="force_tips",    action="store_true",
+                    help="DELETE FROM tips then full INSERT OR REPLACE (manual resync)")
+    ap.add_argument("--force-trips",   dest="force_trips",   action="store_true",
+                    help="DELETE FROM trips then full INSERT OR REPLACE (manual resync)")
+    ap.add_argument("--force-lists",   dest="force_lists",   action="store_true",
+                    help="DELETE FROM lists + list_venues then full INSERT OR REPLACE (manual resync)")
     args = ap.parse_args()
 
     token = args.token or os.environ.get("CF_D1_TOKEN", "")
@@ -348,24 +411,50 @@ def main() -> None:
         ]
         d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
 
-    # Tips -- full upsert only when tips file changed this run
-    if args.tips_changed == "true":
+    # Tips
+    if args.force_tips:
+        print("  tips     : FORCE full resync — wiping and reinserting", flush=True)
+        d1.query("DELETE FROM tips")
+        tip_rows = parse_tips(args.tips)
+        d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
+        changed = True
+    elif args.tips_changed == "true":
         tip_rows = parse_tips(args.tips)
         d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
         changed = True
     else:
         print("  tips     : skipped (no new tips this run)", flush=True)
 
-    # Ratings -- full upsert only when ratings file changed this run
-    if args.ratings_changed == "true":
+    # Ratings
+    # CI path: INSERT OR IGNORE (append-only; likes only, deletions handled by --force-ratings)
+    # Force path: DELETE + full INSERT OR REPLACE (use after data export comparison)
+    if args.force_ratings:
+        if not args.ratings:
+            sys.exit("--force-ratings requires --ratings")
+        print("  ratings  : FORCE full resync — wiping and reinserting", flush=True)
+        d1.query("DELETE FROM ratings")
         rating_rows = parse_ratings(args.ratings)
         d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
+        changed = True
+    elif args.ratings_changed == "true":
+        if not args.ratings:
+            sys.exit("--ratings-changed=true requires --ratings")
+        rating_rows = parse_ratings(args.ratings)
+        d1.batch_upsert(SQL_RATINGS_IGNORE, rating_rows, label="ratings  ")
         changed = True
     else:
         print("  ratings  : skipped (no new ratings this run)", flush=True)
 
-    # Trips -- full upsert only when checkins changed (trip detection uses checkins)
-    if args.trips_changed == "true" and args.trips:
+    # Trips
+    if args.force_trips:
+        if not args.trips or not Path(args.trips).exists():
+            sys.exit(f"--force-trips requires --trips pointing to an existing file (got: {args.trips!r})")
+        print("  trips    : FORCE full resync — wiping and reinserting", flush=True)
+        d1.query("DELETE FROM trips")
+        trip_rows = parse_trips(args.trips)
+        d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
+        changed = True
+    elif args.trips_changed == "true" and args.trips:
         if Path(args.trips).exists():
             trip_rows = parse_trips(args.trips)
             d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
@@ -415,16 +504,36 @@ def main() -> None:
     elif args.venue_changes:
         print(f"  venue_changes: file not found: {args.venue_changes}", flush=True)
 
-    # Lists -- full upsert only when checkins changed (visited status) this run
-    if args.lists_changed == "true":
+    # Lists
+    # Force path: full wipe + reinsert (manual, post-export)
+    # CI path: smart diff — delete removed lists/items, upsert current state
+    if args.force_lists:
+        if not args.lists:
+            sys.exit("--force-lists requires --lists")
+        print("  lists    : FORCE full resync — wiping and reinserting", flush=True)
+        d1.query("DELETE FROM list_venues")
+        d1.query("DELETE FROM lists")
         list_rows, lv_rows = parse_lists(args.lists, visited_vids)
         d1.batch_upsert(SQL_LISTS,       list_rows, label="lists    ")
         d1.batch_upsert(SQL_LIST_VENUES, lv_rows,   label="list_venues")
         changed = True
+    elif args.lists_changed == "true":
+        if not args.lists:
+            sys.exit("--lists-changed=true requires --lists")
+        list_rows, lv_rows = parse_lists(args.lists, visited_vids)
+        _sync_lists_diff(list_rows, lv_rows)
+        changed = True
     else:
         print("  lists    : skipped (no new check-ins this run)", flush=True)
 
-    # Post-sync count check -- alert if any table shrank
+    # Post-sync count check -- alert if any table shrank unexpectedly
+    # (force-resync tables may legitimately shrink; that's intentional)
+    force_resynced = set()
+    if args.force_tips:    force_resynced.add("tips")
+    if args.force_ratings: force_resynced.add("ratings")
+    if args.force_trips:   force_resynced.add("trips")
+    if args.force_lists:   force_resynced.update(("lists", "list_venues"))
+
     in_gha = os.environ.get("GITHUB_ACTIONS") == "true"
     alerts: list[str] = []
     for tbl in _TABLES:
@@ -438,12 +547,15 @@ def main() -> None:
         status = f"+{delta}" if delta >= 0 else str(delta)
         print(f"  {tbl}: {before} -> {after} ({status})", flush=True)
         if after < before:
-            msg = f"D1 ALERT: {tbl} shrank from {before} to {after} (lost {before - after} rows) -- review immediately"
-            alerts.append(msg)
-            if in_gha:
-                print(f"::warning::{msg}", flush=True)
+            if tbl in force_resynced:
+                print(f"  (shrinkage expected — force resync removed {before - after} rows)", flush=True)
             else:
-                print(f"WARNING: {msg}", flush=True)
+                msg = f"D1 ALERT: {tbl} shrank from {before} to {after} (lost {before - after} rows) -- review immediately"
+                alerts.append(msg)
+                if in_gha:
+                    print(f"::warning::{msg}", flush=True)
+                else:
+                    print(f"WARNING: {msg}", flush=True)
 
     if not alerts:
         print("D1 sync: all counts stable or growing", flush=True)
