@@ -389,12 +389,21 @@ def main() -> None:
                 by_venue.setdefault(vid, []).append(rec)
         if by_venue:
             print(f"  venue_changes: applying {len(diffs)} diff(s) across {len(by_venue)} venue(s)", flush=True)
+            # Field mappings: checkins and tips share the same column names for venue metadata
+            # venues table uses 'name' instead of 'venue' for the venue name
+            VENUE_TABLE_FIELD = {"venue": "name", "city": "city", "country": "country",
+                                 "lat": "lat", "lng": "lng", "category": "category"}
             for vid, recs in by_venue.items():
-                # One UPDATE per venue covering all changed fields at once
                 set_clauses = ", ".join(f"{r['field']}=?" for r in recs)
                 set_vals = [r["new_value"] for r in recs]
+                # Update all checkins rows for this venue
                 d1.query(f"UPDATE checkins SET {set_clauses} WHERE venue_id=?", set_vals + [vid])
-            # Audit log: insert all diff records into venue_changes
+                # Update tips rows for this venue (same column names)
+                d1.query(f"UPDATE tips SET {set_clauses} WHERE venue_id=?", set_vals + [vid])
+                # Update venues table row (column 'name' instead of 'venue')
+                v_clauses = ", ".join(f"{VENUE_TABLE_FIELD[r['field']]}=?" for r in recs)
+                d1.query(f"UPDATE venues SET {v_clauses} WHERE id=?", set_vals + [vid])
+            # Audit log
             vc_rows = [
                 [r["venue_id"], r["field"], r.get("old_value"), r.get("new_value"), r.get("detected_at", 0)]
                 for r in diffs if r.get("venue_id") and r.get("field") in ALLOWED_FIELDS
