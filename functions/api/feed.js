@@ -12,6 +12,11 @@
  * GET /api/feed?ym=1
  *   Returns only { ym_index: {"YYYY-MM": rowIndex, ...}, total: N }
  *   Used by feed.html to seed the calendar jump without fetching all data.
+ *
+ * GET /api/feed?month=YYYY-MM
+ *   Returns all check-ins in that calendar month (UTC boundaries), newest-first.
+ *   Response: { items: [...], total: N }
+ *   Used by feed.html for instant month-view jumps without loading all data.
  */
 
 const HEADERS = {
@@ -118,6 +123,28 @@ function formatLocal(ts, tz) {
   }
 }
 
+function mapRows(rows, tzCache) {
+  return rows.map(r => {
+    const lng = r.lng != null ? r.lng : null;
+    const key = `${r.country}|${lng != null ? Math.round(lng) : ''}`;
+    if (!(key in tzCache)) tzCache[key] = getTz(r.country, lng);
+    const [dateStr, timeStr] = formatLocal(r.date, tzCache[key]);
+    return [
+      r.date,
+      dateStr,
+      timeStr,
+      r.venue     || '',
+      r.city      || '',
+      r.country   || '',
+      r.category  || '',
+      r.venue_id  || '',
+      r.lat  != null ? Math.round(r.lat  * 10000) / 10000 : null,
+      r.lng  != null ? Math.round(r.lng  * 10000) / 10000 : null,
+      r.id        || '',
+    ];
+  });
+}
+
 export async function onRequestGet({ request, env }) {
   if (!env.DB) {
     return jsonResp({ error: 'DB binding not configured' }, 503);
@@ -144,6 +171,21 @@ export async function onRequestGet({ request, env }) {
     return jsonResp({ ym_index, total });
   }
 
+  // GET /api/feed?month=YYYY-MM — return all check-ins for a calendar month
+  const wantMonth = url.searchParams.get('month');
+  if (wantMonth && /^\d{4}-\d{2}$/.test(wantMonth)) {
+    const [yr, mo] = wantMonth.split('-').map(Number);
+    const tsStart = Math.floor(Date.UTC(yr, mo - 1, 1) / 1000);
+    const tsEnd   = Math.floor(Date.UTC(yr, mo,     1) / 1000); // first moment of next month
+    const dataRes = await env.DB.prepare(
+      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
+      'FROM checkins WHERE date >= ?1 AND date < ?2 ORDER BY date DESC'
+    ).bind(tsStart, tsEnd).all();
+    const rows  = dataRes.results || [];
+    const items = mapRows(rows, {});
+    return jsonResp({ items, total: items.length });
+  }
+
   const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
   const limit  = Math.min(1000, Math.max(1, parseInt(url.searchParams.get('limit') || '200', 10)));
 
@@ -155,29 +197,9 @@ export async function onRequestGet({ request, env }) {
     env.DB.prepare('SELECT COUNT(*) AS n FROM checkins').all(),
   ]);
 
-  const total   = totalRes.results?.[0]?.n || 0;
-  const rows    = dataRes.results || [];
-  const tzCache = {};
-
-  const items = rows.map(r => {
-    const lng = r.lng != null ? r.lng : null;
-    const key = `${r.country}|${lng != null ? Math.round(lng) : ''}`;
-    if (!(key in tzCache)) tzCache[key] = getTz(r.country, lng);
-    const [dateStr, timeStr] = formatLocal(r.date, tzCache[key]);
-    return [
-      r.date,
-      dateStr,
-      timeStr,
-      r.venue     || '',
-      r.city      || '',
-      r.country   || '',
-      r.category  || '',
-      r.venue_id  || '',
-      r.lat  != null ? Math.round(r.lat  * 10000) / 10000 : null,
-      r.lng  != null ? Math.round(r.lng  * 10000) / 10000 : null,
-      r.id        || '',
-    ];
-  });
+  const total = totalRes.results?.[0]?.n || 0;
+  const rows  = dataRes.results || [];
+  const items = mapRows(rows, {});
 
   return jsonResp({ items, total, has_more: offset + rows.length < total });
 }

@@ -265,6 +265,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 
 
+/* ── Month view status bar ── */
+.month-bar{display:none;align-items:center;gap:8px;padding:5px 12px;background:rgba(78,205,196,.07);border-bottom:1px solid rgba(78,205,196,.2);font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);flex-shrink:0;}
+.month-bar.visible{display:flex;}
+.month-bar-back{margin-left:auto;background:none;border:1px solid rgba(78,205,196,.3);color:var(--muted);cursor:pointer;font-size:.60rem;padding:2px 7px;border-radius:4px;font-family:'DM Mono',monospace;transition:color .1s,border-color .1s;}
+.month-bar-back:hover{color:var(--teal);border-color:var(--teal);}
+
 @media(max-width:700px){.feed-col{width:100%;border-right:none;}.map-col{display:none;}}
 @media(max-width:480px){
   .topbar{padding:6px 10px;gap:5px;min-height:auto;}
@@ -304,7 +310,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
       <button class="nav-btn" onclick="jumpTo(0)">↑ Latest</button>
 
-      <button class="nav-btn" onclick="jumpTo(DATA.length-1)">↓ Oldest</button>
+      <button class="nav-btn" onclick="goOldest()">↓ Oldest</button>
 
       <div class="cal-wrap">
 
@@ -329,6 +335,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="content">
 
     <div class="feed-col">
+
+      <div class="month-bar" id="monthBar">
+        <span id="monthBarLabel"></span>
+        <button class="month-bar-back" onclick="exitMonthView()">× Full feed</button>
+      </div>
 
       <div class="feed-scroll" id="feedScroll">
 
@@ -929,7 +940,7 @@ function gapFor(sec){
 
 
 
-let DATA=ALL, pos=[], totalH=0; let isFiltered=false;
+let DATA=ALL, pos=[], totalH=0; let isFiltered=false; let monthMode=null;
 
 function buildPos(data){
 
@@ -1336,8 +1347,8 @@ function renderCal(){
 }
 
 function goYM(ym){
-  selYM=(selYM===ym)?null:ym;
-  renderCal();
+  if(monthMode===ym){exitMonthView();return;}
+  fetchAndShowMonth(ym);
 }
 
 function renderDays(ym){
@@ -1358,8 +1369,78 @@ function renderDays(ym){
 function goYMD(ymd){
   document.getElementById('calDrop').classList.remove('open');
   selYM=null;
-  const idx=YD_IDX[ymd];
-  if(idx!=null) jumpTo(idx);
+  if(monthMode){
+    // In month view: find matching item by date string
+    const[yr,mo,d]=ymd.split('-');
+    const target=`${String(parseInt(d)).padStart(2,'0')} ${MOS[parseInt(mo)-1]} ${yr}`;
+    const idx=DATA.findIndex(r=>r[1]===target);
+    if(idx>=0) jumpTo(idx);
+  } else {
+    const idx=YD_IDX[ymd];
+    if(idx!=null) jumpTo(idx);
+    else fetchAndShowMonth(ymd.slice(0,7)); // data not yet loaded — fetch month
+  }
+}
+
+async function fetchAndShowMonth(ym){
+  document.getElementById('calDrop').classList.remove('open');
+  document.getElementById('badge').textContent='Loading…';
+
+  let items=[];
+  try{
+    const res=await fetch(`/api/feed?month=${ym}`);
+    const data=await res.json();
+    items=data.items||[];
+  }catch(e){}
+
+  // Update ydCnts for this month from freshly fetched items (ensures day grid is accurate)
+  const[myr,mmo]=ym.split('-').map(Number);
+  const mdays=new Date(myr,mmo,0).getDate();
+  for(let d=1;d<=mdays;d++) delete ydCnts[`${ym}-${String(d).padStart(2,'0')}`];
+  items.forEach(r=>{
+    const parts=(r[1]||'').split(' ');
+    if(parts.length===3){const mo2=MOS.indexOf(parts[1])+1;if(mo2>0){const ymd=`${parts[2]}-${String(mo2).padStart(2,'0')}-${parts[0]}`;ydCnts[ymd]=(ydCnts[ymd]||0)+1;}}
+  });
+
+  // Enter month view
+  monthMode=ym;
+  DATA=items;
+  selYM=ym;
+  calYr=parseInt(ym.split('-')[0]);
+
+  lastR=[-1,-1];
+  buildPos(DATA);
+  document.getElementById('vsSizer').style.height=totalH+'px';
+  document.getElementById('feedScroll').scrollTop=0;
+  renderVis();
+  if(DATA.length) activate(0,false);
+  renderCal();
+
+  const[yr2,mo2]=ym.split('-').map(Number);
+  const label=`${MOS[mo2-1]} ${yr2} · ${items.length.toLocaleString()} check-ins`;
+  document.getElementById('monthBarLabel').textContent=label;
+  document.getElementById('monthBar').classList.add('visible');
+  document.getElementById('badge').textContent=items.length.toLocaleString()+' check-ins';
+}
+
+function exitMonthView(){
+  monthMode=null;
+  selYM=null;
+  DATA=ALL;
+  document.getElementById('monthBar').classList.remove('visible');
+  lastR=[-1,-1];
+  buildPos(DATA);
+  document.getElementById('vsSizer').style.height=totalH+'px';
+  renderVis();
+  document.getElementById('badge').textContent=ALL.length.toLocaleString()+' check-ins';
+  renderCal();
+}
+
+function goOldest(){
+  const entries=Object.entries(YM_IDX);
+  if(!entries.length) return;
+  const[oldestYM]=entries.reduce((a,b)=>b[1]>a[1]?b:a);
+  fetchAndShowMonth(oldestYM);
 }
 
 
@@ -1436,7 +1517,7 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
     ALL.push(...items);
     addToCalCounts(items,prev);
     offset=ALL.length;
-    if(!isFiltered){
+    if(!isFiltered&&!monthMode){
       buildPos(ALL);
       document.getElementById('vsSizer').style.height=totalH+'px';
       lastR=[-1,-1];
