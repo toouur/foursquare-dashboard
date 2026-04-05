@@ -48,6 +48,40 @@ def save_category_list(rows: list[dict], out_path: str) -> None:
     log.info("Category list → %s  (%d categories)", out_path, len(cats))
 
 
+def generate_feed_meta(rows: list[dict], output_dir: str):
+    """Create feed_meta.json with ym_index, total, first_ts.
+    Replaces expensive D1 query for month index.
+    """
+    if not rows:
+        log.warning("No rows to generate feed_meta.json")
+        return
+
+    # Sort from newest to oldest (same as API order)
+    rows_sorted = sorted(rows, key=lambda x: int(x.get("date", 0) or 0), reverse=True)
+    total = len(rows_sorted)
+    first_ts = int(rows_sorted[-1]["date"]) if total > 0 else 0
+
+    ym_index = {}
+    for idx, row in enumerate(rows_sorted):
+        ts = int(row.get("date", 0) or 0)
+        if ts == 0:
+            continue
+        d = datetime.fromtimestamp(ts, tz=timezone.utc)
+        ym = d.strftime("%Y-%m")
+        if ym not in ym_index:
+            ym_index[ym] = idx   # first (newest) check-in in that month
+
+    meta = {
+        "ym_index": ym_index,
+        "total": total,
+        "first_ts": first_ts,
+    }
+    out_path = os.path.join(output_dir, "feed_meta.json")
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False)
+    log.info("Generated %s (months: %d, total: %d)", out_path, len(ym_index), total)
+
+
 # Templates are loaded at import time from the templates/ directory.
 # Edit templates/index.html and templates/trips.html directly;
 # they are proper HTML files, visible to linters and formatters.
@@ -85,7 +119,6 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     trips_path = os.path.join(out_dir, 'trips.html')
     with open(trips_path, 'w', encoding='utf-8') as f: f.write(trips_html)
     print(f"Built ->{trips_path}  ({len(trips_html)//1024:,} KB)")
-
 
 
 if __name__ == "__main__":
@@ -147,6 +180,9 @@ if __name__ == "__main__":
     blank_resolver = build_blank_city_resolver(review_csv)
 
     rows = apply_transforms(rows, mappings, blank_city_resolver=blank_resolver)
+
+    # ── Generate static feed_meta.json (replaces expensive D1 query) ─────────
+    generate_feed_meta(rows, args.output_dir)
 
     trip_names_path = config_dir / "trip_names.json"
     trip_names: dict = {}
@@ -641,4 +677,3 @@ if __name__ == "__main__":
             log.warning("gen_photos.py not found — skipping photos.html")
 
     log.info("Done!")
-
