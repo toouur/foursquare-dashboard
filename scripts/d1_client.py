@@ -15,6 +15,11 @@ import os
 import sys
 import time
 import requests
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 ACCOUNT_ID  = os.environ.get("CF_ACCOUNT_ID",     "bab29d78c0a1173324d4213f42103f01")
 DATABASE_ID = os.environ.get("CF_D1_DATABASE_ID", "52210bd9-a019-415e-8f12-6a73b42278f9")
@@ -25,29 +30,58 @@ _BASE = (
 
 _TOKEN: str = ""
 
-
 def configure(token: str) -> None:
     global _TOKEN
     _TOKEN = token
-
+    logger.info("D1 client configured with token (length: %d)", len(token) if token else 0)
 
 def _headers() -> dict:
     if not _TOKEN:
         sys.exit("CF_D1_TOKEN not set — export it or pass --token-file")
     return {"Authorization": f"Bearer {_TOKEN}", "Content-Type": "application/json"}
 
-
 def query(sql: str, params: list | None = None) -> list:
     """Execute a single SQL statement, return result rows."""
     body: dict = {"sql": sql}
     if params is not None:
         body["params"] = params
-    r = requests.post(f"{_BASE}/query", headers=_headers(), json=body, timeout=30)
-    r.raise_for_status()
-    d = r.json()
-    if not d.get("success"):
-        raise RuntimeError(f"D1 query failed: {d.get('errors')}")
-    return (d.get("result") or [{}])[0].get("results", [])
+    
+    logger.debug("Executing query: %s", sql)
+    if params:
+        logger.debug("Query params: %s", params)
+    
+    try:
+        r = requests.post(f"{_BASE}/query", headers=_headers(), json=body, timeout=30)
+        
+        if not r.ok:
+            # Capture comprehensive error details
+            error_msg = f"D1 Query failed with status {r.status_code}"
+            logger.error(error_msg)
+            logger.error("Request URL: %s", r.url)
+            logger.error("Request body: %s", body)
+            
+            try:
+                error_response = r.json()
+                logger.error("Error response: %s", error_response)
+            except Exception as json_err:
+                logger.error("Could not parse error response as JSON: %s", r.text[:500])
+            
+            r.raise_for_status()
+        
+        d = r.json()
+        if not d.get("success"):
+            error_details = d.get('errors', 'Unknown error')
+            logger.error("D1 query failed (success=false): %s", error_details)
+            raise RuntimeError(f"D1 query failed: {error_details}")
+        
+        logger.debug("Query executed successfully")
+        return (d.get("result") or [{}])[0].get("results", [])
+    except requests.exceptions.HTTPError as http_err:
+        logger.error("HTTP error in query(): %s", http_err)
+        raise
+    except Exception as err:
+        logger.error("Unexpected error in query(): %s", err)
+        raise
 
 
 _D1_MAX_VARS = 90  # D1 caps at 100 bindings per statement; stay under
@@ -66,7 +100,6 @@ def _sql_val(v) -> str:
         return repr(v)
     # String: escape single quotes by doubling, wrap in single quotes
     return "'" + str(v).replace("'", "''") + "'"
-
 
 def raw_upsert(
     base_sql: str,
@@ -116,26 +149,50 @@ def raw_upsert(
 def _raw_with_retry(sql: str, retries: int = 5) -> list:
     """POST raw SQL to /raw endpoint with retry on 429."""
     body: dict = {"sql": sql}
+    
+    logger.debug("Executing raw SQL (length: %d chars)", len(sql))
+    
     for attempt in range(retries):
-        r = requests.post(f"{_BASE}/raw", headers=_headers(), json=body, timeout=120)
-        if r.status_code == 429:
-            wait = int(r.headers.get("Retry-After", 30))
-            print(f"\n  Rate-limited - waiting {wait}s ...", flush=True)
-            time.sleep(wait)
-            continue
-        if not r.ok:
-            # Print error body for debugging
-            try:
-                err = r.json().get("errors", r.text[:200])
-            except Exception:
-                err = r.text[:200]
-            raise RuntimeError(f"D1 raw {r.status_code}: {err}")
-        d = r.json()
-        if not d.get("success"):
-            raise RuntimeError(f"D1 raw failed: {d.get('errors')}")
-        return (d.get("result") or [{}])[0].get("results", [])
+        try:
+            r = requests.post(f"{_BASE}/raw", headers=_headers(), json=body, timeout=120)
+            
+            if r.status_code == 429:
+                wait = int(r.headers.get("Retry-After", 30))
+                print(f"\n  Rate-limited - waiting {wait}s ...", flush=True)
+                logger.warning("Rate limited by Cloudflare, waiting %d seconds", wait)
+                time.sleep(wait)
+                continue
+            
+            if not r.ok:
+                # Print error body for debugging
+                logger.error("Raw query failed with status %d on attempt %d/%d", r.status_code, attempt + 1, retries)
+                logger.error("Request URL: %s", r.url)
+                logger.error("SQL (first 500 chars): %s", sql[:500])
+                
+                try:
+                    err = r.json().get("errors", r.text[:200])
+                except Exception:
+                    err = r.text[:200]
+                
+                logger.error("Error details: %s", err)
+                raise RuntimeError(f"D1 raw {r.status_code}: {err}")
+            
+            d = r.json()
+            if not d.get("success"):
+                error_msg = d.get("errors", "Unknown error")
+                logger.error("D1 raw failed (success=false): %s", error_msg)
+                raise RuntimeError(f"D1 raw failed: {error_msg}")
+            
+            logger.debug("Raw query executed successfully")
+            return (d.get("result") or [{}])[0].get("results", [])
+            
+        except requests.exceptions.RequestException as req_err:
+            logger.error("Request error on attempt %d/%d: %s", attempt + 1, retries, req_err)
+            if attempt == retries - 1:
+                raise
+            time.sleep(2 ** attempt)  # Exponential backoff
+    
     raise RuntimeError("D1 raw: too many retries")
-
 
 def batch_upsert(
     sql: str,
@@ -156,11 +213,15 @@ def batch_upsert(
 
     row_width = len(rows[0])
     effective_chunk = chunk if chunk > 0 else max(1, _D1_MAX_VARS // row_width)
+    
+    logger.debug("Batch upsert: %d rows, effective chunk size: %d", n, effective_chunk)
 
     sql_upper = sql.upper()
     val_idx = sql_upper.rfind(" VALUES ")
     if val_idx == -1:
+        logger.error("Cannot find VALUES in SQL: %s", sql)
         raise ValueError(f"Cannot find VALUES in sql: {sql!r}")
+    
     base   = sql[:val_idx]
     one_ph = sql[val_idx + len(" VALUES "):]
 
@@ -176,32 +237,76 @@ def batch_upsert(
     print(f"\r  {label}: {n}/{n} done    ")
     return n
 
-
 def _query_with_retry(sql: str, params: list, retries: int = 5) -> list:
     """POST to /query with retry on 429 rate-limit."""
     body: dict = {"sql": sql, "params": params}
+    
+    logger.debug("Query with retry (sql length: %d, params: %d)", len(sql), len(params) if params else 0)    
     for attempt in range(retries):
-        r = requests.post(f"{_BASE}/query", headers=_headers(), json=body, timeout=60)
-        if r.status_code == 429:
-            wait = int(r.headers.get("Retry-After", 30))
-            print(f"\n  Rate-limited - waiting {wait}s ...", flush=True)
-            time.sleep(wait)
-            continue
-        r.raise_for_status()
-        d = r.json()
-        if not d.get("success"):
-            raise RuntimeError(f"D1 query failed: {d.get('errors')}")
-        return (d.get("result") or [{}])[0].get("results", [])
+        try:
+            r = requests.post(f"{_BASE}/query", headers=_headers(), json=body, timeout=60)
+            
+            if r.status_code == 429:
+                wait = int(r.headers.get("Retry-After", 30))
+                print(f"\n  Rate-limited - waiting {wait}s ...", flush=True)
+                logger.warning("Rate limited on attempt %d/%d, waiting %d seconds", attempt + 1, retries, wait)
+                time.sleep(wait)
+                continue
+            
+            if not r.ok:
+                logger.error("Query failed with status %d on attempt %d/%d", r.status_code, attempt + 1, retries)
+                logger.error("Request URL: %s", r.url)
+                logger.error("SQL (first 500 chars): %s", sql[:500])
+                logger.error("Number of params: %d", len(params) if params else 0)
+                
+                try:
+                    error_response = r.json()
+                    logger.error("Error response: %s", error_response)
+                except Exception:
+                    logger.error("Response text (first 500 chars): %s", r.text[:500])
+            
+            r.raise_for_status()
+            
+            d = r.json()
+            if not d.get("success"):
+                error_msg = d.get("errors", "Unknown error")
+                logger.error("D1 query failed (success=false): %s", error_msg)
+                raise RuntimeError(f"D1 query failed: {error_msg}")
+            
+            logger.debug("Query with retry executed successfully")
+            return (d.get("result") or [{}])[0].get("results", [])
+            
+        except requests.exceptions.RequestException as req_err:
+            logger.error("Request exception on attempt %d/%d: %s", attempt + 1, retries, req_err)
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)  # Exponential backoff
+            else:
+                raise
+    
     raise RuntimeError("D1 query: too many retries")
-
 
 def apply_schema(schema_path: str) -> None:
     """Execute every non-empty statement in a .sql file."""
+    logger.info("Applying schema from: %s", schema_path)
+    
     sql = open(schema_path, encoding="utf-8").read()
     # Strip comment lines before splitting on ;
     clean_lines = [l for l in sql.splitlines() if not l.strip().startswith("--")]
     clean_sql = "\n".join(clean_lines)
     statements = [s.strip() for s in clean_sql.split(";") if s.strip()]
-    for stmt in statements:
-        query(stmt)
+    
+    logger.info("Found %d SQL statements in schema file", len(statements))
+    
+    for idx, stmt in enumerate(statements, 1):
+        try:
+            logger.debug("Executing schema statement %d/%d (length: %d chars)", idx, len(statements), len(stmt))
+            logger.debug("Statement preview: %s", stmt[:100])
+            query(stmt)
+        except Exception as err:
+            logger.error("Failed to execute schema statement %d/%d", idx, len(statements))
+            logger.error("Statement (first 200 chars): %s", stmt[:200])
+            logger.error("Error: %s", err)
+            raise
+    
+    logger.info("Schema applied successfully (%d statements)", len(statements))
     print(f"  Schema applied ({len(statements)} statements)")
