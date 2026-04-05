@@ -275,17 +275,17 @@ def main() -> None:
     ap.add_argument("--schema",  default=str(HERE / "d1_schema.sql"))
     ap.add_argument("--token",   help="CF_D1_TOKEN override")
     ap.add_argument("--tips-changed",    dest="tips_changed",
-                    default="true", choices=("true", "false"),
-                    help="Skip tips upsert when 'false' (pass fetch_tips CHANGED output)")
+                    default="false", choices=("true", "false"),
+                    help="Sync tips when 'true' (pass fetch_tips CHANGED output; default false)")
     ap.add_argument("--ratings-changed", dest="ratings_changed",
-                    default="true", choices=("true", "false"),
-                    help="Skip ratings upsert when 'false' (pass fetch_ratings CHANGED output)")
+                    default="false", choices=("true", "false"),
+                    help="Sync ratings when 'true' (pass fetch_ratings CHANGED output; default false)")
     ap.add_argument("--lists-changed",   dest="lists_changed",
-                    default="true", choices=("true", "false"),
-                    help="Skip lists/list_venues upsert when 'false' (pass fetch CHANGED output)")
+                    default="false", choices=("true", "false"),
+                    help="Sync lists/list_venues when 'true' (pass fetch CHANGED output; default false)")
     ap.add_argument("--trips-changed",   dest="trips_changed",
-                    default="true", choices=("true", "false"),
-                    help="Skip trips upsert when 'false' (pass fetch CHANGED output)")
+                    default="false", choices=("true", "false"),
+                    help="Sync trips when 'true' (pass fetch CHANGED output; default false)")
     args = ap.parse_args()
 
     token = args.token or os.environ.get("CF_D1_TOKEN", "")

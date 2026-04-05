@@ -129,8 +129,11 @@ footer a:hover{text-decoration:underline;}
       </p>
       <p>
         The entire system runs on <strong>free-tier infrastructure</strong>: Cloudflare Pages, Cloudflare Workers,
-        Cloudflare KV, and GitHub Actions. There is no backend, no database, no containers. The build pipeline
-        is 100% Python 3.9+, the frontend is vanilla JS with Leaflet and Chart.js.
+        Cloudflare KV, Cloudflare D1 (SQLite at the edge), and GitHub Actions. There are no servers, no containers.
+        The build pipeline is 100% Python 3.9+, the frontend is vanilla JS with Leaflet and Chart.js.
+        Dynamic features (full-text search, the paginated check-in feed) are served by
+        <strong>Cloudflare Pages Functions</strong> querying a D1 database — keeping runtime cost at zero
+        while enabling millisecond-latency queries against the full 65 000-row dataset.
       </p>
     </div>
   </div>
@@ -196,6 +199,12 @@ footer a:hover{text-decoration:underline;}
         <div class="ps-label">GitHub Actions</div>
         <div class="ps-name">Fetch → Build → Push</div>
         <div class="ps-time">T+1–3 min</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="ps-label">Cloudflare D1</div>
+        <div class="ps-name">Incremental D1 Sync</div>
+        <div class="ps-time">T+3–4 min</div>
       </div>
       <div class="pipe-arrow">→</div>
       <div class="pipe-step">
@@ -754,6 +763,156 @@ python scripts/build.py \
       </div>
     </div>
 
+    <!-- C12 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 12 — Venue Ratings Largely Inaccessible via API</div>
+        <div class="cs-text">
+          Foursquare allows users to rate venues as <em>Like</em>, <em>Okay</em>, or
+          <em>Dislike</em>. The ratings page needs all three to show the full breakdown
+          across visited venues. The API documentation lists endpoints for each rating type —
+          but in practice, <code>/users/self/venueokays</code> and
+          <code>/users/self/venuedislikes</code> return <strong>HTTP 402</strong> on every
+          request, regardless of authentication or token scope. There is no error message
+          explaining why, no workaround in the documentation, and no indication this will
+          change. A naive implementation would treat 402 as a transient failure and retry
+          indefinitely, blocking the CI run.
+        </div>
+        <div class="cs-text">
+          A secondary issue: many <em>Like</em> records in the API response were missing a
+          <code>createdAt</code> timestamp field entirely — the field the ratings page uses
+          to assign check-ins to years. Without it, those venues sort to the bottom with no
+          year grouping.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Probe-and-Skip 402 Endpoints; Backfill Timestamps from Check-in History</div>
+        <div class="cs-text">
+          <code>fetch_ratings.py</code> was updated to treat <strong>402 as a permanent
+          skip</strong>, not a retry-able error. The script logs a one-time warning and moves
+          on — no hang, no false failure. Only the likes endpoint (<code>/users/self/venuelikes</code>)
+          reliably returns data and is actively fetched.
+        </div>
+        <div class="code-block">
+<span class="cm"># fetch_ratings.py — 402 is a hard skip, not a transient error</span>
+<span class="kw">if</span> resp.status_code == <span class="hl2">402</span>:
+    print(<span class="hl">f"⚠  {endpoint} → 402 (feature requires paid plan) — skipping"</span>)
+    <span class="kw">return</span> []   <span class="cm"># no retry, no exception</span>
+        </div>
+        <div class="cs-text">
+          For the missing <code>createdAt</code> timestamps on likes: a backfill pass reads
+          <code>checkins.csv</code> and, for each liked venue, finds the <strong>earliest
+          check-in timestamp</strong> at that venue. This is stored as <code>first_ts</code>
+          in <code>venueRatings.json</code> and used as a proxy creation date when
+          <code>createdAt</code> is absent. The ratings page year-grouping logic falls through
+          to <code>first_ts</code> automatically, so all likes are assigned to a year with no
+          manual intervention.
+        </div>
+        <div class="code-block">
+<span class="cm"># Backfill: first_ts = earliest checkin timestamp at that venue</span>
+venue_first: dict[str, int] = {}
+<span class="kw">for</span> row <span class="kw">in</span> checkins_csv:
+    vid = row[<span class="hl">"venue_id"</span>]
+    ts  = int(row[<span class="hl">"date"</span>])
+    <span class="kw">if</span> vid <span class="kw">not in</span> venue_first <span class="kw">or</span> ts &lt; venue_first[vid]:
+        venue_first[vid] = ts
+
+<span class="kw">for</span> like <span class="kw">in</span> likes:
+    <span class="kw">if not</span> like.get(<span class="hl">"createdAt"</span>):
+        like[<span class="hl">"first_ts"</span>] = venue_first.get(like[<span class="hl">"venue_id"</span>], <span class="hl2">0</span>)
+        </div>
+      </div>
+    </div>
+
+    <!-- C13 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 13 — 11 MB Embedded JSON Blocks the Feed Page</div>
+        <div class="cs-text">
+          The check-in feed page was originally generated by embedding the <em>entire</em>
+          65 000-row check-in history as a <code>const ALL=[...]</code> JSON blob directly
+          inside the HTML — roughly <strong>11 MB of inline JavaScript</strong>. This created
+          three compounding problems:
+        </div>
+        <div class="cs-text">
+          <strong>1. Page load was blocked.</strong> The browser had to parse and execute the
+          entire 11 MB blob before any interaction was possible. On a slow connection or mobile
+          device, the feed was unusable.
+        </div>
+        <div class="cs-text">
+          <strong>2. The build was the slowest step.</strong> Python reading and serialising the
+          full CSV into a single JSON string on every hourly CI run was responsible for a
+          measurable share of the build time.
+        </div>
+        <div class="cs-text">
+          <strong>3. Search was static and stale.</strong> The full-text search index
+          (<code>search-index.json</code>) was generated at build time, committed to the repo
+          (~1.5 MB), and served as a static file. Any search therefore reflected data as of the
+          last deploy, not the current D1 state. The static file also bloated the repo and the
+          CDN response for every search query.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Cloudflare D1 + Pages Functions + Virtual Scroll + Progressive Pagination</div>
+        <div class="cs-text">
+          Both the feed and search were migrated to <strong>Cloudflare D1</strong> — a
+          serverless SQLite database at the edge, included in the free Pages tier. Two
+          Cloudflare Pages Functions replace the static files:
+        </div>
+        <div class="code-block">
+<span class="cm"># /api/feed  — paginated check-in stream (200 rows per page)</span>
+GET /api/feed?offset=0&amp;limit=200
+<span class="cm"># → { items: [[ts, date, time, venue, city, country, cat, vid, lat, lng, id], …],</span>
+<span class="cm">#     total: 65012, has_more: true }</span>
+
+GET /api/feed?ym=1
+<span class="cm"># → { ym_index: {"2024-03": 0, "2024-02": 141, …}, total: 65012 }</span>
+<span class="cm"># lightweight prefetch: calendar months available before data finishes loading</span>
+
+<span class="cm"># /api/search — live D1 full-text search</span>
+GET /api/search?q=minsk
+<span class="cm"># → { venue: […], city: […], trip: […], tip: […], companion: […] }</span>
+<span class="cm"># queries 6 D1 tables in parallel; no static index, always current</span>
+        </div>
+        <div class="cs-text">
+          The feed page's JavaScript was rewritten around a <strong>virtual scroll</strong>
+          model: only the rows currently in the viewport are rendered as DOM nodes. All
+          65 000 rows exist only as a flat in-memory array (<code>ALL</code>); position
+          computation (<code>buildPos</code>) maps each row to a pixel offset using a gap-row
+          strategy. The first 200 items render immediately on first API response; the remainder
+          are fetched in the background while the user scrolls, appended to <code>ALL</code>
+          without disrupting the viewport.
+        </div>
+        <div class="code-block">
+<span class="cm">// Progressive background fetch — non-blocking</span>
+<span class="kw">while</span> (offset &lt; total) {
+  <span class="kw">const</span> d = <span class="kw">await</span> fetch(<span class="hl">`/api/feed?offset=${offset}&amp;limit=200`</span>).then(r =&gt; r.json());
+  ALL.push(...d.items);          <span class="cm">// grows the shared array in-place</span>
+  addToCalCounts(d.items, prev); <span class="cm">// incremental calendar build</span>
+  <span class="kw">if</span> (!isFiltered) renderVis();   <span class="cm">// skip re-render if search is active</span>
+  offset = ALL.length;
+  <span class="kw">if</span> (!d.has_more) <span class="kw">break</span>;
+}
+        </div>
+        <div class="cs-text">
+          The calendar jump bar is populated via the lightweight <code>?ym=1</code> prefetch,
+          so all month anchors are clickable <em>before</em> the background pagination
+          completes. An <code>isFiltered</code> flag suppresses viewport re-renders while a
+          search is active, preventing the background fetch from resetting the user's current
+          view. The feed page went from an 11 MB HTML file that blocked paint to a
+          <strong>26 KB shell</strong> that renders the first screen in under one second.
+        </div>
+        <div class="cs-text">
+          The D1 sync is incremental: check-ins are append-only (insert or ignore on primary key),
+          venues are upserted only for IDs touched in the current fetch, and tips/ratings/lists
+          are gated by per-table change flags (<code>--tips-changed</code>,
+          <code>--ratings-changed</code>, <code>--lists-changed</code>) that default to
+          <code>false</code> — so a manual local sync never rewrites unchanged tables accidentally.
+          CI passes the actual fetch-step output for each flag.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>
@@ -770,12 +929,20 @@ python scripts/build.py \
         two Jinja-free template files using simple <code>{{PLACEHOLDER}}</code> substitution.
       </p>
       <p>
-        The four generator scripts (<code>gen_companions.py</code>, <code>gen_feed.py</code>,
-        <code>gen_venues.py</code>, <code>gen_worldcities.py</code>) each embed their complete
-        HTML template as a <strong>base64-encoded string</strong> (<code>_TMPL_B64</code>).
-        This makes each generator fully self-contained — no external template files, no path
-        resolution issues regardless of working directory. To modify a page's design, you
-        base64-decode the string, edit the HTML/CSS/JS, re-encode.
+        The generator scripts (<code>gen_companions.py</code>, <code>gen_venues.py</code>,
+        <code>gen_worldcities.py</code>) each embed their complete HTML template as a
+        <strong>base64-encoded string</strong> (<code>_TMPL_B64</code>). This makes each
+        generator fully self-contained — no external template files, no path resolution issues
+        regardless of working directory. To modify a page's design, you base64-decode the
+        string, edit the HTML/CSS/JS, re-encode.
+      </p>
+      <p>
+        <code>gen_feed.py</code> is an exception: after the migration to D1-backed pagination
+        (see Challenge 13), it no longer embeds any data. It simply renders the template shell
+        with the <code>{{SWARM_USER_ID}}</code> placeholder substituted — the actual check-in
+        data is fetched at runtime from <code>/api/feed</code>. Similarly, the full-text search
+        index (<code>search-index.json</code>) is no longer generated or committed; search is
+        served live by <code>functions/api/search.js</code> querying D1 directly.
       </p>
       <p>
         Trip detection in <code>metrics.py</code> runs a single-pass scan over the sorted
@@ -805,7 +972,9 @@ python scripts/build.py \
 #  9. gen_tips.py       → tips.html
 # 10. gen_photos.py     → photos.html
 # 11. gen_stats.py      → stats.html
-# 12. gen_search.py     → search.html + search-index.json</span>
+# 12. gen_search.py     → search.html  (no static index — search queries D1 live)
+# 13. sync_to_d1.py     → upserts checkins/venues/tips/ratings/lists/trips into D1
+#                          (incremental; each table gated by its own changed flag)</span>
     </div>
   </div>
 
@@ -870,6 +1039,11 @@ python scripts/build.py \
         <div class="si-layer">Photo Storage</div>
         <div class="si-tech">Cloudflare R2</div>
         <div class="si-role">21 000+ photos · 10 GB free · $0 egress · S3-compatible sync</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Search &amp; Feed API</div>
+        <div class="si-tech">Cloudflare D1 + Pages Functions</div>
+        <div class="si-role">SQLite at the edge · live search · paginated feed · free tier</div>
       </div>
     </div>
   </div>
