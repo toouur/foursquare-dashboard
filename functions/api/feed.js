@@ -199,13 +199,15 @@ export async function onRequestGet({ request, env }) {
     FROM checkins
   `;
   const params = [];
+  let bindIndex = 1; // <-- Start dynamic index at 1
 
   if (cursor && !isNaN(parseInt(cursor, 10))) {
-    query += ` WHERE date < ?1`;
+    query += ` WHERE date < ?${bindIndex++}`; // Uses ?1, then increments to 2
     params.push(parseInt(cursor, 10));
   }
 
-  query += ` ORDER BY date DESC LIMIT ?2`;
+  // Uses ?1 (if no cursor) or ?2 (if cursor existed)
+  query += ` ORDER BY date DESC LIMIT ?${bindIndex}`; 
   params.push(limit + 1); // fetch one extra to detect has_more
 
   const dataRes = await env.DB.prepare(query).bind(...params).all();
