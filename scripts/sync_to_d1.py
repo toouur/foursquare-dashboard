@@ -283,27 +283,31 @@ def parse_lists(lists_path: str, visited_vids: set):
 def _sync_lists_diff(list_rows: list, lv_rows: list) -> None:
     """
     Smart diff sync for lists and list_venues — no full table wipe.
-
-    Handles all four cases without touching unrelated rows:
-      • New list        → inserted by batch_upsert(SQL_LISTS)
-      • Deleted list    → DELETE WHERE id NOT IN (current list IDs)
-      • Renamed list    → overwritten by INSERT OR REPLACE
-      • New venue       → inserted by batch_upsert(SQL_LIST_VENUES)
-      • Removed venue   → per-list DELETE + reinsert (targeted; single param per DELETE)
-      • visited change  → overwritten by INSERT OR REPLACE
+    Handles large number of lists by chunking deletions to avoid D1 variable limit.
     """
-    current_list_ids = [row[0] for row in list_rows]
+    new_ids = {row[0] for row in list_rows}
+    CHUNK_SIZE = 90  # D1 limit is 100; safe margin
 
-    # Remove lists (and their venue memberships) no longer in current data.
-    # list count is small (~18), well within the 90-param D1 limit.
-    if current_list_ids:
-        ph = ",".join("?" * len(current_list_ids))
-        d1.query(f"DELETE FROM list_venues WHERE list_id NOT IN ({ph})", current_list_ids)
-        d1.query(f"DELETE FROM lists WHERE id NOT IN ({ph})", current_list_ids)
+    # Fetch existing list IDs from D1
+    existing_res = d1.query("SELECT id FROM lists")
+    existing_ids = {row["id"] for row in existing_res} if existing_res else set()
+
+    # If the set of IDs hasn't changed, skip deletion entirely
+    if new_ids == existing_ids:
+        print("  lists    : no ID changes – skipping deletions")
     else:
-        # No lists at all — clear everything
-        d1.query("DELETE FROM list_venues")
-        d1.query("DELETE FROM lists")
+        # IDs to delete = existing - new
+        to_delete_ids = existing_ids - new_ids
+        if to_delete_ids:
+            to_delete_list = list(to_delete_ids)
+            for i in range(0, len(to_delete_list), CHUNK_SIZE):
+                chunk = to_delete_list[i:i+CHUNK_SIZE]
+                ph = ",".join("?" * len(chunk))
+                d1.query(f"DELETE FROM list_venues WHERE list_id IN ({ph})", chunk)
+                d1.query(f"DELETE FROM lists WHERE id IN ({ph})", chunk)
+            print(f"  lists    : deleted {len(to_delete_ids)} removed list(s)")
+        else:
+            print("  lists    : no lists to delete")
 
     # Upsert all current lists (handles new + renamed)
     d1.batch_upsert(SQL_LISTS, list_rows, label="lists    ")
