@@ -13,7 +13,7 @@ Strategy (CI):
                skipped when --ratings-changed=false
   trips      -> INSERT OR REPLACE (counts update when new check-in joins old trip)
                skipped when --trips-changed=false
-  lists      -> smart diff: delete removed lists/venues, upsert current state
+  lists      -> smart diff: add/delete/update only changed rows
                skipped when --lists-changed=false
 
 Force-resync flags (manual / post-export):
@@ -282,45 +282,104 @@ def parse_lists(lists_path: str, visited_vids: set):
 
 def _sync_lists_diff(list_rows: list, lv_rows: list) -> None:
     """
-    Smart diff sync for lists and list_venues — no full table wipe.
-    Handles large number of lists by chunking deletions to avoid D1 variable limit.
+    True incremental sync for lists and list_venues.
+    - Adds new lists
+    - Deletes removed lists
+    - For each list, inserts new venues, deletes removed venues,
+      and updates visited status for existing venues.
     """
-    new_ids = {row[0] for row in list_rows}
-    CHUNK_SIZE = 90  # D1 limit is 100; safe margin
+    CHUNK_SIZE = 90
 
-    # Fetch existing list IDs from D1
+    # ---- 1. Sync lists table (handles new & deleted lists) ----
+    new_list_ids = {row[0] for row in list_rows}
     existing_res = d1.query("SELECT id FROM lists")
-    existing_ids = {row["id"] for row in existing_res} if existing_res else set()
+    existing_list_ids = {row["id"] for row in existing_res} if existing_res else set()
 
-    # If the set of IDs hasn't changed, skip deletion entirely
-    if new_ids == existing_ids:
-        print("  lists    : no ID changes – skipping deletions")
-    else:
-        # IDs to delete = existing - new
-        to_delete_ids = existing_ids - new_ids
-        if to_delete_ids:
-            to_delete_list = list(to_delete_ids)
-            for i in range(0, len(to_delete_list), CHUNK_SIZE):
-                chunk = to_delete_list[i:i+CHUNK_SIZE]
-                ph = ",".join("?" * len(chunk))
-                d1.query(f"DELETE FROM list_venues WHERE list_id IN ({ph})", chunk)
-                d1.query(f"DELETE FROM lists WHERE id IN ({ph})", chunk)
-            print(f"  lists    : deleted {len(to_delete_ids)} removed list(s)")
-        else:
-            print("  lists    : no lists to delete")
+    # Delete lists that no longer exist
+    to_delete_ids = existing_list_ids - new_list_ids
+    if to_delete_ids:
+        to_delete_list = list(to_delete_ids)
+        for i in range(0, len(to_delete_list), CHUNK_SIZE):
+            chunk = to_delete_list[i:i+CHUNK_SIZE]
+            ph = ",".join("?" * len(chunk))
+            d1.query(f"DELETE FROM list_venues WHERE list_id IN ({ph})", chunk)
+            d1.query(f"DELETE FROM lists WHERE id IN ({ph})", chunk)
+        print(f"  lists    : deleted {len(to_delete_ids)} removed list(s)")
 
-    # Upsert all current lists (handles new + renamed)
+    # Insert or replace all lists (handles new & renamed)
     d1.batch_upsert(SQL_LISTS, list_rows, label="lists    ")
 
-    # Per-list: delete ALL existing venue memberships, then reinsert current ones.
-    # This is targeted (one DELETE per list) and handles added/removed/changed items.
-    by_list: dict[str, list] = {}
-    for row in lv_rows:
-        by_list.setdefault(row[0], []).append(row)
-    for lid in by_list:
-        d1.query("DELETE FROM list_venues WHERE list_id=?", [lid])
+    # ---- 2. Build current D1 state for list_venues ----
+    # Fetch all existing list_venues as a dict: (list_id, venue_id) -> (visited, last_visit_ts)
+    existing_lv = d1.query("SELECT list_id, venue_id, visited, last_visit_ts FROM list_venues")
+    existing_map = {}
+    for row in existing_lv:
+        key = (row["list_id"], row["venue_id"])
+        existing_map[key] = (row.get("visited", 0), row.get("last_visit_ts", 0))
 
-    d1.batch_upsert(SQL_LIST_VENUES, lv_rows, label="list_venues")
+    # Build new data as dict: (list_id, venue_id) -> full row (list of values)
+    new_map = {}
+    for row in lv_rows:
+        key = (row[0], row[1])  # list_id, venue_id
+        new_map[key] = row
+
+    # ---- 3. Compute diffs ----
+    to_insert = []
+    to_delete = []
+    to_update_visited = []  # rows that only need visited flag update
+
+    # Find venues that are in new data but not in existing
+    for key, new_row in new_map.items():
+        if key not in existing_map:
+            to_insert.append(new_row)
+
+    # Find venues that are in existing but not in new
+    for key in existing_map:
+        if key not in new_map:
+            to_delete.append(key)
+
+    # Find venues that exist in both but have changed visited flag or last_visit_ts
+    for key, new_row in new_map.items():
+        if key in existing_map:
+            old_visited, old_last_ts = existing_map[key]
+            # visited is at index 18, last_visit_ts at index 19 (0-based)
+            new_visited = new_row[18] if len(new_row) > 18 else 0
+            new_last_ts = new_row[19] if len(new_row) > 19 else 0
+            if old_visited != new_visited or old_last_ts != new_last_ts:
+                to_update_visited.append((key[0], key[1], new_visited, new_last_ts))
+
+    # ---- 4. Apply changes ----
+    # Insert new rows (use raw_upsert for speed)
+    if to_insert:
+        base_sql = "INSERT INTO list_venues (" \
+                   "list_id,venue_id,created_at,venue_name,venue_url,category,category_id," \
+                   "category_short_name,category_icon_prefix,category_icon_suffix," \
+                   "lat,lng,address,city,state,cc,country,formatted_address,visited,last_visit_ts" \
+                   ") VALUES"
+        d1.raw_upsert(base_sql, to_insert, label="list_venues (insert)")
+        print(f"  list_venues: inserted {len(to_insert)} new venue(s)")
+
+    # Delete removed rows
+    if to_delete:
+        # Group by list_id for efficient deletion
+        del_by_list = {}
+        for list_id, venue_id in to_delete:
+            del_by_list.setdefault(list_id, []).append(venue_id)
+        for list_id, venue_ids in del_by_list.items():
+            for i in range(0, len(venue_ids), CHUNK_SIZE):
+                chunk = venue_ids[i:i+CHUNK_SIZE]
+                ph = ",".join("?" * len(chunk))
+                d1.query(f"DELETE FROM list_venues WHERE list_id = ? AND venue_id IN ({ph})", [list_id] + chunk)
+        print(f"  list_venues: deleted {len(to_delete)} removed venue(s)")
+
+    # Update visited status (single column update is cheap)
+    if to_update_visited:
+        for list_id, venue_id, visited, last_ts in to_update_visited:
+            d1.query(
+                "UPDATE list_venues SET visited = ?, last_visit_ts = ? WHERE list_id = ? AND venue_id = ?",
+                [visited, last_ts, list_id, venue_id]
+            )
+        print(f"  list_venues: updated visited for {len(to_update_visited)} venue(s)")
 
 
 # -- Main ---------------------------------------------------------------------
