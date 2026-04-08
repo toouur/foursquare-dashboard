@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rated Places — Check-in Journal</title>
 <meta name="description" content="3,700+ venues personally rated on Foursquare — liked, neutral, and disliked places across 62 countries.">
-<link rel="canonical" href="https://4sq.andrei-patsiomkin.workers.dev/ratings.html">
+<link rel="canonical" href="https://4sq.pages.dev/ratings.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Check-in Journal">
 <meta property="og:title" content="Rated Places — Check-in Journal">
 <meta property="og:description" content="3,700+ venues personally rated on Foursquare — liked, neutral, and disliked places across 62 countries.">
-<meta property="og:url" content="https://4sq.andrei-patsiomkin.workers.dev/ratings.html">
+<meta property="og:url" content="https://4sq.pages.dev/ratings.html">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Rated Places — Check-in Journal">
 <meta name="twitter:description" content="3,700+ venues personally rated on Foursquare — liked, neutral, and disliked places across 62 countries.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
@@ -164,15 +165,15 @@ function catIcon(cat){const e=CAT_ICON[cat||''];return e?{em:e[0],bg:e[1]}:{em:'
 const RATING_EMOJI={'like':'❤️','neutral':'😐','dislike':'💔'};
 const RATING_FILTER={'like':'','neutral':'filter:grayscale(1) brightness(0.55)','dislike':'filter:saturate(0.25) brightness(0.55)'};
 
-function ratingDivIcon(rating,selected){
-  const sz=selected?20:14;
-  const filt=RATING_FILTER[rating]||'';
-  return L.divIcon({
-    html:'<span style="font-size:'+sz+'px;line-height:1;display:block;'+filt+'">'+RATING_EMOJI[rating]+'</span>',
-    className:'leaflet-rating-icon',
-    iconSize:[sz+2,sz+2],
-    iconAnchor:[(sz+2)/2,(sz+2)/2],
-  });
+const RATING_COLOR={'like':'#4ec9b0','neutral':'#6b7280','dislike':'#e05a7a'};
+function ratingStyle(rating,selected){
+  return {
+    radius:selected?9:5,
+    fillColor:RATING_COLOR[rating]||'#4a5270',
+    color:selected?'#fff':'rgba(0,0,0,0.25)',
+    weight:selected?2:1,
+    fillOpacity:selected?1:0.82,
+  };
 }
 
 // ── Map ──────────────────────────────────────────────────────────────────────
@@ -183,7 +184,7 @@ const markers={};
 let selMarker=null,selIdx=-1;
 ALL.forEach((v,i)=>{
   if(!v.lat||!v.lng)return;
-  const m=L.marker([parseFloat(v.lat),parseFloat(v.lng)],{icon:ratingDivIcon(v.rating,false)}).addTo(map);
+  const m=L.circleMarker([parseFloat(v.lat),parseFloat(v.lng)],ratingStyle(v.rating,false)).addTo(map);
   const loc=[v.nci||v.city,v.nc||v.country].filter(Boolean).join(', ');
   m.bindPopup(`<b>${esc(v.name||'')}</b><br><span style="font-size:.75rem;color:#9ca3af;">${esc(loc)}</span><br><span style="font-size:.78rem;">${RATING_EMOJI[v.rating]||''} ${esc(v.category||'')}</span>`,{maxWidth:220});
   markers[i]=m;
@@ -255,13 +256,13 @@ function render(){
 }
 
 function selectVenue(i){
-  if(selMarker&&selIdx>=0)selMarker.setIcon(ratingDivIcon(ALL[selIdx].rating,false));
+  if(selMarker&&selIdx>=0)selMarker.setStyle(ratingStyle(ALL[selIdx].rating,false));
   document.querySelectorAll('.vcard.sel').forEach(el=>el.classList.remove('sel'));
   const el=document.getElementById('vc_'+i);
   if(el){el.classList.add('sel');el.scrollIntoView({block:'nearest',behavior:'smooth'});}
   const m=markers[i];
   if(m){
-    m.setIcon(ratingDivIcon(ALL[i].rating,true));
+    m.setStyle(ratingStyle(ALL[i].rating,true));
     selMarker=m;selIdx=i;
     map.panTo(m.getLatLng(),{animate:true});
     m.openPopup();
@@ -322,5 +323,6 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
   });
 })();
 </script>
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
