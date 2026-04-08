@@ -860,14 +860,18 @@ venue_first: dict[str, int] = {}
           Cloudflare Pages Functions replace the static files:
         </div>
         <div class="code-block">
-<span class="cm"># /api/feed  — paginated check-in stream (200 rows per page)</span>
-GET /api/feed?offset=0&amp;limit=200
+<span class="cm"># /api/feed  — cursor-based check-in stream (O(1) per page)</span>
+GET /api/feed?limit=50
 <span class="cm"># → { items: [[ts, date, time, venue, city, country, cat, vid, lat, lng, id], …],</span>
-<span class="cm">#     total: 65012, has_more: true }</span>
+<span class="cm">#     has_more: true, next_cursor: 1712345678 }</span>
 
-GET /api/feed?ym=1
-<span class="cm"># → { ym_index: {"2024-03": 0, "2024-02": 141, …}, total: 65012 }</span>
-<span class="cm"># lightweight prefetch: calendar months available before data finishes loading</span>
+GET /api/feed?limit=50&amp;cursor=1712345678
+<span class="cm"># cursor = Unix timestamp of the last item; WHERE date &lt; cursor ORDER BY date DESC</span>
+<span class="cm"># each page is O(1) — no OFFSET scan over 65k rows</span>
+
+GET /api/feed?oldest=1&amp;limit=100
+<span class="cm"># returns 100 oldest check-ins (ORDER BY date ASC), reversed for display</span>
+<span class="cm"># used by the "Oldest" button for instant jump without loading the full dataset</span>
 
 <span class="cm"># /api/search — live D1 full-text search</span>
 GET /api/search?q=minsk
@@ -879,28 +883,31 @@ GET /api/search?q=minsk
           model: only the rows currently in the viewport are rendered as DOM nodes. All
           65 000 rows exist only as a flat in-memory array (<code>ALL</code>); position
           computation (<code>buildPos</code>) maps each row to a pixel offset using a gap-row
-          strategy. The first 200 items render immediately on first API response; the remainder
-          are fetched in the background while the user scrolls, appended to <code>ALL</code>
-          without disrupting the viewport.
+          strategy. Month and year counts are served from a static <code>feed_meta.json</code>
+          pre-built at CI time — zero D1 reads for the calendar. The first 50 items render
+          immediately; the remainder are fetched in the background via cursor pagination,
+          each page O(1) because the query uses <code>WHERE date &lt; cursor</code> on an
+          indexed column rather than <code>OFFSET N</code>.
         </div>
         <div class="code-block">
-<span class="cm">// Progressive background fetch — non-blocking</span>
-<span class="kw">while</span> (offset &lt; total) {
-  <span class="kw">const</span> d = <span class="kw">await</span> fetch(<span class="hl">`/api/feed?offset=${offset}&amp;limit=200`</span>).then(r =&gt; r.json());
-  ALL.push(...d.items);          <span class="cm">// grows the shared array in-place</span>
-  addToCalCounts(d.items, prev); <span class="cm">// incremental calendar build</span>
-  <span class="kw">if</span> (!isFiltered) renderVis();   <span class="cm">// skip re-render if search is active</span>
-  offset = ALL.length;
-  <span class="kw">if</span> (!d.has_more) <span class="kw">break</span>;
+<span class="cm">// Cursor-based background fetch — O(1) per page, non-blocking</span>
+<span class="kw">let</span> cursor = firstData.next_cursor;
+<span class="kw">while</span> (cursor) {
+  <span class="kw">const</span> d = <span class="kw">await</span> fetch(<span class="hl">`/api/feed?limit=50&amp;cursor=${cursor}`</span>).then(r =&gt; r.json());
+  ALL.push(...d.items);                        <span class="cm">// grows the shared array in-place</span>
+  addToCalCounts(d.items, prev);               <span class="cm">// incremental calendar build</span>
+  <span class="kw">if</span> (!isFiltered &amp;&amp; !monthMode) renderVis(); <span class="cm">// skip re-render if filtered/month view</span>
+  cursor = d.has_more ? d.next_cursor : <span class="kw">null</span>;
+  <span class="kw">await new</span> Promise(r =&gt; setTimeout(r, 0));   <span class="cm">// yield to browser each page</span>
 }
         </div>
         <div class="cs-text">
-          The calendar jump bar is populated via the lightweight <code>?ym=1</code> prefetch,
-          so all month anchors are clickable <em>before</em> the background pagination
-          completes. An <code>isFiltered</code> flag suppresses viewport re-renders while a
-          search is active, preventing the background fetch from resetting the user's current
-          view. The feed page went from an 11 MB HTML file that blocked paint to a
-          <strong>26 KB shell</strong> that renders the first screen in under one second.
+          The calendar jump bar is populated from the static <code>feed_meta.json</code>
+          immediately on load — all month anchors are clickable before any D1 query fires.
+          An <code>isFiltered</code> flag suppresses viewport re-renders while a search is
+          active; <code>monthMode</code> suppresses them during single-month views.
+          The feed page went from an 11 MB HTML file that blocked paint to a
+          <strong>56 KB shell</strong> that renders the first screen in under one second.
         </div>
         <div class="cs-text">
           The D1 sync is incremental: check-ins are append-only (insert or ignore on primary key),
@@ -909,6 +916,70 @@ GET /api/search?q=minsk
           <code>--ratings-changed</code>, <code>--lists-changed</code>) that default to
           <code>false</code> — so a manual local sync never rewrites unchanged tables accidentally.
           CI passes the actual fetch-step output for each flag.
+        </div>
+      </div>
+    </div>
+
+    <!-- C14 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 14 — Syncing 65 000 Rows to D1 Without Blowing Rate Limits</div>
+        <div class="cs-text">
+          Cloudflare D1's HTTP API limits each batch to <strong>100 SQL statements</strong> and
+          enforces per-account rate limits. A naïve "delete everything and re-insert" strategy
+          for 65 000 check-ins would require 650+ batch calls, hit the rate limit within seconds,
+          and make every CI run a full-table rebuild — even when only one new check-in arrived.
+        </div>
+        <div class="cs-text">
+          Five separate tables need to stay in sync on different schedules: <code>checkins</code>
+          and <code>venues</code> update on every new check-in; <code>tips</code>,
+          <code>ratings</code>, and <code>lists</code> only change after explicit fetch runs.
+          A single sync script must handle all five without accidentally overwriting unchanged
+          tables when run locally or in CI.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Table-Specific Strategies + Change Flags + Force-Resync Escape Hatch</div>
+        <div class="cs-text">
+          Each table uses the strategy that matches its data semantics:
+        </div>
+        <div class="cs-text">
+          <strong>check-ins</strong> — <code>INSERT OR IGNORE</code> keyed on
+          <code>(venue_id, date)</code>. New rows append; existing rows are silently skipped.
+          A full 65 000-row pass takes ~650 batches but is still O(N) reads with zero
+          unnecessary writes — D1 discards duplicates at the index level.
+        </div>
+        <div class="cs-text">
+          <strong>venues</strong> — <code>INSERT OR REPLACE</code> only for venue IDs that
+          appear in the current fetch payload. A check-in fetch returns at most a few dozen
+          new venue IDs, so the venue sync is always a tiny subset of the full table.
+        </div>
+        <div class="cs-text">
+          <strong>tips / ratings / lists</strong> — gated by per-table boolean flags
+          (<code>--tips-changed</code>, <code>--ratings-changed</code>,
+          <code>--lists-changed</code>). Each flag defaults to <code>false</code>; CI injects
+          the actual output of the preceding fetch step. This means a routine check-in sync
+          that produces no tip changes never touches the tips table — the batch calls simply
+          don't happen.
+        </div>
+        <div class="code-block">
+<span class="cm"># CI: sync_to_d1.py only writes tables whose upstream fetch reported changes</span>
+python scripts/sync_to_d1.py \
+    --csv     data/checkins.csv \
+    --tips    data/tips.json \
+    --ratings data/venueRatings.json \
+    --lists   data/lists.json \
+    --tips-changed    <span class="hl">${{ steps.fetch_tips.outputs.changed }}</span> \
+    --ratings-changed <span class="hl">${{ steps.fetch_ratings.outputs.changed }}</span> \
+    --lists-changed   <span class="hl">${{ steps.fetch_lists.outputs.changed }}</span>
+        </div>
+        <div class="cs-text">
+          When a full rebuild <em>is</em> needed — after a Foursquare data export comparison
+          reveals rating corrections, or when deleted tips must be purged — each table has a
+          <code>--force-*</code> flag that issues a <code>DELETE FROM &lt;table&gt;</code>
+          followed by a full re-insert, bypassing the change gates. This is also available as a
+          GitHub Actions workflow with checkboxes per table, so a selective resync never requires
+          touching local credentials.
         </div>
       </div>
     </div>
