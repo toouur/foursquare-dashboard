@@ -1351,8 +1351,10 @@ function renderCal(){
 }
 
 function goYM(ym){
-  if(monthMode===ym){exitMonthView();return;}
-  fetchAndShowMonth(ym);
+  // Only expand the day grid — don't fetch; user must click a specific day
+  if(selYM===ym){selYM=null;document.getElementById('calDays').innerHTML='';renderCal();return;}
+  selYM=ym;
+  renderCal();
 }
 
 function renderDays(ym){
@@ -1373,17 +1375,18 @@ function renderDays(ym){
 function goYMD(ymd){
   document.getElementById('calDrop').classList.remove('open');
   selYM=null;
-  if(monthMode){
-    // In month view: find matching item by date string
+  const ym=ymd.slice(0,7);
+  if(monthMode===ym){
+    // Already in the right month view: find item by date
     const[yr,mo,d]=ymd.split('-');
     const target=`${String(parseInt(d)).padStart(2,'0')} ${MOS[parseInt(mo)-1]} ${yr}`;
     const idx=DATA.findIndex(r=>r[1]===target);
-    if(idx>=0) jumpTo(idx);
-  } else {
-    const idx=YD_IDX[ymd];
-    if(idx!=null) jumpTo(idx);
-    else fetchAndShowMonth(ymd.slice(0,7)); // data not yet loaded — fetch month
+    if(idx>=0){jumpTo(idx);return;}
   }
+  // Not in month view (or different month): try YD_IDX first, then fetch
+  const idx=YD_IDX[ymd];
+  if(idx!=null) jumpTo(idx);
+  else fetchAndShowMonth(ym);
 }
 
 async function fetchAndShowMonth(ym){
@@ -1447,13 +1450,30 @@ function goLatest(){
 
 async function goOldest(){
   if(monthMode) exitMonthView();
-  // If all items are loaded, scroll directly to the last one
+  // If all items already loaded, jump directly to the last one
   if(allLoaded&&ALL.length){jumpTo(ALL.length-1);return;}
-  // Otherwise show oldest month via month view API
-  const entries=Object.entries(YM_IDX);
-  if(!entries.length) return;
-  const[oldestYM]=entries.reduce((a,b)=>b[1]>a[1]?b:a);
-  fetchAndShowMonth(oldestYM);
+  // Otherwise fetch oldest 100 via dedicated endpoint
+  document.getElementById('badge').textContent='Loading…';
+  let items=[];
+  try{
+    const d=await(await fetch('/api/feed?oldest=1&limit=100')).json();
+    items=d.items||[];
+  }catch(e){}
+  if(!items.length){
+    document.getElementById('badge').textContent=(META_TOTAL||ALL.length).toLocaleString()+' check-ins';
+    return;
+  }
+  // items are newest-first among the oldest 100; reverse so actual oldest is at index 0 (top)
+  DATA=items.slice().reverse();
+  lastR=[-1,-1];
+  buildPos(DATA);
+  document.getElementById('vsSizer').style.height=totalH+'px';
+  renderVis();
+  jumpTo(0); // actual oldest check-in is now at top
+  monthMode='__oldest__';
+  document.getElementById('monthBarLabel').textContent='Oldest 100 check-ins';
+  document.getElementById('monthBar').classList.add('visible');
+  document.getElementById('badge').textContent=DATA.length.toLocaleString()+' check-ins';
 }
 
 
@@ -1538,7 +1558,8 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
       lastR=[-1,-1];
       renderVis();
     }
-    document.getElementById('badge').textContent=(isFiltered?DATA.length:ALL.length).toLocaleString()+' check-ins';
+    if(isFiltered) document.getElementById('badge').textContent=DATA.length.toLocaleString()+' check-ins';
+    // else: keep META_TOTAL showing during background load
     await new Promise(r=>setTimeout(r,0)); // yield to browser between pages
   }
   allLoaded=true;

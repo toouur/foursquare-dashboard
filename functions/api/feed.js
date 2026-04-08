@@ -12,6 +12,10 @@
  *   → Returns all check‑ins in that calendar month (UTC boundaries)
  *   Response: { items: [...], total: N }
  *
+ * GET /api/feed?oldest=1&limit=100
+ *   → Returns the N oldest check-ins, newest-first (so caller can reverse for display).
+ *   Response: { items: [...], total: N }
+ *
  * GET /api/feed?resolve=1234567890
  *   → Returns a cursor that loads items *older than* the given timestamp.
  *     Useful for jumping to a specific date (e.g., oldest check‑in).
@@ -189,7 +193,22 @@ export async function onRequestGet({ request, env }) {
   }
 
   // --------------------------------------------------------------
-  // 3. Cursor‑based infinite scroll (default)
+  // 3. Oldest N check-ins (for "Oldest" button fast-path)
+  // --------------------------------------------------------------
+  const wantOldest = url.searchParams.get('oldest');
+  if (wantOldest !== null) {
+    const lim = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '100', 10)));
+    const dataRes = await env.DB.prepare(
+      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
+      'FROM checkins ORDER BY date ASC LIMIT ?1'
+    ).bind(lim).all();
+    const rows = dataRes.results || [];
+    const items = mapRows(rows.reverse(), {}); // newest-first so caller can reverse if needed
+    return jsonResp({ items, total: items.length });
+  }
+
+  // --------------------------------------------------------------
+  // 4. Cursor‑based infinite scroll (default)
   // --------------------------------------------------------------
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
   const cursor = url.searchParams.get('cursor'); // Unix timestamp integer

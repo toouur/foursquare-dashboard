@@ -165,7 +165,7 @@ function catIcon(cat){const e=CAT_ICON[cat||''];return e?{em:e[0],bg:e[1]}:{em:'
 const RATING_EMOJI={'like':'❤️','neutral':'😐','dislike':'💔'};
 const RATING_FILTER={'like':'','neutral':'filter:grayscale(1) brightness(0.55)','dislike':'filter:saturate(0.25) brightness(0.55)'};
 
-const RATING_COLOR={'like':'#4ec9b0','neutral':'#6b7280','dislike':'#e05a7a'};
+const RATING_COLOR={'like':'#e05a7a','neutral':'#eab308','dislike':'#6b7280'};
 function ratingStyle(rating,selected){
   return {
     radius:selected?9:5,
