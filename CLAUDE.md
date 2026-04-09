@@ -137,6 +137,13 @@ python -m http.server 8000
 - Search is served by `functions/api/search.js` (Cloudflare Pages Function at `/api/search?q=`). It queries D1 directly — no static `search-index.json` is generated or committed.
 - `sync_to_d1.py` is incremental: checkins append-only, venues only for touched IDs, tips/ratings/lists gated by `--tips-changed` / `--ratings-changed` / `--lists-changed` flags (CI passes fetch step outputs).
 - Companion search covers all three source fields: `with_name`, `created_by_name` (UNION query), and `overlaps_name` (comma-separated, split in JS).
+- Feed (`feed.html` / `functions/api/feed.js`) uses **bidirectional cursor-based virtual scroll**:
+  - Init: 100 newest + 100 oldest loaded in parallel; gap between them filled on demand only.
+  - Scrolling toward gap triggers `loadFwd()` (`?cursor=TS`) or `loadRev()` (`?after=TS`), 50 items each.
+  - `oldestInsertIdx` tracks the split point; `rebuildAfterSplice` corrects `activeIdx` after each splice.
+  - `YD_IDX` stores timestamps (not array indices) so calendar navigation survives splices.
+  - `feed_meta.json` (static, generated at build) provides calendar month counts and total — no D1 query needed.
+  - **No background preload loop** — data loads only when the user scrolls near the gap.
 
 ## Known Gotchas
 

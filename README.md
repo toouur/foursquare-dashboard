@@ -27,6 +27,7 @@ trip analytics (duration distribution, countries per trip, longest trips leaderb
 distance travelled per year · activity streaks · category mix drift · new countries timeline ·
 venue loyalty · regular haunts · revisit intervals · venue visit frequency ·
 **live full-text search** (venues, cities, tips, companions — powered by Cloudflare D1, no static index file) ·
+**bidirectional infinite-scroll feed** (65 k+ check-ins, cursor-based D1 pagination, on-demand gap fill, virtual scroll) ·
 category explorer · companions · recent check-ins with historical weather ·
 tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons ·
 **photo gallery** with 21 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
@@ -48,7 +49,7 @@ lazy loading, lightbox, and inline tip photos.
 │   ├── metrics.py               # All aggregation + trip-detection logic
 │   ├── build.py                 # CLI entry point: checkins.csv → all HTML pages
 │   ├── gen_companions.py        # Generates companions.html
-│   ├── gen_feed.py              # Generates feed.html (infinite-scroll with weather)
+│   ├── gen_feed.py              # Generates feed.html (bidirectional infinite-scroll, cursor-based D1 API)
 │   ├── gen_lists.py             # Generates lists.html
 │   ├── gen_photos.py            # Generates photos.html (full gallery, city filter, tip photos)
 │   ├── gen_ratings.py           # Generates ratings.html
@@ -495,6 +496,26 @@ Search is powered by a **Cloudflare Pages Function** (`functions/api/search.js`)
 
 Companion results aggregate all three source fields: `with_name`, `created_by_name`, and `overlaps_name` (comma-separated in the DB, split at query time).
 
+### Feed API
+
+`functions/api/feed.js` serves `feed.html` with four endpoints:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/feed?limit=N` | Newest N check-ins (cursor-scroll default) |
+| `GET /api/feed?cursor=TS&limit=N` | N check-ins older than timestamp TS |
+| `GET /api/feed?after=TS&limit=N` | N check-ins newer than TS (newest-first) — reverse gap fill |
+| `GET /api/feed?oldest=1&limit=N` | N oldest check-ins (newest-first in response) |
+| `GET /api/feed?month=YYYY-MM` | All check-ins in a calendar month |
+| `GET /api/feed?resolve=TS` | Cursor that loads items older than TS |
+
+`feed.html` uses a **bidirectional virtual scroll** architecture:
+- On init: 100 newest + 100 oldest fetched in parallel; everything else loaded on demand.
+- Scrolling down toward the gap triggers `loadFwd()` (50 items, `?cursor=`).
+- Scrolling up from the bottom triggers `loadRev()` (50 items, `?after=`).
+- Gap fill converges from both ends; no background preload loop.
+- `feed_meta.json` (static, built at CI time) provides calendar counts and total — no D1 query for those.
+
 ---
 
 ## Data flow
@@ -517,7 +538,7 @@ Cloudflare R2 (pix/ prefix)            (deployed site)
 data/checkins.csv + tips.json + ...    (CI sync, incremental)
   → sync_to_d1.py → Cloudflare D1 (swarmdata)
   → functions/api/search.js → /api/search?q= (live queries from search.html)
-  → functions/api/feed.js   → /api/feed?offset=N (paginated feed for feed.html)
+  → functions/api/feed.js   → /api/feed?cursor=N or ?after=N (cursor-based feed for feed.html)
 ```
 
 ## Dependencies

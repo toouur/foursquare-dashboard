@@ -1,29 +1,32 @@
-﻿{
-    "autoUpdatesChannel":  "latest",
-    "model":  "sonnet",
-    "env":  {
-                "MAX_THINKING_TOKENS":  "10000",
-                "CLAUDE_CODE_AUTO_COMPACT_WINDOW":  "200000",
-                "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE":  "50",
-                "CLAUDE_CODE_SUBAGENT_MODEL":  "haiku"
-            },
-    "hooks":  {
-                  "SubagentStop":  [
-                                       {
-                                           "hooks":  [
-                                                         {
-                                                             "type":  "command",
-                                                             "command":  "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\toouur\\Documents\\GitHub\\foursquare-dashboard\\.claude\\hooks\\subagent_stop_router.ps1\""
-                                                         }
-                                                     ],
-                                           "matcher":  ""
-                                       }
-                                   ]
-              },
-    "permissions":  {
-                        "allow":  [
-                                      "WebSearch",
-                                      "Bash(/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -:*)"
-                                  ]
-                    }
+{
+  "env": {
+    "MAX_THINKING_TOKENS": "10000",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  },
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -:*)"
+    ]
+  },
+  "model": "sonnet",
+  "hooks": {
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:\\Users\\toouur\\Documents\\GitHub\\foursquare-dashboard\\.claude\\hooks\\subagent_stop_router.ps1\""
+          }
+        ]
+      }
+    ]
+  },
+  "autoUpdatesChannel": "latest",
+  "enabledPlugins": {
+    "memstack@cwinvestments-memstack": true
+  }
 }

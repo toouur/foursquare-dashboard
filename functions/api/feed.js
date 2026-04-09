@@ -208,7 +208,29 @@ export async function onRequestGet({ request, env }) {
   }
 
   // --------------------------------------------------------------
-  // 4. Cursor‑based infinite scroll (default)
+  // 4. Reverse cursor — items NEWER than a timestamp (gap fill from bottom up)
+  // GET /api/feed?after=TS&limit=N
+  //   → Items with date > TS, ASC order then reversed → newest-first
+  //   Response: { items: [...], has_more: bool }
+  // --------------------------------------------------------------
+  const wantAfter = url.searchParams.get('after');
+  if (wantAfter !== null) {
+    const ts = parseInt(wantAfter, 10);
+    if (isNaN(ts)) return jsonResp({ error: 'Invalid timestamp' }, 400);
+    const lim = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+    const dataRes = await env.DB.prepare(
+      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
+      'FROM checkins WHERE date > ?1 ORDER BY date ASC LIMIT ?2'
+    ).bind(ts, lim + 1).all();
+    const rows = dataRes.results || [];
+    const has_more = rows.length > lim;
+    const trimmed = has_more ? rows.slice(0, lim) : rows;
+    const items = mapRows(trimmed.reverse(), {});
+    return jsonResp({ items, has_more });
+  }
+
+  // --------------------------------------------------------------
+  // 5. Cursor‑based infinite scroll (default)
   // --------------------------------------------------------------
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
   const cursor = url.searchParams.get('cursor'); // Unix timestamp integer

@@ -396,7 +396,7 @@ let ALL=[];
 let YM_IDX={};
 let META_TOTAL=0;
 let FIRST_TS=null;
-let allLoaded=false;
+let allLoaded=false; // kept for legacy goOldest guard; will be true when fwdDone&&revDone
 
 
 
@@ -945,6 +945,9 @@ function gapFor(sec){
 
 
 let DATA=ALL, pos=[], totalH=0; let isFiltered=false; let monthMode=null;
+let oldestInsertIdx=0;
+let fwdCursor=null, revCursor=null, fwdDone=false, revDone=false, gapLoading=false;
+const GAP_NEAR=20;
 
 function buildPos(data){
 
@@ -1231,6 +1234,7 @@ document.getElementById('feedScroll').addEventListener('scroll',()=>{
       while(lo<=hi){const m=(lo+hi)>>1;pos[m]<=target?(best=m,lo=m+1):hi=m-1;}
 
       if(best!==activeIdx) activate(best, false);
+      checkGapLoad(best);
 
     },150);
 
@@ -1250,13 +1254,12 @@ const ymCnts={};
 const ydCnts={};   // "YYYY-MM-DD" → count
 const YD_IDX={};   // "YYYY-MM-DD" → first checkin index
 
-function addToCalCounts(items,startIdx){
+function addToCalCounts(items){
 
   // r[1] is local date string like "03 Mar 2025" — use it for calendar so counts match displayed dates
+  // YD_IDX stores the Unix timestamp r[0] so it remains valid after array splices
 
-  items.forEach((r,j)=>{
-
-    const i=startIdx+j;
+  items.forEach((r)=>{
 
     const parts=(r[1]||'').split(' ');
 
@@ -1269,7 +1272,7 @@ function addToCalCounts(items,startIdx){
         ymCnts[ym]=(ymCnts[ym]||0)+1;
         const ymd=`${ym}-${parts[0]}`;
         ydCnts[ymd]=(ydCnts[ymd]||0)+1;
-        if(!(ymd in YD_IDX)) YD_IDX[ymd]=i;
+        if(!(ymd in YD_IDX)) YD_IDX[ymd]=r[0]; // store timestamp, not array index
       }
 
     }
@@ -1372,21 +1375,25 @@ function renderDays(ym){
   document.getElementById('calDays').innerHTML=html;
 }
 
+// Binary search on DESC-sorted ALL for a specific timestamp → array index
+function tsToIdx(ts){
+  let lo=0,hi=ALL.length-1;
+  while(lo<=hi){const m=(lo+hi)>>1;if(ALL[m][0]===ts)return m;if(ALL[m][0]>ts)lo=m+1;else hi=m-1;}
+  return -1;
+}
+
 function goYMD(ymd){
   document.getElementById('calDrop').classList.remove('open');
   selYM=null;
   const ym=ymd.slice(0,7);
-  if(monthMode===ym){
-    // Already in the right month view: find item by date
-    const[yr,mo,d]=ymd.split('-');
-    const target=`${String(parseInt(d)).padStart(2,'0')} ${MOS[parseInt(mo)-1]} ${yr}`;
-    const idx=DATA.findIndex(r=>r[1]===target);
+  const ts=YD_IDX[ymd]; // timestamp stored at init / addToCalCounts
+  if(ts!=null){
+    if(monthMode) exitMonthView();
+    const idx=tsToIdx(ts);
     if(idx>=0){jumpTo(idx);return;}
   }
-  // Not in month view (or different month): try YD_IDX first, then fetch
-  const idx=YD_IDX[ymd];
-  if(idx!=null) jumpTo(idx);
-  else fetchAndShowMonth(ym);
+  // Timestamp not yet loaded — fetch the whole month view
+  fetchAndShowMonth(ym);
 }
 
 async function fetchAndShowMonth(ym){
@@ -1448,32 +1455,75 @@ function goLatest(){
   jumpTo(0);
 }
 
-async function goOldest(){
+function goOldest(){
   if(monthMode) exitMonthView();
-  // If all items already loaded, jump directly to the last one
-  if(allLoaded&&ALL.length){jumpTo(ALL.length-1);return;}
-  // Otherwise fetch oldest 100 via dedicated endpoint
-  document.getElementById('badge').textContent='Loading…';
-  let items=[];
-  try{
-    const d=await(await fetch('/api/feed?oldest=1&limit=100')).json();
-    items=d.items||[];
-  }catch(e){}
-  if(!items.length){
-    document.getElementById('badge').textContent=(META_TOTAL||ALL.length).toLocaleString()+' check-ins';
-    return;
-  }
-  // items are newest-first among the oldest 100; reverse so actual oldest is at index 0 (top)
-  DATA=items.slice().reverse();
-  lastR=[-1,-1];
+  jumpTo(ALL.length-1);
+}
+
+// ── Bidirectional gap fill ──
+
+function rebuildAfterSplice(insertAt,numInserted){
+  if(activeIdx>=insertAt) activeIdx+=numInserted;
+  if(isFiltered||monthMode) return;
+  DATA=ALL;
   buildPos(DATA);
   document.getElementById('vsSizer').style.height=totalH+'px';
+  lastR=[-1,-1];
   renderVis();
-  jumpTo(0); // actual oldest check-in is now at top
-  monthMode='__oldest__';
-  document.getElementById('monthBarLabel').textContent='Oldest 100 check-ins';
-  document.getElementById('monthBar').classList.add('visible');
-  document.getElementById('badge').textContent=DATA.length.toLocaleString()+' check-ins';
+}
+
+async function loadFwd(){
+  if(gapLoading||fwdDone||!fwdCursor) return;
+  gapLoading=true;
+  try{
+    const d=await(await fetch(`/api/feed?limit=50&cursor=${fwdCursor}`)).json();
+    const items=d.items||[];
+    if(!items.length){fwdDone=true;return;}
+    // Only insert items strictly older than current fwd region, not overlapping oldest batch
+    const gapBottom=ALL[oldestInsertIdx]?ALL[oldestInsertIdx][0]:0;
+    const fi=items.filter(r=>r[0]>gapBottom);
+    if(!fi.length){fwdDone=true;fwdCursor=null;return;}
+    const insertAt=oldestInsertIdx;
+    ALL.splice(insertAt,0,...fi);
+    oldestInsertIdx+=fi.length;
+    addToCalCounts(fi);
+    fwdCursor=d.has_more?d.next_cursor:null;
+    if(!fwdCursor) fwdDone=true;
+    if(fwdDone&&revDone) allLoaded=true;
+    rebuildAfterSplice(insertAt,fi.length);
+  }catch(e){console.warn('loadFwd',e);}
+  finally{gapLoading=false;}
+}
+
+async function loadRev(){
+  if(gapLoading||revDone||revCursor==null) return;
+  gapLoading=true;
+  try{
+    const d=await(await fetch(`/api/feed?after=${revCursor}&limit=50`)).json();
+    const items=d.items||[];
+    if(!items.length){revDone=true;return;}
+    // Only insert items strictly newer than current oldest batch, not overlapping fwd region
+    const fwdTail=oldestInsertIdx>0?ALL[oldestInsertIdx-1][0]:Infinity;
+    const fi=items.filter(r=>r[0]<fwdTail);
+    if(!fi.length){revDone=true;return;}
+    const insertAt=oldestInsertIdx;
+    ALL.splice(insertAt,0,...fi);
+    oldestInsertIdx+=fi.length;
+    addToCalCounts(fi);
+    // fi is newest-first; fi[0][0] is the newest timestamp in this batch → new upper bound
+    revCursor=fi[0][0];
+    if(!d.has_more) revDone=true;
+    if(fwdDone&&revDone) allLoaded=true;
+    rebuildAfterSplice(insertAt,fi.length);
+  }catch(e){console.warn('loadRev',e);}
+  finally{gapLoading=false;}
+}
+
+function checkGapLoad(visIdx){
+  if(gapLoading||isFiltered||monthMode) return;
+  if(fwdDone&&revDone) return;
+  if(!fwdDone&&fwdCursor&&visIdx>=oldestInsertIdx-GAP_NEAR) loadFwd();
+  else if(!revDone&&revCursor!=null&&visIdx<=oldestInsertIdx+GAP_NEAR) loadRev();
 }
 
 
@@ -1511,9 +1561,9 @@ function onSearch(q){
 window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
 
 (async function init(){
-  const PG=50;
+  const PG=100;
 
-  // 1. Lightweight fetch: get static feed_meta.json (no D1 call)
+  // 1. Static feed_meta.json — no D1 call, instant calendar render
   try{
     const meta=await(await fetch('/feed_meta.json')).json();
     YM_IDX=meta.ym_index||{};
@@ -1521,49 +1571,52 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
     FIRST_TS=meta.first_ts||null;
     document.getElementById('badge').textContent=META_TOTAL.toLocaleString()+' check-ins';
     renderCal();
-  }catch(e){
-    console.warn('Could not load feed_meta.json, calendar may be incomplete', e);
+  }catch(e){console.warn('feed_meta.json error',e);}
+
+  // 2. Parallel: 100 newest + 100 oldest — only these two D1 fetches at init
+  let newestData={items:[],has_more:false,next_cursor:null};
+  let oldestData={items:[]};
+  try{
+    [newestData,oldestData]=await Promise.all([
+      fetch(`/api/feed?limit=${PG}`).then(r=>r.json()),
+      fetch(`/api/feed?oldest=1&limit=${PG}`).then(r=>r.json()),
+    ]);
+  }catch(e){console.warn('init fetch',e);}
+
+  const newestItems=newestData.items||[];
+  const oldestItems=oldestData.items||[];
+
+  if(!newestData.has_more){
+    // Entire dataset fits in PG rows (or the fetch includes everything)
+    ALL.push(...newestItems);
+    oldestInsertIdx=newestItems.length;
+    fwdDone=true; revDone=true; allLoaded=true;
+  } else {
+    // Newest and oldest are distinct regions with a gap in between
+    const fwdTs=newestData.next_cursor; // oldest timestamp in fwd batch = gap upper boundary
+    // Deduplicate: only keep oldest items strictly older than the fwd tail
+    const uniqueOldest=fwdTs?oldestItems.filter(r=>r[0]<fwdTs):[];
+    ALL.push(...newestItems,...uniqueOldest);
+    oldestInsertIdx=newestItems.length;
+    fwdCursor=fwdTs||null;
+    fwdDone=!fwdCursor;
+    // revCursor starts at the newest item of the oldest batch; ?after=revCursor fills upward
+    revCursor=uniqueOldest.length?ALL[oldestInsertIdx][0]:null;
+    revDone=!uniqueOldest.length||(oldestItems.length<PG);
+    if(fwdDone&&revDone) allLoaded=true;
   }
 
-  // 2. First page — render immediately
-  let firstData={items:[],has_more:false,next_cursor:null};
-  try{firstData=await(await fetch(`/api/feed?limit=${PG}`)).json();}catch(e){}
-  const firstItems=firstData.items||[];
-  ALL.push(...firstItems);
-  addToCalCounts(firstItems,0);
+  addToCalCounts(newestItems);
+  if(oldestInsertIdx<ALL.length) addToCalCounts(ALL.slice(oldestInsertIdx));
+
   buildPos(ALL);
   document.getElementById('vsSizer').style.height=totalH+'px';
   if(!Object.keys(YM_IDX).length) renderCal();
   renderVis();
   if(ALL.length) activate(0,false);
 
-  // Handle ?q= URL param after first page is ready
   const _q=new URLSearchParams(location.search).get('q');
   if(_q){const _inp=document.getElementById('srch');if(_inp){_inp.value=_q;onSearch(_q);}}
-
-  // 3. Background: progressively fetch remaining pages via cursor (cursor-based, O(1) per page)
-  let cursor=firstData.next_cursor;
-  while(cursor){
-    let d={items:[],has_more:false,next_cursor:null};
-    try{d=await(await fetch(`/api/feed?limit=${PG}&cursor=${cursor}`)).json();}catch(e){break;}
-    const items=d.items||[];
-    if(!items.length) break;
-    const prev=ALL.length;
-    ALL.push(...items);
-    addToCalCounts(items,prev);
-    cursor=d.has_more?d.next_cursor:null;
-    if(!isFiltered&&!monthMode){
-      buildPos(ALL);
-      document.getElementById('vsSizer').style.height=totalH+'px';
-      lastR=[-1,-1];
-      renderVis();
-    }
-    if(isFiltered) document.getElementById('badge').textContent=DATA.length.toLocaleString()+' check-ins';
-    // else: keep META_TOTAL showing during background load
-    await new Promise(r=>setTimeout(r,0)); // yield to browser between pages
-  }
-  allLoaded=true;
-  if(!isFiltered&&!monthMode) document.getElementById('badge').textContent=ALL.length.toLocaleString()+' check-ins';
 })();
 
 </script>
