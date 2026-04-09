@@ -948,7 +948,7 @@ let DATA=ALL, pos=[], totalH=0; let isFiltered=false; let monthMode=null;
 let oldestInsertIdx=0;
 let gapFwdEnd=0; // end of forward-filled region (insertion point for both directions)
 let fwdCursor=null, revCursor=null, fwdDone=false, revDone=false, gapLoading=false;
-const GAP_NEAR=20;
+const GAP_NEAR=80;
 
 function buildPos(data){
 
@@ -1216,33 +1216,30 @@ function jumpTo(i){
 
 
 
-let scrollTmr=null;
+let scrollRaf=null, scrollEndTmr=null;
+
+function _gapCheckAt(sc){
+  if(manualClick) return;
+  const target=sc.scrollTop+sc.clientHeight*0.2;
+  let lo=0,hi=DATA.length-1,best=0;
+  while(lo<=hi){const m=(lo+hi)>>1;pos[m]<=target?(best=m,lo=m+1):hi=m-1;}
+  if(!gapLoading&&best!==activeIdx) activate(best,false);
+  checkGapLoad(best);
+}
 
 document.getElementById('feedScroll').addEventListener('scroll',()=>{
 
   renderVis();
 
   if(!manualClick){
+    // Immediate check each frame — no debounce delay for gap loading
+    const sc=document.getElementById('feedScroll');
+    if(scrollRaf) cancelAnimationFrame(scrollRaf);
+    scrollRaf=requestAnimationFrame(()=>{_gapCheckAt(sc);scrollRaf=null;});
 
-    clearTimeout(scrollTmr);
-
-    scrollTmr=setTimeout(()=>{
-
-      if(manualClick) return;
-
-      const sc=document.getElementById('feedScroll');
-
-      const target=sc.scrollTop+sc.clientHeight*0.2;
-
-      let lo=0,hi=DATA.length-1,best=0;
-
-      while(lo<=hi){const m=(lo+hi)>>1;pos[m]<=target?(best=m,lo=m+1):hi=m-1;}
-
-      if(!gapLoading && best!==activeIdx) activate(best, false);
-      checkGapLoad(best);
-
-    },150);
-
+    // Fallback: after scrolling stops, catch any missed trigger zone
+    clearTimeout(scrollEndTmr);
+    scrollEndTmr=setTimeout(()=>{if(!gapLoading) _gapCheckAt(sc);},200);
   }
 
 },{passive:true});
