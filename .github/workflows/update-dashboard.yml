@@ -104,7 +104,7 @@ jobs:
             echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping fetch."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
-            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv >> "$GITHUB_OUTPUT"
+            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv --recheck-recent-hours 48 >> "$GITHUB_OUTPUT"
           fi
 
       # ── 4b. Fetch new tips ───────────────────────────────────────────────────

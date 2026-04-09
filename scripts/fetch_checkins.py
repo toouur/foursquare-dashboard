@@ -429,6 +429,12 @@ def main() -> None:
     parser.add_argument("--token", default="", help="Foursquare OAuth token")
     parser.add_argument("--csv", default="data/checkins.csv", help="Path to checkins CSV")
     parser.add_argument("--full", action="store_true", help="Force full re-fetch")
+    parser.add_argument("--recheck-recent-hours", type=int, default=0,
+                        help="Re-fetch overlaps for check-ins within the last N hours "
+                             "(resets cached status so late companions are captured)")
+    parser.add_argument("--recheck-ids", default="",
+                        help="Comma/space-separated check-in IDs or Swarm URLs to force "
+                             "overlap re-fetch regardless of cached status")
     args = parser.parse_args()
 
     token = resolve_token(args.token)
@@ -540,12 +546,58 @@ def main() -> None:
     added = [r for r in new_rows if row_key(r) not in existing_keys]
     log.info("New (de-duped): %d", len(added))
 
-    if not added:
+    # --recheck-ids: force re-fetch overlaps for specific check-in IDs regardless of cache
+    import re as _re, time as _time
+    recheck_id_set: set[str] = set()
+    if args.recheck_ids:
+        for token_str in _re.split(r'[\s,]+', args.recheck_ids.strip()):
+            token_str = token_str.strip()
+            if not token_str:
+                continue
+            m = _re.search(r'([0-9a-f]{24})', token_str)
+            recheck_id_set.add(m.group(1) if m else token_str)
+        for r in existing_rows:
+            if r.get("checkin_id", "") in recheck_id_set:
+                r["overlaps_id"] = ""
+                r["overlaps_name"] = ""
+        log.info("--recheck-ids: reset %d row(s) for overlap re-fetch", len(recheck_id_set))
+
+    # --recheck-recent-hours: reset overlap cache for check-ins within the last N hours
+    if args.recheck_recent_hours > 0:
+        cutoff = int(_time.time()) - args.recheck_recent_hours * 3600
+        reset_count = 0
+        for r in existing_rows:
+            ts = int(r.get("date", 0) or 0)
+            if ts >= cutoff and r.get("checkin_id", "").strip():
+                r["overlaps_id"] = ""
+                r["overlaps_name"] = ""
+                reset_count += 1
+        log.info("--recheck-recent-hours %d: reset %d row(s) for overlap re-fetch",
+                 args.recheck_recent_hours, reset_count)
+
+    if not added and not recheck_id_set and not args.recheck_recent_hours:
         print("CHANGED=false")
+        return
+
+    if not added:
+        # Recheck-only run: enrich on existing rows then save if anything changed
+        changed_rows = [r for r in existing_rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") == ""]
+        if not changed_rows:
+            print("CHANGED=false")
+            return
+        enrich_overlaps(token, changed_rows, max_calls=0, csv_path=None)
+        save_rows(csv_path, existing_rows)
+        log.info("Overlap recheck complete — %d row(s) updated", len(changed_rows))
+        print("CHANGED=true")
         return
 
     # Enrich overlaps for newly added rows before saving (no cap — few rows in incremental)
     enrich_overlaps(token, added, max_calls=0, csv_path=None)
+
+    # Also enrich any existing rows that were reset by --recheck-* flags
+    recheck_rows = [r for r in existing_rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") == ""]
+    if recheck_rows:
+        enrich_overlaps(token, recheck_rows, max_calls=0, csv_path=None)
 
     all_rows = existing_rows + added
     all_rows.sort(key=lambda r: int(r.get("date", 0) or 0))

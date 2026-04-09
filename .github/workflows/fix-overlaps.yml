@@ -64,34 +64,37 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ── 4. Re-fetch overlaps ─────────────────────────────────────────────
+      # ── 4. Re-fetch overlaps via fetch_checkins.py ───────────────────────
       - name: Re-fetch overlapping friends
+        id: recheck
         env:
           FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |
-          ARGS="--token $FOURSQUARE_TOKEN --csv private-data/checkins.csv --sleep 8"
-
           IDS="${{ github.event.inputs.checkin_ids }}"
           RECENT="${{ github.event.inputs.recent_count }}"
 
-          if [ -n "$IDS" ]; then
-            ARGS="$ARGS --ids \"$IDS\""
-          fi
-
-          if [ -n "$RECENT" ] && [ "$RECENT" != "0" ]; then
-            ARGS="$ARGS --recent $RECENT"
-          fi
-
           if [ -z "$IDS" ] && { [ -z "$RECENT" ] || [ "$RECENT" = "0" ]; }; then
-            echo "No IDs or recent count provided — nothing to do."
+            echo "No IDs or recent_count provided — nothing to do."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          eval python scripts/enrich_overlaps.py $ARGS
+          ARGS="--token $FOURSQUARE_TOKEN --csv private-data/checkins.csv"
+
+          if [ -n "$IDS" ]; then
+            ARGS="$ARGS --recheck-ids \"$IDS\""
+          fi
+
+          if [ -n "$RECENT" ] && [ "$RECENT" != "0" ]; then
+            ARGS="$ARGS --recheck-recent-hours $RECENT"
+          fi
+
+          eval python scripts/fetch_checkins.py $ARGS >> "$GITHUB_OUTPUT"
 
       # ── 5. Commit updated CSV to private data repo ───────────────────────
       - name: Commit updated checkins.csv
         id: commit_data
+        if: steps.recheck.outputs.CHANGED == 'true'
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
