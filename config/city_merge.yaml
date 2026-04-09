@@ -54,6 +54,8 @@
   "Grodno": "Hrodna"  # ok — English/Russian proper-case name
   "Hrodzyenski Rayon": "Lida"  # ⚠️ DECISION NEEDED — 8 checkins at 53.89,25.31 = Lida city centre (Лидское Озеро, Площадь 600-летия Лиды). NOT near Hrodna (53.68,23.84). Change to Lida?
   "Grodno District": "Lida"  # ok — same as above, no direct checkins
+  "Гrodно": "Hrodna"  # added manually to resolve — Russian Cyrillic name, same as Belarusian but different script
+  "Horad Hrodna": "Hrodna"  #  added manually to resolve
 
   # ══ BELARUS / MINSK ══
   "Минск": "Minsk"  # ok — Cyrillic name
@@ -209,7 +211,8 @@
   "пос. Заплюсье": "Zaplyusye"  # ok — settlement prefix пос.
   "Navapolatsk": "Navapolatsk"  # ok — already Latin
   "Pinski Rayon": "Pinsk"  # ok — single checkin at 52.11,26.12, inside Pinsk city
-
+  "Novogrudok": "Navahrudak"   # added manually to resolve
+  "Volkovysk": "Vawkavysk" # added manually to resolve
   # ══ BELARUS / SMARHON ══
   "Smarhon'": "Smarhon"  # ok — apostrophe variant
   "Smarhoń": "Smarhon"  # ok — diacritic form
