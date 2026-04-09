@@ -1205,6 +1205,10 @@ function jumpTo(i){
 
   i=Math.max(0,Math.min(DATA.length-1,Math.round(i)));
 
+  manualClick=true;
+  clearTimeout(manualTimer);
+  manualTimer=setTimeout(()=>{manualClick=false;},1500);
+
   activate(i, true);
 
 }
@@ -1463,11 +1467,15 @@ function goOldest(){
 // ── Bidirectional gap fill ──
 
 function rebuildAfterSplice(insertAt,numInserted){
+  const sc=document.getElementById('feedScroll');
+  const oldPos=pos[activeIdx]||0;
+  const scrollOffset=sc.scrollTop-oldPos;
   if(activeIdx>=insertAt) activeIdx+=numInserted;
   if(isFiltered||monthMode) return;
   DATA=ALL;
   buildPos(DATA);
   document.getElementById('vsSizer').style.height=totalH+'px';
+  sc.scrollTop=Math.max(0,(pos[activeIdx]||0)+scrollOffset);
   lastR=[-1,-1];
   renderVis();
 }
@@ -1522,8 +1530,9 @@ async function loadRev(){
 function checkGapLoad(visIdx){
   if(gapLoading||isFiltered||monthMode) return;
   if(fwdDone&&revDone) return;
-  if(!fwdDone&&fwdCursor&&visIdx>=oldestInsertIdx-GAP_NEAR) loadFwd();
-  else if(!revDone&&revCursor!=null&&visIdx<=oldestInsertIdx+GAP_NEAR) loadRev();
+  const dist=visIdx-oldestInsertIdx;
+  if(!fwdDone&&fwdCursor&&dist>=-GAP_NEAR&&dist<0) loadFwd();
+  else if(!revDone&&revCursor!=null&&dist>=0&&dist<=GAP_NEAR) loadRev();
 }
 
 

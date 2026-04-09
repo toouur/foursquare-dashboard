@@ -1,0 +1,160 @@
+# .github/workflows/fix-overlaps.yml
+#
+# Manual workflow: re-fetch overlapping friends for specific check-ins.
+#
+# Use when:
+#   - A friend appeared on Swarm after the initial fetch (e.g. checked in later)
+#   - overlaps_name is missing or wrong for known check-ins
+#
+# Inputs:
+#   checkin_ids  — comma- or newline-separated check-in IDs or full Swarm URLs
+#   recent_count — re-check the N most-recent check-ins regardless of cache (default 0)
+#
+# After updating checkins.csv, the workflow rebuilds the dashboard and syncs D1.
+#
+# Required secrets:
+#   FOURSQUARE_TOKEN  — Foursquare OAuth token
+#   DATA_REPO_PAT     — Fine-grained PAT with Contents read/write on foursquare-data
+#   CF_D1_TOKEN, CF_ACCOUNT_ID, CF_D1_DATABASE_ID  — for D1 sync
+#   R2_PUBLIC_URL     — for photo URL in build (optional)
+
+name: Fix overlapping friends
+
+on:
+  workflow_dispatch:
+    inputs:
+      checkin_ids:
+        description: "Check-in IDs or Swarm URLs (comma/space separated)"
+        required: false
+        default: ""
+      recent_count:
+        description: "Also re-check this many most-recent check-ins (0 = skip)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  fix-overlaps:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout public repo (scripts live here) ───────────────────────
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Checkout private data repo ────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 3. Python setup ──────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Re-fetch overlaps ─────────────────────────────────────────────
+      - name: Re-fetch overlapping friends
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          ARGS="--token $FOURSQUARE_TOKEN --csv private-data/checkins.csv --sleep 8"
+
+          IDS="${{ github.event.inputs.checkin_ids }}"
+          RECENT="${{ github.event.inputs.recent_count }}"
+
+          if [ -n "$IDS" ]; then
+            ARGS="$ARGS --ids \"$IDS\""
+          fi
+
+          if [ -n "$RECENT" ] && [ "$RECENT" != "0" ]; then
+            ARGS="$ARGS --recent $RECENT"
+          fi
+
+          if [ -z "$IDS" ] && { [ -z "$RECENT" ] || [ "$RECENT" = "0" ]; }; then
+            echo "No IDs or recent count provided — nothing to do."
+            exit 0
+          fi
+
+          eval python scripts/enrich_overlaps.py $ARGS
+
+      # ── 5. Commit updated CSV to private data repo ───────────────────────
+      - name: Commit updated checkins.csv
+        id: commit_data
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add checkins.csv
+          if git diff --cached --quiet; then
+            echo "No changes to checkins.csv."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "fix(overlaps): re-fetch overlapping friends"
+            git push
+            echo "CHANGED=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 6. Rebuild dashboard ─────────────────────────────────────────────
+      - name: Rebuild dashboard
+        if: steps.commit_data.outputs.CHANGED == 'true'
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          PIX_URL_ARG=""
+          if [ -n "$R2_PUBLIC_URL" ]; then PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"; fi
+          PHOTOS_ARG=""
+          if [ -f private-data/photos.json ]; then PHOTOS_ARG="--photos private-data/photos.json"; fi
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          python scripts/build.py \
+            --input private-data/checkins.csv \
+            --config-dir config \
+            --output-dir . \
+            $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
+
+      # ── 7. Sync to D1 ───────────────────────────────────────────────────
+      - name: Sync to D1
+        if: steps.commit_data.outputs.CHANGED == 'true'
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          if [ -z "$CF_D1_TOKEN" ]; then
+            echo "CF_D1_TOKEN not set — skipping D1 sync."
+          else
+            python scripts/sync_to_d1.py \
+              --csv   private-data/checkins.csv \
+              --tips  private-data/tips.json \
+              --trips trips_meta.json
+          fi
+
+      # ── 8. Commit rebuilt HTML → Cloudflare Pages auto-deploys ──────────
+      - name: Commit rebuilt HTML
+        if: steps.commit_data.outputs.CHANGED == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add companions.html index.html
+          [ -f private-data/venueRatings.json ] && git add ratings.html || true
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "fix(overlaps): rebuild after overlap re-fetch [${TIMESTAMP}]"
+            git push
+          fi
