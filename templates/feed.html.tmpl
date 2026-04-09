@@ -946,6 +946,7 @@ function gapFor(sec){
 
 let DATA=ALL, pos=[], totalH=0; let isFiltered=false; let monthMode=null;
 let oldestInsertIdx=0;
+let gapFwdEnd=0; // end of forward-filled region (insertion point for both directions)
 let fwdCursor=null, revCursor=null, fwdDone=false, revDone=false, gapLoading=false;
 const GAP_NEAR=20;
 
@@ -1487,13 +1488,14 @@ async function loadFwd(){
     const d=await(await fetch(`/api/feed?limit=50&cursor=${fwdCursor}`)).json();
     const items=d.items||[];
     if(!items.length){fwdDone=true;return;}
-    // Only insert items strictly older than current fwd region, not overlapping oldest batch
-    const gapBottom=ALL[oldestInsertIdx]?ALL[oldestInsertIdx][0]:0;
+    // Only insert items strictly older than current fwd region, not overlapping oldest/rev batch
+    const gapBottom=ALL[gapFwdEnd]?ALL[gapFwdEnd][0]:0;
     const fi=items.filter(r=>r[0]>gapBottom);
     if(!fi.length){fwdDone=true;fwdCursor=null;return;}
-    const insertAt=oldestInsertIdx;
+    const insertAt=gapFwdEnd;
     ALL.splice(insertAt,0,...fi);
-    oldestInsertIdx+=fi.length;
+    gapFwdEnd+=fi.length;      // fwd boundary advances
+    oldestInsertIdx+=fi.length; // rev/oldest region shifts down
     addToCalCounts(fi);
     fwdCursor=d.has_more?d.next_cursor:null;
     if(!fwdCursor) fwdDone=true;
@@ -1510,12 +1512,14 @@ async function loadRev(){
     const d=await(await fetch(`/api/feed?after=${revCursor}&limit=50`)).json();
     const items=d.items||[];
     if(!items.length){revDone=true;return;}
-    // Only insert items strictly newer than current oldest batch, not overlapping fwd region
-    const fwdTail=oldestInsertIdx>0?ALL[oldestInsertIdx-1][0]:Infinity;
+    // Only insert items strictly older than the end of the fwd region
+    const fwdTail=gapFwdEnd>0?ALL[gapFwdEnd-1][0]:Infinity;
     const fi=items.filter(r=>r[0]<fwdTail);
     if(!fi.length){revDone=true;return;}
-    const insertAt=oldestInsertIdx;
+    // Rev items go at gapFwdEnd (between fwd region and oldest batch)
+    const insertAt=gapFwdEnd;
     ALL.splice(insertAt,0,...fi);
+    // gapFwdEnd stays fixed — rev items live between gapFwdEnd and oldestInsertIdx
     oldestInsertIdx+=fi.length;
     addToCalCounts(fi);
     // fi is newest-first; fi[0][0] is the newest timestamp in this batch → new upper bound
@@ -1530,9 +1534,12 @@ async function loadRev(){
 function checkGapLoad(visIdx){
   if(gapLoading||isFiltered||monthMode) return;
   if(fwdDone&&revDone) return;
-  const dist=visIdx-oldestInsertIdx;
-  if(!fwdDone&&fwdCursor&&dist>=-GAP_NEAR&&dist<0) loadFwd();
-  else if(!revDone&&revCursor!=null&&dist>=0&&dist<=GAP_NEAR) loadRev();
+  // distFwd: how far visIdx is below the end of the forward region (positive = approaching from below)
+  const distFwd=gapFwdEnd-visIdx;
+  // distRev: how far visIdx is above the start of the oldest/rev region (positive = approaching from above)
+  const distRev=visIdx-oldestInsertIdx;
+  if(!fwdDone&&fwdCursor&&distFwd>=1&&distFwd<=GAP_NEAR) loadFwd();
+  else if(!revDone&&revCursor!=null&&distRev>=0&&distRev<=GAP_NEAR) loadRev();
 }
 
 
@@ -1598,6 +1605,7 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
   if(!newestData.has_more){
     // Entire dataset fits in PG rows (or the fetch includes everything)
     ALL.push(...newestItems);
+    gapFwdEnd=newestItems.length;
     oldestInsertIdx=newestItems.length;
     fwdDone=true; revDone=true; allLoaded=true;
   } else {
@@ -1606,6 +1614,7 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
     // Deduplicate: only keep oldest items strictly older than the fwd tail
     const uniqueOldest=fwdTs?oldestItems.filter(r=>r[0]<fwdTs):[];
     ALL.push(...newestItems,...uniqueOldest);
+    gapFwdEnd=newestItems.length;
     oldestInsertIdx=newestItems.length;
     fwdCursor=fwdTs||null;
     fwdDone=!fwdCursor;
