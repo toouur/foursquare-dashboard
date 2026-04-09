@@ -965,7 +965,17 @@ function buildPos(data){
     pos[i]=y; y+=ITEM_STEP;
 
   }
-  // totalH is set once from META_TOTAL in init() — never updated here
+
+  // Anchor the oldest region to the bottom of the virtual scroll space so
+  // there is no empty dead zone below the oldest card.
+  if(!isFiltered&&!monthMode&&totalH>0&&oldestInsertIdx<data.length){
+    const desiredLastPos=totalH-GAP_PAD-ITEM_STEP;
+    const actualLastPos=pos[data.length-1];
+    const offset=desiredLastPos-actualLastPos;
+    if(offset>0){
+      for(let i=oldestInsertIdx;i<data.length;i++) pos[i]+=offset;
+    }
+  }
 
 }
 
@@ -1431,18 +1441,59 @@ function tsToIdx(ts){
   return -1;
 }
 
-function goYMD(ymd){
+async function goYMD(ymd){
   document.getElementById('calDrop').classList.remove('open');
   selYM=null;
   const ym=ymd.slice(0,7);
-  const ts=YD_IDX[ymd]; // timestamp stored at init / addToCalCounts
-  if(ts!=null){
-    if(monthMode) exitMonthView();
-    const idx=tsToIdx(ts);
-    if(idx>=0){jumpTo(idx);return;}
-  }
-  // Timestamp not yet loaded — fetch the whole month view
-  fetchAndShowMonth(ym);
+  // Ensure day-level timestamps are fetched for this month
+  await _fetchDayCounts(ym);
+  const ts=YD_IDX[ymd];
+  if(ts==null) return; // no check-ins on that day
+  if(monthMode) exitMonthView();
+  // Fast path: item already in memory
+  const idx=tsToIdx(ts);
+  if(idx>=0){jumpTo(idx);return;}
+  // Load items around the target timestamp, then jump
+  await _loadAroundTs(ts);
+  const idx2=tsToIdx(ts);
+  if(idx2>=0){jumpTo(idx2);return;}
+  // Fallback: scroll to estimated position
+  _scrollToTs(ts);
+}
+
+// Fetch ~50 items centred around a timestamp and splice them into ALL.
+async function _loadAroundTs(ts){
+  try{
+    const d=await(await fetch(`/api/feed?cursor=${ts+1}&limit=50`)).json();
+    const items=d.items||[];
+    if(!items.length) return;
+    const existingTs=new Set(ALL.map(r=>r[0]));
+    const fi=items.filter(r=>!existingTs.has(r[0]));
+    if(!fi.length) return;
+    // Find insertion point within the gap [gapFwdEnd, oldestInsertIdx)
+    let insertAt=oldestInsertIdx;
+    for(let i=gapFwdEnd;i<oldestInsertIdx;i++){
+      if(ALL[i][0]<fi[0][0]){insertAt=i;break;}
+    }
+    ALL.splice(insertAt,0,...fi);
+    if(insertAt<=oldestInsertIdx) oldestInsertIdx+=fi.length;
+    addToCalCounts(fi);
+    rebuildAfterSplice(insertAt,fi.length);
+  }catch(e){console.warn('_loadAroundTs',e);}
+}
+
+// Scroll to an estimated position for a timestamp (used when the exact item
+// could not be loaded — proportional interpolation within known bounds).
+function _scrollToTs(ts){
+  const sc=document.getElementById('feedScroll');
+  if(!ALL.length) return;
+  const newestTs=ALL[0][0];
+  const oldestTs=ALL[ALL.length-1][0];
+  if(newestTs<=oldestTs) return;
+  const frac=Math.max(0,Math.min(1,(newestTs-ts)/(newestTs-oldestTs)));
+  const topY=pos[0]||0;
+  const botY=pos[ALL.length-1]||totalH;
+  sc.scrollTop=Math.max(0,topY+frac*(botY-topY)-sc.clientHeight/2);
 }
 
 async function fetchAndShowMonth(ym){
@@ -1592,8 +1643,16 @@ function checkGapLoad(visIdx){
   const distFwd=gapFwdEnd-visIdx;
   // distRev: how far visIdx is above the start of the oldest/rev region (positive = approaching from above)
   const distRev=visIdx-oldestInsertIdx;
-  if(!fwdDone&&fwdCursor&&distFwd>=1&&distFwd<=GAP_NEAR) loadFwd();
-  else if(!revDone&&revCursor!=null&&distRev>=0&&distRev<=GAP_NEAR) loadRev();
+  if(!fwdDone&&fwdCursor&&distFwd>=1&&distFwd<=GAP_NEAR){loadFwd();return;}
+  if(!revDone&&revCursor!=null){
+    // visIdx from getIndexFromScrollTop can be wildly overestimated when oldest
+    // region is bottom-anchored far from the sequential region — use physical
+    // proximity as a fallback trigger.
+    const sc=document.getElementById('feedScroll');
+    const physNear=oldestInsertIdx<ALL.length&&
+      Math.abs(sc.scrollTop-(pos[oldestInsertIdx]||0))<sc.clientHeight*3;
+    if((distRev>=0&&distRev<=GAP_NEAR)||physNear) loadRev();
+  }
 }
 
 
@@ -1681,11 +1740,11 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
   addToCalCounts(newestItems);
   if(oldestInsertIdx<ALL.length) addToCalCounts(ALL.slice(oldestInsertIdx));
 
-  buildPos(ALL);
-  // Set sizer height from full dataset total — never shrink or grow with each batch load
+  // Set totalH BEFORE buildPos so the bottom-anchor logic sees a non-zero value
   const fullH=META_TOTAL>0?META_TOTAL*AVG_ITEM_H:totalH;
   totalH=fullH;
-  document.getElementById('vsSizer').style.height=totalH+'px';
+  buildPos(ALL);
+  document.getElementById('vsSizer').style.height=totalH||pos[ALL.length-1]+ITEM_STEP+'px';
   if(!Object.keys(YM_IDX).length) renderCal();
   renderVis();
   if(ALL.length) activate(0,false);
