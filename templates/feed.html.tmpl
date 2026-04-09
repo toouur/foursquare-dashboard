@@ -950,6 +950,8 @@ let gapFwdEnd=0; // end of forward-filled region (insertion point for both direc
 let fwdCursor=null, revCursor=null, fwdDone=false, revDone=false, gapLoading=false;
 const GAP_NEAR=80;
 
+const AVG_ITEM_H=ITEM_STEP+6; // ~132px average, used for unloaded region estimation
+
 function buildPos(data){
 
   pos=new Array(data.length);
@@ -963,9 +965,22 @@ function buildPos(data){
     pos[i]=y; y+=ITEM_STEP;
 
   }
+  // totalH is set once from META_TOTAL in init() — never updated here
 
-  totalH=y+40;
+}
 
+// Returns the nearest loaded index for a scroll position.
+// For positions beyond the loaded range, estimates linearly.
+function getIndexFromScrollTop(scrollTop){
+  if(!DATA.length) return 0;
+  let lo=0,hi=DATA.length-1,best=0;
+  while(lo<=hi){const m=(lo+hi)>>1;pos[m]<=scrollTop?(best=m,lo=m+1):hi=m-1;}
+  // If we hit the last loaded item and scrollTop is deeper, estimate into unloaded region
+  if(best===DATA.length-1&&pos[best]!=null&&scrollTop>pos[best]+ITEM_STEP){
+    const est=best+Math.floor((scrollTop-pos[best])/AVG_ITEM_H);
+    return Math.min(est,META_TOTAL>0?META_TOTAL-1:best);
+  }
+  return best;
 }
 
 
@@ -1221,9 +1236,10 @@ let scrollRaf=null, scrollEndTmr=null;
 function _gapCheckAt(sc){
   if(manualClick) return;
   const target=sc.scrollTop+sc.clientHeight*0.2;
-  let lo=0,hi=DATA.length-1,best=0;
-  while(lo<=hi){const m=(lo+hi)>>1;pos[m]<=target?(best=m,lo=m+1):hi=m-1;}
-  if(!gapLoading&&best!==activeIdx) activate(best,false);
+  const best=getIndexFromScrollTop(target);
+  // activate only within loaded range
+  const loadedBest=Math.min(best,DATA.length-1);
+  if(!gapLoading&&loadedBest!==activeIdx) activate(loadedBest,false);
   checkGapLoad(best);
 }
 
@@ -1625,6 +1641,9 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
   if(oldestInsertIdx<ALL.length) addToCalCounts(ALL.slice(oldestInsertIdx));
 
   buildPos(ALL);
+  // Set sizer height from full dataset total — never shrink or grow with each batch load
+  const fullH=META_TOTAL>0?META_TOTAL*AVG_ITEM_H:totalH;
+  totalH=fullH;
   document.getElementById('vsSizer').style.height=totalH+'px';
   if(!Object.keys(YM_IDX).length) renderCal();
   renderVis();
