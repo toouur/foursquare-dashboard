@@ -1371,11 +1371,42 @@ function renderCal(){
 
 }
 
+// Tracks which months have had their day counts populated from D1
+const _ymDaysFetched=new Set();
+
+async function _fetchDayCounts(ym){
+  if(_ymDaysFetched.has(ym)) return;
+  _ymDaysFetched.add(ym);
+  try{
+    const data=await(await fetch(`/api/feed?month=${ym}`)).json();
+    const items=data.items||[];
+    const[myr,mmo]=ym.split('-').map(Number);
+    const mdays=new Date(myr,mmo,0).getDate();
+    // Clear stale estimates for this month, then repopulate
+    for(let d=1;d<=mdays;d++) delete ydCnts[`${ym}-${String(d).padStart(2,'0')}`];
+    items.forEach(r=>{
+      const parts=(r[1]||'').split(' ');
+      if(parts.length===3){
+        const mo2=MOS.indexOf(parts[1])+1;
+        if(mo2>0){
+          const ymd=`${parts[2]}-${String(mo2).padStart(2,'0')}-${parts[0]}`;
+          ydCnts[ymd]=(ydCnts[ymd]||0)+1;
+          if(!(ymd in YD_IDX)) YD_IDX[ymd]=r[0];
+        }
+      }
+    });
+    // Refresh day grid if this month is still expanded
+    if(selYM===ym) renderDays(ym);
+  }catch(e){_ymDaysFetched.delete(ym);}
+}
+
 function goYM(ym){
   // Only expand the day grid — don't fetch; user must click a specific day
   if(selYM===ym){selYM=null;document.getElementById('calDays').innerHTML='';renderCal();return;}
   selYM=ym;
   renderCal();
+  // Fetch day counts in background if not yet loaded
+  _fetchDayCounts(ym);
 }
 
 function renderDays(ym){
@@ -1475,7 +1506,17 @@ function goLatest(){
 
 function goOldest(){
   if(monthMode) exitMonthView();
-  jumpTo(ALL.length-1);
+  const i=ALL.length-1;
+  const sc=document.getElementById('feedScroll');
+  manualClick=true;
+  clearTimeout(manualTimer);
+  manualTimer=setTimeout(()=>{manualClick=false;},1500);
+  // Scroll so the oldest card is near the bottom of the viewport
+  const target=pos[i]||0;
+  sc.scrollTop=Math.max(0,target-sc.clientHeight+CARD_H+40);
+  lastR=[-1,-1];
+  activate(i,false);
+  setTimeout(renderVis,60);
 }
 
 // ── Bidirectional gap fill ──
