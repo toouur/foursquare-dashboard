@@ -548,6 +548,7 @@ def main() -> None:
 
     # --recheck-ids: force re-fetch overlaps for specific check-in IDs regardless of cache
     import re as _re, time as _time
+    recheck_rows: list[dict] = []
     recheck_id_set: set[str] = set()
     if args.recheck_ids:
         for token_str in _re.split(r'[\s,]+', args.recheck_ids.strip()):
@@ -560,34 +561,30 @@ def main() -> None:
             if r.get("checkin_id", "") in recheck_id_set:
                 r["overlaps_id"] = ""
                 r["overlaps_name"] = ""
-        log.info("--recheck-ids: reset %d row(s) for overlap re-fetch", len(recheck_id_set))
+                recheck_rows.append(r)
+        log.info("--recheck-ids: reset %d row(s) for overlap re-fetch", len(recheck_rows))
 
     # --recheck-recent-hours: reset overlap cache for check-ins within the last N hours
     if args.recheck_recent_hours > 0:
         cutoff = int(_time.time()) - args.recheck_recent_hours * 3600
-        reset_count = 0
         for r in existing_rows:
             ts = int(r.get("date", 0) or 0)
             if ts >= cutoff and r.get("checkin_id", "").strip():
                 r["overlaps_id"] = ""
                 r["overlaps_name"] = ""
-                reset_count += 1
+                recheck_rows.append(r)
         log.info("--recheck-recent-hours %d: reset %d row(s) for overlap re-fetch",
-                 args.recheck_recent_hours, reset_count)
+                 args.recheck_recent_hours, len(recheck_rows))
 
-    if not added and not recheck_id_set and not args.recheck_recent_hours:
+    if not added and not recheck_rows:
         print("CHANGED=false")
         return
 
     if not added:
-        # Recheck-only run: enrich on existing rows then save if anything changed
-        changed_rows = [r for r in existing_rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") == ""]
-        if not changed_rows:
-            print("CHANGED=false")
-            return
-        enrich_overlaps(token, changed_rows, max_calls=0, csv_path=None)
+        # Recheck-only run: enrich only the rows we explicitly reset
+        enrich_overlaps(token, recheck_rows, max_calls=0, csv_path=None)
         save_rows(csv_path, existing_rows)
-        log.info("Overlap recheck complete — %d row(s) updated", len(changed_rows))
+        log.info("Overlap recheck complete — %d row(s) processed", len(recheck_rows))
         print("CHANGED=true")
         return
 
@@ -595,7 +592,6 @@ def main() -> None:
     enrich_overlaps(token, added, max_calls=0, csv_path=None)
 
     # Also enrich any existing rows that were reset by --recheck-* flags
-    recheck_rows = [r for r in existing_rows if r.get("checkin_id", "").strip() and r.get("overlaps_id", "") == ""]
     if recheck_rows:
         enrich_overlaps(token, recheck_rows, max_calls=0, csv_path=None)
 
