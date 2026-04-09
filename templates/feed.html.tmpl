@@ -1237,7 +1237,7 @@ document.getElementById('feedScroll').addEventListener('scroll',()=>{
 
       while(lo<=hi){const m=(lo+hi)>>1;pos[m]<=target?(best=m,lo=m+1):hi=m-1;}
 
-      if(best!==activeIdx) activate(best, false);
+      if(!gapLoading && best!==activeIdx) activate(best, false);
       checkGapLoad(best);
 
     },150);
