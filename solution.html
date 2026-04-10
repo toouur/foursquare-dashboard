@@ -984,6 +984,91 @@ python scripts/sync_to_d1.py \
       </div>
     </div>
 
+    <!-- C15 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 15 — Bottom-Anchor Split-Region Architecture Breaks Scroll</div>
+        <div class="cs-text">
+          The first virtual scroll implementation bootstrapped the feed by fetching the
+          100 newest <em>and</em> 100 oldest check-ins in parallel, placing the oldest batch
+          at <strong>the very bottom</strong> of a pre-computed pixel canvas
+          (<code>totalH ≈ 8.5 million px</code>). Everything between the two batches was an
+          empty gap that filled from both ends as the user scrolled. This produced three
+          cascading failures:
+        </div>
+        <div class="cs-text">
+          <strong>1. Gap prefetch zone was proportionally tiny.</strong>
+          The gap-trigger threshold was 80 × <code>AVG_ITEM_H</code> = 10 560 px — about
+          0.12 % of the total canvas. In practice the prefetch fired only sporadically, leaving
+          a visible blank region every time the user scrolled faster than the loader.
+        </div>
+        <div class="cs-text">
+          <strong>2. <code>totalH</code> shrank on every batch.</strong>
+          Each 50-item append grew the loaded height by 50 × 126 px = 6 300 px but reduced
+          the estimated remainder by 50 × 132 px = 6 600 px — a net loss of 300 px per page.
+          Near the end of the dataset the browser clamped <code>scrollTop</code> because the
+          sizer was shrinking under the user, causing the viewport to jump upward.
+        </div>
+        <div class="cs-text">
+          <strong>3. Calendar navigation broke scroll position.</strong>
+          <code>goYMD</code> used a two-phase approach: resolve a cursor via <code>?resolve=TS</code>,
+          then load items around that timestamp. After each splice, <code>rebuildAfterSplice</code>
+          patched <code>activeIdx</code> to compensate for prepended items — but the correction
+          was based on array indices, not pixel positions, so any concurrent load could
+          desynchronise it. Jumping to a date near the bottom of a fresh load left the viewport
+          pointing at the wrong item.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Contiguous Array with State-Reset Navigation</div>
+        <div class="cs-text">
+          The split-region model was replaced with a single contiguous <code>ALL</code> array
+          that grows strictly by append (older items) or prepend (newer items):
+        </div>
+        <div class="code-block">
+<span class="cm">// Init — fetch newest 100 only; no oldest batch, no empty gap</span>
+<span class="kw">const</span> d = <span class="kw">await</span> fetch(<span class="hl">"/api/feed?limit=100"</span>).then(r => r.json());
+ALL = d.items; revDone = <span class="kw">true</span>;   <span class="cm">// nothing newer to load</span>
+fwdCursor = d.next_cursor;       <span class="cm">// cursor for loading older items</span>
+totalH = <span class="hl2">0</span>; buildPos(ALL);      <span class="cm">// estimate canvas height from scratch</span>
+
+<span class="cm">// loadFwd — append older items; never shrink totalH</span>
+ALL.push(...items);
+buildPos(ALL);   <span class="cm">// Math.max(totalH, loadedH + remaining*AVG_ITEM_H)</span>
+
+<span class="cm">// loadRev — prepend newer items; anchor scroll position</span>
+<span class="kw">const</span> oldFirstPos = pos[<span class="hl2">0</span>] || GAP_PAD;
+ALL.unshift(...items);
+buildPos(ALL);
+sc.scrollTop += pos[items.length] - oldFirstPos;  <span class="cm">// viewport stays put</span>
+        </div>
+        <div class="cs-text">
+          Calendar navigation and the Oldest / Latest buttons now use a <strong>state-reset
+          pattern</strong> rather than in-place splicing. Each jump increments a generation
+          counter (<code>_loadGen</code>), assigns a new <code>ALL</code> slice, and resets
+          <code>totalH = 0</code> before calling <code>buildPos</code> — ensuring
+          <code>Math.max</code> starts from zero rather than retaining a stale large value:
+        </div>
+        <div class="code-block">
+<span class="cm">// goYMD — jump to a calendar month (example)</span>
+_loadGen++;                          <span class="cm">// invalidate any in-flight fetch</span>
+<span class="kw">const</span> gen = _loadGen;
+<span class="kw">const</span> d = <span class="kw">await</span> fetch(<span class="hl">`/api/feed?month=${ym}`</span>).then(r => r.json());
+<span class="kw">if</span> (gen !== _loadGen) <span class="kw">return</span>;      <span class="cm">// discard stale response</span>
+ALL = d.items; DATA = ALL;
+totalH = <span class="hl2">0</span>; buildPos(DATA);       <span class="cm">// fresh estimate, no stale Math.max floor</span>
+        </div>
+        <div class="cs-text">
+          Calendar month counts use <code>YM_IDX[ym]</code> from the static
+          <code>feed_meta.json</code> directly in <code>renderCal</code>, rather than an
+          accumulated local counter (<code>ymCnts</code>). This prevents double-counting when
+          the same items are loaded again after a state reset (e.g., Latest → Oldest → Latest).
+          The result: the calendar sidebar always shows authoritative counts, and all month
+          anchors are clickable before any scroll event fires.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>

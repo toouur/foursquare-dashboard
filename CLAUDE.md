@@ -137,13 +137,14 @@ python -m http.server 8000
 - Search is served by `functions/api/search.js` (Cloudflare Pages Function at `/api/search?q=`). It queries D1 directly — no static `search-index.json` is generated or committed.
 - `sync_to_d1.py` is incremental: checkins append-only, venues only for touched IDs, tips/ratings/lists gated by `--tips-changed` / `--ratings-changed` / `--lists-changed` flags (CI passes fetch step outputs).
 - Companion search covers all three source fields: `with_name`, `created_by_name` (UNION query), and `overlaps_name` (comma-separated, split in JS).
-- Feed (`feed.html` / `functions/api/feed.js`) uses **bidirectional cursor-based virtual scroll**:
-  - Init: 100 newest + 100 oldest loaded in parallel; gap between them filled on demand only.
-  - Scrolling toward gap triggers `loadFwd()` (`?cursor=TS`) or `loadRev()` (`?after=TS`), 50 items each.
-  - `oldestInsertIdx` tracks the split point; `rebuildAfterSplice` corrects `activeIdx` after each splice.
-  - `YD_IDX` stores timestamps (not array indices) so calendar navigation survives splices.
+- Feed (`feed.html` / `functions/api/feed.js`) uses a **contiguous-array virtual scroll**:
+  - Single `ALL` array; init fetches the 100 newest items only (`revDone=true` from the start).
+  - `loadFwd()` appends older items (`?cursor=TS`, 50 at a time); `loadRev()` prepends newer items (`?after=TS`) with scroll-position correction to prevent viewport jumps.
+  - `buildPos()` estimates `totalH` as `loadedH + remaining*AVG_ITEM_H`, with `Math.max` guard to prevent shrinking during incremental loads.
+  - Navigation (`goYMD`, `goLatest`, `goOldest`) resets state: `_loadGen++`, clears `ALL`, `totalH=0`, then `buildPos()`. The generation counter discards in-flight stale fetches.
+  - `renderCal` uses authoritative `YM_IDX[ym]` counts from `feed_meta.json` (not an accumulated local counter) to prevent double-counting after state resets.
   - `feed_meta.json` (static, generated at build) provides calendar month counts and total — no D1 query needed.
-  - **No background preload loop** — data loads only when the user scrolls near the gap.
+  - **No background preload loop** — data loads only when the user scrolls near the edge.
 
 ## Known Gotchas
 

@@ -509,11 +509,11 @@ Companion results aggregate all three source fields: `with_name`, `created_by_na
 | `GET /api/feed?month=YYYY-MM` | All check-ins in a calendar month |
 | `GET /api/feed?resolve=TS` | Cursor that loads items older than TS |
 
-`feed.html` uses a **bidirectional virtual scroll** architecture:
-- On init: 100 newest + 100 oldest fetched in parallel; everything else loaded on demand.
-- Scrolling down toward the gap triggers `loadFwd()` (50 items, `?cursor=`).
-- Scrolling up from the bottom triggers `loadRev()` (50 items, `?after=`).
-- Gap fill converges from both ends; no background preload loop.
+`feed.html` uses a **contiguous-array virtual scroll** architecture:
+- On init: 100 newest items fetched; all further loading is on-demand only.
+- Scrolling toward the bottom triggers `loadFwd()` (50 older items, `?cursor=TS`); appended to `ALL`.
+- Scrolling toward the top triggers `loadRev()` (50 newer items, `?after=TS`); prepended to `ALL` with scroll-position correction.
+- Navigation jumps (`goYMD`, `goLatest`, `goOldest`) reset state with a generation counter (`_loadGen`) to discard in-flight stale fetches.
 - `feed_meta.json` (static, built at CI time) provides calendar counts and total — no D1 query for those.
 
 ---
