@@ -1453,20 +1453,17 @@ async function goYMD(ymd){
   document.getElementById('calDrop').classList.remove('open');
   selYM=null;
   const ym=ymd.slice(0,7);
-  // Ensure day-level timestamps are fetched for this month
+  // Ensure day-level timestamps are fetched so YD_IDX is populated
   await _fetchDayCounts(ym);
   const ts=YD_IDX[ymd];
   if(ts==null) return; // no check-ins on that day
-  if(monthMode) exitMonthView();
-  // Fast path: item already in memory
-  const idx=tsToIdx(ts);
-  if(idx>=0){_jumpToTop(idx);return;}
-  // Load items around the target timestamp, then jump
-  await _loadAroundTs(ts);
-  const idx2=tsToIdx(ts);
-  if(idx2>=0){_jumpToTop(idx2);return;}
-  // Fallback: scroll to estimated position
-  _scrollToTs(ts);
+  // Load the full month — DATA becomes only that month's items so scrolling
+  // up/down stays within the month context (no newest-batch bleed-through).
+  await fetchAndShowMonth(ym);
+  // Find the first item at or before the target day (DATA is newest-first)
+  let idx=DATA.length-1;
+  for(let i=0;i<DATA.length;i++){if(DATA[i][0]<=ts){idx=i;break;}}
+  _jumpToTop(idx);
 }
 
 // Scroll so the target item is near the TOP of the viewport (used for calendar day jumps).
@@ -1546,7 +1543,7 @@ async function fetchAndShowMonth(ym){
 
   lastR=[-1,-1];
   buildPos(DATA);
-  document.getElementById('vsSizer').style.height=totalH+'px';
+  document.getElementById('vsSizer').style.height=(DATA.length?pos[DATA.length-1]+ITEM_STEP:totalH)+'px';
   document.getElementById('feedScroll').scrollTop=0;
   renderVis();
   if(DATA.length) activate(0,false);
@@ -1768,7 +1765,7 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
   const fullH=META_TOTAL>0?META_TOTAL*AVG_ITEM_H:totalH;
   totalH=fullH;
   buildPos(ALL);
-  document.getElementById('vsSizer').style.height=totalH||pos[ALL.length-1]+ITEM_STEP+'px';
+  document.getElementById('vsSizer').style.height=(totalH||pos[ALL.length-1]+ITEM_STEP)+'px';
   if(!Object.keys(YM_IDX).length) renderCal();
   renderVis();
   if(ALL.length) activate(0,false);
