@@ -17,9 +17,9 @@ import time
 import requests
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 ACCOUNT_ID  = os.environ.get("CF_ACCOUNT_ID",     "bab29d78c0a1173324d4213f42103f01")
 DATABASE_ID = os.environ.get("CF_D1_DATABASE_ID", "52210bd9-a019-415e-8f12-6a73b42278f9")
