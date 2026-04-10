@@ -66,6 +66,8 @@ a{color:inherit;}
 .page-header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding-bottom:0.15em;}
 .page-header p{font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-top:6px;}
 
+.page-insight{padding:7px 56px;font-family:'DM Sans',sans-serif;font-size:.78rem;color:var(--muted);font-style:italic;border-bottom:1px solid var(--border);background:var(--card);line-height:1.5;}
+
 /* ── GRID ── */
 .grid{padding:16px 56px 72px;display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1500px;}
 .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;position:relative;overflow:hidden;}
@@ -163,6 +165,8 @@ a{color:inherit;}
   <h1>Statistics</h1>
   <p>Deep-dive analytics &nbsp;&middot;&nbsp; all check-ins</p>
 </div>
+
+<div class="page-insight" id="page-insight"></div>
 
 <div id="heatmapTip" class="heatmap-tooltip"></div>
 
@@ -266,6 +270,20 @@ a{color:inherit;}
 
 <script>
 const S={{STATS}};
+
+(function(){
+  var el = document.getElementById('page-insight');
+  if (!el) return;
+  var byYear = S.by_year || [];
+  var peak = byYear.length ? byYear.reduce(function(a,b){return b[1]>a[1]?b:a;}) : ['?',0];
+  var span = byYear.length >= 2 ? (byYear[byYear.length-1][0] - byYear[0][0] + 1) : 0;
+  var earthX = Math.round((S.total_km||0)/40075);
+  el.textContent = (S.total||0).toLocaleString() + ' check-ins over ' + span + ' years. '
+    + 'Peak year: ' + peak[0] + ' (' + (peak[1]||0).toLocaleString() + ' check-ins). '
+    + (S.unique_places_count||0).toLocaleString() + ' unique venues, '
+    + (S.countries||[]).length + ' countries, '
+    + Math.round(S.total_km||0).toLocaleString() + '\u202fkm — ' + earthX + '\u00d7 around Earth.';
+})();
 
 // ── XSS-safe string escape ──────────────────────────────────────────────────
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}

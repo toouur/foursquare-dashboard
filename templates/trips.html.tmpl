@@ -71,6 +71,7 @@ a{color:inherit;}
 .list-header{padding:40px 56px 28px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;}
 .list-header h1{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
 .list-meta{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:.12em;}
+.page-insight{padding:7px 56px;font-family:'DM Sans',sans-serif;font-size:.78rem;color:var(--muted);font-style:italic;border-bottom:1px solid var(--border);background:var(--card);line-height:1.5;}
 .list-filters{padding:0 56px 20px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
 .filter-search{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.85rem;outline:none;min-width:220px;transition:border-color .2s;}
 .filter-search:focus{border-color:var(--gold);}
@@ -252,6 +253,7 @@ a{color:inherit;}
       <div class="list-meta">{{TOTAL_TRIPS}} trips &nbsp;·&nbsp; updated {{UPDATED}}</div>
     </div>
   </div>
+  <div class="page-insight" id="page-insight"></div>
   <div class="list-filters">
     <input class="filter-search" type="text" placeholder="Search trips…" id="tripSearch" oninput="filterTrips()">
     <div id="yearPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
@@ -550,6 +552,20 @@ handleHash();
 
 <script>
 const S={{STATS}};
+(function(){
+  var el = document.getElementById('page-insight');
+  if (el) {
+    var kpis = S.trip_kpis || {};
+    var earthX = Math.round((S.total_km || 0) / 40075);
+    var txt = (S.trips_count || 0) + ' trips documented';
+    if (kpis.avg_days) txt += ', averaging ' + kpis.avg_days + ' days each';
+    txt += '. ' + Math.round(S.total_km || 0).toLocaleString() + '\u202fkm covered — ' + earthX + '\u00d7 around Earth.';
+    if (kpis.longest_days && kpis.longest_name) {
+      txt += ' Longest: \u201c' + kpis.longest_name + '\u201d at ' + kpis.longest_days + ' days.';
+    }
+    el.textContent = txt;
+  }
+})();
 (function(){
   // ISO2 for flag icons
   const ISO2={

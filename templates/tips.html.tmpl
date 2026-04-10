@@ -37,6 +37,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .topbar h1{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d 50%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .12em;display:inline-block;white-space:nowrap;}
 .back-link{color:var(--gold);text-decoration:none;font-size:.72rem;font-weight:600;opacity:.8;white-space:nowrap;}
 .back-link:hover{opacity:1;}
+.page-insight{padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:.78rem;color:var(--muted);font-style:italic;border-bottom:1px solid var(--border);background:var(--card);line-height:1.5;flex-shrink:0;}
 .topnav{display:flex;align-items:center;gap:20px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;}
 .topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;margin-right:4px;white-space:nowrap;}
 .topnav-logo:hover{opacity:.85;}
@@ -170,6 +171,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <span class="badge" id="badge"></span>
     </div>
   </div>
+  <div class="page-insight" id="page-insight"></div>
   <div class="tabs-wrap" id="ctryWrap">
     <button class="tabs-arrow" onclick="scrollTabs('ctryTabs',-160)">◀</button>
     <div class="tabs-row" id="ctryTabs"></div>
@@ -194,6 +196,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <script>
 const ALL = TIPS_DATA_PLACEHOLDER;
 const TABS_DATA = TABS_DATA_PLACEHOLDER;
+
+// ── Page insight ───────────────────────────────────────────────────────────
+(function(){
+  if (!ALL.length) return;
+  var ctrSet = new Set(ALL.map(function(t){return t.country;}).filter(Boolean));
+  var oldest = ALL[ALL.length - 1];
+  var newest = ALL[0];
+  var oldYr  = oldest && oldest.ts ? new Date(oldest.ts * 1000).getFullYear() : '';
+  var newYr  = newest && newest.ts ? new Date(newest.ts * 1000).getFullYear() : '';
+  var yearSpan = (oldYr && newYr && oldYr !== newYr) ? oldYr + '–' + newYr : (oldYr || '');
+  var txt = ALL.length.toLocaleString() + ' tips written across ' + ctrSet.size + ' countries'
+    + (yearSpan ? ', ' + yearSpan : '') + '. '
+    + 'Every note is a recommendation that no algorithm asked for.';
+  var el = document.getElementById('page-insight');
+  if (el) el.textContent = txt;
+})();
 
 const CTRY_CODE = {"Belarus":"by","Moldova":"md","Poland":"pl","Russia":"ru","Ukraine":"ua","Germany":"de","France":"fr","Italy":"it","Spain":"es","Turkey":"tr","Türkiye":"tr","Sweden":"se","Denmark":"dk","Norway":"no","Finland":"fi","Austria":"at","Switzerland":"ch","Netherlands":"nl","Belgium":"be","Portugal":"pt","Czech Republic":"cz","Czechia":"cz","Hungary":"hu","Slovakia":"sk","Romania":"ro","Bulgaria":"bg","Croatia":"hr","Slovenia":"si","Serbia":"rs","Bosnia and Herzegovina":"ba","Montenegro":"me","North Macedonia":"mk","Albania":"al","Kosovo":"xk","Estonia":"ee","Latvia":"lv","Lithuania":"lt","Greece":"gr","Cyprus":"cy","Malta":"mt","Iceland":"is","Ireland":"ie","United Kingdom":"gb","Georgia":"ge","Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","Uzbekistan":"uz","Kyrgyzstan":"kg","Tajikistan":"tj","Turkmenistan":"tm","Mongolia":"mn","China":"cn","Japan":"jp","South Korea":"kr","Taiwan":"tw","India":"in","Thailand":"th","Vietnam":"vn","Indonesia":"id","Singapore":"sg","Malaysia":"my","Pakistan":"pk","Nepal":"np","Qatar":"qa","UAE":"ae","United Arab Emirates":"ae","Saudi Arabia":"sa","Jordan":"jo","Israel":"il","Iraq":"iq","Lebanon":"lb","Iran":"ir","Egypt":"eg","Morocco":"ma","Tunisia":"tn","South Africa":"za","United States":"us","Canada":"ca","Mexico":"mx","Brazil":"br","Argentina":"ar","Chile":"cl","Colombia":"co","Peru":"pe","Australia":"au","New Zealand":"nz","Holy See (Vatican City State)":"va","San Marino":"sm","Monaco":"mc"};
 

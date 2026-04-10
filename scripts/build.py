@@ -184,6 +184,19 @@ if __name__ == "__main__":
     # ── Generate static feed_meta.json (replaces expensive D1 query) ─────────
     generate_feed_meta(rows, args.output_dir)
 
+    # ── Generate venues_filter.json (year + catgrp heatmap layers, loaded lazily) ─
+    # Extracted from S to keep index.html lean; fetched on first map filter use.
+    def _write_venues_filter(data_dict: dict, out_dir: str) -> None:
+        payload = {
+            "by_year":    data_dict.get("venues_by_year", {}),
+            "by_catgrp":  data_dict.get("venues_by_catgrp", {}),
+        }
+        out_path = os.path.join(out_dir, "venues_filter.json")
+        with open(out_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
+        log.info("venues_filter.json → %s  (%d KB)",
+                 out_path, os.path.getsize(out_path) // 1024)
+
     trip_names_path = config_dir / "trip_names.json"
     trip_names: dict = {}
     if trip_names_path.exists():
@@ -226,6 +239,12 @@ if __name__ == "__main__":
 
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
     data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides)
+
+    # Write per-year / per-catgrp heatmap layers as a separate static file.
+    # Remove from data dict so they don't bloat index.html.
+    _write_venues_filter(data, args.output_dir)
+    data.pop("venues_by_year", None)
+    data.pop("venues_by_catgrp", None)
 
     # ── Auto-populate trip_names.json with new trips ──────────────────────────
     # Any trip whose _name_ts is not yet in trip_names.json gets added with its

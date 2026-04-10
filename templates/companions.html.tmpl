@@ -111,6 +111,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .card.full{grid-column:1/-1;}
 .card-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .card-title em{opacity:0.5;font-style:normal;}
+.section-insight{display:block;font-family:'DM Sans',sans-serif;font-size:0.82rem;color:var(--muted);font-style:italic;margin-top:-10px;margin-bottom:14px;line-height:1.5;}
 .social-kpi-row{display:flex;gap:10px;margin-bottom:16px;}
 .social-kpi{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
 .social-kpi .sk-num{font-family:'DM Mono',monospace;font-size:1.2rem;}
@@ -254,6 +255,7 @@ show(idx>=0?idx:0);
   <div class="grid">
     <div class="card">
       <div class="card-title">Solo vs Together</div>
+      <span class="section-insight" id="insight-solo"></span>
       <div class="social-kpi-row" id="socialKpiRow"></div>
       <canvas id="soloGroupChart" height="200"></canvas>
     </div>
@@ -265,6 +267,7 @@ show(idx>=0?idx:0);
 
     <div class="card full">
       <div class="card-title">Companion Countries <em>&middot; top countries visited with each person</em></div>
+      <span class="section-insight" id="insight-companions"></span>
       <div class="cc-list" id="companionCountriesList"></div>
     </div>
   </div>
@@ -274,6 +277,28 @@ show(idx>=0?idx:0);
 (function(){
   const SDATA=SOCIAL_STATS_PLACEHOLDER;
   if(!SDATA) return;
+
+  // ── Section insight lines ─────────────────────────────────────────────────
+  (function(){
+    var svt = SDATA.solo_vs_group_totals || [0,0];
+    var total = svt[0] + svt[1];
+    var soloPct = total > 0 ? Math.round(svt[0] / total * 100) : 77;
+    var withPct = 100 - soloPct;
+    var el1 = document.getElementById('insight-solo');
+    if (el1) el1.textContent = soloPct + '% of all check-ins were solo — '
+      + withPct + '% had company. '
+      + (soloPct > 70 ? 'An explorer who moves best alone.' : 'Equally at home solo or social.');
+
+    var comp = SDATA.companions || [];
+    var el2 = document.getElementById('insight-companions');
+    if (el2 && comp.length) {
+      var topName = comp[0][0] || '';
+      var topCnt  = comp[0][1] || 0;
+      el2.textContent = comp.length + ' companions tracked. '
+        + (topName ? topName + ' leads with ' + topCnt.toLocaleString() + ' shared check-ins. ' : '')
+        + 'Every name here is a shared memory.';
+    }
+  })();
 
   // ISO2 for flag icons
   const ISO2={

@@ -753,28 +753,71 @@ def process(
             explorer[display_name] = [[d["name"], d["city"], d["count"], d["vid"]] for d in top50]
     explorer_cats = [k for k in explorer_groups if k in explorer]
 
-    # ── Unique places ─────────────────────────────────────────────────────────
-    seen_ids: set[str] = set()
-    seen_coords: set[tuple] = set()
-    unique_places: list = []
+    # ── Unique places (enriched: lat, lng, name, count, last_year, cat, city) ──
+    # First pass: accumulate per-venue stats keyed by venue_id
+    _vp: dict = {}  # venue_id → {lat, lng, name, count, last_ts, category, city}
+    _vp_coord: dict = {}  # (lat3,lng3) → same shape, for no-id rows
     for r in rows:
         vid = r.get("venue_id", "").strip()
         try:
-            lat, lng = round(float(r["lat"]), 5), round(float(r["lng"]), 5)
+            lat_f, lng_f = float(r["lat"]), float(r["lng"])
             has_coords = True
         except (ValueError, KeyError, TypeError):
             has_coords = False
-
+        ts = int(r["date"]) if r.get("date") else 0
+        cat = categorize(r.get("category", "").strip()) or r.get("category", "").strip()
         if vid:
-            if vid not in seen_ids:
-                seen_ids.add(vid)
-                if has_coords:
-                    unique_places.append([lat, lng, r.get("venue", "").strip()])
+            if vid not in _vp:
+                _vp[vid] = {
+                    "lat": lat_f if has_coords else 0.0,
+                    "lng": lng_f if has_coords else 0.0,
+                    "name": r.get("venue", "").strip(),
+                    "count": 0, "last_ts": 0,
+                    "cat": cat,
+                    "city": r.get("city", "").strip(),
+                    "has_coords": has_coords,
+                }
+            e = _vp[vid]
+            e["count"] += 1
+            if ts > e["last_ts"]:
+                e["last_ts"] = ts
+            if not e["cat"] and cat:
+                e["cat"] = cat
+            if not e["city"] and r.get("city", "").strip():
+                e["city"] = r.get("city", "").strip()
         elif has_coords:
-            key = (lat, lng)
-            if key not in seen_coords:
-                seen_coords.add(key)
-                unique_places.append([lat, lng, r.get("venue", "").strip()])
+            key = (round(lat_f, 3), round(lng_f, 3))
+            if key not in _vp_coord:
+                _vp_coord[key] = {
+                    "lat": lat_f, "lng": lng_f,
+                    "name": r.get("venue", "").strip(),
+                    "count": 0, "last_ts": 0,
+                    "cat": cat,
+                    "city": r.get("city", "").strip(),
+                    "has_coords": True,
+                }
+            e = _vp_coord[key]
+            e["count"] += 1
+            if ts > e["last_ts"]:
+                e["last_ts"] = ts
+
+    seen_ids: set[str] = set(_vp.keys())
+    seen_coords: set[tuple] = set(_vp_coord.keys())
+    unique_places: list = []
+    for e in _vp.values():
+        if not e["has_coords"]:
+            continue
+        last_yr = datetime.fromtimestamp(e["last_ts"], tz=timezone.utc).year if e["last_ts"] else 0
+        unique_places.append([
+            round(e["lat"], 5), round(e["lng"], 5),
+            e["name"], e["count"], last_yr, e["cat"], e["city"],
+        ])
+    for e in _vp_coord.values():
+        last_yr = datetime.fromtimestamp(e["last_ts"], tz=timezone.utc).year if e["last_ts"] else 0
+        unique_places.append([
+            round(e["lat"], 5), round(e["lng"], 5),
+            e["name"], e["count"], last_yr, e["cat"], e["city"],
+        ])
 
     unique_count = len(seen_ids) + len(seen_coords)
 
@@ -805,10 +848,10 @@ def process(
         except (ValueError, KeyError, TypeError):
             pass
 
-    # ── Venues heatmap: one point per ~111m cell, weight = log(visit count) ──
-    # Grouping at 3dp merges GPS micro-jitter; log dampens Minsk dominance.
+    # ── Venues heatmap + per-year + per-catgroup ─────────────────────────────
     import math as _math
-    _vh: dict = {}  # venue_id → (lat, lng, count)
+    # _vh: venue_id → [lat, lng, total_count, {year: count}, cat_group]
+    _vh: dict = {}
     for r in rows:
         vid = r.get("venue_id", "").strip()
         if not vid:
@@ -817,14 +860,55 @@ def process(
             lat_f, lng_f = float(r["lat"]), float(r["lng"])
         except (ValueError, KeyError, TypeError):
             continue
+        ts = int(r["date"]) if r.get("date") else 0
+        yr = datetime.fromtimestamp(ts, tz=timezone.utc).year if ts else 0
+        cg = categorize(r.get("category", "").strip()) or ""
         if vid not in _vh:
-            _vh[vid] = [lat_f, lng_f, 0]
+            _vh[vid] = [lat_f, lng_f, 0, {}, cg]
         _vh[vid][2] += 1
+        if yr:
+            _vh[vid][3][yr] = _vh[vid][3].get(yr, 0) + 1
+        if not _vh[vid][4] and cg:
+            _vh[vid][4] = cg
+
     _vh_max = _math.log1p(max(v[2] for v in _vh.values())) if _vh else 1.0
+
     venues_heatmap: list = [
         [v[0], v[1], round(_math.log1p(v[2]) / _vh_max, 4)]
         for v in _vh.values()
     ]
+
+    # Per-year heatmaps: {year: [[lat, lng, w], ...]}
+    _yr_counts: dict[int, dict] = {}  # year → {vid: count}
+    for vid, v in _vh.items():
+        for yr, cnt in v[3].items():
+            if yr not in _yr_counts:
+                _yr_counts[yr] = {}
+            _yr_counts[yr][vid] = cnt
+    venues_by_year: dict = {}
+    for yr, vc in _yr_counts.items():
+        _max = _math.log1p(max(vc.values())) if vc else 1.0
+        venues_by_year[str(yr)] = [
+            [_vh[vid][0], _vh[vid][1], round(_math.log1p(cnt) / _max, 4)]
+            for vid, cnt in vc.items()
+        ]
+
+    # Per-catgroup heatmaps: {catgroup: [[lat, lng, w], ...]}
+    _cg_counts: dict[str, dict] = {}  # catgroup → {vid: count}
+    for vid, v in _vh.items():
+        cg = v[4]
+        if not cg:
+            continue
+        if cg not in _cg_counts:
+            _cg_counts[cg] = {}
+        _cg_counts[cg][vid] = v[2]
+    venues_by_catgrp: dict = {}
+    for cg, vc in _cg_counts.items():
+        _max = _math.log1p(max(vc.values())) if vc else 1.0
+        venues_by_catgrp[cg] = [
+            [_vh[vid][0], _vh[vid][1], round(_math.log1p(cnt) / _max, 4)]
+            for vid, cnt in vc.items()
+        ]
 
     # ── Companions ────────────────────────────────────────────────────────────
     comp_raw: Counter = Counter()
@@ -1265,6 +1349,8 @@ def process(
         "unique_places":      unique_places,
         "all_coords":         all_coords,
         "venues_heatmap":     venues_heatmap,
+        "venues_by_year":     venues_by_year,
+        "venues_by_catgrp":   venues_by_catgrp,
         "companions":         companions,
         "solo_vs_group_by_year": solo_vs_group_by_year,
         "solo_vs_group_totals":  solo_vs_group_totals,

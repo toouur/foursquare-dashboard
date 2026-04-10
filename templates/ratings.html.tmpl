@@ -68,6 +68,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .sbtn:hover{border-color:var(--gold);color:var(--gold);}
 .sbtn.act{border-color:var(--gold);color:var(--gold);background:rgba(232,184,109,.08);}
 .badge{font-size:.63rem;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap;}
+.page-insight{padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:.78rem;color:var(--muted);font-style:italic;border-bottom:1px solid var(--border);background:var(--card);line-height:1.5;flex-shrink:0;}
 .srch{background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--text);font-size:.73rem;outline:none;width:185px;}
 .srch:focus{border-color:var(--gold);}
 .tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
@@ -140,6 +141,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <span class="badge" id="badge"></span>
     </div>
   </div>
+  <div class="page-insight" id="page-insight"></div>
   <div class="content">
     <div class="feed-col">
       <div class="feed-scroll" id="feedScroll"></div>
@@ -154,6 +156,21 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <script>
 const ALL = RATINGS_DATA_PLACEHOLDER;
 const COUNTS = RATINGS_COUNTS_PLACEHOLDER;
+
+// ── Page insight ───────────────────────────────────────────────────────────
+(function(){
+  var total  = (COUNTS.likes||0) + (COUNTS.neutral||0) + (COUNTS.dislikes||0);
+  var ctrSet = new Set(ALL.map(function(v){return v.country;}).filter(Boolean));
+  var likePct = total > 0 ? Math.round((COUNTS.likes||0) / total * 100) : 54;
+  var txt = total.toLocaleString() + ' venues rated across ' + ctrSet.size + ' countries — '
+    + (COUNTS.likes||0).toLocaleString() + ' liked, ' + (COUNTS.neutral||0).toLocaleString() + ' neutral, '
+    + (COUNTS.dislikes||0) + ' disliked. '
+    + (COUNTS.dislikes <= 15
+       ? 'Apparently the bar for dislike is set very high.'
+       : likePct + '% approval rate.');
+  var el = document.getElementById('page-insight');
+  if (el) el.textContent = txt;
+})();
 
 const CTRY_CODE = {"Belarus":"by","Moldova":"md","Poland":"pl","Russia":"ru","Ukraine":"ua","Germany":"de","France":"fr","Italy":"it","Spain":"es","Turkey":"tr","Türkiye":"tr","Sweden":"se","Denmark":"dk","Norway":"no","Finland":"fi","Austria":"at","Switzerland":"ch","Netherlands":"nl","Belgium":"be","Portugal":"pt","Czech Republic":"cz","Czechia":"cz","Hungary":"hu","Slovakia":"sk","Romania":"ro","Bulgaria":"bg","Croatia":"hr","Slovenia":"si","Serbia":"rs","Bosnia and Herzegovina":"ba","Montenegro":"me","North Macedonia":"mk","Albania":"al","Kosovo":"xk","Estonia":"ee","Latvia":"lv","Lithuania":"lt","Greece":"gr","Cyprus":"cy","Malta":"mt","Iceland":"is","Ireland":"ie","United Kingdom":"gb","Georgia":"ge","Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","Uzbekistan":"uz","Kyrgyzstan":"kg","Tajikistan":"tj","Turkmenistan":"tm","Mongolia":"mn","China":"cn","Japan":"jp","South Korea":"kr","Taiwan":"tw","India":"in","Thailand":"th","Vietnam":"vn","Indonesia":"id","Singapore":"sg","Malaysia":"my","Pakistan":"pk","Nepal":"np","Qatar":"qa","UAE":"ae","United Arab Emirates":"ae","Saudi Arabia":"sa","Jordan":"jo","Israel":"il","Iraq":"iq","Lebanon":"lb","Iran":"ir","Egypt":"eg","Morocco":"ma","Tunisia":"tn","South Africa":"za","United States":"us","Canada":"ca","Mexico":"mx","Brazil":"br","Argentina":"ar","Chile":"cl","Colombia":"co","Peru":"pe","Australia":"au","New Zealand":"nz","Holy See (Vatican City State)":"va","San Marino":"sm","Monaco":"mc"};
 function flagHtml(c){const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span class="fi fi-${code}" style="border-radius:2px;font-size:.85em;vertical-align:middle;"></span> `:''}
