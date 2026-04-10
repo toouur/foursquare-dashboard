@@ -960,9 +960,12 @@ function buildPos(data){
   const loadedH=data.length?y+GAP_PAD:0;
   if(isFiltered||monthMode){
     totalH=loadedH;
+  } else if(fwdDone){
+    totalH=loadedH; // exact — no more items
   } else {
-    const remaining=fwdDone?0:Math.max(0,META_TOTAL-ALL.length);
-    totalH=loadedH+remaining*AVG_ITEM_H;
+    const remaining=Math.max(0,META_TOTAL-ALL.length);
+    const estimated=loadedH+remaining*AVG_ITEM_H;
+    totalH=Math.max(totalH,estimated); // never shrink during incremental loads
   }
 }
 
@@ -1346,7 +1349,7 @@ function renderCal(){
 
     const sel=ym===selYM;
 
-    const n=ymCnts[ym]||0;
+    const n=has?YM_IDX[ym]:0;
 
     const cnt=n>=1000?Math.round(n/100)/10+'k':n||'';
 
@@ -1456,7 +1459,7 @@ async function goYMD(ymd){
     document.getElementById('srch').value='';
     DATA=ALL;
     addToCalCounts(items);
-    buildPos(DATA);
+    totalH=0; buildPos(DATA);
     document.getElementById('vsSizer').style.height=totalH+'px';
     document.getElementById('badge').textContent=(META_TOTAL||ALL.length).toLocaleString()+' check-ins';
     lastR=[-1,-1];
@@ -1554,7 +1557,7 @@ async function goLatest(){
     document.getElementById('srch').value='';
     DATA=ALL;
     addToCalCounts(items);
-    buildPos(DATA);
+    totalH=0; buildPos(DATA);
     document.getElementById('vsSizer').style.height=totalH+'px';
     document.getElementById('badge').textContent=(META_TOTAL||ALL.length).toLocaleString()+' check-ins';
     document.getElementById('feedScroll').scrollTop=0;
@@ -1580,7 +1583,7 @@ async function goOldest(){
     document.getElementById('srch').value='';
     DATA=ALL;
     addToCalCounts(items);
-    buildPos(DATA);
+    totalH=0; buildPos(DATA);
     document.getElementById('vsSizer').style.height=totalH+'px';
     document.getElementById('badge').textContent=(META_TOTAL||ALL.length).toLocaleString()+' check-ins';
     const sc=document.getElementById('feedScroll');
