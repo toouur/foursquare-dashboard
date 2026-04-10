@@ -1482,7 +1482,7 @@ function _jumpToTop(i){
   const sc=document.getElementById('feedScroll');
   sc.scrollTop=Math.max(0,(pos[i]||0)-40);
   lastR=[-1,-1];
-  setTimeout(renderVis,60);
+  setTimeout(()=>{renderVis();checkGapLoad(i);},60);
 }
 
 // Fetch ~50 items centred around a timestamp and splice them into ALL.
@@ -1666,23 +1666,29 @@ async function loadRev(){
 }
 
 // Pixel-based gap trigger: fires when the viewport approaches a gap boundary.
-// Before this fix, index-based distance (gapFwdEnd - visIdx) was unreliable after
-// bottom-anchoring — with an 8Mpx virtual space, visIdx could be near ALL.length-1
-// even when physically far from the gap, causing wrong triggers or missed loads.
+// fwdEdge = physical bottom of the last fwd-loaded item (where the gap starts from above).
+// revEdge = physical top of the oldest batch (where the gap ends from below).
+// Using pos[gapFwdEnd] was wrong: it equals pos[oldestInsertIdx] (bottom-anchor) so
+// the upper-bound check scrollBot <= gapFwdPx+prefetch always failed when at oldest item.
 function checkGapLoad(visIdx){
   if(gapLoading||isFiltered||monthMode) return;
   if(fwdDone&&revDone) return;
   const sc=document.getElementById('feedScroll');
-  const scrollBot=sc.scrollTop+sc.clientHeight;
-  // Fall back to AVG_ITEM_H estimation if pos[] hasn't been computed for a boundary
-  // (can happen before buildPos runs or after splice when DOM hasn't updated yet).
-  const gapFwdPx=pos[gapFwdEnd]!=null?pos[gapFwdEnd]:gapFwdEnd*AVG_ITEM_H;
-  const gapRevPx=pos[oldestInsertIdx]!=null?pos[oldestInsertIdx]:oldestInsertIdx*AVG_ITEM_H;
-  // loadFwd: trigger when the BOTTOM of the viewport enters the forward gap zone
-  if(!fwdDone&&fwdCursor&&scrollBot>=gapFwdPx&&scrollBot<=gapFwdPx+GAP_NEAR*AVG_ITEM_H){loadFwd();return;}
-  // loadRev: trigger when the TOP of the viewport enters the reverse gap zone
+  const st=sc.scrollTop, sb=st+sc.clientHeight;
+  const prefetch=GAP_NEAR*AVG_ITEM_H;
+  // fwdEdge: bottom of the last forward-loaded item (gap opening, approached from above)
+  const fwdEdge=gapFwdEnd>0&&pos[gapFwdEnd-1]!=null
+    ?pos[gapFwdEnd-1]+ITEM_STEP
+    :gapFwdEnd*AVG_ITEM_H;
+  // revEdge: top of the oldest batch (gap closing, approached from below)
+  const revEdge=oldestInsertIdx<ALL.length&&pos[oldestInsertIdx]!=null
+    ?pos[oldestInsertIdx]
+    :oldestInsertIdx*AVG_ITEM_H;
+  // loadFwd: viewport bottom enters fwd prefetch zone and we're not already in oldest batch
+  if(!fwdDone&&fwdCursor&&sb>=fwdEdge&&st<revEdge+sc.clientHeight){loadFwd();return;}
+  // loadRev: viewport bottom approaches top of oldest batch from any distance
   if(!revDone&&revCursor!=null&&oldestInsertIdx<ALL.length){
-    if(sc.scrollTop<=gapRevPx&&sc.scrollTop>=gapRevPx-GAP_NEAR*AVG_ITEM_H) loadRev();
+    if(sb>=revEdge-prefetch) loadRev();
   }
 }
 
