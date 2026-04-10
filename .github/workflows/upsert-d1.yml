@@ -93,8 +93,6 @@ jobs:
             exit 0
           fi
 
-          echo "Running upsert with flags:$CHANGED_FLAGS"
-
           python scripts/sync_to_d1.py \
             --csv   private-data/checkins.csv \
             --tips  private-data/tips.json \
