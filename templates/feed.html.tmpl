@@ -1459,14 +1459,16 @@ async function goYMD(ymd){
   // Ensure day-level timestamps are fetched so YD_IDX is populated
   await _fetchDayCounts(ym);
   if(!ydCnts[ymd]) return; // no check-ins on that day
-  // Load the full month — DATA becomes only that month's items so scrolling
-  // up/down stays within the month context (no newest-batch bleed-through).
-  await fetchAndShowMonth(ym);
-  // Find the first item whose local rendered date matches the clicked day
-  // (more precise than timestamp ≤ ts which can cross midnight in some TZs)
-  let idx=DATA.length-1;
-  for(let i=0;i<DATA.length;i++){if(rowToYmd(DATA[i])===ymd){idx=i;break;}}
-  _jumpToTop(idx);
+  // Stay in the unified feed — no month mode switch
+  if(monthMode) exitMonthView();
+  // Fast path: target day already loaded in ALL
+  for(let i=0;i<ALL.length;i++){if(rowToYmd(ALL[i])===ymd){_jumpToTop(i);return;}}
+  // Load a window around the target timestamp, then find the exact row
+  const ts=YD_IDX[ymd];
+  if(ts!=null) await _loadAroundTs(ts);
+  for(let i=0;i<ALL.length;i++){if(rowToYmd(ALL[i])===ymd){_jumpToTop(i);return;}}
+  // Fallback: proportional scroll estimate
+  if(ts!=null) _scrollToTs(ts);
 }
 
 // Scroll so the target item is near the TOP of the viewport (used for calendar day jumps).
@@ -1581,15 +1583,10 @@ function goLatest(){
   jumpTo(0);
 }
 
-async function goOldest(){
-  // Derive the oldest item's local month from the already-loaded oldest batch,
-  // then enter month mode so the view is fully contiguous (no virtual gap).
-  const oldest=ALL[ALL.length-1];
-  if(!oldest) return;
-  const ym=rowToYmd(oldest).slice(0,7)||oldest[1].slice(-4)+'-01';
-  await fetchAndShowMonth(ym);
-  // Jump to the last (oldest) item in the month view
-  _jumpToTop(DATA.length-1);
+function goOldest(){
+  if(monthMode) exitMonthView();
+  if(!ALL.length) return;
+  _jumpToTop(ALL.length-1);
 }
 
 // ── Bidirectional gap fill ──
