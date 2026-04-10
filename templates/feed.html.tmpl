@@ -1399,16 +1399,10 @@ async function _fetchDayCounts(ym){
       // Filter to items that locally belong to the requested month to avoid
       // double-counting the same boundary check-in from adjacent month calls.
       items.forEach(r=>{
-        const parts=(r[1]||'').split(' ');
-        if(parts.length===3){
-          const mo2=MOS.indexOf(parts[1])+1;
-          if(mo2>0){
-            const ymd=`${parts[2]}-${String(mo2).padStart(2,'0')}-${parts[0]}`;
-            if(ymd.slice(0,7)!==ym) return; // locally belongs to adjacent month
-            ydCnts[ymd]=(ydCnts[ymd]||0)+1;
-            if(!(ymd in YD_IDX)) YD_IDX[ymd]=r[0];
-          }
-        }
+        const ymd=rowToYmd(r);
+        if(!ymd||ymd.slice(0,7)!==ym) return; // locally belongs to adjacent month
+        ydCnts[ymd]=(ydCnts[ymd]||0)+1;
+        if(!(ymd in YD_IDX)) YD_IDX[ymd]=r[0];
       });
       // Refresh day grid if this month is still expanded
       if(selYM===ym) renderDays(ym);
@@ -1449,20 +1443,29 @@ function tsToIdx(ts){
   return -1;
 }
 
+// Shared helper: convert a rendered date string "DD Mon YYYY" → "YYYY-MM-DD"
+function rowToYmd(r){
+  const parts=(r[1]||'').split(' ');
+  if(parts.length!==3) return '';
+  const mo=MOS.indexOf(parts[1])+1;
+  if(!mo) return '';
+  return `${parts[2]}-${String(mo).padStart(2,'0')}-${parts[0]}`;
+}
+
 async function goYMD(ymd){
   document.getElementById('calDrop').classList.remove('open');
   selYM=null;
   const ym=ymd.slice(0,7);
   // Ensure day-level timestamps are fetched so YD_IDX is populated
   await _fetchDayCounts(ym);
-  const ts=YD_IDX[ymd];
-  if(ts==null) return; // no check-ins on that day
+  if(!ydCnts[ymd]) return; // no check-ins on that day
   // Load the full month — DATA becomes only that month's items so scrolling
   // up/down stays within the month context (no newest-batch bleed-through).
   await fetchAndShowMonth(ym);
-  // Find the first item at or before the target day (DATA is newest-first)
+  // Find the first item whose local rendered date matches the clicked day
+  // (more precise than timestamp ≤ ts which can cross midnight in some TZs)
   let idx=DATA.length-1;
-  for(let i=0;i<DATA.length;i++){if(DATA[i][0]<=ts){idx=i;break;}}
+  for(let i=0;i<DATA.length;i++){if(rowToYmd(DATA[i])===ymd){idx=i;break;}}
   _jumpToTop(idx);
 }
 
@@ -1519,20 +1522,24 @@ async function fetchAndShowMonth(ym){
   document.getElementById('calDrop').classList.remove('open');
   document.getElementById('badge').textContent='Loading…';
 
-  let items=[];
+  let rawItems=[];
   try{
     const res=await fetch(`/api/feed?month=${ym}`);
     const data=await res.json();
-    items=data.items||[];
+    rawItems=data.items||[];
   }catch(e){}
 
-  // Update ydCnts for this month from freshly fetched items (ensures day grid is accurate)
+  // The API pads ±1 day for timezone boundary coverage; filter to rows
+  // whose locally rendered date actually belongs to the requested month.
+  const items=rawItems.filter(r=>rowToYmd(r).slice(0,7)===ym);
+
+  // Update ydCnts for this month from filtered items (ensures day grid is accurate)
   const[myr,mmo]=ym.split('-').map(Number);
   const mdays=new Date(myr,mmo,0).getDate();
   for(let d=1;d<=mdays;d++) delete ydCnts[`${ym}-${String(d).padStart(2,'0')}`];
   items.forEach(r=>{
-    const parts=(r[1]||'').split(' ');
-    if(parts.length===3){const mo2=MOS.indexOf(parts[1])+1;if(mo2>0){const ymd=`${parts[2]}-${String(mo2).padStart(2,'0')}-${parts[0]}`;ydCnts[ymd]=(ydCnts[ymd]||0)+1;}}
+    const ymd2=rowToYmd(r);
+    if(ymd2) ydCnts[ymd2]=(ydCnts[ymd2]||0)+1;
   });
 
   // Enter month view
@@ -1574,19 +1581,15 @@ function goLatest(){
   jumpTo(0);
 }
 
-function goOldest(){
-  if(monthMode) exitMonthView();
-  const i=ALL.length-1;
-  const sc=document.getElementById('feedScroll');
-  manualClick=true;
-  clearTimeout(manualTimer);
-  manualTimer=setTimeout(()=>{manualClick=false;},1500);
-  // Scroll so the oldest card is near the bottom of the viewport
-  const target=pos[i]||0;
-  sc.scrollTop=Math.max(0,target-sc.clientHeight+CARD_H+40);
-  lastR=[-1,-1];
-  activate(i,false);
-  setTimeout(renderVis,60);
+async function goOldest(){
+  // Derive the oldest item's local month from the already-loaded oldest batch,
+  // then enter month mode so the view is fully contiguous (no virtual gap).
+  const oldest=ALL[ALL.length-1];
+  if(!oldest) return;
+  const ym=rowToYmd(oldest).slice(0,7)||oldest[1].slice(-4)+'-01';
+  await fetchAndShowMonth(ym);
+  // Jump to the last (oldest) item in the month view
+  _jumpToTop(DATA.length-1);
 }
 
 // ── Bidirectional gap fill ──
@@ -1613,7 +1616,10 @@ async function loadFwd(){
     const d=await(await fetch(`/api/feed?limit=50&cursor=${fwdCursor}${cid}`)).json();
     const items=d.items||[];
     if(!items.length){fwdDone=true;return;}
-    // Only insert items strictly older than current fwd region, not overlapping oldest/rev batch
+    // Only insert items strictly older than current fwd region, not overlapping oldest/rev batch.
+    // Lower bound (gapBottom): skip items already in the fwd-loaded region.
+    // Upper bound (revTop):   skip items that belong in the reverse/oldest region.
+    // Without revTop, stale cursors could splice rev-region items into the fwd region.
     const gapBottom=ALL[gapFwdEnd]?ALL[gapFwdEnd][0]:0;
     const revTop=oldestInsertIdx<ALL.length?ALL[oldestInsertIdx][0]:Infinity;
     const fi=items.filter(r=>r[0]>gapBottom&&r[0]<revTop);
@@ -1650,7 +1656,9 @@ async function loadRev(){
     // gapFwdEnd stays fixed — rev items live between gapFwdEnd and oldestInsertIdx
     oldestInsertIdx+=fi.length;
     addToCalCounts(fi);
-    // fi is newest-first; fi[fi.length-1] is the oldest item in this batch → new lower bound for next call
+    // fi is newest-first after reverse(); fi[fi.length-1] is the OLDEST item in this batch.
+    // Using fi[0] (newest) as revCursor would cause each subsequent call to re-fetch
+    // overlapping items and stop prematurely, leaving the gap unfilled.
     revCursor=fi[fi.length-1][0];
     revCursorId=fi[fi.length-1][10];
     if(!d.has_more) revDone=true;
@@ -1660,14 +1668,22 @@ async function loadRev(){
   finally{gapLoading=false;}
 }
 
+// Pixel-based gap trigger: fires when the viewport approaches a gap boundary.
+// Before this fix, index-based distance (gapFwdEnd - visIdx) was unreliable after
+// bottom-anchoring — with an 8Mpx virtual space, visIdx could be near ALL.length-1
+// even when physically far from the gap, causing wrong triggers or missed loads.
 function checkGapLoad(visIdx){
   if(gapLoading||isFiltered||monthMode) return;
   if(fwdDone&&revDone) return;
   const sc=document.getElementById('feedScroll');
   const scrollBot=sc.scrollTop+sc.clientHeight;
+  // Fall back to AVG_ITEM_H estimation if pos[] hasn't been computed for a boundary
+  // (can happen before buildPos runs or after splice when DOM hasn't updated yet).
   const gapFwdPx=pos[gapFwdEnd]!=null?pos[gapFwdEnd]:gapFwdEnd*AVG_ITEM_H;
   const gapRevPx=pos[oldestInsertIdx]!=null?pos[oldestInsertIdx]:oldestInsertIdx*AVG_ITEM_H;
+  // loadFwd: trigger when the BOTTOM of the viewport enters the forward gap zone
   if(!fwdDone&&fwdCursor&&scrollBot>=gapFwdPx&&scrollBot<=gapFwdPx+GAP_NEAR*AVG_ITEM_H){loadFwd();return;}
+  // loadRev: trigger when the TOP of the viewport enters the reverse gap zone
   if(!revDone&&revCursor!=null&&oldestInsertIdx<ALL.length){
     if(sc.scrollTop<=gapRevPx&&sc.scrollTop>=gapRevPx-GAP_NEAR*AVG_ITEM_H) loadRev();
   }
@@ -1751,7 +1767,10 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
     fwdCursor=fwdTs||null;
     fwdCursorId=fwdId||null;
     fwdDone=!fwdCursor;
-    // revCursor starts at the OLDEST item of the oldest batch; ?after=revCursor fetches everything above it
+    // revCursor must point to the TRUE OLDEST item (ALL.length-1), not ALL[oldestInsertIdx].
+    // OLD BUG: ALL[oldestInsertIdx] == uniqueOldest[0] == newest item of the oldest batch.
+    // With the wrong cursor, ?after=newest_ts returns already-loaded items, fi is empty,
+    // revDone=true immediately, and the bottom-up gap fill silently never runs.
     revCursor=uniqueOldest.length?ALL[ALL.length-1][0]:null;
     revCursorId=uniqueOldest.length?ALL[ALL.length-1][10]:null;
     revDone=!uniqueOldest.length||(oldestItems.length<PG);
