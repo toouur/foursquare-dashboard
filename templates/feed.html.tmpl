@@ -947,7 +947,7 @@ function gapFor(sec){
 let DATA=ALL, pos=[], totalH=0; let isFiltered=false; let monthMode=null;
 let oldestInsertIdx=0;
 let gapFwdEnd=0; // end of forward-filled region (insertion point for both directions)
-let fwdCursor=null, revCursor=null, fwdDone=false, revDone=false, gapLoading=false;
+let fwdCursor=null, fwdCursorId=null, revCursor=null, revCursorId=null, fwdDone=false, revDone=false, gapLoading=false;
 const GAP_NEAR=80;
 
 const AVG_ITEM_H=ITEM_STEP+6; // ~132px average, used for unloaded region estimation
@@ -1381,33 +1381,41 @@ function renderCal(){
 
 }
 
-// Tracks which months have had their day counts populated from D1
-const _ymDaysFetched=new Set();
+// Promise cache: ym → Promise so concurrent callers await the same in-flight fetch
+// (using a Set would return immediately on the second call before data is ready)
+const _ymDaysFetching=new Map();
 
 async function _fetchDayCounts(ym){
-  if(_ymDaysFetched.has(ym)) return;
-  _ymDaysFetched.add(ym);
-  try{
-    const data=await(await fetch(`/api/feed?month=${ym}`)).json();
-    const items=data.items||[];
-    const[myr,mmo]=ym.split('-').map(Number);
-    const mdays=new Date(myr,mmo,0).getDate();
-    // Clear stale estimates for this month, then repopulate
-    for(let d=1;d<=mdays;d++) delete ydCnts[`${ym}-${String(d).padStart(2,'0')}`];
-    items.forEach(r=>{
-      const parts=(r[1]||'').split(' ');
-      if(parts.length===3){
-        const mo2=MOS.indexOf(parts[1])+1;
-        if(mo2>0){
-          const ymd=`${parts[2]}-${String(mo2).padStart(2,'0')}-${parts[0]}`;
-          ydCnts[ymd]=(ydCnts[ymd]||0)+1;
-          if(!(ymd in YD_IDX)) YD_IDX[ymd]=r[0];
+  if(_ymDaysFetching.has(ym)) return _ymDaysFetching.get(ym);
+  const p=(async()=>{
+    try{
+      const data=await(await fetch(`/api/feed?month=${ym}`)).json();
+      const items=data.items||[];
+      const[myr,mmo]=ym.split('-').map(Number);
+      const mdays=new Date(myr,mmo,0).getDate();
+      // Clear stale estimates for this month, then repopulate
+      for(let d=1;d<=mdays;d++) delete ydCnts[`${ym}-${String(d).padStart(2,'0')}`];
+      // The API returns ±1 day of padding for timezone boundary coverage.
+      // Filter to items that locally belong to the requested month to avoid
+      // double-counting the same boundary check-in from adjacent month calls.
+      items.forEach(r=>{
+        const parts=(r[1]||'').split(' ');
+        if(parts.length===3){
+          const mo2=MOS.indexOf(parts[1])+1;
+          if(mo2>0){
+            const ymd=`${parts[2]}-${String(mo2).padStart(2,'0')}-${parts[0]}`;
+            if(ymd.slice(0,7)!==ym) return; // locally belongs to adjacent month
+            ydCnts[ymd]=(ydCnts[ymd]||0)+1;
+            if(!(ymd in YD_IDX)) YD_IDX[ymd]=r[0];
+          }
         }
-      }
-    });
-    // Refresh day grid if this month is still expanded
-    if(selYM===ym) renderDays(ym);
-  }catch(e){_ymDaysFetched.delete(ym);}
+      });
+      // Refresh day grid if this month is still expanded
+      if(selYM===ym) renderDays(ym);
+    }catch(e){_ymDaysFetching.delete(ym);}// allow retry on error
+  })();
+  _ymDaysFetching.set(ym,p);
+  return p;
 }
 
 function goYM(ym){
@@ -1452,13 +1460,27 @@ async function goYMD(ymd){
   if(monthMode) exitMonthView();
   // Fast path: item already in memory
   const idx=tsToIdx(ts);
-  if(idx>=0){jumpTo(idx);return;}
+  if(idx>=0){_jumpToTop(idx);return;}
   // Load items around the target timestamp, then jump
   await _loadAroundTs(ts);
   const idx2=tsToIdx(ts);
-  if(idx2>=0){jumpTo(idx2);return;}
+  if(idx2>=0){_jumpToTop(idx2);return;}
   // Fallback: scroll to estimated position
   _scrollToTs(ts);
+}
+
+// Scroll so the target item is near the TOP of the viewport (used for calendar day jumps).
+// This ensures only items from that date and older are immediately visible below.
+function _jumpToTop(i){
+  i=Math.max(0,Math.min(DATA.length-1,Math.round(i)));
+  manualClick=true;
+  clearTimeout(manualTimer);
+  manualTimer=setTimeout(()=>{manualClick=false;},1500);
+  activate(i,false);
+  const sc=document.getElementById('feedScroll');
+  sc.scrollTop=Math.max(0,(pos[i]||0)-40);
+  lastR=[-1,-1];
+  setTimeout(renderVis,60);
 }
 
 // Fetch ~50 items centred around a timestamp and splice them into ALL.
@@ -1590,19 +1612,22 @@ async function loadFwd(){
   if(gapLoading||fwdDone||!fwdCursor) return;
   gapLoading=true;
   try{
-    const d=await(await fetch(`/api/feed?limit=50&cursor=${fwdCursor}`)).json();
+    const cid=fwdCursorId?`&cursor_id=${encodeURIComponent(fwdCursorId)}`:'';
+    const d=await(await fetch(`/api/feed?limit=50&cursor=${fwdCursor}${cid}`)).json();
     const items=d.items||[];
     if(!items.length){fwdDone=true;return;}
     // Only insert items strictly older than current fwd region, not overlapping oldest/rev batch
     const gapBottom=ALL[gapFwdEnd]?ALL[gapFwdEnd][0]:0;
-    const fi=items.filter(r=>r[0]>gapBottom);
-    if(!fi.length){fwdDone=true;fwdCursor=null;return;}
+    const revTop=oldestInsertIdx<ALL.length?ALL[oldestInsertIdx][0]:Infinity;
+    const fi=items.filter(r=>r[0]>gapBottom&&r[0]<revTop);
+    if(!fi.length){fwdDone=true;fwdCursor=null;fwdCursorId=null;return;}
     const insertAt=gapFwdEnd;
     ALL.splice(insertAt,0,...fi);
     gapFwdEnd+=fi.length;      // fwd boundary advances
     oldestInsertIdx+=fi.length; // rev/oldest region shifts down
     addToCalCounts(fi);
     fwdCursor=d.has_more?d.next_cursor:null;
+    fwdCursorId=d.has_more?d.next_cursor_id:null;
     if(!fwdCursor) fwdDone=true;
     if(fwdDone&&revDone) allLoaded=true;
     rebuildAfterSplice(insertAt,fi.length);
@@ -1614,7 +1639,8 @@ async function loadRev(){
   if(gapLoading||revDone||revCursor==null) return;
   gapLoading=true;
   try{
-    const d=await(await fetch(`/api/feed?after=${revCursor}&limit=50`)).json();
+    const rid=revCursorId?`&after_id=${encodeURIComponent(revCursorId)}`:'';
+    const d=await(await fetch(`/api/feed?after=${revCursor}${rid}&limit=50`)).json();
     const items=d.items||[];
     if(!items.length){revDone=true;return;}
     // Only insert items strictly older than the end of the fwd region
@@ -1627,8 +1653,9 @@ async function loadRev(){
     // gapFwdEnd stays fixed — rev items live between gapFwdEnd and oldestInsertIdx
     oldestInsertIdx+=fi.length;
     addToCalCounts(fi);
-    // fi is newest-first; fi[0][0] is the newest timestamp in this batch → new upper bound
-    revCursor=fi[0][0];
+    // fi is newest-first; fi[fi.length-1] is the oldest item in this batch → new lower bound for next call
+    revCursor=fi[fi.length-1][0];
+    revCursorId=fi[fi.length-1][10];
     if(!d.has_more) revDone=true;
     if(fwdDone&&revDone) allLoaded=true;
     rebuildAfterSplice(insertAt,fi.length);
@@ -1639,19 +1666,13 @@ async function loadRev(){
 function checkGapLoad(visIdx){
   if(gapLoading||isFiltered||monthMode) return;
   if(fwdDone&&revDone) return;
-  // distFwd: how far visIdx is below the end of the forward region (positive = approaching from below)
-  const distFwd=gapFwdEnd-visIdx;
-  // distRev: how far visIdx is above the start of the oldest/rev region (positive = approaching from above)
-  const distRev=visIdx-oldestInsertIdx;
-  if(!fwdDone&&fwdCursor&&distFwd>=1&&distFwd<=GAP_NEAR){loadFwd();return;}
-  if(!revDone&&revCursor!=null){
-    // visIdx from getIndexFromScrollTop can be wildly overestimated when oldest
-    // region is bottom-anchored far from the sequential region — use physical
-    // proximity as a fallback trigger.
-    const sc=document.getElementById('feedScroll');
-    const physNear=oldestInsertIdx<ALL.length&&
-      Math.abs(sc.scrollTop-(pos[oldestInsertIdx]||0))<sc.clientHeight*3;
-    if((distRev>=0&&distRev<=GAP_NEAR)||physNear) loadRev();
+  const sc=document.getElementById('feedScroll');
+  const scrollBot=sc.scrollTop+sc.clientHeight;
+  const gapFwdPx=pos[gapFwdEnd]!=null?pos[gapFwdEnd]:gapFwdEnd*AVG_ITEM_H;
+  const gapRevPx=pos[oldestInsertIdx]!=null?pos[oldestInsertIdx]:oldestInsertIdx*AVG_ITEM_H;
+  if(!fwdDone&&fwdCursor&&scrollBot>=gapFwdPx&&scrollBot<=gapFwdPx+GAP_NEAR*AVG_ITEM_H){loadFwd();return;}
+  if(!revDone&&revCursor!=null&&oldestInsertIdx<ALL.length){
+    if(sc.scrollTop<=gapRevPx&&sc.scrollTop>=gapRevPx-GAP_NEAR*AVG_ITEM_H) loadRev();
   }
 }
 
@@ -1723,16 +1744,19 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
     fwdDone=true; revDone=true; allLoaded=true;
   } else {
     // Newest and oldest are distinct regions with a gap in between
-    const fwdTs=newestData.next_cursor; // oldest timestamp in fwd batch = gap upper boundary
+    const fwdTs=newestData.next_cursor;     // oldest timestamp in fwd batch = gap upper boundary
+    const fwdId=newestData.next_cursor_id;  // secondary id for compound cursor
     // Deduplicate: only keep oldest items strictly older than the fwd tail
     const uniqueOldest=fwdTs?oldestItems.filter(r=>r[0]<fwdTs):[];
     ALL.push(...newestItems,...uniqueOldest);
     gapFwdEnd=newestItems.length;
     oldestInsertIdx=newestItems.length;
     fwdCursor=fwdTs||null;
+    fwdCursorId=fwdId||null;
     fwdDone=!fwdCursor;
-    // revCursor starts at the newest item of the oldest batch; ?after=revCursor fills upward
-    revCursor=uniqueOldest.length?ALL[oldestInsertIdx][0]:null;
+    // revCursor starts at the OLDEST item of the oldest batch; ?after=revCursor fetches everything above it
+    revCursor=uniqueOldest.length?ALL[ALL.length-1][0]:null;
+    revCursorId=uniqueOldest.length?ALL[ALL.length-1][10]:null;
     revDone=!uniqueOldest.length||(oldestItems.length<PG);
     if(fwdDone&&revDone) allLoaded=true;
   }

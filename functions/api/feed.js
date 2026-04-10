@@ -181,8 +181,11 @@ export async function onRequestGet({ request, env }) {
   const wantMonth = url.searchParams.get('month');
   if (wantMonth && /^\d{4}-\d{2}$/.test(wantMonth)) {
     const [yr, mo] = wantMonth.split('-').map(Number);
-    const tsStart = Math.floor(Date.UTC(yr, mo - 1, 1) / 1000);
-    const tsEnd   = Math.floor(Date.UTC(yr, mo,     1) / 1000);
+    // Pad ±1 day (86 400 s) so check-ins near a UTC month boundary that fall in a
+    // different local month are still returned.  The client filters to local month.
+    const PAD = 86400;
+    const tsStart = Math.floor(Date.UTC(yr, mo - 1, 1) / 1000) - PAD;
+    const tsEnd   = Math.floor(Date.UTC(yr, mo,     1) / 1000) + PAD;
     const dataRes = await env.DB.prepare(
       'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
       'FROM checkins WHERE date >= ?1 AND date < ?2 ORDER BY date DESC'
@@ -217,11 +220,18 @@ export async function onRequestGet({ request, env }) {
   if (wantAfter !== null) {
     const ts = parseInt(wantAfter, 10);
     if (isNaN(ts)) return jsonResp({ error: 'Invalid timestamp' }, 400);
+    const afterId = url.searchParams.get('after_id') || null;
     const lim = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+    // Compound cursor: items newer than (ts, afterId) to handle duplicate timestamps
+    const whereClause = afterId
+      ? 'WHERE (date > ?1 OR (date = ?1 AND id > ?2))'
+      : 'WHERE date > ?1';
+    const bindArgs = afterId ? [ts, afterId, lim + 1] : [ts, lim + 1];
+    const limitIdx = afterId ? '?3' : '?2';
     const dataRes = await env.DB.prepare(
       'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
-      'FROM checkins WHERE date > ?1 ORDER BY date ASC LIMIT ?2'
-    ).bind(ts, lim + 1).all();
+      `FROM checkins ${whereClause} ORDER BY date ASC, id ASC LIMIT ${limitIdx}`
+    ).bind(...bindArgs).all();
     const rows = dataRes.results || [];
     const has_more = rows.length > lim;
     const trimmed = has_more ? rows.slice(0, lim) : rows;
@@ -233,22 +243,30 @@ export async function onRequestGet({ request, env }) {
   // 5. Cursor‑based infinite scroll (default)
   // --------------------------------------------------------------
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
-  const cursor = url.searchParams.get('cursor'); // Unix timestamp integer
+  const cursor   = url.searchParams.get('cursor');    // Unix timestamp integer
+  const cursorId = url.searchParams.get('cursor_id'); // secondary id for compound cursor
 
-  let query = `
-    SELECT date, venue, city, country, category, venue_id, lat, lng, id
-    FROM checkins
-  `;
   const params = [];
-  let bindIndex = 1; // <-- Start dynamic index at 1
+  let bindIndex = 1;
+  let whereClause = '';
 
-  if (cursor && !isNaN(parseInt(cursor, 10))) {
-    query += ` WHERE date < ?${bindIndex++}`; // Uses ?1, then increments to 2
-    params.push(parseInt(cursor, 10));
+  const cursorTs = cursor ? parseInt(cursor, 10) : NaN;
+  if (!isNaN(cursorTs)) {
+    if (cursorId) {
+      // Compound cursor: items strictly older than (cursorTs, cursorId)
+      whereClause = ` WHERE (date < ?${bindIndex} OR (date = ?${bindIndex} AND id < ?${bindIndex + 1}))`;
+      params.push(cursorTs, cursorId);
+      bindIndex += 2;
+    } else {
+      whereClause = ` WHERE date < ?${bindIndex++}`;
+      params.push(cursorTs);
+    }
   }
 
-  // Uses ?1 (if no cursor) or ?2 (if cursor existed)
-  query += ` ORDER BY date DESC LIMIT ?${bindIndex}`; 
+  const query = `
+    SELECT date, venue, city, country, category, venue_id, lat, lng, id
+    FROM checkins${whereClause}
+    ORDER BY date DESC, id DESC LIMIT ?${bindIndex}`;
   params.push(limit + 1); // fetch one extra to detect has_more
 
   const dataRes = await env.DB.prepare(query).bind(...params).all();
@@ -261,7 +279,9 @@ export async function onRequestGet({ request, env }) {
     items = rows.slice(0, limit);
   }
 
-  const next_cursor = has_more ? items[items.length - 1].date : null;
+  const lastItem = items[items.length - 1];
+  const next_cursor    = has_more ? lastItem.date : null;
+  const next_cursor_id = has_more ? lastItem.id   : null;
   const tzCache = {};
   const mappedItems = mapRows(items, tzCache);
 
@@ -269,6 +289,7 @@ export async function onRequestGet({ request, env }) {
     items: mappedItems,
     has_more,
     next_cursor,
+    next_cursor_id,
   });
 }
 
