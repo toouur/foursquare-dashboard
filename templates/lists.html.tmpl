@@ -153,7 +153,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .vsearch-result-body{flex:1;min-width:0;}
 .vsearch-result-name{font-size:.80rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .vsearch-result-meta{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.vsearch-result-rating{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--gold);white-space:nowrap;flex-shrink:0;}
 .vsearch-add-btn{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.06em;padding:4px 9px;background:transparent;border:1px solid rgba(78,201,176,.5);border-radius:5px;color:var(--teal);cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0;}
 .vsearch-add-btn:hover{background:rgba(78,201,176,.1);border-color:var(--teal);}
 .vsearch-add-btn:disabled{opacity:.4;cursor:default;}
@@ -623,15 +622,11 @@ async function _vsearch(q, lat, lng) {
     const loc = v.location || {};
     const cityPart = loc.locality || loc.city || '';
     const metaParts = [c0 ? c0.name : '', [cityPart, loc.country||''].filter(Boolean).join(', ')].filter(Boolean);
-    const ratingHtml = v.rating ? `<span class="vsearch-result-rating">\u2605\u202f${(+v.rating).toFixed(1)}</span>` : '';
-    const popHtml = v.stats && v.stats.total_checkins && v.stats.total_checkins >= 1000
-      ? `<span style="font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);flex-shrink:0">${Math.round(v.stats.total_checkins/1000)}k</span>` : '';
     return `<div class="vsearch-result">
       <div class="vsearch-result-body">
         <div class="vsearch-result-name">${esc(v.name||'')}</div>
         ${metaParts.length?`<div class="vsearch-result-meta">${esc(metaParts.join(' \u00b7 '))}</div>`:''}
       </div>
-      ${ratingHtml}${popHtml}
       <button class="vsearch-add-btn" data-vi="${i}" onclick="_addCustomVenue(${i})">+ Add</button>
     </div>`;
   }).join('');

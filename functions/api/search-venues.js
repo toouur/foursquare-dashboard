@@ -33,7 +33,7 @@ export async function onRequestGet({ request, env }) {
 
   const params = new URLSearchParams({
     limit: '12',
-    fields: 'fsq_place_id,name,latitude,longitude,location,categories,rating,stats',
+    fields: 'fsq_place_id,name,latitude,longitude,location,categories',
   });
   if (query) params.set('query', query);
   if (ll)    params.set('ll', ll);
@@ -60,8 +60,6 @@ export async function onRequestGet({ request, env }) {
     geocodes: { main: { latitude: p.latitude, longitude: p.longitude } },
     location: p.location || {},
     categories: p.categories || [],
-    rating:   p.rating ?? null,
-    stats:    p.stats ?? null,
   }));
   return new Response(JSON.stringify({ results }), { headers: HEADERS });
 }
