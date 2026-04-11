@@ -145,6 +145,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .avb-near-btn{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;background:var(--card2);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
 .avb-near-btn:hover,.avb-near-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(78,201,176,.08);}
 .avb-search-btn{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.06em;padding:6px 12px;background:var(--teal);border:1px solid var(--teal);border-radius:6px;color:#0d1117;cursor:pointer;transition:all .15s;width:100%;}
+.avb-cat-hint{font-size:.65rem;color:var(--muted);padding:2px 2px 4px;line-height:1.4;}
 .avb-select{flex:1;min-width:0;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:.65rem;font-family:'DM Mono',monospace;outline:none;cursor:pointer;}
 .avb-select:focus{border-color:var(--teal);}
 #vsearchResults{flex:1;overflow-y:auto;padding:4px 10px 12px;display:flex;flex-direction:column;gap:4px;}
@@ -236,7 +237,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
               <button class="avb-search-btn" id="avbSearchBtn" onclick="_vsearchManual()">&#x1F50D; Search</button>
             </div>
             <div class="avb-row">
-              <select class="avb-select" id="vsCatSelect" onchange="_vsearchIfActive()">
+              <select class="avb-select" id="vsCatSelect" onchange="_vsearchIfActive();document.getElementById('vsCatHint').style.display=this.value?'block':'none';">
                 <option value="">All categories</option>
                 <optgroup label="☕ Dining &amp; Drinking">
                   <option value="13000">All Dining &amp; Drinking</option>
@@ -468,6 +469,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
                 <option value="DISTANCE">Nearest</option>
               </select>
             </div>
+          <div id="vsCatHint" style="display:none;" class="avb-cat-hint">Results filtered by category name after search. Add a venue name above for best results.</div>
           </div>
           <div id="vsearchResults"></div>
         </div>
@@ -868,7 +870,10 @@ async function _vsearchFetch(q, lat, lng, cursor, append) {
   const catLabel = (catSel && catSel.value)
     ? catSel.options[catSel.selectedIndex].text.trim().toLowerCase()
     : '';
-  const effectiveQ = q || (catLabel ? catSel.options[catSel.selectedIndex].text.trim() : '');
+  // When text + category are both present, combine them so FSQ ranks both signals.
+  // When only category is selected, use its label as the sole text query.
+  const catText = catLabel ? catSel.options[catSel.selectedIndex].text.trim() : '';
+  const effectiveQ = q && catText ? q + ' ' + catText : (q || catText);
 
   // For non-cursor fetch, check cache (cursor pages are not cached)
   if (!cursor) {
