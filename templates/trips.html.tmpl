@@ -467,15 +467,20 @@ function showTrip(id){
     activeMap = L.map('detailMap',{preferCanvas:true});
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
       {attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(activeMap);
-    const coords = t.coords.filter(c=>c[0]&&c[1]);
+    const coords = t.checkins.filter(c=>c.lat&&c.lng).map(c=>[c.lat,c.lng]);
     if(coords.length){
       const heat = L.heatLayer(coords,{radius:14,blur:16,maxZoom:18,
         gradient:{'0.0':'#000033','0.25':'#0a3d6b','0.5':'#e8b86d','0.75':'#ff7700','1.0':'#ff1100'}}).addTo(activeMap);
       const lats=coords.map(c=>c[0]), lngs=coords.map(c=>c[1]);
       activeMap.fitBounds([[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]],{padding:[20,20]});
     }
-    // ── Unique venue dots ─────────────────────────────────────────────────────
-    const uPts=(t.unique_pts||[]).filter(p=>p[0]&&p[1]);
+    // ── Unique venue dots (reconstructed from checkins) ───────────────────────
+    const _seen=new Set();
+    const uPts=[];
+    t.checkins.forEach(c=>{
+      const key=c.venue_id||(c.lat+'_'+c.lng);
+      if(c.lat&&c.lng&&!_seen.has(key)){_seen.add(key);uPts.push([c.lat,c.lng,c.venue||'']);}
+    });
     if(uPts.length){
       const uGroup=L.layerGroup();
       uPts.forEach(p=>{

@@ -605,8 +605,6 @@ def detect_trips(
                 "checkin_count":  len(trip_rows),
                 "unique_places":  len(seen_v),
                 "checkins":       checkins,
-                "coords":         [[c["lat"], c["lng"]] for c in checkins if c["lat"] and c["lng"]],
-                "unique_pts":     unique_pts,
                 "top_cats":       [[c, n] for c, n in trip_cats.most_common(10)],
                 "tags":           _resolved_tags if _resolved_tags else (trip_tags or {}).get(int(trip_rows[0]["date"]), []),
             }
