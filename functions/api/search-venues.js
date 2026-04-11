@@ -17,8 +17,12 @@ const HEADERS = { 'Content-Type': 'application/json' };
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const query = (url.searchParams.get('q') || '').trim();
+  const ll    = url.searchParams.get('ll') || '';
+  const cat   = url.searchParams.get('cat') || '';
+  const sort  = url.searchParams.get('sort') || '';
 
-  if (query.length < 2) {
+  // Require either a text query (≥2 chars) or a location for nearby search
+  if (query.length < 2 && !ll) {
     return new Response(JSON.stringify({ results: [] }), { headers: HEADERS });
   }
 
@@ -28,17 +32,18 @@ export async function onRequestGet({ request, env }) {
   }
 
   const params = new URLSearchParams({
-    query,
-    limit: '8',
-    fields: 'fsq_id,name,geocodes,location,categories',
+    limit: '12',
+    fields: 'fsq_place_id,name,latitude,longitude,location,categories,rating,stats',
   });
-  const ll = url.searchParams.get('ll');
-  if (ll) params.set('ll', ll);
+  if (query) params.set('query', query);
+  if (ll)    params.set('ll', ll);
+  if (cat)   params.set('categories', cat);
+  if (sort)  params.set('sort', sort);
 
-  const resp = await fetch(`https://api.foursquare.com/v3/places/search?${params}`, {
+  const resp = await fetch(`https://places-api.foursquare.com/places/search?${params}`, {
     headers: {
-      'Authorization': apiKey,
-      'X-Places-Api-Version': '1970-01-01',
+      'Authorization': `Bearer ${apiKey}`,
+      'X-Places-Api-Version': '2025-06-17',
     },
   });
 
@@ -48,7 +53,17 @@ export async function onRequestGet({ request, env }) {
   }
 
   const data = await resp.json();
-  return new Response(JSON.stringify(data), { headers: HEADERS });
+  // Normalise new API shape to what the frontend expects
+  const results = (data.results || []).map(p => ({
+    fsq_id:   p.fsq_place_id,
+    name:     p.name,
+    geocodes: { main: { latitude: p.latitude, longitude: p.longitude } },
+    location: p.location || {},
+    categories: p.categories || [],
+    rating:   p.rating ?? null,
+    stats:    p.stats ?? null,
+  }));
+  return new Response(JSON.stringify({ results }), { headers: HEADERS });
 }
 
 export async function onRequestOptions() {

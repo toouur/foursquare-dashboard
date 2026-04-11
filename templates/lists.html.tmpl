@@ -131,15 +131,29 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .vc-date{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);white-space:nowrap;margin-left:auto;flex-shrink:0;}
 .vc-dist{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--teal);white-space:nowrap;flex-shrink:0;margin-left:auto;}
 
-/* ── Add-venue bar ── */
-#addVenueBar{padding:8px 10px;border-bottom:1px solid var(--border);background:var(--card2);flex-shrink:0;}
-.venue-srch-input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-size:.75rem;outline:none;font-family:'DM Sans',sans-serif;}
+/* ── Add-venue panel (fixed bottom sheet) ── */
+#addVenueBar{position:fixed;bottom:0;left:0;right:0;z-index:600;max-height:62vh;background:var(--card);border-top:2px solid rgba(78,201,176,.4);border-radius:14px 14px 0 0;box-shadow:0 -8px 32px rgba(0,0,0,.6);display:flex;flex-direction:column;overflow:hidden;}
+@media(min-width:700px){#addVenueBar{left:300px;right:54px;}}
+.avb-header{display:flex;align-items:center;padding:9px 14px 7px;border-bottom:1px solid var(--border);flex-shrink:0;gap:8px;}
+.avb-title{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--teal);flex:1;}
+.avb-close-btn{font-size:.78rem;background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--muted);cursor:pointer;padding:2px 8px;line-height:1.5;transition:all .15s;}
+.avb-close-btn:hover{border-color:#ef4444;color:#ef4444;}
+.avb-controls{padding:8px 10px 4px;flex-shrink:0;}
+.avb-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.venue-srch-input{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-size:.75rem;outline:none;font-family:'DM Sans',sans-serif;}
 .venue-srch-input:focus{border-color:var(--teal);}
-#vsearchResults{margin-top:6px;display:flex;flex-direction:column;gap:4px;max-height:190px;overflow-y:auto;}
-.vsearch-result{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--card);border:1px solid var(--border);border-radius:7px;}
+.avb-near-btn{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;background:var(--card2);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
+.avb-near-btn:hover,.avb-near-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(78,201,176,.08);}
+.avb-select{flex:1;min-width:0;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:.65rem;font-family:'DM Mono',monospace;outline:none;cursor:pointer;}
+.avb-select:focus{border-color:var(--teal);}
+#vsearchResults{flex:1;overflow-y:auto;padding:4px 10px 12px;display:flex;flex-direction:column;gap:4px;}
+#vsearchResults::-webkit-scrollbar{width:3px;}
+#vsearchResults::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
+.vsearch-result{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--card2);border:1px solid var(--border);border-radius:8px;}
 .vsearch-result-body{flex:1;min-width:0;}
-.vsearch-result-name{font-size:.78rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.vsearch-result-meta{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vsearch-result-name{font-size:.80rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vsearch-result-meta{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vsearch-result-rating{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--gold);white-space:nowrap;flex-shrink:0;}
 .vsearch-add-btn{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.06em;padding:4px 9px;background:transparent;border:1px solid rgba(78,201,176,.5);border-radius:5px;color:var(--teal);cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0;}
 .vsearch-add-btn:hover{background:rgba(78,201,176,.1);border-color:var(--teal);}
 .vsearch-add-btn:disabled{opacity:.4;cursor:default;}
@@ -206,7 +220,35 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
           <span id="locateStatus"></span>
         </div>
         <div id="addVenueBar" style="display:none;">
-          <input class="venue-srch-input" id="venueSearchInput" type="text" placeholder="Search Foursquare for a venue to add…" autocomplete="off" spellcheck="false">
+          <div class="avb-header">
+            <span class="avb-title">Add Venue to List</span>
+            <button class="avb-close-btn" onclick="toggleAddBar()">&#x2715;</button>
+          </div>
+          <div class="avb-controls">
+            <div class="avb-row">
+              <input class="venue-srch-input" id="venueSearchInput" type="text" placeholder="Type to search venues…" autocomplete="off" spellcheck="false">
+              <button class="avb-near-btn" id="avbNearBtn" onclick="_vsearchNearby()">&#x1F4CD; Nearby</button>
+            </div>
+            <div class="avb-row">
+              <select class="avb-select" id="vsCatSelect" onchange="_vsearchIfActive()">
+                <option value="">All categories</option>
+                <option value="13032">&#x2615; Coffee &amp; Tea</option>
+                <option value="13065,13035,13009">&#x1F37D; Restaurants</option>
+                <option value="13003,13023,13061">&#x1F37A; Bars &amp; Drinks</option>
+                <option value="17000">&#x1F6CD; Shopping</option>
+                <option value="10000">&#x1F3AD; Arts &amp; Culture</option>
+                <option value="16000">&#x1F333; Outdoors</option>
+                <option value="19000">&#x2708; Travel</option>
+                <option value="18000">&#x1F3C3; Sports &amp; Fitness</option>
+              </select>
+              <select class="avb-select" id="vsSortSelect" onchange="_vsearchIfActive()">
+                <option value="RELEVANCE">Relevance</option>
+                <option value="RATING">Top Rated</option>
+                <option value="POPULARITY">Most Popular</option>
+                <option value="DISTANCE">Nearest</option>
+              </select>
+            </div>
+          </div>
           <div id="vsearchResults"></div>
         </div>
         <div id="map" style="display:none;"></div>
@@ -456,43 +498,116 @@ let _customListId = null;
 let _addBarOpen = false;
 let _vsearchTimer = null;
 let _vsearchVenues = [];
+let _vsearchMode = ''; // '' = text, 'nearby' = geo mode
 
 function toggleAddBar() {
   _addBarOpen = !_addBarOpen;
-  document.getElementById('addVenueBar').style.display = _addBarOpen ? 'block' : 'none';
+  const bar = document.getElementById('addVenueBar');
+  bar.style.display = _addBarOpen ? 'flex' : 'none';
   const btn = document.getElementById('addVenueToggle');
   if (btn) btn.classList.toggle('active', _addBarOpen);
-  if (_addBarOpen) setTimeout(() => document.getElementById('venueSearchInput').focus(), 50);
+  if (_addBarOpen) {
+    setTimeout(() => document.getElementById('venueSearchInput').focus(), 50);
+  } else {
+    document.getElementById('vsearchResults').innerHTML = '';
+    document.getElementById('venueSearchInput').value = '';
+    _vsearchMode = '';
+    const nb = document.getElementById('avbNearBtn');
+    if (nb) { nb.textContent = '\u{1F4CD} Nearby'; nb.classList.remove('active'); }
+  }
 }
 
 document.getElementById('venueSearchInput').addEventListener('input', function() {
   clearTimeout(_vsearchTimer);
+  _vsearchMode = '';
+  const nb = document.getElementById('avbNearBtn');
+  if (nb) nb.classList.remove('active');
   const q = this.value.trim();
-  if (q.length < 2) { document.getElementById('vsearchResults').innerHTML = ''; return; }
+  if (!q) { document.getElementById('vsearchResults').innerHTML = ''; return; }
   _vsearchTimer = setTimeout(() => _vsearch(q), 380);
 });
 
-async function _vsearch(q) {
+function _vsearchIfActive() {
+  clearTimeout(_vsearchTimer);
+  if (_vsearchMode === 'nearby') {
+    _vsearchTimer = setTimeout(() => _vsearch('', userLat, userLng), 200);
+  } else {
+    const q = (document.getElementById('venueSearchInput').value || '').trim();
+    if (q.length >= 2) _vsearchTimer = setTimeout(() => _vsearch(q), 200);
+  }
+}
+
+function _vsearchNearby() {
+  const nb = document.getElementById('avbNearBtn');
+  if (userLat !== null) {
+    _vsearchMode = 'nearby';
+    if (nb) nb.classList.add('active');
+    _vsearch('', userLat, userLng);
+    return;
+  }
+  if (!navigator.geolocation) {
+    document.getElementById('vsearchResults').innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">Geolocation not supported</div>';
+    return;
+  }
+  if (nb) nb.textContent = '\u23F3 Locating\u2026';
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+    const locBtn = document.getElementById('locateBtn');
+    if (locBtn) locBtn.classList.add('located');
+    document.getElementById('locateStatus').textContent = 'Located \u2713';
+    if (map) {
+      if (userMarker) map.removeLayer(userMarker);
+      const icon = L.divIcon({html:'<div class="geo-dot"></div><div class="geo-ring"></div>',className:'geo-marker',iconSize:[20,20],iconAnchor:[10,10]});
+      userMarker = L.marker([userLat, userLng], {icon}).addTo(map);
+      userMarker.bindPopup('<b>You are here</b>');
+    }
+    if (nb) { nb.textContent = '\u{1F4CD} Nearby'; nb.classList.add('active'); }
+    _vsearchMode = 'nearby';
+    _vsearch('', userLat, userLng);
+  }, function(e) {
+    if (nb) nb.textContent = '\u{1F4CD} Nearby';
+    document.getElementById('vsearchResults').innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">' + (e.code===1?'Location permission denied':'Location unavailable') + '</div>';
+  }, {enableHighAccuracy:true, timeout:10000});
+}
+
+async function _vsearch(q, lat, lng) {
   const el = document.getElementById('vsearchResults');
-  el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:4px 2px">Searching…</div>';
+  el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">Searching\u2026</div>';
+  const catSel = document.getElementById('vsCatSelect');
+  const sortSel = document.getElementById('vsSortSelect');
+  const cat = catSel ? catSel.value : '';
+  const sort = sortSel ? sortSel.value : 'RELEVANCE';
+  const ll = lat != null && lng != null
+    ? lat + ',' + lng
+    : (sort === 'DISTANCE' && userLat != null ? userLat + ',' + userLng : null);
   try {
-    const res = await fetch('/api/search-venues?q=' + encodeURIComponent(q));
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (ll) p.set('ll', ll);
+    if (cat) p.set('cat', cat);
+    if (sort && sort !== 'RELEVANCE') p.set('sort', sort);
+    const res = await fetch('/api/search-venues?' + p.toString());
     const data = await res.json();
     _vsearchVenues = data.results || [];
   } catch { _vsearchVenues = []; }
   if (!_vsearchVenues.length) {
-    el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:4px 2px">No results</div>';
+    el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">No results</div>';
     return;
   }
   el.innerHTML = _vsearchVenues.map((v, i) => {
-    const cat = (v.categories || [])[0];
+    const c0 = (v.categories || [])[0];
     const loc = v.location || {};
-    const meta = [cat ? cat.name : '', loc.locality || loc.city || '', loc.country || ''].filter(Boolean).join(' · ');
+    const cityPart = loc.locality || loc.city || '';
+    const metaParts = [c0 ? c0.name : '', [cityPart, loc.country||''].filter(Boolean).join(', ')].filter(Boolean);
+    const ratingHtml = v.rating ? `<span class="vsearch-result-rating">\u2605\u202f${(+v.rating).toFixed(1)}</span>` : '';
+    const popHtml = v.stats && v.stats.total_checkins && v.stats.total_checkins >= 1000
+      ? `<span style="font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);flex-shrink:0">${Math.round(v.stats.total_checkins/1000)}k</span>` : '';
     return `<div class="vsearch-result">
       <div class="vsearch-result-body">
-        <div class="vsearch-result-name">${esc(v.name || '')}</div>
-        ${meta ? `<div class="vsearch-result-meta">${esc(meta)}</div>` : ''}
+        <div class="vsearch-result-name">${esc(v.name||'')}</div>
+        ${metaParts.length?`<div class="vsearch-result-meta">${esc(metaParts.join(' \u00b7 '))}</div>`:''}
       </div>
+      ${ratingHtml}${popHtml}
       <button class="vsearch-add-btn" data-vi="${i}" onclick="_addCustomVenue(${i})">+ Add</button>
     </div>`;
   }).join('');
@@ -503,7 +618,7 @@ async function _addCustomVenue(vi) {
   const v = _vsearchVenues[vi];
   if (!v) return;
   const btn = document.querySelector(`.vsearch-add-btn[data-vi="${vi}"]`);
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  if (btn) { btn.disabled = true; btn.textContent = '\u2026'; }
   const geo = (v.geocodes || {}).main || {};
   const loc = v.location || {};
   const cat = (v.categories || [])[0];
@@ -521,7 +636,7 @@ async function _addCustomVenue(vi) {
     })
   });
   if (resp.ok) {
-    if (btn) btn.textContent = '✓';
+    if (btn) btn.textContent = '\u2713';
     _loadCustomVenues(_customListId);
   } else {
     if (btn) { btn.disabled = false; btn.textContent = '+ Add'; }
@@ -551,7 +666,7 @@ function _renderCustomVenues(customs) {
   const frag = document.createDocumentFragment();
   customs.forEach(v => {
     const { em, bg } = catIcon(v.category || '');
-    const addrHtml = v.address ? `<span class="vc-sep">·</span><span class="vc-loc"><span class="vc-loc-text">${esc(v.address)}</span></span>` : '';
+    const addrHtml = v.address ? `<span class="vc-sep">\u00b7</span><span class="vc-loc"><span class="vc-loc-text">${esc(v.address)}</span></span>` : '';
     const div = document.createElement('div');
     div.className = 'vcard vc-custom vc-custom-card';
     div.innerHTML = `<div class="vc-head">
