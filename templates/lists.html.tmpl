@@ -144,6 +144,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .venue-srch-input:focus{border-color:var(--teal);}
 .avb-near-btn{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.06em;padding:6px 10px;background:var(--card2);border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0;}
 .avb-near-btn:hover,.avb-near-btn.active{border-color:var(--teal);color:var(--teal);background:rgba(78,201,176,.08);}
+.avb-search-btn{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.06em;padding:6px 12px;background:var(--teal);border:1px solid var(--teal);border-radius:6px;color:#0d1117;cursor:pointer;transition:all .15s;width:100%;}
 .avb-select{flex:1;min-width:0;background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:.65rem;font-family:'DM Mono',monospace;outline:none;cursor:pointer;}
 .avb-select:focus{border-color:var(--teal);}
 #vsearchResults{flex:1;overflow-y:auto;padding:4px 10px 12px;display:flex;flex-direction:column;gap:4px;}
@@ -230,6 +231,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
             </div>
             <div class="avb-row">
               <input class="venue-srch-input" id="vsCityInput" type="text" placeholder="City / country (optional)" autocomplete="off" spellcheck="false" style="flex:1;">
+            </div>
+            <div class="avb-row">
+              <button class="avb-search-btn" id="avbSearchBtn" onclick="_vsearchManual()">&#x1F50D; Search</button>
             </div>
             <div class="avb-row">
               <select class="avb-select" id="vsCatSelect" onchange="_vsearchIfActive()">
@@ -780,6 +784,19 @@ document.getElementById('vsCityInput').addEventListener('input', function() {
   }
 });
 
+function _vsearchManual() {
+  clearTimeout(_vsearchTimer);
+  if (_vsearchMode === 'nearby' && userLat !== null) {
+    _vsearch('', userLat, userLng);
+  } else {
+    const q = (document.getElementById('venueSearchInput').value || '').trim();
+    _vsearchMode = '';
+    const nb = document.getElementById('avbNearBtn');
+    if (nb) nb.classList.remove('active');
+    _vsearch(q);
+  }
+}
+
 function _vsearchIfActive() {
   clearTimeout(_vsearchTimer);
   if (_vsearchMode === 'nearby') {
@@ -877,8 +894,19 @@ async function _vsearchFetch(q, lat, lng, cursor, append) {
     if (cursor) p.set('cursor', cursor);
     const res = await fetch('/api/search-venues?' + p.toString(), { signal: _vsearchAbort.signal });
     const data = await res.json();
-    const newVenues = data.results || [];
-    _vsearchCursor = data.nextCursor || null;
+    // Client-side category filter: FSQ v3 numeric IDs are not applied server-side;
+    // filter by matching the selected option label against returned category names.
+    const catLabel = (catSel && catSel.value)
+      ? catSel.options[catSel.selectedIndex].text.trim().toLowerCase()
+      : '';
+    const raw = data.results || [];
+    const newVenues = catLabel
+      ? raw.filter(v => (v.categories || []).some(c => {
+          const n = (c.name || '').toLowerCase();
+          return n === catLabel || n.includes(catLabel) || catLabel.includes(n);
+        }))
+      : raw;
+    _vsearchCursor = catLabel ? null : (data.nextCursor || null);
     if (append) {
       const offset = _vsearchVenues.length;
       _vsearchVenues = _vsearchVenues.concat(newVenues);
