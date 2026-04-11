@@ -229,20 +229,237 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
               <button class="avb-near-btn" id="avbNearBtn" onclick="_vsearchNearby()">&#x1F4CD; Nearby</button>
             </div>
             <div class="avb-row">
+              <input class="venue-srch-input" id="vsCityInput" type="text" placeholder="City / country (optional)" autocomplete="off" spellcheck="false" style="flex:1;">
+            </div>
+            <div class="avb-row">
               <select class="avb-select" id="vsCatSelect" onchange="_vsearchIfActive()">
                 <option value="">All categories</option>
-                <option value="13032">&#x2615; Coffee &amp; Tea</option>
-                <option value="13065,13035,13009">&#x1F37D; Restaurants</option>
-                <option value="13003,13023,13061">&#x1F37A; Bars &amp; Drinks</option>
-                <option value="17000">&#x1F6CD; Shopping</option>
-                <option value="10000">&#x1F3AD; Arts &amp; Culture</option>
-                <option value="16000">&#x1F333; Outdoors</option>
-                <option value="19000">&#x2708; Travel</option>
-                <option value="18000">&#x1F3C3; Sports &amp; Fitness</option>
+                <optgroup label="☕ Dining &amp; Drinking">
+                  <option value="13000">All Dining &amp; Drinking</option>
+                  <option value="13032">Cafe, Coffee &amp; Tea</option>
+                  <option value="13035">Coffee Shop</option>
+                  <option value="13036">Tea Room</option>
+                  <option value="13065">Restaurant (all)</option>
+                  <option value="13068">American Restaurant</option>
+                  <option value="13099">Chinese Restaurant</option>
+                  <option value="13148">French Restaurant</option>
+                  <option value="13165">German Restaurant</option>
+                  <option value="13177">Greek Restaurant</option>
+                  <option value="13199">Indian Restaurant</option>
+                  <option value="13263">Japanese Restaurant</option>
+                  <option value="13289">Korean Restaurant</option>
+                  <option value="13236">Italian Restaurant</option>
+                  <option value="13297">Latin American Restaurant</option>
+                  <option value="13302">Mediterranean Restaurant</option>
+                  <option value="13303">Mexican Restaurant</option>
+                  <option value="13309">Middle Eastern Restaurant</option>
+                  <option value="13338">Seafood Restaurant</option>
+                  <option value="13345">Spanish Restaurant</option>
+                  <option value="13352">Thai Restaurant</option>
+                  <option value="13356">Turkish Restaurant</option>
+                  <option value="13379">Vietnamese Restaurant</option>
+                  <option value="13377">Vegan &amp; Vegetarian</option>
+                  <option value="13145">Fast Food</option>
+                  <option value="13064">Pizzeria</option>
+                  <option value="13276">Sushi</option>
+                  <option value="13272">Ramen</option>
+                  <option value="13383">Steakhouse</option>
+                  <option value="13026">BBQ</option>
+                  <option value="13031">Burger Joint</option>
+                  <option value="13003">Bar (all)</option>
+                  <option value="13007">Beer Garden</option>
+                  <option value="13006">Beer Bar</option>
+                  <option value="13009">Cocktail Bar</option>
+                  <option value="13016">Lounge</option>
+                  <option value="13018">Pub</option>
+                  <option value="13019">Rooftop Bar</option>
+                  <option value="13025">Wine Bar</option>
+                  <option value="13022">Sports Bar</option>
+                  <option value="13389">Irish Pub</option>
+                  <option value="13029">Brewery</option>
+                  <option value="13387">Winery</option>
+                  <option value="13050">Distillery</option>
+                  <option value="13002">Bakery</option>
+                  <option value="13001">Bagel Shop</option>
+                  <option value="13028">Breakfast Spot</option>
+                  <option value="13043">Donut Shop</option>
+                  <option value="13040">Dessert Shop</option>
+                  <option value="13046">Ice Cream Parlor</option>
+                  <option value="13059">Juice Bar</option>
+                  <option value="13381">Smoothie Shop</option>
+                  <option value="13054">Food Truck</option>
+                  <option value="13053">Food Stand</option>
+                  <option value="13052">Food Court</option>
+                  <option value="13062">Night Market</option>
+                </optgroup>
+                <optgroup label="🎭 Arts &amp; Entertainment">
+                  <option value="10000">All Arts &amp; Entertainment</option>
+                  <option value="10004">Art Gallery</option>
+                  <option value="10027">Museum</option>
+                  <option value="10028">Art Museum</option>
+                  <option value="10030">History Museum</option>
+                  <option value="10031">Science Museum</option>
+                  <option value="10044">Planetarium</option>
+                  <option value="10035">Performing Arts Venue</option>
+                  <option value="10037">Concert Hall</option>
+                  <option value="10039">Music Venue</option>
+                  <option value="10043">Theater</option>
+                  <option value="10042">Opera House</option>
+                  <option value="10024">Movie Theater</option>
+                  <option value="10032">Night Club</option>
+                  <option value="10010">Comedy Club</option>
+                  <option value="10021">Karaoke Box</option>
+                  <option value="10001">Amusement Park</option>
+                  <option value="10055">Water Park</option>
+                  <option value="10006">Bowling Alley</option>
+                  <option value="10045">Pool Hall</option>
+                  <option value="10003">Arcade</option>
+                  <option value="10015">Escape Room</option>
+                  <option value="10054">VR Cafe</option>
+                  <option value="10008">Casino</option>
+                  <option value="10051">Stadium</option>
+                  <option value="10002">Aquarium</option>
+                  <option value="10056">Zoo</option>
+                  <option value="10047">Public Art</option>
+                </optgroup>
+                <optgroup label="🌿 Landmarks &amp; Outdoors">
+                  <option value="16000">All Landmarks &amp; Outdoors</option>
+                  <option value="16032">Park</option>
+                  <option value="16039">Urban Park</option>
+                  <option value="16034">National Park</option>
+                  <option value="16035">Natural Park</option>
+                  <option value="16003">Beach</option>
+                  <option value="16017">Garden</option>
+                  <option value="16005">Botanical Garden</option>
+                  <option value="16019">Hiking Trail</option>
+                  <option value="16004">Bike Trail</option>
+                  <option value="16020">Historic Site</option>
+                  <option value="16026">Monument</option>
+                  <option value="16025">Memorial Site</option>
+                  <option value="16011">Castle</option>
+                  <option value="16031">Palace</option>
+                  <option value="16046">Scenic Lookout</option>
+                  <option value="16053">Waterfront</option>
+                  <option value="16018">Harbor or Marina</option>
+                  <option value="16027">Mountain</option>
+                  <option value="16023">Lake</option>
+                  <option value="16043">River</option>
+                  <option value="16052">Waterfall</option>
+                  <option value="16015">Forest</option>
+                  <option value="16028">Nature Preserve</option>
+                  <option value="16008">Campground</option>
+                  <option value="16006">Bridge</option>
+                </optgroup>
+                <optgroup label="🛍️ Retail">
+                  <option value="17000">All Retail</option>
+                  <option value="17114">Shopping Mall</option>
+                  <option value="17115">Shopping Plaza</option>
+                  <option value="17069">Grocery Store</option>
+                  <option value="17142">Supermarket</option>
+                  <option value="17065">Farmers Market</option>
+                  <option value="17144">Market</option>
+                  <option value="17057">Food &amp; Beverage Retail</option>
+                  <option value="17039">Fashion (all)</option>
+                  <option value="17043">Clothing Store</option>
+                  <option value="17048">Shoe Store</option>
+                  <option value="17045">Jewelry Store</option>
+                  <option value="17023">Electronics Store</option>
+                  <option value="17018">Bookstore</option>
+                  <option value="17030">Cosmetics Store</option>
+                  <option value="17035">Drugstore</option>
+                  <option value="17145">Pharmacy</option>
+                  <option value="17082">Furniture &amp; Home</option>
+                  <option value="17089">Gift Store</option>
+                  <option value="17116">Souvenir Store</option>
+                  <option value="17054">Flea Market</option>
+                  <option value="17002">Antique Store</option>
+                  <option value="17138">Vintage &amp; Thrift</option>
+                  <option value="17056">Flower Store</option>
+                  <option value="17098">Music Store</option>
+                  <option value="17091">Hobby Store</option>
+                  <option value="17135">Toy Store</option>
+                </optgroup>
+                <optgroup label="🏃 Sports &amp; Recreation">
+                  <option value="18000">All Sports &amp; Recreation</option>
+                  <option value="18021">Gym &amp; Studio</option>
+                  <option value="18077">Gym</option>
+                  <option value="18028">Yoga Studio</option>
+                  <option value="18027">Pilates Studio</option>
+                  <option value="18025">Dance Studio</option>
+                  <option value="18024">Cycle Studio</option>
+                  <option value="18022">Boxing Gym</option>
+                  <option value="18023">Climbing Gym</option>
+                  <option value="18036">Martial Arts Dojo</option>
+                  <option value="18075">Swimming Pool</option>
+                  <option value="18073">Swimming</option>
+                  <option value="18045">Tennis</option>
+                  <option value="18016">Golf</option>
+                  <option value="18018">Golf Course</option>
+                  <option value="18006">Basketball</option>
+                  <option value="18062">Soccer</option>
+                  <option value="18058">Snow Sports</option>
+                  <option value="18061">Ski Resort</option>
+                  <option value="18067">Water Sports</option>
+                  <option value="18054">Skating</option>
+                  <option value="18048">Recreation Center</option>
+                  <option value="18081">Sauna</option>
+                  <option value="18039">Race Track</option>
+                </optgroup>
+                <optgroup label="✈️ Travel &amp; Hotels">
+                  <option value="19000">All Travel</option>
+                  <option value="19009">Lodging (all)</option>
+                  <option value="19014">Hotel</option>
+                  <option value="19018">Resort</option>
+                  <option value="19013">Hostel</option>
+                  <option value="19010">Bed &amp; Breakfast</option>
+                  <option value="19012">Cabin</option>
+                  <option value="19019">Vacation Rental</option>
+                  <option value="19030">Transport Hub</option>
+                  <option value="19031">Airport</option>
+                  <option value="19042">Bus Station</option>
+                  <option value="19046">Metro Station</option>
+                  <option value="19047">Rail Station</option>
+                  <option value="19028">Tourist Information</option>
+                  <option value="19029">Tour Provider</option>
+                  <option value="19020">Parking</option>
+                  <option value="19007">Fuel Station</option>
+                  <option value="19006">EV Charging Station</option>
+                  <option value="19055">Travel Agency</option>
+                </optgroup>
+                <optgroup label="🏥 Health &amp; Wellness">
+                  <option value="15000">All Health &amp; Medicine</option>
+                  <option value="15014">Hospital</option>
+                  <option value="15007">Dentist</option>
+                  <option value="15027">Physician</option>
+                  <option value="15054">Veterinarian</option>
+                  <option value="15053">Urgent Care</option>
+                  <option value="15026">Physical Therapy</option>
+                  <option value="11073">Spa</option>
+                  <option value="11070">Massage Clinic</option>
+                  <option value="11064">Hair Salon</option>
+                  <option value="11062">Barbershop</option>
+                  <option value="11071">Nail Salon</option>
+                </optgroup>
+                <optgroup label="🏛️ Community">
+                  <option value="12000">All Community &amp; Gov</option>
+                  <option value="12080">Library</option>
+                  <option value="12009">Education</option>
+                  <option value="12013">College &amp; University</option>
+                  <option value="12057">School</option>
+                  <option value="12064">Government Building</option>
+                  <option value="12066">City Hall</option>
+                  <option value="12075">Post Office</option>
+                  <option value="12098">Spiritual Center</option>
+                  <option value="12101">Church</option>
+                  <option value="12106">Mosque</option>
+                  <option value="12110">Synagogue</option>
+                  <option value="12004">Community Center</option>
+                  <option value="12003">Cemetery</option>
+                  <option value="12094">Residential Building</option>
+                </optgroup>
               </select>
               <select class="avb-select" id="vsSortSelect" onchange="_vsearchIfActive()">
                 <option value="RELEVANCE">Relevance</option>
-                <option value="RATING">Top Rated</option>
                 <option value="POPULARITY">Most Popular</option>
                 <option value="DISTANCE">Nearest</option>
               </select>
@@ -499,7 +716,9 @@ let _vsearchTimer = null;
 let _vsearchVenues = [];
 let _vsearchMode = ''; // '' = text, 'nearby' = geo mode
 let _vsearchAbort = null; // AbortController for in-flight request
-const _vsearchCache = new Map(); // key → {results, ts}
+let _vsearchCursor = null; // FSQ pagination cursor for current search
+let _vsearchLastArgs = null; // {q, lat, lng} for "Load more"
+const _vsearchCache = new Map(); // key → {results, nextCursor, ts}
 const _VCACHE_TTL = 5 * 60 * 1000; // 5 min
 
 function toggleAddBar() {
@@ -520,7 +739,10 @@ function toggleAddBar() {
   } else {
     document.getElementById('vsearchResults').innerHTML = '';
     document.getElementById('venueSearchInput').value = '';
+    document.getElementById('vsCityInput').value = '';
     _vsearchMode = '';
+    _vsearchCursor = null;
+    _vsearchLastArgs = null;
     const nb = document.getElementById('avbNearBtn');
     if (nb) { nb.textContent = '\u{1F4CD} Nearby'; nb.classList.remove('active'); }
   }
@@ -534,6 +756,17 @@ document.getElementById('venueSearchInput').addEventListener('input', function()
   const q = this.value.trim();
   if (!q) { document.getElementById('vsearchResults').innerHTML = ''; return; }
   _vsearchTimer = setTimeout(() => _vsearch(q), 600);
+});
+
+document.getElementById('vsCityInput').addEventListener('input', function() {
+  clearTimeout(_vsearchTimer);
+  const q = (document.getElementById('venueSearchInput').value || '').trim();
+  if (q.length >= 2 || _vsearchMode === 'nearby') {
+    _vsearchTimer = setTimeout(() => {
+      if (_vsearchMode === 'nearby') _vsearch('', userLat, userLng);
+      else _vsearch(q);
+    }, 600);
+  }
 });
 
 function _vsearchIfActive() {
@@ -580,44 +813,91 @@ function _vsearchNearby() {
 }
 
 async function _vsearch(q, lat, lng) {
+  _vsearchCursor = null;
+  _vsearchLastArgs = {q, lat, lng};
+  _vsearchVenues = [];
+  await _vsearchFetch(q, lat, lng, null, false);
+}
+
+async function _vsearchLoadMore() {
+  if (!_vsearchCursor || !_vsearchLastArgs) return;
+  const {q, lat, lng} = _vsearchLastArgs;
+  await _vsearchFetch(q, lat, lng, _vsearchCursor, true);
+}
+
+async function _vsearchFetch(q, lat, lng, cursor, append) {
   const el = document.getElementById('vsearchResults');
   const catSel = document.getElementById('vsCatSelect');
   const sortSel = document.getElementById('vsSortSelect');
-  const cat = catSel ? catSel.value : '';
+  const cityEl = document.getElementById('vsCityInput');
+  const cat  = catSel  ? catSel.value  : '';
   const sort = sortSel ? sortSel.value : 'RELEVANCE';
-  const ll = lat != null && lng != null
-    ? lat + ',' + lng
-    : (sort === 'DISTANCE' && userLat != null ? userLat + ',' + userLng : null);
+  const near = (cityEl ? cityEl.value.trim() : '');
+  const ll = lat != null && lng != null ? lat + ',' + lng : null;
 
-  const cacheKey = JSON.stringify({q, ll, cat, sort});
-  const cached = _vsearchCache.get(cacheKey);
-  if (cached && (Date.now() - cached.ts) < _VCACHE_TTL) {
-    _vsearchVenues = cached.results;
-  } else {
-    el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">Searching\u2026</div>';
-    // Cancel any in-flight request
-    if (_vsearchAbort) _vsearchAbort.abort();
-    _vsearchAbort = new AbortController();
-    try {
-      const p = new URLSearchParams();
-      if (q) p.set('q', q);
-      if (ll) p.set('ll', ll);
-      if (cat) p.set('cat', cat);
-      if (sort && sort !== 'RELEVANCE') p.set('sort', sort);
-      const res = await fetch('/api/search-venues?' + p.toString(), { signal: _vsearchAbort.signal });
-      const data = await res.json();
-      _vsearchVenues = data.results || [];
-      _vsearchCache.set(cacheKey, { results: _vsearchVenues, ts: Date.now() });
-    } catch(err) {
-      if (err.name === 'AbortError') return; // superseded by newer request
-      _vsearchVenues = [];
+  // For non-cursor fetch, check cache (cursor pages are not cached)
+  if (!cursor) {
+    const cacheKey = JSON.stringify({q, ll, near, cat, sort});
+    const cached = _vsearchCache.get(cacheKey);
+    if (cached && (Date.now() - cached.ts) < _VCACHE_TTL) {
+      _vsearchVenues = cached.results;
+      _vsearchCursor = cached.nextCursor || null;
+      _vsearchRender(append);
+      return;
     }
   }
+
+  if (!append) {
+    el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">Searching\u2026</div>';
+  } else {
+    const lb = document.getElementById('vsearchLoadMore');
+    if (lb) { lb.disabled = true; lb.textContent = '\u2026'; }
+  }
+
+  if (_vsearchAbort) _vsearchAbort.abort();
+  _vsearchAbort = new AbortController();
+  try {
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (ll) p.set('ll', ll);
+    else if (near) p.set('near', near);
+    if (cat) p.set('cat', cat);
+    if (sort && sort !== 'RELEVANCE') p.set('sort', sort);
+    if (cursor) p.set('cursor', cursor);
+    const res = await fetch('/api/search-venues?' + p.toString(), { signal: _vsearchAbort.signal });
+    const data = await res.json();
+    const newVenues = data.results || [];
+    _vsearchCursor = data.nextCursor || null;
+    if (append) {
+      const offset = _vsearchVenues.length;
+      _vsearchVenues = _vsearchVenues.concat(newVenues);
+      _vsearchRender(true, offset);
+    } else {
+      _vsearchVenues = newVenues;
+      if (!cursor) {
+        const cacheKey = JSON.stringify({q, ll, near, cat, sort});
+        _vsearchCache.set(cacheKey, { results: _vsearchVenues, nextCursor: _vsearchCursor, ts: Date.now() });
+      }
+      _vsearchRender(false);
+    }
+  } catch(err) {
+    if (err.name === 'AbortError') return;
+    if (!append) {
+      el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">Search failed</div>';
+    }
+    _vsearchVenues = append ? _vsearchVenues : [];
+  }
+}
+
+function _vsearchRender(append, appendOffset) {
+  const el = document.getElementById('vsearchResults');
   if (!_vsearchVenues.length) {
     el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">No results</div>';
     return;
   }
-  el.innerHTML = _vsearchVenues.map((v, i) => {
+  const renderFrom = append ? (appendOffset || 0) : 0;
+  const newHtml = _vsearchVenues.slice(renderFrom).map((v, idx) => {
+    const i = renderFrom + idx;
     const c0 = (v.categories || [])[0];
     const loc = v.location || {};
     const cityPart = loc.locality || loc.city || '';
@@ -630,6 +910,21 @@ async function _vsearch(q, lat, lng) {
       <button class="vsearch-add-btn" data-vi="${i}" onclick="_addCustomVenue(${i})">+ Add</button>
     </div>`;
   }).join('');
+
+  // Remove existing "Load more" button before re-adding
+  const existing = document.getElementById('vsearchLoadMore');
+  if (existing) existing.remove();
+
+  if (append) {
+    el.insertAdjacentHTML('beforeend', newHtml);
+  } else {
+    el.innerHTML = newHtml;
+  }
+
+  if (_vsearchCursor) {
+    el.insertAdjacentHTML('beforeend',
+      '<button id="vsearchLoadMore" class="avb-near-btn" style="width:100%;margin-top:6px;justify-content:center" onclick="_vsearchLoadMore()">Load more</button>');
+  }
 }
 
 async function _addCustomVenue(vi) {

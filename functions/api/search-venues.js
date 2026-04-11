@@ -16,13 +16,15 @@ const HEADERS = { 'Content-Type': 'application/json' };
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
-  const query = (url.searchParams.get('q') || '').trim();
-  const ll    = url.searchParams.get('ll') || '';
-  const cat   = url.searchParams.get('cat') || '';
-  const sort  = url.searchParams.get('sort') || '';
+  const query  = (url.searchParams.get('q') || '').trim();
+  const ll     = url.searchParams.get('ll') || '';
+  const near   = url.searchParams.get('near') || '';
+  const cat    = url.searchParams.get('cat') || '';
+  const sort   = url.searchParams.get('sort') || '';
+  const cursor = url.searchParams.get('cursor') || '';
 
-  // Require either a text query (≥2 chars) or a location for nearby search
-  if (query.length < 2 && !ll) {
+  // Require either a text query (≥2 chars), a location, a city name, or a cursor (pagination)
+  if (query.length < 2 && !ll && !near && !cursor) {
     return new Response(JSON.stringify({ results: [] }), { headers: HEADERS });
   }
 
@@ -35,10 +37,12 @@ export async function onRequestGet({ request, env }) {
     limit: '12',
     fields: 'fsq_place_id,name,latitude,longitude,location,categories',
   });
-  if (query) params.set('query', query);
-  if (ll)    params.set('ll', ll);
-  if (cat)   params.set('categories', cat);
-  if (sort)  params.set('sort', sort);
+  if (query)  params.set('query', query);
+  if (ll)     params.set('ll', ll);
+  else if (near) params.set('near', near);
+  if (cat)    params.set('categories', cat);
+  if (sort)   params.set('sort', sort);
+  if (cursor) params.set('cursor', cursor);
 
   const resp = await fetch(`https://places-api.foursquare.com/places/search?${params}`, {
     headers: {
@@ -61,7 +65,8 @@ export async function onRequestGet({ request, env }) {
     location: p.location || {},
     categories: p.categories || [],
   }));
-  return new Response(JSON.stringify({ results }), { headers: HEADERS });
+  const nextCursor = data.next || null;
+  return new Response(JSON.stringify({ results, nextCursor }), { headers: HEADERS });
 }
 
 export async function onRequestOptions() {
