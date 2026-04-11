@@ -499,6 +499,9 @@ let _addBarOpen = false;
 let _vsearchTimer = null;
 let _vsearchVenues = [];
 let _vsearchMode = ''; // '' = text, 'nearby' = geo mode
+let _vsearchAbort = null; // AbortController for in-flight request
+const _vsearchCache = new Map(); // key → {results, ts}
+const _VCACHE_TTL = 5 * 60 * 1000; // 5 min
 
 function toggleAddBar() {
   _addBarOpen = !_addBarOpen;
@@ -508,6 +511,13 @@ function toggleAddBar() {
   if (btn) btn.classList.toggle('active', _addBarOpen);
   if (_addBarOpen) {
     setTimeout(() => document.getElementById('venueSearchInput').focus(), 50);
+    // Auto-load nearby if location already known
+    if (userLat !== null) {
+      _vsearchMode = 'nearby';
+      const nb = document.getElementById('avbNearBtn');
+      if (nb) nb.classList.add('active');
+      _vsearch('', userLat, userLng);
+    }
   } else {
     document.getElementById('vsearchResults').innerHTML = '';
     document.getElementById('venueSearchInput').value = '';
@@ -524,16 +534,16 @@ document.getElementById('venueSearchInput').addEventListener('input', function()
   if (nb) nb.classList.remove('active');
   const q = this.value.trim();
   if (!q) { document.getElementById('vsearchResults').innerHTML = ''; return; }
-  _vsearchTimer = setTimeout(() => _vsearch(q), 380);
+  _vsearchTimer = setTimeout(() => _vsearch(q), 600);
 });
 
 function _vsearchIfActive() {
   clearTimeout(_vsearchTimer);
   if (_vsearchMode === 'nearby') {
-    _vsearchTimer = setTimeout(() => _vsearch('', userLat, userLng), 200);
+    _vsearchTimer = setTimeout(() => _vsearch('', userLat, userLng), 400);
   } else {
     const q = (document.getElementById('venueSearchInput').value || '').trim();
-    if (q.length >= 2) _vsearchTimer = setTimeout(() => _vsearch(q), 200);
+    if (q.length >= 2) _vsearchTimer = setTimeout(() => _vsearch(q), 400);
   }
 }
 
@@ -572,7 +582,6 @@ function _vsearchNearby() {
 
 async function _vsearch(q, lat, lng) {
   const el = document.getElementById('vsearchResults');
-  el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">Searching\u2026</div>';
   const catSel = document.getElementById('vsCatSelect');
   const sortSel = document.getElementById('vsSortSelect');
   const cat = catSel ? catSel.value : '';
@@ -580,16 +589,31 @@ async function _vsearch(q, lat, lng) {
   const ll = lat != null && lng != null
     ? lat + ',' + lng
     : (sort === 'DISTANCE' && userLat != null ? userLat + ',' + userLng : null);
-  try {
-    const p = new URLSearchParams();
-    if (q) p.set('q', q);
-    if (ll) p.set('ll', ll);
-    if (cat) p.set('cat', cat);
-    if (sort && sort !== 'RELEVANCE') p.set('sort', sort);
-    const res = await fetch('/api/search-venues?' + p.toString());
-    const data = await res.json();
-    _vsearchVenues = data.results || [];
-  } catch { _vsearchVenues = []; }
+
+  const cacheKey = JSON.stringify({q, ll, cat, sort});
+  const cached = _vsearchCache.get(cacheKey);
+  if (cached && (Date.now() - cached.ts) < _VCACHE_TTL) {
+    _vsearchVenues = cached.results;
+  } else {
+    el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">Searching\u2026</div>';
+    // Cancel any in-flight request
+    if (_vsearchAbort) _vsearchAbort.abort();
+    _vsearchAbort = new AbortController();
+    try {
+      const p = new URLSearchParams();
+      if (q) p.set('q', q);
+      if (ll) p.set('ll', ll);
+      if (cat) p.set('cat', cat);
+      if (sort && sort !== 'RELEVANCE') p.set('sort', sort);
+      const res = await fetch('/api/search-venues?' + p.toString(), { signal: _vsearchAbort.signal });
+      const data = await res.json();
+      _vsearchVenues = data.results || [];
+      _vsearchCache.set(cacheKey, { results: _vsearchVenues, ts: Date.now() });
+    } catch(err) {
+      if (err.name === 'AbortError') return; // superseded by newer request
+      _vsearchVenues = [];
+    }
+  }
   if (!_vsearchVenues.length) {
     el.innerHTML = '<div style="font-size:.72rem;color:var(--muted);padding:6px 4px">No results</div>';
     return;
