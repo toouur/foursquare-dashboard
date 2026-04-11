@@ -2313,48 +2313,70 @@ function buildCityMap(){
 
 // ── Global Search ────────────────────────────────────────────────────────────
 (function(){
-  let _idx=null, _activeItem=-1;
-
-  function _loadIdx(){
-    if(_idx!==null) return Promise.resolve(_idx);
-    return fetch('search-index.json').then(r=>r.json()).then(d=>{_idx=d;return d;}).catch(()=>{_idx=[];return [];});
-  }
+  let _debounce=null;
+  const _cache=new Map(), TTL=5*60*1000;
 
   function _typeIcon(t){return{venue:'📍',city:'🏙',trip:'✈',tip:'💬',companion:'👤'}[t]||'🔍';}
-  function _typePage(t,id,name){
-    if(t==='venue') return 'venues.html#v-'+(id||'');
-    if(t==='city')  return 'world_cities.html';
-    if(t==='trip')  return 'trips.html';
-    if(t==='tip')   return 'tips.html';
+
+  function _typePage(t,id){
+    if(t==='venue')     return '#s-venues';
+    if(t==='city')      return '#s-cities';
+    if(t==='trip')      return 'trips.html'+(id?'#trip-'+id:'');
+    if(t==='tip')       return 'tips.html';
     if(t==='companion') return 'companions.html';
-    return 'search.html?q='+encodeURIComponent(name||'');
+    return '#';
   }
 
-  function _render(items){
+  function _render(data){
     const el=document.getElementById('gsResults');
-    if(!items||!items.length){el.innerHTML='<div class="gs-empty">No results</div>';el.style.display='';return;}
-    const byType={};
-    items.slice(0,30).forEach(it=>{(byType[it.type]=byType[it.type]||[]).push(it);});
+    const order=['venue','city','trip','tip','companion'];
     const labels={venue:'Venues',city:'Cities',trip:'Trips',tip:'Tips',companion:'People'};
-    let html='';
-    Object.entries(byType).forEach(([t,list])=>{
-      html+=`<div class="gs-section-hd">${labels[t]||t}</div>`;
-      list.slice(0,8).forEach((it,i)=>{
-        const sub=[it.city,it.country].filter(Boolean).join(', ')||it.sub||'';
-        html+=`<a class="gs-item" href="${_typePage(t,it.id,it.name)}" onclick="closeSearch()"><span class="gs-item-icon">${_typeIcon(t)}</span><div class="gs-item-body"><div class="gs-item-name">${it.name||''}</div>${sub?`<div class="gs-item-sub">${sub}</div>`:''}</div></a>`;
+    let html='',any=false;
+    order.forEach(t=>{
+      const list=(data[t]||[]).slice(0,8);
+      if(!list.length) return;
+      any=true;
+      html+=`<div class="gs-section-hd">${labels[t]}</div>`;
+      list.forEach(it=>{
+        const name=it.n||'';
+        const sub=[it.c,it.co].filter(Boolean).join(', ')||it.tx||'';
+        const href=_typePage(t,it.id);
+        html+=`<a class="gs-item" href="${esc(href)}" data-gs-t="${t}" data-gs-n="${esc(name)}"><span class="gs-item-icon">${_typeIcon(t)}</span><div class="gs-item-body"><div class="gs-item-name">${esc(name)}</div>${sub?`<div class="gs-item-sub">${esc(sub)}</div>`:''}</div></a>`;
       });
     });
-    el.innerHTML=html;el.style.display='';
+    if(!any) html='<div class="gs-empty">No results</div>';
+    el.innerHTML=html; el.style.display='';
   }
+
+  // Click delegation: venue/city navigate within this page; others follow href
+  document.getElementById('gsResults').addEventListener('click',function(e){
+    const a=e.target.closest('a[data-gs-t]');
+    if(!a) return;
+    const t=a.dataset.gsT, name=a.dataset.gsN;
+    if(t==='venue'){
+      e.preventDefault(); closeSearch();
+      const box=document.querySelector('#s-venues .search-box');
+      if(box){box.value=name; filterList('venuesList',name);}
+      document.getElementById('s-venues')?.scrollIntoView({behavior:'smooth',block:'start'});
+    } else if(t==='city'){
+      e.preventDefault(); closeSearch();
+      const box=document.querySelector('#s-cities .search-box');
+      if(box){box.value=name; filterList('citiesList',name);}
+      document.getElementById('s-cities')?.scrollIntoView({behavior:'smooth',block:'start'});
+    } else {
+      closeSearch();
+    }
+  });
 
   function _search(q){
     const el=document.getElementById('gsResults');
     if(!q||q.length<2){el.style.display='none';el.innerHTML='';return;}
-    _loadIdx().then(idx=>{
-      const lq=q.toLowerCase();
-      const hits=idx.filter(it=>(it.name||'').toLowerCase().includes(lq)||(it.city||'').toLowerCase().includes(lq)||(it.country||'').toLowerCase().includes(lq));
-      _render(hits);
-    });
+    const now=Date.now(), hit=_cache.get(q);
+    if(hit&&now-hit.ts<TTL){_render(hit.data);return;}
+    fetch('/api/search?q='+encodeURIComponent(q))
+      .then(r=>r.json())
+      .then(d=>{_cache.set(q,{ts:Date.now(),data:d});_render(d);})
+      .catch(()=>{el.innerHTML='<div class="gs-empty">Search unavailable</div>';el.style.display='';});
   }
 
   window.openSearch=function(){
@@ -2364,14 +2386,17 @@ function buildCityMap(){
   window.closeSearch=function(){
     document.getElementById('gsOverlay').classList.remove('open');
     document.getElementById('gsInput').value='';
-    document.getElementById('gsResults').style.display='none';
-    document.getElementById('gsResults').innerHTML='';
+    const el=document.getElementById('gsResults');
+    el.style.display='none'; el.innerHTML='';
   };
   document.addEventListener('keydown',function(e){
     if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();window.openSearch();}
     if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open')) window.closeSearch();
   });
-  document.getElementById('gsInput').addEventListener('input',function(){_search(this.value.trim());});
+  document.getElementById('gsInput').addEventListener('input',function(){
+    clearTimeout(_debounce);
+    _debounce=setTimeout(()=>_search(this.value.trim()),300);
+  });
   document.getElementById('gsInput').addEventListener('keydown',function(e){
     if(e.key==='Enter'&&this.value.trim()) location.href='search.html?q='+encodeURIComponent(this.value.trim());
     if(e.key==='Escape') window.closeSearch();
