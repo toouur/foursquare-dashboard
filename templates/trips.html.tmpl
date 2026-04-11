@@ -131,6 +131,11 @@ a{color:inherit;}
 .tl-checkin-venue a{color:inherit;text-decoration:none;}
 .tl-checkin-venue a:hover{color:var(--gold);}
 .tl-checkin-sub{font-size:.65rem;color:var(--muted);}
+.tl-route-tip.leaflet-tooltip{background:rgba(11,13,19,.92);border:1px solid var(--gold);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:.68rem;padding:3px 8px;border-radius:6px;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;}
+.tl-route-tip.leaflet-tooltip::before{border-top-color:var(--gold);}
+.map-dot-popup .leaflet-popup-content-wrapper{background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.55);color:var(--text);}
+.map-dot-popup .leaflet-popup-tip{background:var(--card);}
+.map-dot-popup .leaflet-popup-content{margin:8px 12px;}
 .cat-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 .cat-bar-name{font-size:.75rem;color:var(--text);flex:1;}
 .cat-bar-track{width:100px;height:5px;background:var(--card2);border-radius:3px;overflow:hidden;}
@@ -469,15 +474,29 @@ function showTrip(id){
       const lats=coords.map(c=>c[0]), lngs=coords.map(c=>c[1]);
       activeMap.fitBounds([[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]],{padding:[20,20]});
     }
+    // ── Unique venue dots ─────────────────────────────────────────────────────
+    const uPts=(t.unique_pts||[]).filter(p=>p[0]&&p[1]);
+    if(uPts.length){
+      const uGroup=L.layerGroup();
+      uPts.forEach(p=>{
+        L.circleMarker([p[0],p[1]],{radius:3,color:'#4ec9b0',fillColor:'#4ec9b0',fillOpacity:0.75,weight:0,interactive:true})
+          .bindPopup('<div style="font-size:.82rem;font-weight:600;font-family:\'DM Sans\',sans-serif;max-width:160px">'+p[2]+'</div>',
+            {maxWidth:180,className:'map-dot-popup'})
+          .addTo(uGroup);
+      });
+      uGroup.addTo(activeMap);
+    }
     // ── Scroll-driven route polyline ─────────────────────────────────────────
-    const routePts = t.checkins.filter(c=>c.lat&&c.lng).map(c=>({ts:c.ts,ll:[c.lat,c.lng]}));
+    const routePts = t.checkins.filter(c=>c.lat&&c.lng).map(c=>({ts:c.ts,ll:[c.lat,c.lng],venue:c.venue||''}));
     const tsToIdx = {};
     routePts.forEach((p,i)=>{ tsToIdx[p.ts]=i; });
     let routeFull=null, routeActive=null, routeMarker=null, maxRouteIdx=-1;
     if(routePts.length>1){
       routeFull  = L.polyline(routePts.map(p=>p.ll),{color:'#e8b86d',weight:1.5,opacity:0.18}).addTo(activeMap);
       routeActive= L.polyline([],{color:'#e8b86d',weight:2.5,opacity:0.9}).addTo(activeMap);
-      routeMarker= L.circleMarker(routePts[0].ll,{radius:5,fillColor:'#e8b86d',color:'#fff',weight:1.5,fillOpacity:1}).addTo(activeMap);
+      routeMarker= L.circleMarker(routePts[0].ll,{radius:5,fillColor:'#e8b86d',color:'#fff',weight:1.5,fillOpacity:1})
+        .bindTooltip(routePts[0].venue,{permanent:true,direction:'top',className:'tl-route-tip',offset:[0,-6]})
+        .addTo(activeMap);
     }
     function advanceRoute(idx){
       if(!routeActive||idx<=maxRouteIdx) return;
@@ -485,6 +504,7 @@ function showTrip(id){
       const pts=routePts.slice(0,idx+1).map(p=>p.ll);
       routeActive.setLatLngs(pts);
       routeMarker.setLatLng(pts[pts.length-1]);
+      const ven=routePts[idx].venue; if(ven) routeMarker.setTooltipContent(ven);
     }
     if(activeObserver){activeObserver.disconnect();activeObserver=null;}
     const tlEl=document.getElementById('detailTimeline');
