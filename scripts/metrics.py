@@ -753,9 +753,9 @@ def process(
             explorer[display_name] = [[d["name"], d["city"], d["count"], d["vid"]] for d in top50]
     explorer_cats = [k for k in explorer_groups if k in explorer]
 
-    # ── Unique places (enriched: lat, lng, name, count, last_year, cat, city) ──
+    # ── Unique places (enriched: lat, lng, name, count, years, cat, city) ──
     # First pass: accumulate per-venue stats keyed by venue_id
-    _vp: dict = {}  # venue_id → {lat, lng, name, count, last_ts, category, city}
+    _vp: dict = {}  # venue_id → {lat, lng, name, count, last_ts, years, category, city}
     _vp_coord: dict = {}  # (lat3,lng3) → same shape, for no-id rows
     for r in rows:
         vid = r.get("venue_id", "").strip()
@@ -765,15 +765,16 @@ def process(
         except (ValueError, KeyError, TypeError):
             has_coords = False
         ts = int(r["date"]) if r.get("date") else 0
-        cat = categorize(r.get("category", "").strip()) or r.get("category", "").strip()
+        yr = datetime.fromtimestamp(ts, tz=timezone.utc).year if ts else None
+        raw_cat = r.get("category", "").strip()
         if vid:
             if vid not in _vp:
                 _vp[vid] = {
                     "lat": lat_f if has_coords else 0.0,
                     "lng": lng_f if has_coords else 0.0,
                     "name": r.get("venue", "").strip(),
-                    "count": 0, "last_ts": 0,
-                    "cat": cat,
+                    "count": 0, "last_ts": 0, "years": set(),
+                    "cat": raw_cat,
                     "city": r.get("city", "").strip(),
                     "has_coords": has_coords,
                 }
@@ -781,8 +782,10 @@ def process(
             e["count"] += 1
             if ts > e["last_ts"]:
                 e["last_ts"] = ts
-            if not e["cat"] and cat:
-                e["cat"] = cat
+            if yr:
+                e["years"].add(yr)
+            if not e["cat"] and raw_cat:
+                e["cat"] = raw_cat
             if not e["city"] and r.get("city", "").strip():
                 e["city"] = r.get("city", "").strip()
         elif has_coords:
@@ -791,8 +794,8 @@ def process(
                 _vp_coord[key] = {
                     "lat": lat_f, "lng": lng_f,
                     "name": r.get("venue", "").strip(),
-                    "count": 0, "last_ts": 0,
-                    "cat": cat,
+                    "count": 0, "last_ts": 0, "years": set(),
+                    "cat": raw_cat,
                     "city": r.get("city", "").strip(),
                     "has_coords": True,
                 }
@@ -800,6 +803,8 @@ def process(
             e["count"] += 1
             if ts > e["last_ts"]:
                 e["last_ts"] = ts
+            if yr:
+                e["years"].add(yr)
 
     seen_ids: set[str] = set(_vp.keys())
     seen_coords: set[tuple] = set(_vp_coord.keys())
@@ -807,16 +812,14 @@ def process(
     for e in _vp.values():
         if not e["has_coords"]:
             continue
-        last_yr = datetime.fromtimestamp(e["last_ts"], tz=timezone.utc).year if e["last_ts"] else 0
         unique_places.append([
             round(e["lat"], 5), round(e["lng"], 5),
-            e["name"], e["count"], last_yr, e["cat"], e["city"],
+            e["name"], e["count"], sorted(e["years"]), e["cat"], e["city"],
         ])
     for e in _vp_coord.values():
-        last_yr = datetime.fromtimestamp(e["last_ts"], tz=timezone.utc).year if e["last_ts"] else 0
         unique_places.append([
             round(e["lat"], 5), round(e["lng"], 5),
-            e["name"], e["count"], last_yr, e["cat"], e["city"],
+            e["name"], e["count"], sorted(e["years"]), e["cat"], e["city"],
         ])
 
     unique_count = len(seen_ids) + len(seen_coords)
@@ -1345,6 +1348,7 @@ def process(
         "venues":             venues_list,
         "cat_groups":         cat_groups.most_common(),
         "explorer_cats":      explorer_cats,
+        "explorer_groups":    explorer_groups,
         "explorer":           explorer,
         "unique_places":      unique_places,
         "all_coords":         all_coords,
