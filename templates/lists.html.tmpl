@@ -862,10 +862,17 @@ async function _vsearchFetch(q, lat, lng, cursor, append) {
   const sort = sortSel ? sortSel.value : 'RELEVANCE';
   const near = (cityEl ? cityEl.value.trim() : '');
   const ll = lat != null && lng != null ? lat + ',' + lng : null;
+  // FSQ API ignores the `categories` param server-side; work around it:
+  // use the category label as the text query so FSQ text-ranks relevant venues,
+  // then apply client-side name filter below on a larger result set.
+  const catLabel = (catSel && catSel.value)
+    ? catSel.options[catSel.selectedIndex].text.trim().toLowerCase()
+    : '';
+  const effectiveQ = q || (catLabel ? catSel.options[catSel.selectedIndex].text.trim() : '');
 
   // For non-cursor fetch, check cache (cursor pages are not cached)
   if (!cursor) {
-    const cacheKey = JSON.stringify({q, ll, near, cat, sort});
+    const cacheKey = JSON.stringify({effectiveQ, ll, near, catLabel, sort});
     const cached = _vsearchCache.get(cacheKey);
     if (cached && (Date.now() - cached.ts) < _VCACHE_TTL) {
       _vsearchVenues = cached.results;
@@ -886,19 +893,16 @@ async function _vsearchFetch(q, lat, lng, cursor, append) {
   _vsearchAbort = new AbortController();
   try {
     const p = new URLSearchParams();
-    if (q) p.set('q', q);
+    if (effectiveQ) p.set('q', effectiveQ);
     if (ll) p.set('ll', ll);
     else if (near) p.set('near', near);
-    if (cat) p.set('cat', cat);
+    // FSQ ignores `categories` param server-side; omit it, use effectiveQ for bias instead.
+    // When cat filter is active, fetch 50 results so client-side filter has more candidates.
+    p.set('limit', catLabel ? '50' : '12');
     if (sort && sort !== 'RELEVANCE') p.set('sort', sort);
     if (cursor) p.set('cursor', cursor);
     const res = await fetch('/api/search-venues?' + p.toString(), { signal: _vsearchAbort.signal });
     const data = await res.json();
-    // Client-side category filter: FSQ v3 numeric IDs are not applied server-side;
-    // filter by matching the selected option label against returned category names.
-    const catLabel = (catSel && catSel.value)
-      ? catSel.options[catSel.selectedIndex].text.trim().toLowerCase()
-      : '';
     const raw = data.results || [];
     const newVenues = catLabel
       ? raw.filter(v => (v.categories || []).some(c => {
@@ -914,7 +918,7 @@ async function _vsearchFetch(q, lat, lng, cursor, append) {
     } else {
       _vsearchVenues = newVenues;
       if (!cursor) {
-        const cacheKey = JSON.stringify({q, ll, near, cat, sort});
+        const cacheKey = JSON.stringify({effectiveQ, ll, near, catLabel, sort});
         _vsearchCache.set(cacheKey, { results: _vsearchVenues, nextCursor: _vsearchCursor, ts: Date.now() });
       }
       _vsearchRender(false);

@@ -19,7 +19,6 @@ export async function onRequestGet({ request, env }) {
   const query  = (url.searchParams.get('q') || '').trim();
   const ll     = url.searchParams.get('ll') || '';
   const near   = url.searchParams.get('near') || '';
-  const cat    = url.searchParams.get('cat') || '';
   const sort   = url.searchParams.get('sort') || '';
   const cursor = url.searchParams.get('cursor') || '';
 
@@ -33,14 +32,18 @@ export async function onRequestGet({ request, env }) {
     return new Response(JSON.stringify({ error: 'FSQ_API_KEY not configured' }), { status: 500, headers: HEADERS });
   }
 
+  const limitRaw = parseInt(url.searchParams.get('limit') || '12', 10);
+  const limit = Math.min(Math.max(limitRaw || 12, 1), 50).toString();
+
   const params = new URLSearchParams({
-    limit: '12',
+    limit,
     fields: 'fsq_place_id,name,latitude,longitude,location,categories',
   });
   if (query)  params.set('query', query);
   if (ll)     params.set('ll', ll);
   else if (near) params.set('near', near);
-  if (cat)    params.set('categories', cat);
+  // categories param is not forwarded — FSQ API ignores it on free tier;
+  // caller applies category filtering client-side instead.
   if (sort)   params.set('sort', sort);
   if (cursor) params.set('cursor', cursor);
 
