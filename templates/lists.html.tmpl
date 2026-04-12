@@ -518,7 +518,7 @@ const RATING_EMOJI={'like':'❤️','neutral':'😐','dislike':'💔'};
 let _sortMode = 'updated';
 let filteredLists = [];
 let selIdx = -1;
-let map = null, mapMarkers = [];
+let map = null, mapMarkers = [], venueMarkerMap = {};
 let userLat = null, userLng = null, userMarker = null;
 
 function haversine(a,b,c,d){
@@ -657,15 +657,16 @@ function selectList(idx){
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
     }
     mapMarkers.forEach(m=>map.removeLayer(m));
-    mapMarkers = [];
+    mapMarkers = []; venueMarkerMap = {};
     const bounds = [];
     (lst.venues||[]).forEach((v,vi)=>{
       if(!v.lat||!v.lng) return;
       const col = v.visited ? '#4ec9b0' : '#e8b86d';
-      const m = L.circleMarker([parseFloat(v.lat),parseFloat(v.lng)],{radius:5,fillColor:col,fillOpacity:.75,color:col,weight:1}).addTo(map);
+      const m = L.circleMarker([parseFloat(v.lat),parseFloat(v.lng)],{radius:5,fillColor:col,fillOpacity:.75,color:col,weight:1,_baseCol:col}).addTo(map);
       const loc = [v.nci||v.city,v.nc||v.country].filter(Boolean).join(', ');
       const fsqLink = v.u ? `<br><a href="${esc(v.u)}" target="_blank" rel="noopener" style="font-size:.72rem;color:#4ec9b0;">Foursquare ↗</a>` : '';
       m.bindPopup(`<b>${esc(v.n||'')}</b><br><span style="font-size:.75rem;color:#9ca3af;">${esc(loc)}</span>${fsqLink}`,{maxWidth:220});
+      venueMarkerMap[vi] = m;
       mapMarkers.push(m);
       bounds.push([parseFloat(v.lat),parseFloat(v.lng)]);
     });
@@ -698,7 +699,7 @@ function selectList(idx){
       ? `<span class="vc-sep">·</span><span class="vc-loc">${flag}${locStr?`<span class="vc-loc-text">${locStr}</span>`:''}</span>`
       : '';
     const dateHtml = v.ld ? `<span class="vc-date">${v.ld}</span>` : '';
-    return `<div class="vcard" id="lvc_${vi}" onclick="selectVenue(${vi},${idx})">
+    return `<div class="vcard" id="lvc_${vi}" onclick="selectVenue(${vi},${idx})" onmouseenter="hoverVenueMarker(${vi})" onmouseleave="unhoverVenueMarker(${vi})">
       <div class="vc-head">
         <div class="vc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>
         <div class="vc-name">${nameLabel}${visitBadge}${closedBadge}</div>
@@ -720,10 +721,22 @@ function selectVenue(vi, listIdx){
   const el = document.getElementById('lvc_'+vi);
   if(el){el.classList.add('sel');}
   if(!map) return;
-  const m = mapMarkers[vi];
+  const m = venueMarkerMap[vi];
   if(m){
     map.panTo(m.getLatLng(),{animate:true});
     m.openPopup();
+  }
+}
+
+function hoverVenueMarker(vi){
+  const m = venueMarkerMap[vi];
+  if(m) m.setStyle({radius:9,weight:2,color:'#fff',fillOpacity:1});
+}
+function unhoverVenueMarker(vi){
+  const m = venueMarkerMap[vi];
+  if(m){
+    const col = m.options._baseCol || '#e8b86d';
+    m.setStyle({radius:5,weight:1,color:col,fillOpacity:.75});
   }
 }
 
