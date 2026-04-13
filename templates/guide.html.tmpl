@@ -307,6 +307,9 @@ function renderSuggestions(){
 }
 
 // Init
+console.log('Guide: Initializing with data', D ? 'found' : 'MISSING');
+console.log('Guide: top_categories', D?.top_categories?.length);
+console.log('Guide: latest_checkin', D?.latest_checkin);
 renderTopCats();
 renderTopCities();
 renderTopCountries();
@@ -315,6 +318,7 @@ renderVenueLinks();
 renderLatest();
 render48h();
 renderSuggestions();
+console.log('Guide: Render complete');
 </script>
 </body>
 </html>
