@@ -306,10 +306,8 @@ function renderSuggestions(){
   cont.innerHTML=text;
 }
 
-// Init
-console.log('Guide: Initializing with data', D ? 'found' : 'MISSING');
-console.log('Guide: top_categories', D?.top_categories?.length);
-console.log('Guide: latest_checkin', D?.latest_checkin);
+// Init with error handling
+try{
 renderTopCats();
 renderTopCities();
 renderTopCountries();
@@ -318,6 +316,7 @@ renderVenueLinks();
 renderLatest();
 render48h();
 renderSuggestions();
+}catch(e){console.error('Guide init error:',e);}
 console.log('Guide: Render complete');
 </script>
 </body>
