@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guide — Your Personal Travel Advisor</title>
+<meta name="description" content="Personalized travel guide based on 65,000+ check-ins. Discover places tailored to your tastes.">
+<link rel="canonical" href="https://4sq.pages.dev/guide.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Check-in Journal">
+<meta property="og:title" content="Guide — Your Personal Travel Advisor">
+<meta property="og:description" content="Personalized travel guide based on your check-in history.">
+<meta property="og:url" content="https://4sq.pages.dev/guide.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Guide — Your Personal Travel Advisor">
+<meta name="twitter:description" content="Personalized travel guide based on your check-in history.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<style>
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;}
+body.light header{background:linear-gradient(160deg,#d6d1c8 0%,#dedad1 70%);}
+body.light .side-nav{background:rgba(220,215,208,0.97);}
+* {box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+
+.page{padding:20px 28px 60px;max-width:1400px;margin:0 auto;}
+header{padding:28px 0 24px;border-bottom:1px solid var(--border);margin-bottom:28px;}
+header h1{font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d 50%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+header .sub{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);margin-top:6px;letter-spacing:.08em;}
+header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:4px;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:32px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;}
+.card.full{grid-column:1/-1;}
+.card-title{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.2em;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.card-title em{opacity:.5;font-style:normal;}
+
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.stat-item{text-align:center;padding:14px 8px;background:var(--card2);border-radius:10px;}
+.stat-num{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1;}
+.stat-lbl{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-top:4px;}
+
+.pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.pill{padding:5px 12px;border-radius:20px;font-size:.72rem;background:var(--card2);border:1px solid var(--border);color:var(--text2);white-space:nowrap;}
+.pill.teal{background:rgba(78,201,196,.12);border-color:var(--teal);color:var(--teal);}
+.pill.gold{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
+
+.bar-list{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;}
+.bar-list::-webkit-scrollbar{width:3px;}
+.bar-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.bar-row{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--card2);border-radius:8px;}
+.bar-rank{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);width:24px;text-align:right;flex-shrink:0;}
+.bar-name{flex:1;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-cnt{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--teal);flex-shrink:0;}
+
+.latest-card{background:linear-gradient(135deg,rgba(232,184,109,.08) 0%,rgba(78,201,176,.05) 100%);border:1px solid rgba(232,184,109,.25);}
+.latest-card .card-title{color:var(--gold);}
+.latest-venue{font-size:1.1rem;font-weight:600;margin-bottom:4px;}
+.latest-meta{font-size:.82rem;color:var(--muted);margin-bottom:12px;}
+.latest-meta span{margin-right:12px;}
+.latest-links{display:flex;gap:8px;flex-wrap:wrap;}
+.links-title{font-family:'DM Mono',monospace;font-size:.50rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;width:100%;}
+.links-btn{padding:6px 12px;border-radius:6px;font-size:.72rem;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}
+.links-btn.google{background:#4285f4;color:#fff;border:1px solid #4285f4;}
+.links-btn.google:hover{background:#3367d6;}
+.links-btn.yandex{background:#ff0000;color:#fff;border:1px solid #ff0000;}
+.links-btn.yandex:hover{background:#cc0000;}
+.links-btn.foursquare{background:#f94877;color:#fff;border:1px solid #f94877;}
+.links-btn.foursquare:hover{background:#e03664;}
+
+.history-timeline{max-height:400px;overflow-y:auto;}
+.history-item{display:flex;gap:12px;padding:10px 12px;background:var(--card2);border-radius:8px;margin-bottom:6px;}
+.history-time{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);width:50px;flex-shrink:0;text-align:right;}
+.history-details{flex:1;min-width:0;}
+.history-venue{font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.history-meta{font-size:.68rem;color:var(--muted);margin-top:2px;}
+.history-new{font-size:.58rem;background:var(--gold);color:#0c0e14;padding:1px 5px;border-radius:3px;margin-left:6px;font-family:'DM Mono',monospace;}
+
+.suggestion-box{background:var(--card2);border-radius:10px;padding:16px;margin-top:12px;}
+.suggestion-box h4{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:10px;}
+.suggestion-text{font-size:.88rem;line-height:1.6;color:var(--text);}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty-state h3{font-size:1.1rem;margin-bottom:8px;color:var(--text);}
+
+.side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);}
+.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;}
+.side-nav a:hover,.side-nav button:hover{background:rgba(255,255,255,.06);color:var(--text);}
+.side-nav a.active,.side-nav button.active{color:var(--gold);}
+.side-nav .sn-icon{font-size:.95rem;}
+.side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;}
+.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:2px auto;}
+.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:3px auto;}
+@media(max-width:900px){.side-nav{display:none;}}
+
+@media(max-width:600px){
+  .page{padding:12px 14px 40px;}
+  header h1{font-size:1.6rem;}
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+<h1>Your Personal Guide</h1>
+<div class="sub">Travel recommendations based on {{TOTAL_CHECKINS}} check-ins across {{TOTAL_COUNTRIES}} countries</div>
+<div class="updated">Updated {{UPDATED}}</div>
+</header>
+
+<div class="grid">
+<div class="card">
+<div class="card-title">📊 Your Preferences</div>
+<div class="stat-grid">
+<div class="stat-item"><div class="stat-num">{{TOTAL_CHECKINS}}</div><div class="stat-lbl">Check-ins</div></div>
+<div class="stat-item"><div class="stat-num">{{UNIQUE_VENUES}}</div><div class="stat-lbl">Venues</div></div>
+<div class="stat-item"><div class="stat-num">{{TOTAL_CITIES}}</div><div class="stat-lbl">Cities</div></div>
+<div class="stat-item"><div class="stat-num">{{TOTAL_COUNTRIES}}</div><div class="stat-lbl">Countries</div></div>
+</div>
+</div>
+
+<div class="card" id="latestCard" style="display:none">
+<div class="card-title latest-card">📍 Latest Check-in</div>
+<div id="latestContent"></div>
+</div>
+</div>
+
+<div class="grid">
+<div class="card">
+<div class="card-title">☕ Top Categories</div>
+<div class="pill-row" id="topCats"></div>
+<div class="bar-list" id="catList"></div>
+</div>
+
+<div class="card">
+<div class="card-title">🏙️ Top Cities</div>
+<div class="pill-row" id="topCities"></div>
+<div class="bar-list" id="cityList"></div>
+</div>
+</div>
+
+<div class="grid">
+<div class="card">
+<div class="card-title">🌍 Top Countries</div>
+<div class="pill-row" id="topCountries"></div>
+<div class="bar-list" id="countryList"></div>
+</div>
+
+<div class="card">
+<div class="card-title">❤️ Liked Venues with Map Links</div>
+<div class="pill-row" id="topLikedCats"></div>
+<div id="venueLinks" class="bar-list"></div>
+</div>
+</div>
+
+<div class="card full">
+<div class="card-title">🕐 Recent 48 Hours Activity</div>
+<div id="recent48Stats" class="pill-row"></div>
+<div class="history-timeline" id="historyTimeline"></div>
+</div>
+
+<div class="card full">
+<div class="card-title">💡 Smart Suggestions</div>
+<div class="suggestion-box">
+<h4>Based on your patterns</h4>
+<div class="suggestion-text" id="suggestionText"></div>
+</div>
+</div>
+</div>
+
+<nav class="side-nav" aria-label="Page shortcuts">
+<a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
+<a href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">FEED</span></a>
+<a href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">TIPS</span></a>
+<a href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">RATED</span></a>
+<a href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">TRIPS</span></a>
+<a href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">LISTS</span></a>
+<a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">WORLD</span></a>
+<a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">VENUES</span></a>
+<a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
+</nav>
+
+<script>
+const D={{DATA_JSON}};
+const esc=s=>String(s==null?'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// Render top categories
+function renderTopCats(){
+  const cont=document.getElementById('topCats');
+  const list=document.getElementById('catList');
+  if(!D.top_categories||!D.top_categories.length){cont.innerHTML='<span class="pill">No data</span>';return;}
+  const top5=D.top_categories.slice(0,5);
+  cont.innerHTML=top5.map(c=>`<span class="pill teal">${esc(c[0])} <span style="opacity:.6">${c[1].toLocaleString()}</span></span>`).join('');
+  list.innerHTML=D.top_categories.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
+}
+
+// Render top cities
+function renderTopCities(){
+  const cont=document.getElementById('topCities');
+  const list=document.getElementById('cityList');
+  if(!D.top_cities||!D.top_cities.length){cont.innerHTML='<span class="pill">No data</span>';return;}
+  const top5=D.top_cities.slice(0,5);
+  cont.innerHTML=top5.map(c=>`<span class="pill">${esc(c[0])}</span>`).join('');
+  list.innerHTML=D.top_cities.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
+}
+
+// Render top countries
+function renderTopCountries(){
+  const cont=document.getElementById('topCountries');
+  const list=document.getElementById('countryList');
+  if(!D.top_countries||!D.top_countries.length){cont.innerHTML='<span class="pill">No data</span>';return;}
+  const top3=D.top_countries.slice(0,3);
+  cont.innerHTML=top3.map(c=>`<span class="pill gold">${esc(c[0])}</span>`).join('');
+  list.innerHTML=D.top_countries.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
+}
+
+// Render liked venue category pills
+function renderLikedCats(){
+  const cont=document.getElementById('topLikedCats');
+  if(!D.top_liked_cats||!D.top_liked_cats.length){cont.innerHTML='<span class="pill">No liked venues</span>';return;}
+  cont.innerHTML=D.top_liked_cats.slice(0,5).map(c=>`<span class="pill teal">${esc(c[0])} <span style="opacity:.6">${c[1]}</span></span>`).join('');
+}
+
+// Render venue map links
+function renderVenueLinks(){
+  const cont=document.getElementById('venueLinks');
+  if(!D.venue_links||!D.venue_links.length){
+    cont.innerHTML='<div class="empty-state"><h3>No venue links available</h3><p>Add ratings to see map links</p></div>';
+    return;
+  }
+  cont.innerHTML=D.venue_links.map(v=>{
+    const links=[];
+    if(v.google)links.push(`<a href="${esc(v.google)}" class="links-btn google" target="_blank" rel="noopener">📍 Google</a>`);
+    if(v.yandex)links.push(`<a href="${esc(v.yandex)}" class="links-btn yandex" target="_blank" rel="noopener">🗺️ Yandex</a>`);
+    if(links.length)links.push(`<a href="https://foursquare.com/v/${encodeURIComponent(v.name).replace(/%20/g,'-')}" class="links-btn foursquare" target="_blank" rel="noopener">4sq</a>`);
+    return `<div class="bar-row" style="flex-wrap:wrap;gap:6px;"><span class="bar-name" style="flex:1 1 100%;margin-bottom:4px;">${esc(v.name)}<span class="bar-cnt" style="margin-left:8px;">${esc(v.category)}</span></span>${links.join('')}</div>`;
+  }).join('');
+}
+
+// Render latest check-in
+function renderLatest(){
+  const card=document.getElementById('latestCard');
+  const cont=document.getElementById('latestContent');
+  if(!D.latest_checkin||!D.latest_checkin.venue){
+    card.style.display='none';
+    return;
+  }
+  const lc=D.latest_checkin;
+  const lat=lc.lat,lng=lc.lng;
+  const name=encodeURIComponent(lc.venue);
+  let linksHtml='';
+  if(lat&&lng){
+    linksHtml=`<div class="latest-links">
+      <span class="links-title">Open in maps</span>
+      <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" class="links-btn google" target="_blank" rel="noopener">📍 Google</a>
+      <a href="https://yandex.com/maps/?pt=${lng},${lat}&z=16" class="links-btn yandex" target="_blank" rel="noopener">🗺️ Yandex</a>
+      <a href="https://foursquare.com/v/${name}/${lat},${lng}" class="links-btn foursquare" target="_blank" rel="noopener">4sq</a>
+    </div>`;
+  }
+  cont.innerHTML=`<div class="latest-venue">${esc(lc.venue)}</div>
+    <div class="latest-meta"><span>📍 ${esc(lc.city)}</span><span>🌍 ${esc(lc.country)}</span><span>🏷️ ${esc(lc.category)}</span></div>
+    ${linksHtml}`;
+}
+
+// Render 48h history
+function render48h(){
+  const stats=document.getElementById('recent48Stats');
+  const timeline=document.getElementById('historyTimeline');
+  const rs=D.recent_stats||{};
+  stats.innerHTML=`<span class="pill gold">${rs.count||0} check-ins</span><span class="pill">${rs.unique_venues||0} venues</span><span class="pill">${rs.cities||0} cities</span>`;
+  if(!D.recent_history||!D.recent_history.length){
+    timeline.innerHTML='<div class="empty-state"><h3>No recent activity</h3><p>Check-ins in the last 48 hours will appear here</p></div>';
+    return;
+  }
+  timeline.innerHTML=D.recent_history.map(h=>`<div class="history-item">
+    <div class="history-time">${esc(h.time)}</div>
+    <div class="history-details">
+      <div class="history-venue">${esc(h.venue)}</div>
+      <div class="history-meta">${esc(h.category)} · ${esc(h.city)}, ${esc(h.country)}</div>
+    </div>
+  </div>`).join('');
+}
+
+// Render suggestions
+function renderSuggestions(){
+  const cont=document.getElementById('suggestionText');
+  const s=D.suggestions||{};
+  let text='';
+  if(s.based_on_latest){
+    text+=`Your latest check-in at <strong>${esc(s.based_on_latest.venue)}</strong> in ${esc(s.based_on_latest.city)} suggests you're exploring <strong>${esc(s.based_on_latest.category)}</strong> venues. `;
+  }
+  if(s.prefer_categories&&s.prefer_categories.length){
+    text+=`You consistently favor <strong>${esc(s.prefer_categories[0])}</strong> venues — ${s.prefer_categories.slice(1,4).map(c=>esc(c)).join(', ')} also rank high. `;
+  }
+  if(s.prefer_cities&&s.prefer_cities.length){
+    text+=`Your most visited cities are <strong>${esc(s.prefer_cities[0])}</strong> and ${esc(s.prefer_cities[1])}. `;
+  }
+  if(s.peak_hours){
+    text+=`Peak check-in hours: <strong>${esc(s.peak_hours)}</strong>.`;
+  }
+  if(!text)text='Keep exploring to build your preferences.';
+  cont.innerHTML=text;
+}
+
+// Init
+renderTopCats();
+renderTopCities();
+renderTopCountries();
+renderLikedCats();
+renderVenueLinks();
+renderLatest();
+render48h();
+renderSuggestions();
+</script>
+</body>
+</html>
