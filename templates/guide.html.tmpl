@@ -83,8 +83,51 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 .suggestion-box h4{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:10px;}
 .suggestion-text{font-size:.88rem;line-height:1.6;color:var(--text);}
 
+/* Nearby suggestions grid */
+.nearby-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+.nearby-anchor{font-size:.82rem;color:var(--muted);}
+.nearby-anchor strong{color:var(--text);}
+.nearby-cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.nearby-cat-pill{padding:4px 10px;border-radius:14px;font-size:.68rem;background:rgba(78,201,196,.1);border:1px solid rgba(78,201,196,.3);color:var(--teal);cursor:pointer;transition:all .15s;}
+.nearby-cat-pill.active{background:rgba(78,201,196,.25);border-color:var(--teal);}
+.nearby-cat-pill:hover{background:rgba(78,201,196,.2);}
+.suggest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+.suggest-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;transition:border-color .15s;position:relative;}
+.suggest-card:hover{border-color:rgba(78,201,196,.4);}
+.suggest-match{display:inline-block;font-family:'DM Mono',monospace;font-size:.52rem;background:rgba(232,184,109,.15);color:var(--gold);padding:2px 7px;border-radius:4px;margin-bottom:8px;}
+.suggest-name{font-size:.88rem;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.suggest-cat{font-size:.70rem;color:var(--teal);margin-bottom:4px;}
+.suggest-loc{font-size:.65rem;color:var(--muted);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.suggest-links{display:flex;gap:5px;flex-wrap:wrap;}
+.suggest-links .links-btn{padding:4px 9px;font-size:.65rem;}
+.suggest-reload{padding:7px 16px;border-radius:8px;font-size:.75rem;background:rgba(78,201,196,.12);border:1px solid rgba(78,201,196,.4);color:var(--teal);cursor:pointer;transition:all .15s;}
+.suggest-reload:hover{background:rgba(78,201,196,.22);}
+
+/* Loading animation */
+.loading-dots{display:inline-flex;gap:5px;align-items:center;}
+.loading-dots span{width:7px;height:7px;background:var(--teal);border-radius:50%;animation:dotpulse 1.2s infinite;}
+.loading-dots span:nth-child(2){animation-delay:.2s;}
+.loading-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes dotpulse{0%,80%,100%{opacity:.2;transform:scale(.8);}40%{opacity:1;transform:scale(1);}}
+.loading-wrap{padding:32px;text-align:center;}
+.loading-msg{font-size:.78rem;color:var(--muted);margin-top:12px;}
+
+/* Session history */
+.session-item{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
+.session-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.session-time{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);flex-shrink:0;}
+.session-anchor{font-size:.82rem;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.session-count{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--teal);flex-shrink:0;}
+.session-venues{display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;}
+.session-venue-row{display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--card);border-radius:6px;}
+.session-venue-row .bar-name{font-size:.78rem;}
+.session-venue-row .bar-cnt{font-size:.62rem;}
+.session-venue-row .links-btn{padding:3px 7px;font-size:.58rem;}
+.session-more{font-size:.60rem;color:var(--muted);padding:4px 8px;font-family:'DM Mono',monospace;}
+
 .empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
 .empty-state h3{font-size:1.1rem;margin-bottom:8px;color:var(--text);}
+.empty-state p{font-size:.82rem;}
 
 .side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);}
 .side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;}
@@ -101,6 +144,7 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
   header h1{font-size:1.6rem;}
   .stat-grid{grid-template-columns:repeat(2,1fr);}
   .grid{grid-template-columns:1fr;}
+  .suggest-grid{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -112,6 +156,7 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 <div class="updated">Updated {{UPDATED}}</div>
 </header>
 
+<!-- Row 1: Stats + Latest check-in -->
 <div class="grid">
 <div class="card">
 <div class="card-title">📊 Your Preferences</div>
@@ -123,12 +168,13 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 </div>
 </div>
 
-<div class="card" id="latestCard" style="display:none">
-<div class="card-title latest-card">📍 Latest Check-in</div>
+<div class="card latest-card" id="latestCard" style="display:none">
+<div class="card-title">📍 Latest Check-in</div>
 <div id="latestContent"></div>
 </div>
 </div>
 
+<!-- Row 2: Top Categories + Cities -->
 <div class="grid">
 <div class="card">
 <div class="card-title">☕ Top Categories</div>
@@ -143,6 +189,7 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 </div>
 </div>
 
+<!-- Row 3: Countries + Liked Venues -->
 <div class="grid">
 <div class="card">
 <div class="card-title">🌍 Top Countries</div>
@@ -157,20 +204,46 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 </div>
 </div>
 
+<!-- Row 4: 48h recent activity -->
 <div class="card full">
 <div class="card-title">🕐 Recent 48 Hours Activity</div>
 <div id="recent48Stats" class="pill-row"></div>
 <div class="history-timeline" id="historyTimeline"></div>
 </div>
 
+<!-- Row 5: Nearby suggestions (live, based on latest check-in) -->
 <div class="card full">
-<div class="card-title">💡 Smart Suggestions</div>
+<div class="card-title">🔍 Nearby For You
+  <em>· based on latest location &amp; preferences</em>
+  <button class="suggest-reload" id="nearbyReloadBtn" onclick="loadNearbySuggestions()" style="margin-left:auto">↻ Refresh</button>
+</div>
+<div id="nearbyAnchorRow" class="nearby-header" style="display:none">
+  <span class="nearby-anchor" id="nearbyAnchorText"></span>
+</div>
+<div class="nearby-cats" id="nearbyCatFilter"></div>
+<div id="nearbyBox">
+  <div class="loading-wrap"><div class="loading-dots"><span></span><span></span><span></span></div><div class="loading-msg">Loading suggestions…</div></div>
+</div>
+</div>
+
+<!-- Row 6: Pattern summary -->
+<div class="card full">
+<div class="card-title">💡 Preference Summary</div>
 <div class="suggestion-box">
 <h4>Based on your patterns</h4>
 <div class="suggestion-text" id="suggestionText"></div>
 </div>
 </div>
+
+<!-- Row 7: 48h suggestion session history (localStorage) -->
+<div class="card full">
+<div class="card-title">🕒 Suggestion History <em>· last 48 hours</em></div>
+<div id="sessionHistory">
+<div class="loading-wrap" style="padding:20px"><div class="empty-state" style="padding:20px 0"><h3>No history yet</h3><p>Your suggestion sessions will appear here</p></div></div>
 </div>
+</div>
+
+</div><!-- /.page -->
 
 <nav class="side-nav" aria-label="Page shortcuts">
 <a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
@@ -182,91 +255,98 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 <a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">WORLD</span></a>
 <a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">VENUES</span></a>
 <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
+<a href="guide.html" class="active"><span class="sn-icon">🧭</span><span class="sn-lbl">GUIDE</span></a>
 </nav>
 
 <script>
 const D={{DATA_JSON}};
 const esc=s=>String(s==null?'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-// Render top categories
+// ── Preference data ──────────────────────────────────────────────────────────
+// Preferred categories: liked categories first, fall back to visit-frequency top cats
+// Filter out transit/infrastructure categories that make poor suggestions
+const SKIP_CATS = new Set(['Road','Bus Line','Bus Stop','Bus Station','Metro Station',
+  'Rail Station','Home (private)','City','Corporate Cafeteria','Neighborhood']);
+const PREF_CATS = (D.suggestions && D.suggestions.prefer_categories || [])
+  .filter(c => !SKIP_CATS.has(c));
+// Fallback: top visited cats minus infrastructure
+const ALL_TOP_CATS = (D.top_categories || []).map(c=>c[0]).filter(c=>!SKIP_CATS.has(c));
+const SUGGEST_CATS = PREF_CATS.length >= 3 ? PREF_CATS : ALL_TOP_CATS.slice(0, 6);
+
+const LATEST = D.latest_checkin || null;
+const LATEST_LL = LATEST && LATEST.lat && LATEST.lng
+  ? `${LATEST.lat},${LATEST.lng}` : null;
+
+const LS_KEY = 'guide_sessions_v1';
+const LS_TTL = 48 * 3600 * 1000; // 48h in ms
+
+// ── Existing renders ─────────────────────────────────────────────────────────
 function renderTopCats(){
   const cont=document.getElementById('topCats');
   const list=document.getElementById('catList');
   if(!D.top_categories||!D.top_categories.length){cont.innerHTML='<span class="pill">No data</span>';return;}
-  const top5=D.top_categories.slice(0,5);
-  cont.innerHTML=top5.map(c=>`<span class="pill teal">${esc(c[0])} <span style="opacity:.6">${c[1].toLocaleString()}</span></span>`).join('');
+  cont.innerHTML=D.top_categories.slice(0,5).map(c=>`<span class="pill teal">${esc(c[0])} <span style="opacity:.6">${c[1].toLocaleString()}</span></span>`).join('');
   list.innerHTML=D.top_categories.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
 }
 
-// Render top cities
 function renderTopCities(){
   const cont=document.getElementById('topCities');
   const list=document.getElementById('cityList');
   if(!D.top_cities||!D.top_cities.length){cont.innerHTML='<span class="pill">No data</span>';return;}
-  const top5=D.top_cities.slice(0,5);
-  cont.innerHTML=top5.map(c=>`<span class="pill">${esc(c[0])}</span>`).join('');
+  cont.innerHTML=D.top_cities.slice(0,5).map(c=>`<span class="pill">${esc(c[0])}</span>`).join('');
   list.innerHTML=D.top_cities.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
 }
 
-// Render top countries
 function renderTopCountries(){
   const cont=document.getElementById('topCountries');
   const list=document.getElementById('countryList');
   if(!D.top_countries||!D.top_countries.length){cont.innerHTML='<span class="pill">No data</span>';return;}
-  const top3=D.top_countries.slice(0,3);
-  cont.innerHTML=top3.map(c=>`<span class="pill gold">${esc(c[0])}</span>`).join('');
+  cont.innerHTML=D.top_countries.slice(0,3).map(c=>`<span class="pill gold">${esc(c[0])}</span>`).join('');
   list.innerHTML=D.top_countries.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
 }
 
-// Render liked venue category pills
 function renderLikedCats(){
   const cont=document.getElementById('topLikedCats');
   if(!D.top_liked_cats||!D.top_liked_cats.length){cont.innerHTML='<span class="pill">No liked venues</span>';return;}
   cont.innerHTML=D.top_liked_cats.slice(0,5).map(c=>`<span class="pill teal">${esc(c[0])} <span style="opacity:.6">${c[1]}</span></span>`).join('');
 }
 
-// Render venue map links
 function renderVenueLinks(){
   const cont=document.getElementById('venueLinks');
   if(!D.venue_links||!D.venue_links.length){
-    cont.innerHTML='<div class="empty-state"><h3>No venue links available</h3><p>Add ratings to see map links</p></div>';
+    cont.innerHTML='<div class="empty-state"><h3>No venue links</h3><p>Add ratings to see map links</p></div>';
     return;
   }
   cont.innerHTML=D.venue_links.map(v=>{
     const links=[];
     if(v.google)links.push(`<a href="${esc(v.google)}" class="links-btn google" target="_blank" rel="noopener">📍 Google</a>`);
     if(v.yandex)links.push(`<a href="${esc(v.yandex)}" class="links-btn yandex" target="_blank" rel="noopener">🗺️ Yandex</a>`);
-    if(links.length)links.push(`<a href="https://foursquare.com/v/${encodeURIComponent(v.name).replace(/%20/g,'-')}" class="links-btn foursquare" target="_blank" rel="noopener">4sq</a>`);
+    if(links.length)links.push(`<a href="https://foursquare.com/v/${encodeURIComponent(v.name||'').replace(/%20/g,'-')}" class="links-btn foursquare" target="_blank" rel="noopener">4sq</a>`);
     return `<div class="bar-row" style="flex-wrap:wrap;gap:6px;"><span class="bar-name" style="flex:1 1 100%;margin-bottom:4px;">${esc(v.name)}<span class="bar-cnt" style="margin-left:8px;">${esc(v.category)}</span></span>${links.join('')}</div>`;
   }).join('');
 }
 
-// Render latest check-in
 function renderLatest(){
   const card=document.getElementById('latestCard');
   const cont=document.getElementById('latestContent');
-  if(!D.latest_checkin||!D.latest_checkin.venue){
-    card.style.display='none';
-    return;
-  }
-  const lc=D.latest_checkin;
-  const lat=lc.lat,lng=lc.lng;
-  const name=encodeURIComponent(lc.venue);
+  if(!LATEST||!LATEST.venue){card.style.display='none';return;}
+  card.style.display='';
+  const lat=LATEST.lat,lng=LATEST.lng;
+  const name=encodeURIComponent(LATEST.venue);
   let linksHtml='';
   if(lat&&lng){
     linksHtml=`<div class="latest-links">
       <span class="links-title">Open in maps</span>
-      <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" class="links-btn google" target="_blank" rel="noopener">📍 Google</a>
-      <a href="https://yandex.com/maps/?pt=${lng},${lat}&z=16" class="links-btn yandex" target="_blank" rel="noopener">🗺️ Yandex</a>
-      <a href="https://foursquare.com/v/${name}/${lat},${lng}" class="links-btn foursquare" target="_blank" rel="noopener">4sq</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" class="links-btn google" target="_blank" rel="noopener">📍 Google Maps</a>
+      <a href="https://yandex.com/maps/?pt=${lng},${lat}&z=16" class="links-btn yandex" target="_blank" rel="noopener">🗺️ Yandex Maps</a>
+      <a href="https://foursquare.com/v/${name}/${LATEST.venue_id||''}" class="links-btn foursquare" target="_blank" rel="noopener">4sq ↗</a>
     </div>`;
   }
-  cont.innerHTML=`<div class="latest-venue">${esc(lc.venue)}</div>
-    <div class="latest-meta"><span>📍 ${esc(lc.city)}</span><span>🌍 ${esc(lc.country)}</span><span>🏷️ ${esc(lc.category)}</span></div>
+  cont.innerHTML=`<div class="latest-venue">${esc(LATEST.venue)}</div>
+    <div class="latest-meta"><span>📍 ${esc(LATEST.city)}</span><span>🌍 ${esc(LATEST.country)}</span><span>🏷️ ${esc(LATEST.category)}</span></div>
     ${linksHtml}`;
 }
 
-// Render 48h history
 function render48h(){
   const stats=document.getElementById('recent48Stats');
   const timeline=document.getElementById('historyTimeline');
@@ -276,48 +356,263 @@ function render48h(){
     timeline.innerHTML='<div class="empty-state"><h3>No recent activity</h3><p>Check-ins in the last 48 hours will appear here</p></div>';
     return;
   }
-  timeline.innerHTML=D.recent_history.map(h=>`<div class="history-item">
-    <div class="history-time">${esc(h.time)}</div>
+  timeline.innerHTML=D.recent_history.map(h=>{
+    const fsqLink=`<a href="https://foursquare.com/v/${h.venue_id||''}" target="_blank" rel="noopener" style="color:var(--teal);font-size:.62rem;margin-left:6px">4sq↗</a>`;
+    const lat=h.lat,lng=h.lng;
+    const gLink=lat&&lng?`<a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" rel="noopener" style="color:#4285f4;font-size:.62rem;margin-left:6px">map↗</a>`:'';
+    return `<div class="history-item">
+    <div class="history-time">${esc(h.time)}<br><span style="font-size:.52rem;opacity:.6">${esc((h.date||'').replace(/^\d{2} /,''))}</span></div>
     <div class="history-details">
-      <div class="history-venue">${esc(h.venue)}</div>
+      <div class="history-venue">${esc(h.venue)}${h.venue_id?fsqLink:''}${gLink}</div>
       <div class="history-meta">${esc(h.category)} · ${esc(h.city)}, ${esc(h.country)}</div>
     </div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
-// Render suggestions
 function renderSuggestions(){
   const cont=document.getElementById('suggestionText');
   const s=D.suggestions||{};
   let text='';
   if(s.based_on_latest){
-    text+=`Your latest check-in at <strong>${esc(s.based_on_latest.venue)}</strong> in ${esc(s.based_on_latest.city)} suggests you're exploring <strong>${esc(s.based_on_latest.category)}</strong> venues. `;
+    text+=`Latest check-in at <strong>${esc(s.based_on_latest.venue)}</strong> in ${esc(s.based_on_latest.city)}, ${esc(s.based_on_latest.country)}. `;
   }
   if(s.prefer_categories&&s.prefer_categories.length){
-    text+=`You consistently favor <strong>${esc(s.prefer_categories[0])}</strong> venues — ${s.prefer_categories.slice(1,4).map(c=>esc(c)).join(', ')} also rank high. `;
+    text+=`Preferred venue types: <strong>${esc(s.prefer_categories[0])}</strong>`;
+    if(s.prefer_categories.length>1) text+=`, ${s.prefer_categories.slice(1,4).map(c=>esc(c)).join(', ')}`;
+    text+='. ';
   }
   if(s.prefer_cities&&s.prefer_cities.length){
-    text+=`Your most visited cities are <strong>${esc(s.prefer_cities[0])}</strong> and ${esc(s.prefer_cities[1])}. `;
+    text+=`Most visited: <strong>${esc(s.prefer_cities[0])}</strong>`;
+    if(s.prefer_cities[1]) text+=` &amp; <strong>${esc(s.prefer_cities[1])}</strong>`;
+    text+='. ';
   }
-  if(s.peak_hours){
-    text+=`Peak check-in hours: <strong>${esc(s.peak_hours)}</strong>.`;
-  }
-  if(!text)text='Keep exploring to build your preferences.';
+  if(s.peak_hours) text+=`Peak check-in hours: <strong>${esc(s.peak_hours)}</strong>.`;
+  if(!text) text='Keep exploring to build your preferences.';
   cont.innerHTML=text;
 }
 
-// Init with error handling
-try{
-renderTopCats();
-renderTopCities();
-renderTopCountries();
-renderLikedCats();
-renderVenueLinks();
-renderLatest();
-render48h();
-renderSuggestions();
-}catch(e){console.error('Guide init error:',e);}
-console.log('Guide: Render complete');
+// ── Nearby suggestions ───────────────────────────────────────────────────────
+let _activeCatFilter = null; // null = show all
+let _lastSuggestions = [];
+
+function makeMapLinks(lat, lng, fsqId, style='') {
+  const s = style ? ` style="${style}"` : '';
+  const g = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  const y = `https://yandex.com/maps/?pt=${lng},${lat}&z=16`;
+  const f = fsqId ? `https://foursquare.com/v/${fsqId}` : `https://foursquare.com/explore?ll=${lat},${lng}`;
+  return `<a href="${g}" class="links-btn google"${s} target="_blank" rel="noopener">📍 Google</a>`
+    + `<a href="${y}" class="links-btn yandex"${s} target="_blank" rel="noopener">🗺️ Yandex</a>`
+    + `<a href="${f}" class="links-btn foursquare"${s} target="_blank" rel="noopener">4sq ↗</a>`;
+}
+
+function renderSuggestCards(venues) {
+  const filtered = _activeCatFilter
+    ? venues.filter(v => v._matchCat === _activeCatFilter)
+    : venues;
+  if (!filtered.length) {
+    document.getElementById('nearbyBox').innerHTML = '<div class="empty-state"><h3>No results for this filter</h3></div>';
+    return;
+  }
+  document.getElementById('nearbyBox').innerHTML = `<div class="suggest-grid">${filtered.map(v => {
+    const lat = v.geocodes && v.geocodes.main ? v.geocodes.main.latitude : null;
+    const lng = v.geocodes && v.geocodes.main ? v.geocodes.main.longitude : null;
+    const loc = v.location || {};
+    const addr = loc.formatted_address || loc.address || loc.locality || loc.region || '';
+    const catName = (v.categories && v.categories[0] && v.categories[0].name) || v._matchCat || '';
+    const links = lat && lng ? makeMapLinks(lat, lng, v.fsq_id) : '';
+    return `<div class="suggest-card">
+      <div class="suggest-match">${esc(v._matchCat)}</div>
+      <div class="suggest-name" title="${esc(v.name)}">${esc(v.name)}</div>
+      <div class="suggest-cat">${esc(catName !== v._matchCat ? catName : '')}</div>
+      <div class="suggest-loc">${esc(addr)}</div>
+      <div class="suggest-links">${links}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function renderCatFilter(venues) {
+  const catCounts = {};
+  venues.forEach(v => { catCounts[v._matchCat] = (catCounts[v._matchCat]||0) + 1; });
+  const cats = Object.keys(catCounts);
+  const el = document.getElementById('nearbyCatFilter');
+  if (cats.length <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = `<span class="nearby-cat-pill${!_activeCatFilter?' active':''}" onclick="setCatFilter(null)">All <span style="opacity:.6">${venues.length}</span></span>`
+    + cats.map(c => `<span class="nearby-cat-pill${_activeCatFilter===c?' active':''}" onclick="setCatFilter('${c.replace(/'/g,"\\'")}')">${esc(c)} <span style="opacity:.6">${catCounts[c]}</span></span>`).join('');
+}
+
+function setCatFilter(cat) {
+  _activeCatFilter = cat;
+  renderCatFilter(_lastSuggestions);
+  renderSuggestCards(_lastSuggestions);
+}
+
+async function loadNearbySuggestions() {
+  const box = document.getElementById('nearbyBox');
+  const anchorRow = document.getElementById('nearbyAnchorRow');
+  const anchorText = document.getElementById('nearbyAnchorText');
+
+  if (!LATEST_LL) {
+    box.innerHTML = '<div class="empty-state"><h3>No location available</h3><p>Check in somewhere first to get nearby suggestions</p></div>';
+    return;
+  }
+
+  // Show anchor info
+  anchorRow.style.display = '';
+  anchorText.innerHTML = `Finding places near <strong>${esc(LATEST.venue)}</strong> in ${esc(LATEST.city)}, ${esc(LATEST.country)}`;
+
+  // Show loading
+  box.innerHTML = '<div class="loading-wrap"><div class="loading-dots"><span></span><span></span><span></span></div><div class="loading-msg">Searching nearby venues…</div></div>';
+  document.getElementById('nearbyCatFilter').innerHTML = '';
+
+  // Pick search categories: use top liked cats, skip infra
+  const searchCats = SUGGEST_CATS.slice(0, 5);
+
+  // Parallel fetch for each category
+  const fetches = searchCats.map((cat, idx) =>
+    fetch(`/api/search-venues?ll=${encodeURIComponent(LATEST_LL)}&q=${encodeURIComponent(cat)}&limit=12&sort=DISTANCE`)
+      .then(r => r.ok ? r.json() : { results: [] })
+      .then(data => ({ cat, idx, results: data.results || [] }))
+      .catch(() => ({ cat, idx, results: [] }))
+  );
+
+  let allFetches;
+  try {
+    allFetches = await Promise.all(fetches);
+  } catch(e) {
+    box.innerHTML = '<div class="empty-state"><h3>Failed to load suggestions</h3><p>Check your connection and try again</p></div>';
+    return;
+  }
+
+  // Combine + deduplicate by fsq_id; score by (category priority × position)
+  const seen = new Set();
+  const combined = [];
+  allFetches.forEach(({ cat, idx, results }) => {
+    results.forEach((v, pos) => {
+      const id = v.fsq_id;
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      // Higher score = better match + closer
+      const score = (searchCats.length - idx) * 20 + (12 - pos);
+      combined.push({ ...v, _matchCat: cat, _score: score });
+    });
+  });
+
+  // Sort by score, take top 20
+  combined.sort((a, b) => b._score - a._score);
+  const top = combined.slice(0, 20);
+
+  if (!top.length) {
+    box.innerHTML = '<div class="empty-state"><h3>No suggestions found nearby</h3><p>The FSQ API returned no results for this location</p></div>';
+    return;
+  }
+
+  _lastSuggestions = top;
+  _activeCatFilter = null;
+
+  // Save session to localStorage
+  _saveSession(top);
+
+  // Render filter pills + cards
+  renderCatFilter(top);
+  renderSuggestCards(top);
+
+  // Refresh history panel
+  renderSuggestionHistory();
+}
+
+// ── localStorage session management ─────────────────────────────────────────
+function _saveSession(venues) {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    const store = raw ? JSON.parse(raw) : { sessions: [] };
+    const now = Date.now();
+    // Prune expired
+    store.sessions = (store.sessions || []).filter(s => now - s.ts < LS_TTL);
+    store.sessions.unshift({
+      ts: now,
+      anchor: {
+        venue: LATEST ? LATEST.venue : '',
+        city: LATEST ? LATEST.city : '',
+        country: LATEST ? LATEST.country : '',
+        lat: LATEST ? LATEST.lat : null,
+        lng: LATEST ? LATEST.lng : null,
+        venue_id: LATEST ? (LATEST.venue_id || '') : '',
+      },
+      suggestions: venues.map(v => ({
+        fsq_id: v.fsq_id || '',
+        name: v.name || '',
+        matchCat: v._matchCat || '',
+        cat: (v.categories && v.categories[0] && v.categories[0].name) || v._matchCat || '',
+        lat: v.geocodes && v.geocodes.main ? v.geocodes.main.latitude : null,
+        lng: v.geocodes && v.geocodes.main ? v.geocodes.main.longitude : null,
+        addr: (v.location && (v.location.formatted_address || v.location.address || v.location.locality)) || '',
+      }))
+    });
+    store.sessions = store.sessions.slice(0, 30); // cap at 30 sessions
+    localStorage.setItem(LS_KEY, JSON.stringify(store));
+  } catch(e) { /* storage unavailable */ }
+}
+
+function renderSuggestionHistory() {
+  const cont = document.getElementById('sessionHistory');
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) {
+      cont.innerHTML = '<div class="empty-state"><p>No history yet — load suggestions above to start tracking</p></div>';
+      return;
+    }
+    const store = JSON.parse(raw);
+    const now = Date.now();
+    const recent = (store.sessions || []).filter(s => now - s.ts < LS_TTL);
+    if (!recent.length) {
+      cont.innerHTML = '<div class="empty-state"><p>No sessions in the last 48 hours</p></div>';
+      return;
+    }
+    cont.innerHTML = recent.map(s => {
+      const d = new Date(s.ts);
+      const timeStr = d.toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+      const anchor = s.anchor || {};
+      const sugg = s.suggestions || [];
+      const anchorMapLink = anchor.lat && anchor.lng
+        ? `<a href="https://www.google.com/maps/search/?api=1&query=${anchor.lat},${anchor.lng}" target="_blank" rel="noopener" style="color:var(--teal);font-size:.62rem;margin-left:6px">map↗</a>` : '';
+      return `<div class="session-item">
+        <div class="session-header">
+          <span class="session-time">${esc(timeStr)}</span>
+          <span class="session-anchor">📍 ${esc(anchor.venue || anchor.city || 'Unknown')}${anchorMapLink}</span>
+          <span class="session-count">${sugg.length} venues</span>
+        </div>
+        <div class="session-venues">${sugg.slice(0, 8).map(v => {
+          const links = v.lat && v.lng
+            ? makeMapLinks(v.lat, v.lng, v.fsq_id, 'padding:3px 7px;font-size:.58rem')
+            : '';
+          return `<div class="session-venue-row">
+            <span class="bar-name">${esc(v.name)}</span>
+            <span class="bar-cnt">${esc(v.matchCat || v.cat)}</span>
+            ${links}
+          </div>`;
+        }).join('')}${sugg.length > 8 ? `<div class="session-more">+${sugg.length - 8} more venues</div>` : ''}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    cont.innerHTML = '<div class="empty-state"><p>Could not load history</p></div>';
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+try {
+  renderTopCats();
+  renderTopCities();
+  renderTopCountries();
+  renderLikedCats();
+  renderVenueLinks();
+  renderLatest();
+  render48h();
+  renderSuggestions();
+  renderSuggestionHistory();
+  // Auto-load nearby suggestions
+  loadNearbySuggestions();
+} catch(e) { console.error('Guide init error:', e); }
 </script>
 </body>
 </html>
