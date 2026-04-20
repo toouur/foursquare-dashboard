@@ -18,6 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
 body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;}
@@ -83,47 +84,63 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 .suggestion-box h4{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:10px;}
 .suggestion-text{font-size:.88rem;line-height:1.6;color:var(--text);}
 
-/* Nearby suggestions grid */
-.nearby-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+/* Nearby suggestions */
+.nearby-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
 .nearby-anchor{font-size:.82rem;color:var(--muted);}
 .nearby-anchor strong{color:var(--text);}
-.nearby-cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
-.nearby-cat-pill{padding:4px 10px;border-radius:14px;font-size:.68rem;background:rgba(78,201,196,.1);border:1px solid rgba(78,201,196,.3);color:var(--teal);cursor:pointer;transition:all .15s;}
-.nearby-cat-pill.active{background:rgba(78,201,196,.25);border-color:var(--teal);}
-.nearby-cat-pill:hover{background:rgba(78,201,196,.2);}
-.suggest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
-.suggest-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;transition:border-color .15s;position:relative;}
-.suggest-card:hover{border-color:rgba(78,201,196,.4);}
-.suggest-match{display:inline-block;font-family:'DM Mono',monospace;font-size:.52rem;background:rgba(232,184,109,.15);color:var(--gold);padding:2px 7px;border-radius:4px;margin-bottom:8px;}
-.suggest-name{font-size:.88rem;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.suggest-cat{font-size:.70rem;color:var(--teal);margin-bottom:4px;}
-.suggest-loc{font-size:.65rem;color:var(--muted);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.suggest-links{display:flex;gap:5px;flex-wrap:wrap;}
-.suggest-links .links-btn{padding:4px 9px;font-size:.65rem;}
-.suggest-reload{padding:7px 16px;border-radius:8px;font-size:.75rem;background:rgba(78,201,196,.12);border:1px solid rgba(78,201,196,.4);color:var(--teal);cursor:pointer;transition:all .15s;}
-.suggest-reload:hover{background:rgba(78,201,196,.22);}
-
-/* Loading animation */
-.loading-dots{display:inline-flex;gap:5px;align-items:center;}
-.loading-dots span{width:7px;height:7px;background:var(--teal);border-radius:50%;animation:dotpulse 1.2s infinite;}
-.loading-dots span:nth-child(2){animation-delay:.2s;}
-.loading-dots span:nth-child(3){animation-delay:.4s;}
-@keyframes dotpulse{0%,80%,100%{opacity:.2;transform:scale(.8);}40%{opacity:1;transform:scale(1);}}
-.loading-wrap{padding:32px;text-align:center;}
-.loading-msg{font-size:.78rem;color:var(--muted);margin-top:12px;}
-
-/* Session history */
-.session-item{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;}
-.session-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
-.session-time{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);flex-shrink:0;}
-.session-anchor{font-size:.82rem;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.session-count{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--teal);flex-shrink:0;}
-.session-venues{display:flex;flex-direction:column;gap:5px;max-height:180px;overflow-y:auto;}
-.session-venue-row{display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--card);border-radius:6px;}
-.session-venue-row .bar-name{font-size:.78rem;}
-.session-venue-row .bar-cnt{font-size:.62rem;}
-.session-venue-row .links-btn{padding:3px 7px;font-size:.58rem;}
-.session-more{font-size:.60rem;color:var(--muted);padding:4px 8px;font-family:'DM Mono',monospace;}
+/* Category accordion */
+.cat-accordion{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}
+.cat-group{border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.cat-group-header{width:100%;display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--card2);cursor:pointer;border:none;color:var(--text);font-family:inherit;text-align:left;transition:background .15s;}
+.cat-group-header:hover{background:rgba(78,201,196,.09);}
+.cat-group.open .cat-group-header{background:rgba(78,201,196,.12);border-bottom:1px solid var(--border);}
+.cat-group-icon{font-size:.85rem;width:18px;text-align:center;flex-shrink:0;}
+.cat-group-name{flex:1;font-size:.78rem;font-weight:500;}
+.cat-group-liked{font-size:.6rem;color:#e8778a;margin-right:2px;}
+.cat-group-count{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--teal);background:rgba(78,201,196,.12);border-radius:10px;padding:1px 6px;flex-shrink:0;}
+.cat-group-arrow{font-size:.6rem;color:var(--muted);transition:transform .2s;flex-shrink:0;}
+.cat-group.open .cat-group-arrow{transform:rotate(180deg);}
+.cat-group-body{display:none;padding:8px;flex-wrap:wrap;gap:5px;}
+.cat-group.open .cat-group-body{display:flex;}
+.nearby-cat-pill{padding:4px 11px;border-radius:16px;font-size:.71rem;cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--muted);transition:all .15s;white-space:nowrap;font-family:inherit;}
+.nearby-cat-pill:hover{background:rgba(78,201,196,.08);border-color:rgba(78,201,196,.4);color:var(--text);}
+.nearby-cat-pill.active{background:rgba(78,201,196,.18);border-color:var(--teal);color:var(--teal);}
+.nearby-cat-pill.pill-was-visited{border-color:rgba(78,201,196,.3);color:var(--text);}
+.nearby-cat-pill.pill-liked-cat{border-color:rgba(232,119,138,.35);color:#e8778a;}
+.pill-liked{color:#e8778a;margin-right:3px;font-size:.6rem;}
+.pill-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--teal);margin-left:4px;vertical-align:middle;opacity:.7;}
+.cat-group-visits{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-left:2px;}
+/* Controls bar */
+.nearby-controls{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.nearby-radius-group{display:flex;gap:3px;}
+.nearby-radius-btn{padding:4px 9px;border-radius:12px;font-size:.68rem;cursor:pointer;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;transition:all .15s;}
+.nearby-radius-btn:hover{border-color:var(--teal);color:var(--teal);}
+.nearby-radius-btn.active{background:rgba(78,201,196,.18);border-color:var(--teal);color:var(--teal);}
+.nearby-unvisited-toggle{display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted);cursor:pointer;user-select:none;padding:4px 9px;border-radius:12px;border:1px solid var(--border);background:var(--card2);transition:all .15s;}
+.nearby-unvisited-toggle:hover{border-color:var(--gold);color:var(--gold);}
+.nearby-unvisited-toggle.active{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
+.nearby-result-count{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-left:auto;}
+/* Result list */
+.nearby-layout{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start;}
+.nearby-result-list{display:flex;flex-direction:column;gap:7px;max-height:420px;overflow-y:auto;padding-right:4px;}
+.nearby-result-list::-webkit-scrollbar{width:3px;}
+.nearby-result-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.nearby-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--card2);border-radius:8px;border:1px solid var(--border);}
+.nearby-item-dist{font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;color:var(--teal);white-space:nowrap;min-width:44px;text-align:right;padding-top:2px;}
+.nearby-item-body{flex:1;min-width:0;}
+.nearby-item-name{font-size:.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nearby-item-addr{font-size:.66rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nearby-item-links{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
+.nearby-item-link{font-size:.65rem;padding:3px 8px;border-radius:4px;text-decoration:none;border:1px solid rgba(255,255,255,.12);color:var(--text);transition:all .12s;}
+.nearby-item-link:hover{background:rgba(255,255,255,.07);}
+.nearby-item-link.glink{border-color:rgba(66,133,244,.35);color:#4285f4;}
+.nearby-item-link.ylink{border-color:rgba(255,80,80,.35);color:#ff6060;}
+.nearby-item-link.osmlink{border-color:rgba(120,200,100,.3);color:#78c864;}
+.nearby-loading{text-align:center;padding:40px 20px;color:var(--muted);font-size:.82rem;}
+.nearby-item.visited{border-color:rgba(232,184,109,.45);background:rgba(232,184,109,.06);}
+.nearby-item.visited .nearby-item-name::after{content:'✓';font-size:.6rem;color:var(--gold);margin-left:5px;vertical-align:middle;}
+.nearby-visited-badge{font-size:.58rem;background:rgba(232,184,109,.18);color:var(--gold);border:1px solid rgba(232,184,109,.4);padding:1px 6px;border-radius:3px;margin-left:5px;font-family:'DM Mono',monospace;white-space:nowrap;}
+@media(max-width:900px){.nearby-layout{grid-template-columns:1fr;}}
 
 .empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
 .empty-state h3{font-size:1.1rem;margin-bottom:8px;color:var(--text);}
@@ -211,18 +228,29 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 <div class="history-timeline" id="historyTimeline"></div>
 </div>
 
-<!-- Row 5: Nearby suggestions (live, based on latest check-in) -->
-<div class="card full">
+<!-- Row 5: Nearby suggestions -->
+<div class="card full" id="nearbyCard">
 <div class="card-title">🔍 Nearby For You
-  <em>· based on latest location &amp; preferences</em>
-  <button class="suggest-reload" id="nearbyReloadBtn" onclick="loadNearbySuggestions()" style="margin-left:auto">↻ Refresh</button>
+  <em id="nearbySubtitle">· live OSM data</em>
 </div>
 <div id="nearbyAnchorRow" class="nearby-header" style="display:none">
   <span class="nearby-anchor" id="nearbyAnchorText"></span>
 </div>
-<div class="nearby-cats" id="nearbyCatFilter"></div>
-<div id="nearbyBox">
-  <div class="loading-wrap"><div class="loading-dots"><span></span><span></span><span></span></div><div class="loading-msg">Loading suggestions…</div></div>
+<div id="nearbyCatPills" class="cat-accordion"></div>
+<div class="nearby-controls">
+  <div class="nearby-radius-group" id="nearbyRadiusGroup">
+    <button class="nearby-radius-btn" data-r="500">500 m</button>
+    <button class="nearby-radius-btn active" data-r="1500">1.5 km</button>
+    <button class="nearby-radius-btn" data-r="3000">3 km</button>
+  </div>
+  <button class="nearby-unvisited-toggle" id="nearbyUnvisited">☆ Unvisited only</button>
+  <span class="nearby-result-count" id="nearbyResultCount"></span>
+</div>
+<div class="nearby-layout">
+  <div>
+    <div id="nearbyMapEl" style="width:100%;height:420px;border-radius:10px;position:relative;z-index:1"></div>
+  </div>
+  <div id="nearbyBox"></div>
 </div>
 </div>
 
@@ -235,13 +263,6 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 </div>
 </div>
 
-<!-- Row 7: 48h suggestion session history (localStorage) -->
-<div class="card full">
-<div class="card-title">🕒 Suggestion History <em>· last 48 hours</em></div>
-<div id="sessionHistory">
-<div class="loading-wrap" style="padding:20px"><div class="empty-state" style="padding:20px 0"><h3>No history yet</h3><p>Your suggestion sessions will appear here</p></div></div>
-</div>
-</div>
 
 </div><!-- /.page -->
 
@@ -258,9 +279,10 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 <a href="guide.html" class="active"><span class="sn-icon">🧭</span><span class="sn-lbl">GUIDE</span></a>
 </nav>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const D={{DATA_JSON}};
-const esc=s=>String(s==null?'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
 // ── Preference data ──────────────────────────────────────────────────────────
 // Preferred categories: liked categories first, fall back to visit-frequency top cats
@@ -277,8 +299,6 @@ const LATEST = D.latest_checkin || null;
 const LATEST_LL = LATEST && LATEST.lat && LATEST.lng
   ? `${LATEST.lat},${LATEST.lng}` : null;
 
-const LS_KEY = 'guide_sessions_v1';
-const LS_TTL = 48 * 3600 * 1000; // 48h in ms
 
 // ── Existing renders ─────────────────────────────────────────────────────────
 function renderTopCats(){
@@ -392,211 +412,358 @@ function renderSuggestions(){
   cont.innerHTML=text;
 }
 
-// ── Nearby suggestions ───────────────────────────────────────────────────────
-let _activeCatFilter = null; // null = show all
-let _lastSuggestions = [];
-
-function makeMapLinks(lat, lng, fsqId, style='') {
-  const s = style ? ` style="${style}"` : '';
-  const g = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-  const y = `https://yandex.com/maps/?pt=${lng},${lat}&z=16`;
-  const f = fsqId ? `https://foursquare.com/v/${fsqId}` : `https://foursquare.com/explore?ll=${lat},${lng}`;
-  return `<a href="${g}" class="links-btn google"${s} target="_blank" rel="noopener">📍 Google</a>`
-    + `<a href="${y}" class="links-btn yandex"${s} target="_blank" rel="noopener">🗺️ Yandex</a>`
-    + `<a href="${f}" class="links-btn foursquare"${s} target="_blank" rel="noopener">4sq ↗</a>`;
-}
-
-function renderSuggestCards(venues) {
-  const filtered = _activeCatFilter
-    ? venues.filter(v => v._matchCat === _activeCatFilter)
-    : venues;
-  if (!filtered.length) {
-    document.getElementById('nearbyBox').innerHTML = '<div class="empty-state"><h3>No results for this filter</h3></div>';
+// ── Nearby For You: Overpass OSM + Leaflet map ──────────────────────────────
+function initNearby() {
+  const box = document.getElementById('nearbyBox');
+  if (!LATEST_LL) {
+    box.innerHTML = '<div class="empty-state"><h3>No location data</h3><p>Check in somewhere to see nearby suggestions</p></div>';
     return;
   }
-  document.getElementById('nearbyBox').innerHTML = `<div class="suggest-grid">${filtered.map(v => {
-    const lat = v.geocodes && v.geocodes.main ? v.geocodes.main.latitude : null;
-    const lng = v.geocodes && v.geocodes.main ? v.geocodes.main.longitude : null;
-    const loc = v.location || {};
-    const addr = loc.formatted_address || loc.address || loc.locality || loc.region || '';
-    const catName = (v.categories && v.categories[0] && v.categories[0].name) || v._matchCat || '';
-    const links = lat && lng ? makeMapLinks(lat, lng, v.fsq_id) : '';
-    return `<div class="suggest-card">
-      <div class="suggest-match">${esc(v._matchCat)}</div>
-      <div class="suggest-name" title="${esc(v.name)}">${esc(v.name)}</div>
-      <div class="suggest-cat">${esc(catName !== v._matchCat ? catName : '')}</div>
-      <div class="suggest-loc">${esc(addr)}</div>
-      <div class="suggest-links">${links}</div>
-    </div>`;
-  }).join('')}</div>`;
-}
+  const lat = +LATEST.lat, lng = +LATEST.lng;
+  let RADIUS = 1500;
+  let _unvisitedOnly = false;
 
-function renderCatFilter(venues) {
-  const catCounts = {};
-  venues.forEach(v => { catCounts[v._matchCat] = (catCounts[v._matchCat]||0) + 1; });
-  const cats = Object.keys(catCounts);
-  const el = document.getElementById('nearbyCatFilter');
-  if (cats.length <= 1) { el.innerHTML = ''; return; }
-  el.innerHTML = `<span class="nearby-cat-pill${!_activeCatFilter?' active':''}" onclick="setCatFilter(null)">All <span style="opacity:.6">${venues.length}</span></span>`
-    + cats.map(c => `<span class="nearby-cat-pill${_activeCatFilter===c?' active':''}" onclick="setCatFilter('${c.replace(/'/g,"\\'")}')">${esc(c)} <span style="opacity:.6">${catCounts[c]}</span></span>`).join('');
-}
-
-function setCatFilter(cat) {
-  _activeCatFilter = cat;
-  renderCatFilter(_lastSuggestions);
-  renderSuggestCards(_lastSuggestions);
-}
-
-async function loadNearbySuggestions() {
-  const box = document.getElementById('nearbyBox');
+  // Anchor header
   const anchorRow = document.getElementById('nearbyAnchorRow');
   const anchorText = document.getElementById('nearbyAnchorText');
-
-  if (!LATEST_LL) {
-    box.innerHTML = '<div class="empty-state"><h3>No location available</h3><p>Check in somewhere first to get nearby suggestions</p></div>';
-    return;
-  }
-
-  // Show anchor info
   anchorRow.style.display = '';
-  anchorText.innerHTML = `Finding places near <strong>${esc(LATEST.venue)}</strong> in ${esc(LATEST.city)}, ${esc(LATEST.country)}`;
+  const gAnchorUrl = `https://www.google.com/maps/@${lat},${lng},15z`;
+  const yAnchorUrl = `https://yandex.com/maps/?ll=${lng},${lat}&z=15`;
+  anchorText.innerHTML = `Near <strong>${esc(LATEST.venue)}</strong>, ${esc(LATEST.city)}`
+    + ` &mdash; <a href="${gAnchorUrl}" target="_blank" rel="noopener" style="color:var(--teal)">Google Maps ↗</a>`
+    + `&nbsp; <a href="${yAnchorUrl}" target="_blank" rel="noopener" style="color:var(--teal)">Yandex Maps ↗</a>`;
 
-  // Show loading
-  box.innerHTML = '<div class="loading-wrap"><div class="loading-dots"><span></span><span></span><span></span></div><div class="loading-msg">Searching nearby venues…</div></div>';
-  document.getElementById('nearbyCatFilter').innerHTML = '';
-
-  // Pick search categories: use top liked cats, skip infra
-  const searchCats = SUGGEST_CATS.slice(0, 5);
-
-  // Parallel fetch for each category
-  const fetches = searchCats.map((cat, idx) =>
-    fetch(`/api/search-venues?ll=${encodeURIComponent(LATEST_LL)}&q=${encodeURIComponent(cat)}&limit=12&sort=DISTANCE`)
-      .then(r => r.ok ? r.json() : { results: [] })
-      .then(data => ({ cat, idx, results: data.results || [] }))
-      .catch(() => ({ cat, idx, results: [] }))
-  );
-
-  let allFetches;
-  try {
-    allFetches = await Promise.all(fetches);
-  } catch(e) {
-    box.innerHTML = '<div class="empty-state"><h3>Failed to load suggestions</h3><p>Check your connection and try again</p></div>';
-    return;
-  }
-
-  // Combine + deduplicate by fsq_id; score by (category priority × position)
-  const seen = new Set();
-  const combined = [];
-  allFetches.forEach(({ cat, idx, results }) => {
-    results.forEach((v, pos) => {
-      const id = v.fsq_id;
-      if (!id || seen.has(id)) return;
-      seen.add(id);
-      // Higher score = better match + closer
-      const score = (searchCats.length - idx) * 20 + (12 - pos);
-      combined.push({ ...v, _matchCat: cat, _score: score });
-    });
+  // Radius buttons
+  document.getElementById('nearbyRadiusGroup').addEventListener('click', e => {
+    const btn = e.target.closest('[data-r]');
+    if (!btn) return;
+    RADIUS = +btn.dataset.r;
+    document.querySelectorAll('.nearby-radius-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('nearbySubtitle').textContent = `· ${RADIUS >= 1000 ? RADIUS/1000+' km' : RADIUS+' m'} radius · live OSM`;
+    updateRadiusCircle();
+    if (_activeCat) { _activeCat = null; selectCat(document.querySelector('.nearby-cat-pill.active')?.dataset.cat || _lastCat); }
   });
 
-  // Sort by score, take top 20
-  combined.sort((a, b) => b._score - a._score);
-  const top = combined.slice(0, 20);
+  // Unvisited toggle
+  const uvBtn = document.getElementById('nearbyUnvisited');
+  uvBtn.addEventListener('click', () => {
+    _unvisitedOnly = !_unvisitedOnly;
+    uvBtn.classList.toggle('active', _unvisitedOnly);
+    uvBtn.textContent = _unvisitedOnly ? '★ Unvisited only' : '☆ Unvisited only';
+    if (_lastItems) applyFiltersAndRender(_lastItems, _lastCat);
+  });
 
-  if (!top.length) {
-    box.innerHTML = '<div class="empty-state"><h3>No suggestions found nearby</h3><p>The FSQ API returned no results for this location</p></div>';
-    return;
+  // Haversine distance
+  function distM(la1, lo1, la2, lo2) {
+    const R = 6371000, r = Math.PI / 180;
+    const dLa = (la2-la1)*r, dLo = (lo2-lo1)*r;
+    const a = Math.sin(dLa/2)**2 + Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+  function fmtDist(m) {
+    if (m < 50) return '<50 m';
+    if (m < 1000) return Math.round(m/10)*10 + ' m';
+    return (m/1000).toFixed(2) + ' km';
   }
 
-  _lastSuggestions = top;
-  _activeCatFilter = null;
+  const visitedNames = new Set((D.visited_names_in_city||[]).map(s=>s.toLowerCase()));
 
-  // Save session to localStorage
-  _saveSession(top);
+  function getOsmTags(cat) {
+    const entry = D.osm_cat_map && D.osm_cat_map[cat];
+    if (entry && Array.isArray(entry.osm) && entry.osm.length) return entry.osm;
+    return null;
+  }
 
-  // Render filter pills + cards
-  renderCatFilter(top);
-  renderSuggestCards(top);
-
-  // Refresh history panel
-  renderSuggestionHistory();
-}
-
-// ── localStorage session management ─────────────────────────────────────────
-function _saveSession(venues) {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    const store = raw ? JSON.parse(raw) : { sessions: [] };
-    const now = Date.now();
-    // Prune expired
-    store.sessions = (store.sessions || []).filter(s => now - s.ts < LS_TTL);
-    store.sessions.unshift({
-      ts: now,
-      anchor: {
-        venue: LATEST ? LATEST.venue : '',
-        city: LATEST ? LATEST.city : '',
-        country: LATEST ? LATEST.country : '',
-        lat: LATEST ? LATEST.lat : null,
-        lng: LATEST ? LATEST.lng : null,
-        venue_id: LATEST ? (LATEST.venue_id || '') : '',
-      },
-      suggestions: venues.map(v => ({
-        fsq_id: v.fsq_id || '',
-        name: v.name || '',
-        matchCat: v._matchCat || '',
-        cat: (v.categories && v.categories[0] && v.categories[0].name) || v._matchCat || '',
-        lat: v.geocodes && v.geocodes.main ? v.geocodes.main.latitude : null,
-        lng: v.geocodes && v.geocodes.main ? v.geocodes.main.longitude : null,
-        addr: (v.location && (v.location.formatted_address || v.location.address || v.location.locality)) || '',
-      }))
-    });
-    store.sessions = store.sessions.slice(0, 30); // cap at 30 sessions
-    localStorage.setItem(LS_KEY, JSON.stringify(store));
-  } catch(e) { /* storage unavailable */ }
-}
-
-function renderSuggestionHistory() {
-  const cont = document.getElementById('sessionHistory');
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) {
-      cont.innerHTML = '<div class="empty-state"><p>No history yet — load suggestions above to start tracking</p></div>';
-      return;
-    }
-    const store = JSON.parse(raw);
-    const now = Date.now();
-    const recent = (store.sessions || []).filter(s => now - s.ts < LS_TTL);
-    if (!recent.length) {
-      cont.innerHTML = '<div class="empty-state"><p>No sessions in the last 48 hours</p></div>';
-      return;
-    }
-    cont.innerHTML = recent.map(s => {
-      const d = new Date(s.ts);
-      const timeStr = d.toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
-      const anchor = s.anchor || {};
-      const sugg = s.suggestions || [];
-      const anchorMapLink = anchor.lat && anchor.lng
-        ? `<a href="https://www.google.com/maps/search/?api=1&query=${anchor.lat},${anchor.lng}" target="_blank" rel="noopener" style="color:var(--teal);font-size:.62rem;margin-left:6px">map↗</a>` : '';
-      return `<div class="session-item">
-        <div class="session-header">
-          <span class="session-time">${esc(timeStr)}</span>
-          <span class="session-anchor">📍 ${esc(anchor.venue || anchor.city || 'Unknown')}${anchorMapLink}</span>
-          <span class="session-count">${sugg.length} venues</span>
-        </div>
-        <div class="session-venues">${sugg.slice(0, 8).map(v => {
-          const links = v.lat && v.lng
-            ? makeMapLinks(v.lat, v.lng, v.fsq_id, 'padding:3px 7px;font-size:.58rem')
-            : '';
-          return `<div class="session-venue-row">
-            <span class="bar-name">${esc(v.name)}</span>
-            <span class="bar-cnt">${esc(v.matchCat || v.cat)}</span>
-            ${links}
-          </div>`;
-        }).join('')}${sugg.length > 8 ? `<div class="session-more">+${sugg.length - 8} more venues</div>` : ''}</div>
-      </div>`;
+  function buildOverpassQuery(tags) {
+    const stanzas = tags.map(tag => {
+      const i = tag.indexOf('=');
+      const k = tag.slice(0, i), v = tag.slice(i+1);
+      return `nwr["${k}"="${v}"](around:${RADIUS},${lat},${lng});`;
     }).join('');
-  } catch(e) {
-    cont.innerHTML = '<div class="empty-state"><p>Could not load history</p></div>';
+    return `[out:json][timeout:25];(${stanzas});out center 100;`;
   }
+
+  // Leaflet map
+  let _map = null, _resultLayer = null, _radiusCircle = null;
+  const youIcon = L.divIcon({
+    className: '',
+    html: '<div style="width:16px;height:16px;border-radius:50%;background:#e8b86d;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)"></div>',
+    iconSize: [16, 16], iconAnchor: [8, 8],
+  });
+
+  function ensureMap() {
+    if (_map) return;
+    _map = L.map('nearbyMapEl', { zoomControl: true, attributionControl: false }).setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(_map);
+    L.marker([lat, lng], { icon: youIcon }).addTo(_map)
+      .bindPopup(`<strong>${esc(LATEST.venue)}</strong><br><small>You are here</small>`);
+    _radiusCircle = L.circle([lat, lng], { radius: RADIUS, color: '#4ec9b0', fill: false, weight: 1.5, dashArray: '4 4', opacity: 0.5 }).addTo(_map);
+    _resultLayer = L.layerGroup().addTo(_map);
+  }
+
+  function updateRadiusCircle() {
+    if (_radiusCircle) _radiusCircle.setRadius(RADIUS);
+  }
+
+  function updateMapMarkers(items) {
+    ensureMap();
+    _resultLayer.clearLayers();
+    items.slice(0, 20).forEach(item => {
+      const isVis = visitedNames.has(item.name.toLowerCase());
+      // Name + coords → Google/Yandex resolve to the exact branch, not all places with this name
+      const gUrl = `https://www.google.com/maps/search/${encodeURIComponent(item.name)}/@${item.lat},${item.lng},17z`;
+      const yUrl = `https://yandex.com/maps/?text=${encodeURIComponent(item.name)}&ll=${item.lng},${item.lat}&z=17&sll=${item.lng},${item.lat}&sspn=0.01,0.005`;
+      const osmUrl = `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`;
+      const marker = L.circleMarker([item.lat, item.lng], {
+        radius: isVis ? 9 : 7,
+        fillColor: isVis ? '#e8b86d' : '#4ec9b0',
+        color: '#fff', weight: isVis ? 2.5 : 1.5, fillOpacity: 0.9,
+      }).addTo(_resultLayer);
+      marker.bindPopup(
+        `<strong>${esc(item.name)}</strong>`
+        + (isVis ? `&nbsp;<span style="font-size:.7em;color:#e8b86d">✓ visited</span>` : '')
+        + (item.addr ? `<br><small>📍 ${esc(item.addr)}</small>` : '')
+        + `<br><small>${fmtDist(item.d)}</small>`
+        + `<br><a href="${gUrl}" target="_blank" rel="noopener" style="color:#4285f4">Google</a>`
+        + `&nbsp;<a href="${yUrl}" target="_blank" rel="noopener" style="color:#ff4444">Yandex</a>`
+        + `&nbsp;<a href="${osmUrl}" target="_blank" rel="noopener" style="color:#888">OSM</a>`
+      );
+    });
+    const pts = [[lat, lng], ...items.slice(0, 20).map(i => [i.lat, i.lng])];
+    if (pts.length > 1) _map.fitBounds(L.latLngBounds(pts), { padding: [30, 30], maxZoom: 16 });
+  }
+
+  // ── Category accordion ──────────────────────────────────────────────────────
+  const CAT_GROUPS = [
+    { icon: '☕', label: 'Coffee & Tea', cats: ['Coffee Shop','Café','Cafe, Coffee, and Tea House','Corporate Coffee Shop','Coffee Roaster','Tea Room','Bubble Tea Shop','Juice Bar','Smoothie Shop'] },
+    { icon: '🥐', label: 'Bakery & Sweets', cats: ['Bakery','Pastry Shop','Donut Shop','Bagel Shop','Creperie','Blini House','Dessert Shop','Ice Cream Parlor','Gelato Shop','Candy Store','Pie Shop'] },
+    { icon: '🍽️', label: 'Restaurants', cats: ['Restaurant','Bistro','Diner','Buffet','Cafeteria','Food Court','Breakfast Spot','Snack Place','BBQ Joint','Pizzeria','Pizza Place','Italian Restaurant','Japanese Restaurant','Sushi Restaurant','Ramen Restaurant','Noodle Restaurant','Dumpling Restaurant','Chinese Restaurant','Vietnamese Restaurant','Korean Restaurant','Thai Restaurant','Indian Restaurant','South Indian Restaurant','Asian Restaurant','Cambodian Restaurant','Tibetan Restaurant','Turkish Restaurant','Kebab Restaurant','Doner Restaurant','Shawarma Restaurant','Falafel Restaurant','Middle Eastern Restaurant','Greek Restaurant','Lebanese Restaurant','Syrian Restaurant','Israeli Restaurant','Egyptian Restaurant','Georgian Restaurant','Armenian Restaurant','Caucasian Restaurant','Eastern European Restaurant','Russian Restaurant','Ukrainian Restaurant','Belarusian Restaurant','Romanian Restaurant','Polish Restaurant','German Restaurant','French Restaurant','Spanish Restaurant','Portuguese Restaurant','Modern European Restaurant','Mexican Restaurant','Latin American Restaurant','Argentinian Restaurant','American Restaurant','Steakhouse','Steak House','Seafood Restaurant','Paella Restaurant','Tapas Restaurant','Vegan and Vegetarian Restaurant','Halal Restaurant','Kosher Restaurant','Comfort Food Restaurant','Tatar Restaurant','Yemeni Restaurant','Ethiopian Restaurant','African Restaurant','Scottish Restaurant','Shaanxi Restaurant'] },
+    { icon: '🍔', label: 'Fast Food', cats: ['Fast Food Restaurant','Burger Joint','Sandwich Spot','Food Truck','Food Stand','Fried Chicken Joint','Fish and Chips Shop','Souvlaki Shop'] },
+    { icon: '🍺', label: 'Bars & Nightlife', cats: ['Bar','Beer Bar','Beer Garden','Beach Bar','Pub','Irish Pub','Cocktail Bar','Wine Bar','Hotel Bar','Hookah Bar','Lounge','Dive Bar','Sports Bar','Gastropub','Karaoke Bar','Whisky Bar','Speakeasy','Rock Club','Brewery','Nightclub','Night Club','Wine Store','Liquor Store','Beer Store'] },
+    { icon: '🛍️', label: 'Shopping', cats: ['Shopping Mall','Department Store','Clothing Store','Shoe Store','Electronics Store','Mobile Phone Store','Bookstore','Furniture and Home Store','Hardware Store','Bicycle Store','Cosmetics Store','Big Box Store','Sporting Goods Retail','Health Food Store','Flea Market','Vintage and Thrift Store','Grocery Store','Supermarket','Convenience Store','Gourmet Store','Farmers Market','Market','Food and Beverage Retail','Flower Store','Butcher','Currency Exchange','Eyecare Store','Tailor'] },
+    { icon: '🚉', label: 'Transport', cats: ['Airport','International Airport','Airport Terminal','Metro Station','Rail Station','Tram Station','Light Rail Station','Bus Station','Bus Stop','Taxi','Parking','Fuel Station','Bike Rental','Boat or Ferry','Border Crossing','Cable Car'] },
+    { icon: '🏨', label: 'Accommodation', cats: ['Hotel','Hostel','Bed and Breakfast','Inn','Apartment or Condo','Travel Lounge'] },
+    { icon: '🌿', label: 'Outdoors', cats: ['Park','Plaza','Pedestrian Plaza','Beach','Mountain','Hiking Trail','Garden','Botanical Garden','Scenic Lookout','Waterfront','Lake','Forest','National Park','Nature Preserve','Campground','Ski Area','Sculpture Garden','Playground','Cemetery','Fountain','Lighthouse','Pier','Harbor or Marina'] },
+    { icon: '🎭', label: 'Culture & Arts', cats: ['Museum','Art Museum','History Museum','Science Museum','Art Gallery','Monument','Historic and Protected Site','Castle','Palace','Theater','Concert Hall','Movie Theater','Cultural Center','Arts and Entertainment','Event Space','Amusement Park','Library','Memorial Site','Dance Studio','Exhibit'] },
+    { icon: '⛪', label: 'Religious', cats: ['Church','Cathedral','Mosque','Synagogue','Temple','Monastery','Buddhist Temple','Hindu Temple','Shrine'] },
+    { icon: '💪', label: 'Sports & Fitness', cats: ['Gym','Gym and Studio','Sports and Recreation','Spa','Bath House','Swimming Pool','Pool Hall','College Gym'] },
+    { icon: '🏥', label: 'Health', cats: ['Medical Center','Pharmacy'] },
+    { icon: '🏛️', label: 'Services', cats: ['Bank','Post Office','Police Station','City Hall','Government Building','University','Embassy or Consulate','Hair Salon','Education','College Library','College Arts Building','College Academic Building','Port'] },
+  ];
+
+  const pillsEl = document.getElementById('nearbyCatPills');
+  const likedSet = new Set((D.top_liked_cats||[]).map(([c])=>c));
+  const visitedCatSet = new Set();
+  // Build visited set from user history
+  (D.top_liked_cats||[]).forEach(([c]) => visitedCatSet.add(c));
+  (D.all_categories||D.top_categories||[]).forEach(c => visitedCatSet.add(Array.isArray(c) ? c[0] : c));
+
+  // Build accordion: ALL CAT_GROUPS shown — all children visible, visited ones highlighted
+  // Remaining user-visited cats (not in any group) go to an "Other" group
+  const assignedCats = new Set();
+  let firstSelectCat = null;
+
+  CAT_GROUPS.forEach(group => {
+    const allCats = group.cats;
+    if (!allCats.length) return;
+    const visitedInGroup = allCats.filter(c => visitedCatSet.has(c));
+    const hasLiked = allCats.some(c => likedSet.has(c));
+    const autoOpen = hasLiked && !firstSelectCat;
+
+    const groupEl = document.createElement('div');
+    groupEl.className = 'cat-group' + (autoOpen ? ' open' : '');
+
+    // Google/Yandex category browse links for this group
+    const gCatUrl = `https://www.google.com/maps/search/${encodeURIComponent(group.label)}/@${lat},${lng},15z`;
+    const yCatUrl = `https://yandex.com/maps/?text=${encodeURIComponent(group.label)}&ll=${lng},${lat}&z=15`;
+
+    const header = document.createElement('button');
+    header.className = 'cat-group-header';
+    header.innerHTML = `<span class="cat-group-icon">${group.icon}</span>`
+      + `<span class="cat-group-name">`
+      + (hasLiked ? `<span class="cat-group-liked">❤</span>` : '')
+      + esc(group.label)
+      + `</span>`
+      + (visitedInGroup.length
+        ? `<span class="cat-group-visits">${visitedInGroup.length} visited</span>` : '')
+      + `<span class="cat-group-count">${allCats.length}</span>`
+      + `<span class="cat-group-arrow">▾</span>`;
+    header.onclick = () => groupEl.classList.toggle('open');
+
+    const body = document.createElement('div');
+    body.className = 'cat-group-body';
+
+    // Liked first → visited next → rest alphabetical
+    const sorted = [...allCats].sort((a, b) => {
+      const al = likedSet.has(a) ? 0 : visitedCatSet.has(a) ? 1 : 2;
+      const bl = likedSet.has(b) ? 0 : visitedCatSet.has(b) ? 1 : 2;
+      return al - bl || a.localeCompare(b);
+    });
+    sorted.forEach(cat => {
+      const isLiked = likedSet.has(cat);
+      const isVis = visitedCatSet.has(cat);
+      const btn = document.createElement('button');
+      btn.className = 'nearby-cat-pill'
+        + (isLiked ? ' pill-liked-cat' : isVis ? ' pill-was-visited' : '');
+      btn.dataset.cat = cat;
+      btn.innerHTML = (isLiked ? '<span class="pill-liked">❤</span>' : '')
+        + esc(cat)
+        + (isVis && !isLiked ? '<span class="pill-dot" title="visited"></span>' : '');
+      btn.onclick = () => selectCat(cat);
+      body.appendChild(btn);
+      assignedCats.add(cat);
+      if (!firstSelectCat && (isLiked || autoOpen)) firstSelectCat = cat;
+    });
+    if (!firstSelectCat && sorted.length) firstSelectCat = sorted[0];
+
+    // Category browse row at bottom of group body
+    const browseRow = document.createElement('div');
+    browseRow.style.cssText = 'width:100%;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;gap:6px;align-items:center;';
+    browseRow.innerHTML = `<span style="font-size:.6rem;color:var(--muted);flex:1">Browse all ${esc(group.label)}:</span>`
+      + `<a href="${gCatUrl}" target="_blank" rel="noopener" style="font-size:.62rem;padding:2px 7px;border-radius:4px;border:1px solid rgba(66,133,244,.35);color:#4285f4;text-decoration:none;">Google ↗</a>`
+      + `<a href="${yCatUrl}" target="_blank" rel="noopener" style="font-size:.62rem;padding:2px 7px;border-radius:4px;border:1px solid rgba(255,80,80,.35);color:#ff6060;text-decoration:none;">Yandex ↗</a>`;
+    body.appendChild(browseRow);
+
+    groupEl.appendChild(header);
+    groupEl.appendChild(body);
+    pillsEl.appendChild(groupEl);
+  });
+
+  // "Other" group for user-visited categories not covered by any group above
+  const otherCats = [...visitedCatSet].filter(c => !assignedCats.has(c));
+  if (otherCats.length) {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'cat-group';
+    const header = document.createElement('button');
+    header.className = 'cat-group-header';
+    header.innerHTML = `<span class="cat-group-icon">📌</span>`
+      + `<span class="cat-group-name">${esc('Other visited')}</span>`
+      + `<span class="cat-group-count">${otherCats.length}</span>`
+      + `<span class="cat-group-arrow">▾</span>`;
+    header.onclick = () => groupEl.classList.toggle('open');
+    const body = document.createElement('div');
+    body.className = 'cat-group-body';
+    otherCats.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'nearby-cat-pill pill-was-visited';
+      btn.dataset.cat = cat;
+      btn.innerHTML = (likedSet.has(cat) ? '<span class="pill-liked">❤</span>' : '') + esc(cat);
+      btn.onclick = () => selectCat(cat);
+      body.appendChild(btn);
+    });
+    groupEl.appendChild(header); groupEl.appendChild(body);
+    pillsEl.appendChild(groupEl);
+  }
+
+  // ── Overpass fetch ──────────────────────────────────────────────────────────
+  const ENDPOINTS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.fr/api/interpreter',
+  ];
+  let _activeCat = null, _lastCat = null, _lastItems = null, _busy = false;
+
+  async function fetchNearby(cat) {
+    if (_busy) return;
+    _busy = true;
+    _lastCat = cat;
+    box.innerHTML = '<div class="nearby-loading">⏳ Fetching from OpenStreetMap…</div>';
+    document.getElementById('nearbyResultCount').textContent = '';
+    const tags = getOsmTags(cat);
+    let q;
+    if (tags) {
+      q = buildOverpassQuery(tags);
+    } else {
+      const kw = cat.replace(/['"<>&]/g,'').split(/[\s/]/)[0].trim();
+      q = `[out:json][timeout:25];(nwr["name"~"${kw}",i](around:${RADIUS},${lat},${lng}););out center 100;`;
+    }
+    let lastErr;
+    for (const ep of ENDPOINTS) {
+      try {
+        const r = await fetch(ep, { method:'POST', body:'data='+encodeURIComponent(q) });
+        if (!r.ok) { lastErr = new Error(`HTTP ${r.status}`); continue; }
+        const d = await r.json();
+        _lastItems = parseElements(d.elements||[]);
+        applyFiltersAndRender(_lastItems, cat);
+        _busy = false;
+        return;
+      } catch(e) { lastErr = e; }
+    }
+    box.innerHTML = `<div class="empty-state"><h3>Fetch error</h3>`
+      + `<p>OSM Overpass unavailable &mdash; <a href="${yAnchorUrl}" target="_blank" rel="noopener" style="color:var(--teal)">open Yandex Maps ↗</a></p></div>`;
+    _busy = false;
+  }
+
+  function parseElements(els) {
+    const items = [];
+    for (const el of els) {
+      const elLat = el.lat ?? el.center?.lat;
+      const elLng = el.lon ?? el.center?.lon;
+      const name = el.tags?.name;
+      if (!elLat || !elLng || !name) continue;
+      const d = distM(lat, lng, elLat, elLng);
+      const street = el.tags?.['addr:street'] || '';
+      const num = el.tags?.['addr:housenumber'] || '';
+      const addr = (street + (num ? ' '+num : '')).trim() || el.tags?.['addr:full'] || '';
+      const opening = el.tags?.opening_hours || '';
+      const website = el.tags?.website || el.tags?.['contact:website'] || '';
+      const isVis = visitedNames.has(name.toLowerCase());
+      items.push({ name, addr, opening, website, d, lat: elLat, lng: elLng, isVis,
+        osm_type: el.type, osm_id: el.id });
+    }
+    items.sort((a,b) => a.d - b.d);
+    return items;
+  }
+
+  function applyFiltersAndRender(items, cat) {
+    const filtered = _unvisitedOnly ? items.filter(i => !i.isVis) : items;
+    const countEl = document.getElementById('nearbyResultCount');
+    countEl.textContent = filtered.length
+      ? `${filtered.length} found · ${RADIUS >= 1000 ? RADIUS/1000+' km' : RADIUS+' m'}`
+      : '';
+    if (!filtered.length) {
+      ensureMap();
+      const radiusLabel = RADIUS >= 1000 ? (RADIUS/1000)+' km' : RADIUS+' m';
+      box.innerHTML = `<div class="empty-state"><h3>Nothing found</h3>`
+        + `<p>No <em>${esc(cat)}</em>${_unvisitedOnly ? ' (unvisited)' : ''} mapped within ${radiusLabel} in OSM.<br>`
+        + `<a href="https://yandex.com/maps/?ll=${lng},${lat}&z=14&text=${encodeURIComponent(cat)}" `
+        + `target="_blank" rel="noopener" style="color:var(--teal)">Search on Yandex Maps ↗</a></p></div>`;
+      return;
+    }
+    updateMapMarkers(filtered);
+    const visItems = filtered.slice(0, 20);
+    box.innerHTML = '<div class="nearby-result-list">' + visItems.map(item => {
+      // Name + coords → Google/Yandex resolve to the exact branch; OSM ID is a direct permalink
+      const gUrl = `https://www.google.com/maps/search/${encodeURIComponent(item.name)}/@${item.lat},${item.lng},17z`;
+      const yUrl = `https://yandex.com/maps/?text=${encodeURIComponent(item.name)}&ll=${item.lng},${item.lat}&z=17&sll=${item.lng},${item.lat}&sspn=0.01,0.005`;
+      const osmUrl = `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`;
+      return `<div class="nearby-item${item.isVis ? ' visited' : ''}">`
+        + `<div class="nearby-item-dist">${fmtDist(item.d)}</div>`
+        + `<div class="nearby-item-body">`
+        + `<div class="nearby-item-name">${esc(item.name)}`
+        + (item.isVis ? `<span class="nearby-visited-badge">✓ visited</span>` : '')
+        + `</div>`
+        + (item.addr ? `<div class="nearby-item-addr">📍 ${esc(item.addr)}</div>` : '')
+        + (item.opening ? `<div class="nearby-item-addr">🕐 ${esc(item.opening)}</div>` : '')
+        + `<div class="nearby-item-links">`
+        + `<a href="${gUrl}" class="nearby-item-link glink" target="_blank" rel="noopener">Google</a>`
+        + `<a href="${yUrl}" class="nearby-item-link ylink" target="_blank" rel="noopener">Yandex</a>`
+        + `<a href="${osmUrl}" class="nearby-item-link osmlink" target="_blank" rel="noopener">OSM</a>`
+        + (item.website ? `<a href="${esc(item.website)}" class="nearby-item-link" target="_blank" rel="noopener">🌐</a>` : '')
+        + `</div></div></div>`;
+    }).join('') + '</div>';
+  }
+
+  function selectCat(cat) {
+    if (!cat) return;
+    if (cat === _activeCat && !_busy) return;
+    _activeCat = cat;
+    document.querySelectorAll('.nearby-cat-pill').forEach(p =>
+      p.classList.toggle('active', p.dataset.cat === cat));
+    fetchNearby(cat);
+  }
+
+  if (firstSelectCat) selectCat(firstSelectCat);
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -609,9 +776,7 @@ try {
   renderLatest();
   render48h();
   renderSuggestions();
-  renderSuggestionHistory();
-  // Auto-load nearby suggestions
-  loadNearbySuggestions();
+  initNearby();
 } catch(e) { console.error('Guide init error:', e); }
 </script>
 </body>

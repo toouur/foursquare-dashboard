@@ -169,7 +169,35 @@ def build_page(csv_path: str, config_dir: str, out_path: str, tmpl_path: str, ro
             log.warning("Failed to load ratings: %s", e)
     
     top_liked_cats = liked_categories.most_common(10)
-    
+
+    # All unique categories with ≥ 2 visits, sorted by frequency — for nearby pills
+    all_categories = [c for c, n in cat_counter.most_common() if n >= 2]
+
+    # Load OSM category map
+    osm_cat_map = {}
+    osm_map_path = config_dir / "categories_osm_map.json"
+    if osm_map_path.exists():
+        try:
+            raw = json.loads(osm_map_path.read_text(encoding="utf-8"))
+            osm_cat_map = {k: v for k, v in raw.items() if not k.startswith("_")}
+        except Exception as e:
+            log.warning("Failed to load categories_osm_map.json: %s", e)
+
+    # Visited venue names in the latest check-in's city (for "already visited" badge)
+    visited_names_in_city: list = []
+    if latest:
+        raw_city = latest.get("city", "")
+        latest_city_norm = city_merge.get(raw_city, raw_city)
+        if latest_city_norm:
+            seen_vnames: set = set()
+            for r in rows:
+                rc = city_merge.get(r.get("city", ""), r.get("city", ""))
+                if rc == latest_city_norm:
+                    vname = r.get("venue", "").strip().lower()
+                    if vname and vname not in seen_vnames:
+                        visited_names_in_city.append(vname)
+                        seen_vnames.add(vname)
+
     # Build recent history (last 48 hours) with NORMALIZED city/country
     recent_history = []
     for r in recent_rows[:50]:  # Limit to 50 for performance
@@ -276,6 +304,9 @@ def build_page(csv_path: str, config_dir: str, out_path: str, tmpl_path: str, ro
             })
     
     data["venue_links"] = venue_links
+    data["osm_cat_map"] = osm_cat_map
+    data["visited_names_in_city"] = visited_names_in_city
+    data["all_categories"] = all_categories
     
     # Load template and render
     tmpl = Path(tmpl_path).read_text(encoding="utf-8")
