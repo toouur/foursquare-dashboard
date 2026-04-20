@@ -38,8 +38,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:28px;position:relative;}
 .solution-link{position:absolute;top:20px;right:56px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);text-decoration:none;border:1px solid rgba(232,184,109,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;}
 .solution-link:hover{border-color:var(--gold);background:rgba(232,184,109,0.08);}
-.guide-link{position:absolute;top:50px;right:56px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--teal);text-decoration:none;border:1px solid rgba(78,201,196,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;}
+.guide-link{position:absolute;top:20px;right:290px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--teal);text-decoration:none;border:1px solid rgba(78,201,196,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;}
 .guide-link:hover{border-color:var(--teal);background:rgba(78,201,196,0.08);}
+@media(max-width:900px){.guide-link{top:50px;right:56px;}}
 @media(max-width:600px){.solution-link{top:12px;right:16px;font-size:0.54rem;padding:5px 10px;}.guide-link{top:42px;right:16px;font-size:0.54rem;padding:5px 10px;}}
 header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);font-weight:900;line-height:1;letter-spacing:-0.02em;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.12em .15em .35em;overflow:visible;display:inline-block;}
 header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
@@ -2482,7 +2483,6 @@ function buildCityMap(){
   <a class="sn-item" href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">TOTAL PLACES</span></a>
   <a class="sn-item" href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">WITH</span></a>
   <a class="sn-item" href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
-  <a class="sn-item" href="guide.html"><span class="sn-icon">✦</span><span class="sn-lbl">GUIDE</span></a>
   <div class="sn-sep"></div>
   <button class="sn-item" id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
 </nav>
