@@ -176,7 +176,26 @@ export async function onRequestGet({ request, env }) {
   }
 
   // --------------------------------------------------------------
-  // 2. Month view (returns all check‑ins for a given calendar month)
+  // 2. Full-text search across venue/city/country/category
+  // GET /api/feed?q=term  → { items: [...], total: N }
+  // --------------------------------------------------------------
+  const wantSearch = url.searchParams.get('q');
+  if (wantSearch !== null) {
+    const term = wantSearch.trim();
+    if (!term) return jsonResp({ items: [], total: 0 });
+    const like = `%${term}%`;
+    const dataRes = await env.DB.prepare(
+      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
+      'FROM checkins WHERE venue LIKE ?1 OR city LIKE ?1 OR country LIKE ?1 OR category LIKE ?1 ' +
+      'ORDER BY date DESC LIMIT 500'
+    ).bind(like).all();
+    const rows = dataRes.results || [];
+    const items = mapRows(rows, {});
+    return jsonResp({ items, total: items.length });
+  }
+
+  // --------------------------------------------------------------
+  // 3. Month view (returns all check‑ins for a given calendar month)
   // --------------------------------------------------------------
   const wantMonth = url.searchParams.get('month');
   if (wantMonth && /^\d{4}-\d{2}$/.test(wantMonth)) {

@@ -1675,28 +1675,61 @@ function checkGapLoad(){
 
 // ── Search ──
 
-function onSearch(q){
+let _srchGen=0, _srchSavedSt=null;
 
-  const ql=q.trim().toLowerCase();
-
-  isFiltered=!!ql;
-
-  DATA=ql?ALL.filter(r=>(r[3]||'').toLowerCase().includes(ql)||(r[4]||'').toLowerCase().includes(ql)||(r[5]||'').toLowerCase().includes(ql)||(r[6]||'').toLowerCase().includes(ql)):ALL;
-
+function _applySearchResults(items, q){
+  isFiltered=true;
+  DATA=items;
   lastR=[-1,-1];
-
   buildPos(DATA);
-
   document.getElementById('vsSizer').style.height=totalH+'px';
-
   document.getElementById('feedScroll').scrollTop=0;
-
-  document.getElementById('badge').textContent=DATA.length.toLocaleString()+' check-ins';
-
+  document.getElementById('badge').textContent=DATA.length.toLocaleString()+' of '+
+    (META_TOTAL||ALL.length).toLocaleString()+' · "'+q+'"';
   renderVis();
-
   if(DATA.length>0) activate(0,false);
+}
 
+function _clearSearch(){
+  isFiltered=false;
+  DATA=ALL;
+  lastR=[-1,-1];
+  buildPos(DATA);
+  document.getElementById('vsSizer').style.height=totalH+'px';
+  document.getElementById('badge').textContent=(META_TOTAL||ALL.length).toLocaleString()+' check-ins';
+  const sc=document.getElementById('feedScroll');
+  if(_srchSavedSt!=null){sc.scrollTop=_srchSavedSt;_srchSavedSt=null;}
+  lastR=[-1,-1];
+  renderVis();
+}
+
+let _srchDebounce=null;
+function onSearch(q){
+  const ql=q.trim();
+  if(!ql){
+    _srchGen++;
+    clearTimeout(_srchDebounce);
+    _clearSearch();
+    return;
+  }
+  // Save scroll position the first time we enter search mode
+  if(!isFiltered){
+    _srchSavedSt=document.getElementById('feedScroll').scrollTop;
+  }
+  clearTimeout(_srchDebounce);
+  _srchDebounce=setTimeout(async()=>{
+    const gen=++_srchGen;
+    // Optimistic local filter while D1 loads
+    const lo=ql.toLowerCase();
+    const local=ALL.filter(r=>(r[3]||'').toLowerCase().includes(lo)||(r[4]||'').toLowerCase().includes(lo)||
+      (r[5]||'').toLowerCase().includes(lo)||(r[6]||'').toLowerCase().includes(lo));
+    _applySearchResults(local, ql);
+    try{
+      const d=await(await fetch('/api/feed?q='+encodeURIComponent(ql))).json();
+      if(gen!==_srchGen) return; // stale
+      _applySearchResults(d.items||[], ql);
+    }catch(e){console.warn('search',e);}
+  },320);
 }
 
 
