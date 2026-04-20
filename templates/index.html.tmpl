@@ -36,12 +36,13 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 
 /* ── HEADER ── */
 header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:28px;position:relative;}
-.solution-link{position:absolute;top:20px;right:56px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);text-decoration:none;border:1px solid rgba(232,184,109,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;}
+.header-actions{position:absolute;top:20px;right:56px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.header-actions-row{display:flex;align-items:center;gap:8px;}
+.solution-link{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);text-decoration:none;border:1px solid rgba(232,184,109,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;white-space:nowrap;}
 .solution-link:hover{border-color:var(--gold);background:rgba(232,184,109,0.08);}
-.guide-link{position:absolute;top:20px;right:290px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--teal);text-decoration:none;border:1px solid rgba(78,201,196,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;}
+.guide-link{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--teal);text-decoration:none;border:1px solid rgba(78,201,196,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;white-space:nowrap;}
 .guide-link:hover{border-color:var(--teal);background:rgba(78,201,196,0.08);}
-@media(max-width:900px){.guide-link{top:50px;right:56px;}}
-@media(max-width:600px){.solution-link{top:12px;right:16px;font-size:0.54rem;padding:5px 10px;}.guide-link{top:42px;right:16px;font-size:0.54rem;padding:5px 10px;}}
+@media(max-width:600px){.header-actions{top:12px;right:16px;}.solution-link,.guide-link{font-size:0.54rem;padding:5px 10px;}}
 header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);font-weight:900;line-height:1;letter-spacing:-0.02em;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.12em .15em .35em;overflow:visible;display:inline-block;}
 header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
 .updated{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px;}
@@ -337,7 +338,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 }
 
 /* ── GLOBAL SEARCH ── */
-.gs-trigger{position:absolute;top:56px;right:56px;font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all 0.2s;white-space:nowrap;}
+.gs-trigger{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all 0.2s;white-space:nowrap;}
 .gs-trigger:hover{border-color:var(--gold);color:var(--gold);}
 .gs-trigger-icon{font-size:0.85rem;}
 .gs-trigger kbd{font-family:'DM Mono',monospace;font-size:0.52rem;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:3px;padding:1px 5px;letter-spacing:0;}
@@ -361,7 +362,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .gs-item-sub{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .gs-empty{padding:18px;text-align:center;color:var(--muted);font-size:.80rem;}
 @media(max-width:700px){
-  .gs-trigger{top:50px;right:16px;padding:6px 10px;}
+  .gs-trigger{padding:6px 10px;}
   .gs-trigger-text{display:none;}
   .gs-trigger kbd{display:none;}
 }
@@ -392,7 +393,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 @media(max-width:520px){
   .reg-row{grid-template-columns:20px 1fr 44px 36px;gap:5px;}
   .reg-name{font-size:.72rem;}
-  .gs-trigger{top:44px;right:12px;padding:5px 8px;}
+  .gs-trigger{padding:5px 8px;}
   .gs-trigger-text{display:none;}
   .kpis{gap:10px;}
   .kpi .num{font-size:1.4rem;}
@@ -403,13 +404,17 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 </head>
 <body>
 <header>
-  <a href="solution.html" class="solution-link">Dashboard Solution Description</a>
-  <a href="guide.html" class="guide-link">Guide ✦</a>
-  <button class="gs-trigger" onclick="openSearch()" aria-label="Search">
-    <span class="gs-trigger-icon">⌕</span>
-    <span class="gs-trigger-text">Search</span>
-    <kbd>⌘K</kbd>
-  </button>
+  <div class="header-actions">
+    <div class="header-actions-row">
+      <a href="guide.html" class="guide-link">Guide ✦</a>
+      <a href="solution.html" class="solution-link">Dashboard Solution Description</a>
+    </div>
+    <button class="gs-trigger" onclick="openSearch()" aria-label="Search">
+      <span class="gs-trigger-icon">⌕</span>
+      <span class="gs-trigger-text">Search</span>
+      <kbd>⌘K</kbd>
+    </button>
+  </div>
   <div>
     <h1 id="top">Check-in Journal</h1>
     <p class="sub">Foursquare &nbsp;&middot;&nbsp; {{DATE_MIN}} &ndash; {{DATE_MAX}}</p>
