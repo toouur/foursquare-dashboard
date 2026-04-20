@@ -234,15 +234,13 @@ def main() -> None:
 
     if changed == 0:
         log.info("Nothing changed — CSV not written.")
-        return
-
-    # ── Write updated CSV ─────────────────────────────────────────────────────
-    with open(csv_path, "w", encoding="utf-8", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
-
-    log.info("Saved %s (%d total rows, %d updated).", csv_path, len(rows), changed)
+    else:
+        # ── Write updated CSV ─────────────────────────────────────────────────
+        with open(csv_path, "w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=FIELDS, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(rows)
+        log.info("Saved %s (%d total rows, %d updated).", csv_path, len(rows), changed)
 
     # ── Patch tips.json (auto-detected next to checkins.csv) ─────────────────
     tips_path = Path(args.tips) if args.tips else csv_path.parent / "tips.json"
