@@ -76,7 +76,8 @@ jobs:
             python scripts/sync_venue_changes.py \
               --old "private-data/archive/${ARCHIVE_NAME}" \
               --new  private-data/checkins.csv \
-              --tips private-data/tips.json
+              --tips private-data/tips.json \
+              --out  /tmp/venue_diffs.json
           else
             echo "No archive snapshot or no tips.json — skipping venue diff."
           fi
@@ -100,3 +101,33 @@ jobs:
             git commit -m "chore: full check-in snapshot [${TIMESTAMP}]"
             git push
           fi
+
+      # ── 8. Sync check-ins, venue changes, and tips to D1 ─────────────────
+      - name: Sync to D1
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          if [ -z "$CF_D1_TOKEN" ]; then
+            echo "CF_D1_TOKEN not set — skipping D1 sync."
+            exit 0
+          fi
+          VENUE_CHANGES_ARG=""
+          if [ -f /tmp/venue_diffs.json ]; then
+            COUNT=$(python -c "import json; print(len(json.load(open('/tmp/venue_diffs.json'))))")
+            if [ "$COUNT" -gt 0 ]; then
+              VENUE_CHANGES_ARG="--venue-changes /tmp/venue_diffs.json"
+            fi
+          fi
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          python scripts/sync_to_d1.py \
+            --csv   private-data/checkins.csv \
+            --tips  private-data/tips.json \
+            --trips trips_meta.json \
+            $RATINGS_ARG $LISTS_ARG \
+            --tips-changed true \
+            $VENUE_CHANGES_ARG

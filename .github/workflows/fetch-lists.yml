@@ -121,3 +121,25 @@ jobs:
             git commit -m "chore: rebuild lists [${TIMESTAMP}]"
             git push
           fi
+
+      # ── 8. Sync lists to D1 ──────────────────────────────────────────────
+      - name: Sync lists to D1
+        if: steps.fetch.outputs.CHANGED == 'true'
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          if [ -z "$CF_D1_TOKEN" ]; then
+            echo "CF_D1_TOKEN not set — skipping D1 sync."
+            exit 0
+          fi
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+          python scripts/sync_to_d1.py \
+            --csv   private-data/checkins.csv \
+            --tips  private-data/tips.json \
+            --lists private-data/lists.json \
+            --trips trips_meta.json \
+            $RATINGS_ARG \
+            --lists-changed true

@@ -77,7 +77,11 @@ jobs:
               f.write(f"new_id={new}\n")
           EOF
 
-      # ── 5. Refresh venue in checkins.csv (and tips.json) ─────────────────
+      # ── 5. Snapshot checkins.csv before refresh (for D1 diff) ────────────
+      - name: Snapshot checkins.csv
+        run: cp private-data/checkins.csv /tmp/checkins_before.csv
+
+      # ── 6. Refresh venue in checkins.csv (and tips.json) ─────────────────
       - name: Refresh venue metadata
         env:
           FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
@@ -93,8 +97,9 @@ jobs:
 
           python scripts/refresh_venue.py $ARGS
 
-      # ── 6. Commit updated files ───────────────────────────────────────────
+      # ── 7. Commit updated files ───────────────────────────────────────────
       - name: Commit to private data repo
+        id: commit
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
@@ -104,6 +109,7 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "No changes to commit (venue already up to date)."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
             OLD="${{ steps.ids.outputs.old_id }}"
             NEW="${{ steps.ids.outputs.new_id }}"
@@ -114,4 +120,43 @@ jobs:
             fi
             git commit -m "$MSG"
             git push
+            echo "CHANGED=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # ── 8. Sync venue changes to D1 ──────────────────────────────────────
+      - name: Sync venue changes to D1
+        if: steps.commit.outputs.CHANGED == 'true'
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          if [ -z "$CF_D1_TOKEN" ]; then
+            echo "CF_D1_TOKEN not set — skipping D1 sync."
+            exit 0
+          fi
+          # Generate diffs (dry-run so tips.json is not re-patched; --out writes the JSON)
+          python scripts/sync_venue_changes.py \
+            --old /tmp/checkins_before.csv \
+            --new private-data/checkins.csv \
+            --tips private-data/tips.json \
+            --out /tmp/venue_diffs.json \
+            --dry-run
+          VENUE_CHANGES_ARG=""
+          if [ -f /tmp/venue_diffs.json ]; then
+            COUNT=$(python -c "import json; print(len(json.load(open('/tmp/venue_diffs.json'))))")
+            if [ "$COUNT" -gt 0 ]; then
+              VENUE_CHANGES_ARG="--venue-changes /tmp/venue_diffs.json"
+            fi
+          fi
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          python scripts/sync_to_d1.py \
+            --csv   private-data/checkins.csv \
+            --tips  private-data/tips.json \
+            --trips trips_meta.json \
+            $RATINGS_ARG $LISTS_ARG \
+            --tips-changed true \
+            $VENUE_CHANGES_ARG

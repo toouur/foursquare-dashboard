@@ -60,6 +60,7 @@ jobs:
 
       # ── 5. Commit updated tips.json ───────────────────────────────────────
       - name: Commit to private data repo
+        id: commit
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
@@ -69,8 +70,33 @@ jobs:
 
           if git diff --cached --quiet; then
             echo "No changes to commit (tip already present or none found)."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
             VENUE="${{ github.event.inputs.venue_url }}"
             git commit -m "fix(tips): add closed-venue tip for ${VENUE}"
             git push
+            echo "CHANGED=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # ── 6. Sync tips to D1 ───────────────────────────────────────────────
+      - name: Sync tips to D1
+        if: steps.commit.outputs.CHANGED == 'true'
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          if [ -z "$CF_D1_TOKEN" ]; then
+            echo "CF_D1_TOKEN not set — skipping D1 sync."
+            exit 0
+          fi
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          python scripts/sync_to_d1.py \
+            --csv   private-data/checkins.csv \
+            --tips  private-data/tips.json \
+            --trips trips_meta.json \
+            $RATINGS_ARG $LISTS_ARG \
+            --tips-changed true

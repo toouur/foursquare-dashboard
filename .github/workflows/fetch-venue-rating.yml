@@ -120,3 +120,25 @@ jobs:
             git commit -m "fix(ratings): rebuild after syncing venue ${VID}"
             git push
           fi
+
+      # ── 8. Sync ratings to D1 ────────────────────────────────────────────
+      - name: Sync ratings to D1
+        if: steps.fetch.outputs.CHANGED == 'true'
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          if [ -z "$CF_D1_TOKEN" ]; then
+            echo "CF_D1_TOKEN not set — skipping D1 sync."
+            exit 0
+          fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          python scripts/sync_to_d1.py \
+            --csv     private-data/checkins.csv \
+            --tips    private-data/tips.json \
+            --ratings private-data/venueRatings.json \
+            --trips   trips_meta.json \
+            $LISTS_ARG \
+            --ratings-changed true
