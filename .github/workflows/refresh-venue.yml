@@ -28,6 +28,10 @@ on:
         description: "New venue URL or ID (only if the venue was merged into another)"
         required: false
         default: ""
+      closed:
+        description: "Mark all matching tips as closed=true (venue has permanently closed)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -93,6 +97,9 @@ jobs:
 
           if [ -n "${{ steps.ids.outputs.new_id }}" ]; then
             ARGS="$ARGS --new-venue-id ${{ steps.ids.outputs.new_id }}"
+          fi
+          if [ "${{ github.event.inputs.closed }}" = "true" ]; then
+            ARGS="$ARGS --closed"
           fi
 
           python scripts/refresh_venue.py $ARGS

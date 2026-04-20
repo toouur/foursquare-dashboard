@@ -38,7 +38,10 @@ Fields updated per matching tip in tips.json (auto-detected next to CSV):
 
 Fields never touched:
     date, shout, source_app, source_url, with_name, with_id (CSV)
-    id, ts, text, agree_count, disagree_count, closed (tips)
+    id, ts, text, agree_count, disagree_count (tips)
+
+Optional:
+    --closed   Set closed=True on all matching tips (venue has permanently closed)
 """
 from __future__ import annotations
 
@@ -136,6 +139,7 @@ def main() -> None:
     parser.add_argument("--venue-id",     required=True,               help="Venue ID to find in CSV")
     parser.add_argument("--new-venue-id", default="",                  help="If merged: fetch info from this ID and update venue_id in CSV")
     parser.add_argument("--tips",         default="",                  help="Path to tips.json (default: auto-detect next to CSV)")
+    parser.add_argument("--closed",       action="store_true",         help="Mark all matching tips as closed=True")
     parser.add_argument("--dry-run",      action="store_true",         help="Show what would change without writing")
     args = parser.parse_args()
 
@@ -218,6 +222,8 @@ def main() -> None:
                 "lng":      round(float(patch["lng"]), 5) if patch["lng"] else None,
                 "category": patch["category"],
             }
+            if args.closed:
+                tip_patch["closed"] = True
             for t in tips:
                 if t.get("venue_id", "") != old_venue_id:
                     continue
@@ -252,6 +258,8 @@ def main() -> None:
         "lng":      round(float(patch["lng"]), 5) if patch["lng"] else None,
         "category": patch["category"],
     }
+    if args.closed:
+        tip_patch["closed"] = True
     tips_changed = 0
     for t in tips:
         if t.get("venue_id", "") != old_venue_id:
