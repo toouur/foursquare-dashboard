@@ -40,47 +40,44 @@ def _headers() -> dict:
         sys.exit("CF_D1_TOKEN not set — export it or pass --token-file")
     return {"Authorization": f"Bearer {_TOKEN}", "Content-Type": "application/json"}
 
-def query(sql: str, params: list | None = None) -> list:
+def query(sql: str, params: list | None = None, silent: bool = False) -> list:
     """Execute a single SQL statement, return result rows."""
     body: dict = {"sql": sql}
     if params is not None:
         body["params"] = params
-    
+
     logger.debug("Executing query: %s", sql)
     if params:
         logger.debug("Query params: %s", params)
-    
+
+    log = logger.debug if silent else logger.error
     try:
         r = requests.post(f"{_BASE}/query", headers=_headers(), json=body, timeout=30)
-        
+
         if not r.ok:
-            # Capture comprehensive error details
-            error_msg = f"D1 Query failed with status {r.status_code}"
-            logger.error(error_msg)
-            logger.error("Request URL: %s", r.url)
-            logger.error("Request body: %s", body)
-            
+            log("D1 Query failed with status %d", r.status_code)
+            log("Request URL: %s", r.url)
+            log("Request body: %s", body)
             try:
                 error_response = r.json()
-                logger.error("Error response: %s", error_response)
-            except Exception as json_err:
-                logger.error("Could not parse error response as JSON: %s", r.text[:500])
-            
+                log("Error response: %s", error_response)
+            except Exception:
+                log("Response text (first 500 chars): %s", r.text[:500])
             r.raise_for_status()
-        
+
         d = r.json()
         if not d.get("success"):
-            error_details = d.get('errors', 'Unknown error')
-            logger.error("D1 query failed (success=false): %s", error_details)
+            error_details = d.get("errors", "Unknown error")
+            log("D1 query failed (success=false): %s", error_details)
             raise RuntimeError(f"D1 query failed: {error_details}")
-        
+
         logger.debug("Query executed successfully")
         return (d.get("result") or [{}])[0].get("results", [])
     except requests.exceptions.HTTPError as http_err:
-        logger.error("HTTP error in query(): %s", http_err)
+        log("HTTP error in query(): %s", http_err)
         raise
     except Exception as err:
-        logger.error("Unexpected error in query(): %s", err)
+        log("Unexpected error in query(): %s", err)
         raise
 
 
@@ -237,7 +234,7 @@ def batch_upsert(
     print(f"\r  {label}: {n}/{n} done    ")
     return n
 
-def _query_with_retry(sql: str, params: list, retries: int = 5) -> list:
+def _query_with_retry(sql: str, params: list, retries: int = 5, silent: bool = False) -> list:
     """POST to /query with retry on 429 rate-limit."""
     body: dict = {"sql": sql, "params": params}
     
@@ -254,30 +251,30 @@ def _query_with_retry(sql: str, params: list, retries: int = 5) -> list:
                 continue
             
             if not r.ok:
-                logger.error("Query failed with status %d on attempt %d/%d", r.status_code, attempt + 1, retries)
-                logger.error("Request URL: %s", r.url)
-                logger.error("SQL (first 500 chars): %s", sql[:500])
-                logger.error("Number of params: %d", len(params) if params else 0)
-                
+                log = logger.debug if silent else logger.error
+                log("Query failed with status %d on attempt %d/%d", r.status_code, attempt + 1, retries)
+                log("Request URL: %s", r.url)
+                log("SQL (first 500 chars): %s", sql[:500])
+                log("Number of params: %d", len(params) if params else 0)
                 try:
                     error_response = r.json()
-                    logger.error("Error response: %s", error_response)
+                    log("Error response: %s", error_response)
                 except Exception:
-                    logger.error("Response text (first 500 chars): %s", r.text[:500])
-            
+                    log("Response text (first 500 chars): %s", r.text[:500])
+
             r.raise_for_status()
-            
+
             d = r.json()
             if not d.get("success"):
                 error_msg = d.get("errors", "Unknown error")
-                logger.error("D1 query failed (success=false): %s", error_msg)
+                (logger.debug if silent else logger.error)("D1 query failed (success=false): %s", error_msg)
                 raise RuntimeError(f"D1 query failed: {error_msg}")
-            
+
             logger.debug("Query with retry executed successfully")
             return (d.get("result") or [{}])[0].get("results", [])
-            
+
         except requests.exceptions.RequestException as req_err:
-            logger.error("Request exception on attempt %d/%d: %s", attempt + 1, retries, req_err)
+            (logger.debug if silent else logger.error)("Request exception on attempt %d/%d: %s", attempt + 1, retries, req_err)
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)  # Exponential backoff
             else:
@@ -302,7 +299,7 @@ def apply_schema(schema_path: str) -> None:
         try:
             logger.debug("Executing schema statement %d/%d (length: %d chars)", idx, len(statements), len(stmt))
             logger.debug("Statement preview: %s", stmt[:100])
-            query(stmt)
+            query(stmt, silent=is_alter)
         except Exception as err:
             if is_alter:
                 # Check both exception string and response body for duplicate-column signal
