@@ -189,6 +189,35 @@ def detect_trips(
     if current:
         raw_trips.append(current)
 
+    # Apply trip_end_overrides as splits when the override timestamp is before the
+    # trip's natural end.  A raw trip whose start_ts matches an override key and
+    # whose end extends past force_end_ts is cut in two: rows up to force_end_ts
+    # become the first trip; the remainder becomes a new raw trip that will be
+    # extended and named independently.  When force_end_ts >= current end the
+    # override is handled later (extension phase) as before.
+    if trip_end_overrides:
+        split_raw: list[list[dict]] = []
+        for trip in raw_trips:
+            trip_ts_start = int(trip[0]["date"])
+            trip_ts_end   = int(trip[-1]["date"])
+            # Match override key by range: the key may be inside the raw trip
+            # (not necessarily the very first row) when departure rows are blank-city.
+            force_end_ts = next(
+                (v for k, v in trip_end_overrides.items()
+                 if trip_ts_start <= k <= trip_ts_end),
+                None,
+            )
+            if force_end_ts is not None and force_end_ts < trip_ts_end:
+                part1 = [r for r in trip if int(r["date"]) <= force_end_ts]
+                part2 = [r for r in trip if int(r["date"]) > force_end_ts]
+                if part1:
+                    split_raw.append(part1)
+                if part2:
+                    split_raw.append(part2)
+            else:
+                split_raw.append(trip)
+        raw_trips = split_raw
+
     # Extend trip boundaries to include departure / arrival legs in home city.
     #
     # Both scans traverse home-city rows AND blank-city rows (highways, country
