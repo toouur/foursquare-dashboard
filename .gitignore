@@ -11,6 +11,7 @@ __pycache__/
 !.dev.vars.example
 !.env.example
 
+.claude/
 .claude/worktrees
 analyze_mismatches.py
 
