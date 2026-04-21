@@ -74,18 +74,15 @@ python scripts/sync_to_d1.py \
 # WARNING: --force-checkins via Python API is UNRELIABLE for 65K rows (network failures
 # leave D1 in partial state). Use the wrangler SQL dump approach instead:
 #
-#   1. Generate the dump (uses checkin_id from CSV, no NULLs):
-#      python C:/tmp/gen_dump.py
-#      # Output: C:/tmp/checkins_venues_dump.sql (~27 MB)
+#   1. Generate the dump:
+python scripts/gen_d1_dump.py \
+  --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --out C:/tmp/checkins_venues_dump.sql
 #
 #   2. Execute via wrangler (PowerShell):
 #      $env:PATH = "C:\Program Files\nodejs;" + $env:PATH
 #      $env:CLOUDFLARE_API_TOKEN = "<token>"
 #      npx wrangler d1 execute swarmdata --file="C:\tmp\checkins_venues_dump.sql" --remote
-#
-# The dump generator script lives at C:/tmp/gen_dump.py (not committed; recreate from
-# scripts/sync_to_d1.py::parse_checkins if lost — reads checkin_id column, uses same
-# venue_meta aggregation, 100-row batches).
 ```
 
 ### After "Archive check-in snapshot" — sync venue changes to D1

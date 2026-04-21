@@ -1,0 +1,72 @@
+# .github/workflows/resync-checkins-d1.yml
+#
+# Manual workflow: full wipe + reinsert of checkins + venues tables via
+# wrangler SQL dump. More reliable than the Python batch-API path for 65K rows.
+#
+# Use after:
+#   • Stale-row cleanup (--delete-checkin-rows)
+#   • Archive dedup / checkins.csv correction
+#   • checkin_id column was ever written incorrectly to D1
+#
+# Required repository secrets:
+#   DATA_REPO_PAT      — Fine-grained PAT with Contents read on toouur/foursquare-data
+#   CF_D1_TOKEN        — Cloudflare API token with D1:Edit permission
+#   CF_D1_DATABASE_ID  — D1 database ID (used by wrangler.toml, passed as env)
+
+name: Resync checkins + venues to D1
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+
+jobs:
+  resync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install wrangler
+        run: npm install -g wrangler
+
+      - name: Generate SQL dump
+        run: |
+          python scripts/gen_d1_dump.py \
+            --csv private-data/checkins.csv \
+            --out /tmp/checkins_venues_dump.sql
+
+      - name: Execute dump against D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_D1_TOKEN }}
+        run: |
+          wrangler d1 execute swarmdata \
+            --file=/tmp/checkins_venues_dump.sql \
+            --remote
+
+      - name: Verify row counts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_D1_TOKEN }}
+        run: |
+          wrangler d1 execute swarmdata \
+            --command="SELECT 'checkins' tbl,COUNT(*) n FROM checkins UNION ALL SELECT 'venues',COUNT(*) FROM venues UNION ALL SELECT 'empty_id',COUNT(*) FROM checkins WHERE id=''" \
+            --remote
