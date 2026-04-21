@@ -502,6 +502,9 @@ def main() -> None:
 
         # Merge: preserve existing rows (including any duplicates); update venue info
         # from fetched rows where keys match; append genuinely new rows.
+        existing_map: dict[tuple[str, str], dict] = {}
+        for r in existing_rows:
+            existing_map.setdefault(row_key(r), r)
         fetched_map: dict[tuple[str, str], dict] = {row_key(r): r for r in fetched_rows}
         existing_key_set = {row_key(r) for r in existing_rows}
         all_rows = [fetched_map.get(row_key(r), r) for r in existing_rows]
@@ -509,6 +512,21 @@ def main() -> None:
             if row_key(row) not in existing_key_set:
                 all_rows.append(row)
         all_rows.sort(key=lambda r: int(r.get("date", 0) or 0))
+
+        # Backfill overlaps from existing snapshot when the fresh fetch returned nothing.
+        # The bulk checkins endpoint rarely includes overlaps; individual enrichment
+        # calls ("-" sentinel) should not be lost on a full re-fetch.
+        overlap_restored = 0
+        for row in all_rows:
+            if row.get("overlaps_name") or row.get("overlaps_id"):
+                continue  # fresh fetch returned overlap data — keep it
+            prev = existing_map.get(row_key(row))
+            if prev and prev.get("overlaps_id"):  # non-empty incl. "-" sentinel
+                row["overlaps_name"] = prev.get("overlaps_name", "")
+                row["overlaps_id"] = prev.get("overlaps_id", "")
+                overlap_restored += 1
+        if overlap_restored:
+            log.info("Backfilled overlaps from previous snapshot for %d row(s).", overlap_restored)
 
         # Detect missing: keys in existing that the API no longer returns
         fetched_key_set = {row_key(r) for r in fetched_rows}
