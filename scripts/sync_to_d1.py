@@ -555,8 +555,12 @@ def main() -> None:
             field = rec.get("field")
             if vid and field in ALLOWED_FIELDS:
                 by_venue.setdefault(vid, []).append(rec)
-        if by_venue:
-            print(f"  venue_changes: applying {len(diffs)} diff(s) across {len(by_venue)} venue(s)", flush=True)
+        # Separate merge records (field='venue_id') from metadata field updates
+        merge_diffs = [r for r in diffs if r.get("field") == "venue_id" and r.get("venue_id") and r.get("new_value")]
+
+        if by_venue or merge_diffs:
+            print(f"  venue_changes: applying {len(diffs)} diff(s) across {len(by_venue)} venue(s)"
+                  + (f", {len(merge_diffs)} merge(s)" if merge_diffs else ""), flush=True)
             # Field mappings: checkins and tips share the same column names for venue metadata
             # venues table uses 'name' instead of 'venue' for the venue name
             VENUE_TABLE_FIELD = {"venue": "name", "city": "city", "country": "country",
@@ -571,6 +575,12 @@ def main() -> None:
                 # Update venues table row (column 'name' instead of 'venue')
                 v_clauses = ", ".join(f"{VENUE_TABLE_FIELD[r['field']]}=?" for r in recs)
                 d1.query(f"UPDATE venues SET {v_clauses} WHERE id=?", set_vals + [vid])
+            # Venue merges: reassign checkins + tips to new venue_id
+            for r in merge_diffs:
+                old_vid = r["venue_id"]
+                new_vid = r["new_value"]
+                d1.query("UPDATE checkins SET venue_id=? WHERE venue_id=?", [new_vid, old_vid])
+                d1.query("UPDATE tips SET venue_id=? WHERE venue_id=?", [new_vid, old_vid])
             # Audit log
             def _derive_action(field: str) -> str:
                 if field == "venue":
@@ -589,6 +599,16 @@ def main() -> None:
                     _derive_action(r["field"]),
                 ]
                 for r in diffs if r.get("venue_id") and r.get("field") in ALLOWED_FIELDS
+            ]
+            # Merge audit rows — use venue_name from the diff record (old vid not in venue_meta)
+            vc_rows += [
+                [
+                    r["venue_id"], "venue_id", r.get("old_value"), r.get("new_value"),
+                    r.get("detected_at", 0),
+                    r.get("venue_name", ""),
+                    "merged",
+                ]
+                for r in merge_diffs
             ]
             d1.batch_upsert(SQL_VENUE_CHANGES, vc_rows, label="venue_changes")
             changed = True

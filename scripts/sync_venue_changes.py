@@ -56,6 +56,54 @@ def load_csv_by_venue(path: Path) -> dict[str, dict]:
     return by_venue
 
 
+def _load_ts_index(path: Path) -> tuple[dict[str, list[int]], dict[int, str]]:
+    """Return ({venue_id: [timestamps]}, {timestamp: venue_id}) for merge detection."""
+    vid_ts: dict[str, list[int]] = {}
+    ts_vid: dict[int, str] = {}
+    with open(path, encoding="utf-8", newline="") as fh:
+        for row in csv.DictReader(fh):
+            vid = row.get("venue_id", "").strip()
+            try:
+                ts = int(row.get("date") or 0)
+            except ValueError:
+                ts = 0
+            if not vid or not ts:
+                continue
+            vid_ts.setdefault(vid, []).append(ts)
+            ts_vid[ts] = vid
+    return vid_ts, ts_vid
+
+
+def detect_merges(
+    old: dict[str, dict],
+    old_path: Path,
+    new_path: Path,
+) -> list[dict]:
+    """
+    Find venue_ids present in old snapshot but absent from new, where the
+    checkins migrated to a single new venue_id — classic Foursquare venue merge.
+    Returns [{venue_id, venue_name, new_venue_id}, ...]
+    """
+    old_vid_ts, _ = _load_ts_index(old_path)
+    _, new_ts_vid = _load_ts_index(new_path)
+
+    gone = set(old_vid_ts) - set(new_ts_vid.values())
+    merges = []
+    for vid in sorted(gone):
+        timestamps = old_vid_ts[vid]
+        targets = {new_ts_vid[ts] for ts in timestamps if ts in new_ts_vid}
+        if len(targets) == 1:
+            new_vid = next(iter(targets))
+            vname = (old[vid].get("venue") or vid) if vid in old else vid
+            merges.append({"venue_id": vid, "venue_name": vname, "new_venue_id": new_vid})
+            log.info("  merge: %s → %s  [%s]", vid, new_vid, vname)
+        elif len(targets) > 1:
+            log.warning("  split: %s → %d venues, skipping", vid, len(targets))
+    if merges:
+        log.info("%d venue merge(s) detected", len(merges))
+    return merges
+
+
 def detect_changes(
     old: dict[str, dict], new: dict[str, dict]
 ) -> list[dict]:
@@ -130,11 +178,15 @@ def patch_tips(
     return tips, patch_records
 
 
-def _write_diffs(changes: list[dict], out_path: str) -> None:
+def _write_diffs(
+    changes: list[dict],
+    out_path: str,
+    merges: list[dict] | None = None,
+) -> None:
     """
     Write venue diffs to a JSON file consumable by sync_to_d1.py --venue-changes.
-    Format: [{venue_id, field, old_value, new_value, detected_at}, ...]
-    detected_at = current unix timestamp (best available approximation).
+    Format: [{venue_id, field, old_value, new_value, detected_at, ?venue_name}, ...]
+    Merge records use field='venue_id' with old_value=old_vid, new_value=new_vid.
     """
     import time as _time
     ts = int(_time.time())
@@ -148,6 +200,15 @@ def _write_diffs(changes: list[dict], out_path: str) -> None:
                 "new_value":   new_v or None,
                 "detected_at": ts,
             })
+    for m in (merges or []):
+        records.append({
+            "venue_id":    m["venue_id"],
+            "venue_name":  m["venue_name"],
+            "field":       "venue_id",
+            "old_value":   m["venue_id"],
+            "new_value":   m["new_venue_id"],
+            "detected_at": ts,
+        })
     Path(out_path).write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info("Wrote %d diff record(s) to %s", len(records), out_path)
 
@@ -182,6 +243,7 @@ def main() -> None:
     log.info("New snapshot: %d unique venue_ids", len(new))
 
     changes = detect_changes(old, new)
+    merges = detect_merges(old, old_path, new_path)
 
     if not changes:
         log.info("No venue changes detected.")
@@ -222,8 +284,8 @@ def main() -> None:
 
     if args.dry_run:
         log.info("Dry run — tips.json not written.")
-        if args.out and changes:
-            _write_diffs(changes, args.out)
+        if args.out and (changes or merges):
+            _write_diffs(changes, args.out, merges)
         return
 
     if patch_records:
@@ -234,8 +296,8 @@ def main() -> None:
     else:
         log.info("tips.json unchanged.")
 
-    if args.out and changes:
-        _write_diffs(changes, args.out)
+    if args.out and (changes or merges):
+        _write_diffs(changes, args.out, merges)
 
 
 if __name__ == "__main__":
