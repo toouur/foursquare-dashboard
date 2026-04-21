@@ -36,9 +36,13 @@ Fields updated per matching row in checkins.csv:
 Fields updated per matching tip in tips.json (auto-detected next to CSV):
     venue, venue_id (if --new-venue-id), city, country, lat, lng, category
 
+Fields updated per matching entry in venueRatings.json (pass --ratings):
+    name, url, id (if --new-venue-id)
+
 Fields never touched:
     date, shout, source_app, source_url, with_name, with_id (CSV)
     id, ts, text, agree_count, disagree_count (tips)
+    rating, createdAt (venueRatings)
 
 Optional:
     --closed   Set closed=True on all matching tips (venue has permanently closed)
@@ -139,6 +143,7 @@ def main() -> None:
     parser.add_argument("--venue-id",     required=True,               help="Venue ID to find in CSV")
     parser.add_argument("--new-venue-id", default="",                  help="If merged: fetch info from this ID and update venue_id in CSV")
     parser.add_argument("--tips",         default="",                  help="Path to tips.json (default: auto-detect next to CSV)")
+    parser.add_argument("--ratings",      default="",                  help="Path to venueRatings.json (optional)")
     parser.add_argument("--closed",       action="store_true",         help="Mark all matching tips as closed=True")
     parser.add_argument("--dry-run",      action="store_true",         help="Show what would change without writing")
     args = parser.parse_args()
@@ -273,6 +278,42 @@ def main() -> None:
         log.info("Saved %s (%d tip(s) updated).", tips_path, tips_changed)
     else:
         log.info("No matching tips found in %s.", tips_path)
+
+    # ── Patch venueRatings.json ───────────────────────────────────────────────
+    ratings_path = Path(args.ratings) if args.ratings else None
+    if not ratings_path or not ratings_path.exists():
+        return
+    ratings = json.loads(ratings_path.read_text(encoding="utf-8"))
+    new_vid = patch["venue_id"]
+    new_name = patch["venue"]
+    new_url = patch["venue_url"]
+    ratings_changed = 0
+    for bucket in ("venueLikes", "venueOkays", "venueDislikes"):
+        for entry in ratings.get(bucket) or []:
+            if str(entry.get("id", "")) != old_venue_id:
+                continue
+            diffs = {}
+            if entry.get("name") != new_name:
+                diffs["name"] = (entry.get("name"), new_name)
+                entry["name"] = new_name
+            if entry.get("url") != new_url:
+                diffs["url"] = (entry.get("url"), new_url)
+                entry["url"] = new_url
+            if new_venue_id and str(entry.get("id", "")) != new_vid:
+                diffs["id"] = (entry.get("id"), new_vid)
+                entry["id"] = new_vid
+            if diffs:
+                ratings_changed += 1
+                for field, (old_val, new_val) in diffs.items():
+                    log.info("  rating [%s]  %s: %r → %r", bucket, field, old_val, new_val)
+    if ratings_changed:
+        if not args.dry_run:
+            ratings_path.write_text(json.dumps(ratings, ensure_ascii=False, indent=2), encoding="utf-8")
+            log.info("Saved %s (%d rating entry(ies) updated).", ratings_path, ratings_changed)
+        else:
+            log.info("Dry run — venueRatings.json not written (%d change(s)).", ratings_changed)
+    else:
+        log.info("No matching rating entry in %s.", ratings_path)
 
 
 if __name__ == "__main__":

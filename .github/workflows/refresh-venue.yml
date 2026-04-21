@@ -95,6 +95,9 @@ jobs:
                 --tips private-data/tips.json \
                 --venue-id ${{ steps.ids.outputs.old_id }}"
 
+          if [ -f private-data/venueRatings.json ]; then
+            ARGS="$ARGS --ratings private-data/venueRatings.json"
+          fi
           if [ -n "${{ steps.ids.outputs.new_id }}" ]; then
             ARGS="$ARGS --new-venue-id ${{ steps.ids.outputs.new_id }}"
           fi
@@ -113,6 +116,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add checkins.csv tips.json
+          [ -f venueRatings.json ] && git add venueRatings.json || true
 
           if git diff --cached --quiet; then
             echo "No changes to commit (venue already up to date)."
@@ -160,10 +164,13 @@ jobs:
           if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
           LISTS_ARG=""
           if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          RATINGS_CHANGED_ARG=""
+          if [ -n "$RATINGS_ARG" ]; then RATINGS_CHANGED_ARG="--ratings-changed true"; fi
           python scripts/sync_to_d1.py \
             --csv   private-data/checkins.csv \
             --tips  private-data/tips.json \
             --trips trips_meta.json \
             $RATINGS_ARG $LISTS_ARG \
             --tips-changed true \
+            $RATINGS_CHANGED_ARG \
             $VENUE_CHANGES_ARG
