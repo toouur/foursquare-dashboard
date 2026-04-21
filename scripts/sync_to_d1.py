@@ -94,11 +94,6 @@ SQL_RATINGS = (
     "(venue_id,venue_name,venue_url,rating,created_at) "
     "VALUES (?,?,?,?,?)"
 )
-SQL_RATINGS_IGNORE = (
-    "INSERT OR IGNORE INTO ratings "
-    "(venue_id,venue_name,venue_url,rating,created_at) "
-    "VALUES (?,?,?,?,?)"
-)
 SQL_LISTS = (
     "INSERT OR REPLACE INTO lists (id,name,url,cover,updated_at) VALUES (?,?,?,?,?)"
 )
@@ -524,7 +519,7 @@ def main() -> None:
         if not args.ratings:
             sys.exit("--ratings-changed=true requires --ratings")
         rating_rows = parse_ratings(args.ratings)
-        d1.batch_upsert(SQL_RATINGS_IGNORE, rating_rows, label="ratings  ")
+        d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
         changed = True
     else:
         print("  ratings  : skipped (no new ratings this run)", flush=True)
