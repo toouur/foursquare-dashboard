@@ -298,11 +298,23 @@ def apply_schema(schema_path: str) -> None:
     logger.info("Found %d SQL statements in schema file", len(statements))
     
     for idx, stmt in enumerate(statements, 1):
+        is_alter = stmt.upper().lstrip().startswith("ALTER TABLE")
         try:
             logger.debug("Executing schema statement %d/%d (length: %d chars)", idx, len(statements), len(stmt))
             logger.debug("Statement preview: %s", stmt[:100])
             query(stmt)
         except Exception as err:
+            if is_alter:
+                # Check both exception string and response body for duplicate-column signal
+                combined = str(err).lower()
+                if hasattr(err, "response") and err.response is not None:
+                    try:
+                        combined += str(err.response.json()).lower()
+                    except Exception:
+                        pass
+                if "duplicate column" in combined or "already exists" in combined:
+                    logger.debug("Skipping migration (column already exists): %s", stmt[:80])
+                    continue
             logger.error("Failed to execute schema statement %d/%d", idx, len(statements))
             logger.error("Statement (first 200 chars): %s", stmt[:200])
             logger.error("Error: %s", err)

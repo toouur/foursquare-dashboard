@@ -39,6 +39,7 @@ import csv
 import json
 import os
 import sys
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -116,8 +117,8 @@ SQL_TRIPS = (
 )
 SQL_VENUE_CHANGES = (
     "INSERT OR REPLACE INTO venue_changes "
-    "(venue_id,field,old_value,new_value,detected_at) "
-    "VALUES (?,?,?,?,?)"
+    "(venue_id,field,old_value,new_value,detected_at,venue_name,action) "
+    "VALUES (?,?,?,?,?,?,?)"
 )
 
 
@@ -419,8 +420,13 @@ def main() -> None:
                     help="DELETE FROM tips then full INSERT OR REPLACE (manual resync)")
     ap.add_argument("--force-trips",   dest="force_trips",   action="store_true",
                     help="DELETE FROM trips then full INSERT OR REPLACE (manual resync)")
-    ap.add_argument("--force-lists",   dest="force_lists",   action="store_true",
+    ap.add_argument("--force-lists",     dest="force_lists",     action="store_true",
                     help="DELETE FROM lists + list_venues then full INSERT OR REPLACE (manual resync)")
+    ap.add_argument("--force-checkins", dest="force_checkins", action="store_true",
+                    help="DELETE FROM checkins + venues then full reinsert (use after stale-row cleanup)")
+    ap.add_argument("--delete-checkin-rows", dest="delete_checkin_rows", default=None,
+                    help='JSON file with list of {"venue_id","date"} pairs to DELETE from checkins; '
+                         "also prunes orphaned venue_ids from venues table")
     args = ap.parse_args()
 
     token = args.token or os.environ.get("CF_D1_TOKEN", "")
@@ -443,36 +449,51 @@ def main() -> None:
             counts_before[tbl] = 0
     print(f"D1 sync: counts before = {counts_before}", flush=True)
 
-    # Get current max checkin date from D1
-    result = d1.query("SELECT MAX(date) AS max_date FROM checkins")
-    max_date = (result[0].get("max_date") or 0) if result else 0
-    print(f"D1 sync: last known checkin timestamp = {max_date}", flush=True)
-
-    # Parse CSV
+    # Parse CSV (always needed)
     all_checkin_rows, venue_meta = parse_checkins(args.csv)
     visited_vids = {r[2] for r in all_checkin_rows if r[2]}  # index 2 = venue_id
 
-    # Only rows newer than what D1 already has
-    new_checkin_rows = [r for r in all_checkin_rows if r[1] > max_date]
-    new_venue_ids    = {r[2] for r in new_checkin_rows if r[2]}
-
-    print(f"D1 sync: {len(new_checkin_rows)} new check-ins, "
-          f"{len(new_venue_ids)} venues to update", flush=True)
-
-    changed = bool(new_checkin_rows)
-
-    # Upsert checkins (INSERT OR IGNORE -- safe to re-run)
-    if new_checkin_rows:
-        d1.batch_upsert(SQL_CHECKINS_NEW, new_checkin_rows, label="checkins (new)")
-
-    # Upsert only affected venues
-    if new_venue_ids:
-        venue_rows = [
+    if args.force_checkins:
+        print("  checkins : FORCE full resync — wiping checkins + venues and reinserting", flush=True)
+        d1.query("DELETE FROM checkins")
+        d1.query("DELETE FROM venues")
+        d1.batch_upsert(SQL_CHECKINS_NEW, all_checkin_rows, label="checkins ")
+        all_venue_rows = [
             [vid, m["name"] or None, m["category"] or None, m["lat"], m["lng"],
              m["city"] or None, m["country"] or None, m["count"], m["first_ts"] or None, m["last_ts"] or None]
-            for vid, m in venue_meta.items() if vid in new_venue_ids
+            for vid, m in venue_meta.items()
         ]
-        d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
+        d1.batch_upsert(SQL_VENUES, all_venue_rows, label="venues   ")
+        changed = True
+        new_checkin_rows = []   # skip incremental path below
+        new_venue_ids: set = set()
+    else:
+        # Get current max checkin date from D1
+        result = d1.query("SELECT MAX(date) AS max_date FROM checkins")
+        max_date = (result[0].get("max_date") or 0) if result else 0
+        print(f"D1 sync: last known checkin timestamp = {max_date}", flush=True)
+
+        # Only rows newer than what D1 already has
+        new_checkin_rows = [r for r in all_checkin_rows if r[1] > max_date]
+        new_venue_ids    = {r[2] for r in new_checkin_rows if r[2]}
+
+        print(f"D1 sync: {len(new_checkin_rows)} new check-ins, "
+              f"{len(new_venue_ids)} venues to update", flush=True)
+
+        changed = bool(new_checkin_rows)
+
+        # Upsert checkins (INSERT OR IGNORE -- safe to re-run)
+        if new_checkin_rows:
+            d1.batch_upsert(SQL_CHECKINS_NEW, new_checkin_rows, label="checkins (new)")
+
+        # Upsert only affected venues
+        if new_venue_ids:
+            venue_rows = [
+                [vid, m["name"] or None, m["category"] or None, m["lat"], m["lng"],
+                 m["city"] or None, m["country"] or None, m["count"], m["first_ts"] or None, m["last_ts"] or None]
+                for vid, m in venue_meta.items() if vid in new_venue_ids
+            ]
+            d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
 
     # Tips
     if args.force_tips:
@@ -556,8 +577,22 @@ def main() -> None:
                 v_clauses = ", ".join(f"{VENUE_TABLE_FIELD[r['field']]}=?" for r in recs)
                 d1.query(f"UPDATE venues SET {v_clauses} WHERE id=?", set_vals + [vid])
             # Audit log
+            def _derive_action(field: str) -> str:
+                if field == "venue":
+                    return "renamed"
+                if field in ("lat", "lng", "city", "country", "address"):
+                    return "relocated"
+                if field == "category":
+                    return "recategorized"
+                return "updated"
+
             vc_rows = [
-                [r["venue_id"], r["field"], r.get("old_value"), r.get("new_value"), r.get("detected_at", 0)]
+                [
+                    r["venue_id"], r["field"], r.get("old_value"), r.get("new_value"),
+                    r.get("detected_at", 0),
+                    venue_meta.get(r["venue_id"], {}).get("name", ""),
+                    _derive_action(r["field"]),
+                ]
                 for r in diffs if r.get("venue_id") and r.get("field") in ALLOWED_FIELDS
             ]
             d1.batch_upsert(SQL_VENUE_CHANGES, vc_rows, label="venue_changes")
@@ -566,6 +601,37 @@ def main() -> None:
             print("  venue_changes: no valid diffs found", flush=True)
     elif args.venue_changes:
         print(f"  venue_changes: file not found: {args.venue_changes}", flush=True)
+
+    # Targeted checkin row deletion + orphaned venue pruning
+    if args.delete_checkin_rows and os.path.exists(args.delete_checkin_rows):
+        pairs = json.load(open(args.delete_checkin_rows, encoding="utf-8"))
+        deleted_checkins = 0
+        now_ts = int(time.time())
+        vc_merge_rows = []
+        for p in pairs:
+            vid  = str(p["venue_id"])
+            date = int(p["date"])
+            vname = str(p.get("venue_name", ""))
+            d1.query("DELETE FROM checkins WHERE venue_id=? AND date=?", [vid, date])
+            deleted_checkins += 1
+            vc_merge_rows.append([vid, "venue_id", vid, None, now_ts, vname, "merged"])
+        print(f"  checkins : deleted {deleted_checkins} stale row(s) by (venue_id, date)", flush=True)
+        if vc_merge_rows:
+            d1.batch_upsert(SQL_VENUE_CHANGES, vc_merge_rows, label="venue_changes(merged)")
+        # Prune venue_ids from venues table that no longer appear in checkins
+        stale_vids = [str(p["venue_id"]) for p in pairs]
+        pruned = 0
+        for vid in stale_vids:
+            res = d1.query("SELECT COUNT(*) AS n FROM checkins WHERE venue_id=?", [vid])
+            remaining = (res[0].get("n", 0) if res else 0)
+            if remaining == 0:
+                d1.query("DELETE FROM venues WHERE id=?", [vid])
+                pruned += 1
+                print(f"    pruned venue {vid} (no remaining check-ins)", flush=True)
+        print(f"  venues   : pruned {pruned} orphaned venue(s)", flush=True)
+        changed = True
+    elif args.delete_checkin_rows:
+        print(f"  delete_checkin_rows: file not found: {args.delete_checkin_rows}", flush=True)
 
     # Lists
     # Force path: full wipe + reinsert (manual, post-export)

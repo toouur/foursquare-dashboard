@@ -69,6 +69,13 @@ python scripts/sync_to_d1.py \
   --trips   trips_meta.json \
   --force-ratings --force-tips --force-trips --force-lists
 # Or via GitHub Actions: Actions → "Force resync D1 tables" → tick the tables to reset
+
+# Force resync checkins + venues (use after stale-row cleanup / archive dedup):
+python scripts/sync_to_d1.py \
+  --csv     C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --tips    C:/Users/toouur/Documents/GitHub/foursquare-data/tips.json \
+  --trips   trips_meta.json \
+  --force-checkins
 ```
 
 ### After "Archive check-in snapshot" — sync venue changes to D1

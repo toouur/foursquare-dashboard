@@ -513,6 +513,51 @@ def main() -> None:
                 all_rows.append(row)
         all_rows.sort(key=lambda r: int(r.get("date", 0) or 0))
 
+        # Resolve timestamp conflicts: same date, different venue_ids.
+        # When the API returns (NEW_VID, TS) but existing has (OLD_VID, TS), both end up
+        # in all_rows because row_key includes venue_id.  Prefer the API version — it means
+        # the venue was renamed/merged on Foursquare and the old row is stale.
+        # Exception: if ALL rows at a timestamp came from the API (genuine simultaneous
+        # check-ins), keep them all.
+        from collections import defaultdict as _dd
+        by_date: dict[str, list] = _dd(list)
+        for row in all_rows:
+            by_date[row["date"]].append(row)
+        resolved: list[dict] = []
+        stale_removed = 0
+        for date, group in by_date.items():
+            if len(group) == 1:
+                resolved.append(group[0])
+                continue
+            unique_vids = {r["venue_id"] for r in group}
+            if len(unique_vids) == 1:
+                # Exact duplicates (same venue_id) — keep first only
+                resolved.append(group[0])
+                stale_removed += len(group) - 1
+                log.warning(
+                    "Removed %d exact duplicate(s) at ts=%s venue_id=%s",
+                    len(group) - 1, date, group[0]["venue_id"],
+                )
+                continue
+            # Different venue_ids at same timestamp
+            from_api   = [r for r in group if row_key(r) in fetched_map]
+            stale_only = [r for r in group if row_key(r) not in fetched_map]
+            if from_api and stale_only:
+                # API superseded the old venue(s) — discard stale rows
+                for s in stale_only:
+                    log.warning(
+                        "Discarding stale row ts=%s vid=%s (%s) — superseded by API vid=%s (%s)",
+                        date, s["venue_id"], s.get("venue", ""), from_api[0]["venue_id"], from_api[0].get("venue", ""),
+                    )
+                    stale_removed += 1
+                resolved.extend(from_api)
+            else:
+                # All from API (genuine simultaneous check-ins) — keep all
+                resolved.extend(group)
+        if stale_removed:
+            log.info("Removed %d stale/duplicate row(s) during archive merge.", stale_removed)
+        all_rows = resolved
+
         # Backfill overlaps from existing snapshot when the fresh fetch returned nothing.
         # The bulk checkins endpoint rarely includes overlaps; individual enrichment
         # calls ("-" sentinel) should not be lost on a full re-fetch.

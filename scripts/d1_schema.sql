@@ -123,12 +123,19 @@ CREATE TABLE IF NOT EXISTS trips (
 -- ── Venue change history (from sync_venue_changes.py diffs) ─────────────────
 CREATE TABLE IF NOT EXISTS venue_changes (
     venue_id    TEXT    NOT NULL,
-    field       TEXT    NOT NULL,   -- 'venue' | 'city' | 'country' | 'lat' | 'lng' | 'category'
+    field       TEXT    NOT NULL,   -- 'venue' | 'city' | 'country' | 'lat' | 'lng' | 'category' | 'venue_id'
     old_value   TEXT,
     new_value   TEXT,
     detected_at INTEGER NOT NULL,   -- unix timestamp of snapshot diff
+    venue_name  TEXT,               -- human-readable venue name at time of change
+    action      TEXT,               -- 'renamed' | 'relocated' | 'recategorized' | 'merged' | 'updated'
     PRIMARY KEY (venue_id, field, detected_at)
 );
+
+-- Migrations: add new columns to existing venue_changes tables
+-- (safe to run repeatedly -- apply_schema suppresses duplicate-column errors)
+ALTER TABLE venue_changes ADD COLUMN venue_name TEXT;
+ALTER TABLE venue_changes ADD COLUMN action TEXT;
 
 -- ── Indexes ───────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_checkins_id       ON checkins(id);
