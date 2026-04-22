@@ -1,0 +1,127 @@
+# .github/workflows/delete-checkin.yml
+#
+# Manual workflow: delete one or more check-ins by ID.
+# Removes rows from checkins.csv (private data repo), deletes orphaned venues,
+# rebuilds the dashboard HTML, and syncs the deletion to D1.
+#
+# Trigger: Actions tab → "Delete check-in" → Run workflow
+#
+# Required secrets:
+#   DATA_REPO_PAT     — Fine-grained PAT with Contents read/write on foursquare-data
+#   CF_D1_TOKEN       — Cloudflare API token with D1:Edit permission
+#   CF_ACCOUNT_ID     — Cloudflare account ID
+#   CF_D1_DATABASE_ID — D1 database ID
+
+name: Delete check-in
+
+on:
+  workflow_dispatch:
+    inputs:
+      checkin_ids:
+        description: "Check-in ID(s) to delete, comma-separated"
+        required: true
+      dry_run:
+        description: "Dry run — show what would be deleted without making changes"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout public repo (scripts live here) ───────────────────────
+      - uses: actions/checkout@v4
+
+      # ── 2. Checkout private data repo ────────────────────────────────────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      # ── 3. Python setup ──────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Delete check-in(s) from CSV (and optionally D1) ───────────────
+      - name: Delete check-in(s)
+        id: delete
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          python scripts/delete_checkin.py \
+            --ids "${{ github.event.inputs.checkin_ids }}" \
+            --csv private-data/checkins.csv \
+            $DRY_RUN_FLAG >> "$GITHUB_OUTPUT"
+
+      # ── 5. Commit updated checkins.csv to private data repo ───────────────
+      - name: Commit to private data repo
+        if: steps.delete.outputs.DELETED == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add checkins.csv
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            IDS="${{ github.event.inputs.checkin_ids }}"
+            COUNT="${{ steps.delete.outputs.COUNT }}"
+            git commit -m "fix(checkins): delete ${COUNT} check-in(s) [${IDS}]"
+            git push
+          fi
+          cd ..
+
+      # ── 6. Rebuild dashboard ─────────────────────────────────────────────
+      - name: Rebuild dashboard
+        if: steps.delete.outputs.DELETED == 'true'
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          PIX_URL_ARG=""
+          if [ -n "$R2_PUBLIC_URL" ]; then PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"; fi
+          PHOTOS_ARG=""
+          if [ -f private-data/photos.json ]; then PHOTOS_ARG="--photos private-data/photos.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+          python scripts/build.py \
+            --input private-data/checkins.csv \
+            --config-dir config \
+            --output-dir . \
+            $PHOTOS_ARG $PIX_URL_ARG $LISTS_ARG $RATINGS_ARG
+
+      # ── 7. Commit rebuilt HTML to public repo ────────────────────────────
+      - name: Commit updated HTML
+        if: steps.delete.outputs.DELETED == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -u
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            IDS="${{ github.event.inputs.checkin_ids }}"
+            git commit -m "fix(dashboard): rebuild after deleting check-in(s) [${IDS}]"
+            git push
+          fi
