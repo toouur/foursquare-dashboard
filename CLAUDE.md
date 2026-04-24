@@ -106,6 +106,16 @@ python scripts/sync_to_d1.py \
   --venue-changes /tmp/venue_diffs.json
 ```
 
+### Delete check-in(s) by ID
+Removes rows from CSV + D1, cleans orphaned venues. Use for deleted / accidental check-ins.
+Also available as `delete-checkin` workflow (Actions tab).
+```bash
+python scripts/delete_checkin.py \
+  --ids CHECKIN_ID1,CHECKIN_ID2 \
+  --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --dry-run   # optional
+```
+
 ### Local D1 dev (Wrangler)
 ```bash
 npx wrangler pages dev . --d1 DB=52210bd9-a019-415e-8f12-6a73b42278f9
@@ -134,10 +144,15 @@ python -m http.server 8000
 - Metrics/trips: `scripts/metrics.py`
 - Tips generation: `scripts/gen_tips.py`
 - Photos generation: `scripts/gen_photos.py`
+- Guide page: `scripts/gen_guide.py` (live nearby suggestions, 48h session history)
+- Trip pages: `scripts/gen_trip_pages.py` (per-trip detail HTML)
+- Check-in delete: `scripts/delete_checkin.py`
+- D1 SQL dump: `scripts/gen_d1_dump.py` (bulk resync path)
 - Tips fetch: `scripts/fetch_tips.py`
 - Check-ins fetch: `scripts/fetch_checkins.py`
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
 - Search API (Cloudflare Pages Function): `functions/api/search.js`
+- Other Pages Functions: `functions/api/{feed,search-venues,venue-tips,custom-list}.js`
 - Pages config: `wrangler.toml`
 - Config: `config/city_merge.yaml`, `config/city_fixes.json`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
 

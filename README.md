@@ -31,7 +31,8 @@ venue loyalty · regular haunts · revisit intervals · venue visit frequency ·
 category explorer · companions · recent check-ins with historical weather ·
 tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons ·
 **photo gallery** with 21 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
-lazy loading, lightbox, and inline tip photos.
+lazy loading, lightbox, and inline tip photos ·
+**live travel guide** (`guide.html`) — nearby suggestions based on your 48h session history.
 
 ---
 
@@ -50,22 +51,50 @@ lazy loading, lightbox, and inline tip photos.
 │   ├── build.py                 # CLI entry point: checkins.csv → all HTML pages
 │   ├── gen_companions.py        # Generates companions.html
 │   ├── gen_feed.py              # Generates feed.html (bidirectional infinite-scroll, cursor-based D1 API)
+│   ├── gen_guide.py             # Generates guide.html (live nearby suggestions, 48h session history)
 │   ├── gen_lists.py             # Generates lists.html
 │   ├── gen_photos.py            # Generates photos.html (full gallery, city filter, tip photos)
 │   ├── gen_ratings.py           # Generates ratings.html
 │   ├── gen_search.py            # Generates search.html (no longer writes search-index.json)
 │   ├── gen_stats.py             # Generates stats.html
 │   ├── gen_tips.py              # Generates tips.html (country/city tabs, map, CLOSED badges)
+│   ├── gen_trip_pages.py        # Generates per-trip HTML pages (trip-N.html)
 │   ├── gen_venues.py            # Generates venues.html (top 500 venues)
 │   ├── gen_worldcities.py       # Generates world_cities.html
 │   ├── sync_to_d1.py            # Incremental CI sync of all data to Cloudflare D1
 │   ├── d1_client.py             # Low-level D1 HTTP client (batch upsert, schema apply)
+│   ├── gen_d1_dump.py           # Generates SQL dump for bulk D1 resync via wrangler
 │   ├── import_to_d1.py          # One-time bulk import to D1 (uses /raw endpoint)
 │   ├── sync_venue_changes.py    # Diffs archived vs fresh checkins; patches tips.json metadata
+│   ├── delete_checkin.py        # Removes check-in(s) by ID from CSV + D1 (and orphaned venues)
+│   ├── refresh_venue.py         # Re-fetches a single venue's metadata from Foursquare
+│   ├── add_venue_tip.py         # Adds a tip to a venue via Foursquare API
+│   ├── rate_venue.py            # Sets like/okay/dislike on a venue via Foursquare API
+│   ├── enrich_overlaps.py       # Backfills overlaps_name/overlaps_id on older check-ins
+│   ├── fix_overlap_dupes.py     # Cleans duplicate entries in overlaps_* fields
 │   └── find_closed_venue_tips.py  # One-time utility: find tips on closed venues via browser cookies
+├── .github/workflows/
+│   ├── update-dashboard.yml       # Hourly incremental: fetch + build + push + D1 sync
+│   ├── archive-checkins.yml       # Manual: full re-fetch + venue-change sync (see below)
+│   ├── delete-checkin.yml         # Manual: delete check-in by ID from CSV + D1 + rebuild
+│   ├── resync-checkins-d1.yml     # Manual: wipe + reinsert checkins/venues via wrangler SQL dump
+│   ├── resync-d1.yml              # Manual: force resync of tips/ratings/lists/trips tables
+│   ├── upsert-d1.yml              # Manual: incremental upsert (same as nightly, on demand)
+│   ├── add-venue-tip.yml          # Manual: post a tip to a venue
+│   ├── add-venue-rating.yml       # Manual: set like/okay/dislike on a venue
+│   ├── add-checkin-photos.yml     # Manual: ingest new photos from a data export
+│   ├── refresh-venue.yml          # Manual: re-fetch one venue's metadata
+│   ├── fetch-venue-rating.yml     # Manual: resync venueRatings.json
+│   ├── fetch-lists.yml            # Manual: resync lists.json
+│   ├── fix-overlaps.yml           # Manual: run enrich_overlaps.py / fix_overlap_dupes.py
+│   └── release.yml                # Release tagging
 ├── functions/
 │   └── api/
-│       └── search.js            # Cloudflare Pages Function: /api/search?q= (D1-backed)
+│       ├── search.js            # /api/search?q= — D1-backed multi-facet search
+│       ├── search-venues.js     # /api/search-venues — venue autocomplete
+│       ├── feed.js              # /api/feed — cursor-paginated check-in feed
+│       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
+│       └── custom-list.js       # /api/custom-list — custom curated lists
 ├── data/
 │   ├── checkins.csv          # Your check-in data — gitignored, lives in private repo
 │   ├── tips.json             # Your tips data — gitignored, lives in private repo
@@ -103,6 +132,8 @@ lazy loading, lightbox, and inline tip photos.
 ├── ratings.html              # Venue ratings page (built by CI)
 ├── lists.html                # Foursquare lists page (built by CI)
 ├── search.html               # Search page — queries live D1 via /api/search (built by CI)
+├── guide.html                # Live "what's around me" guide — 48h session history, nearby suggestions
+├── trip-*.html               # Per-trip detail pages (~155, auto-generated)
 ├── requirements.txt          # Python deps (requests, pyyaml, timezonefinder)
 ├── netlify.toml              # Netlify config (builds disabled — CI-only deploys)
 └── wrangler.toml             # Cloudflare Pages + D1 binding config
@@ -515,6 +546,57 @@ Companion results aggregate all three source fields: `with_name`, `created_by_na
 - Scrolling toward the top triggers `loadRev()` (50 newer items, `?after=TS`); prepended to `ALL` with scroll-position correction.
 - Navigation jumps (`goYMD`, `goLatest`, `goOldest`) reset state with a generation counter (`_loadGen`) to discard in-flight stale fetches.
 - `feed_meta.json` (static, built at CI time) provides calendar counts and total — no D1 query for those.
+
+---
+
+## Maintenance operations
+
+Beyond the hourly `update-dashboard` job, several manual workflows handle data hygiene. Trigger them from the **Actions** tab.
+
+### Delete a check-in (`delete-checkin` workflow)
+
+Removes one or more check-ins by ID from `checkins.csv` (private data repo), deletes any orphaned venues, rebuilds the dashboard HTML, and syncs the deletion to D1.
+
+Inputs:
+- `checkin_ids` — comma-separated check-in IDs (e.g. `69e8b7321879ec52d271bd58,686a36759cc1064c129c0e72`)
+- `dry_run` — `true` to preview without making changes
+
+Locally:
+```bash
+python scripts/delete_checkin.py \
+  --ids CHECKIN_ID1,CHECKIN_ID2 \
+  --csv private-data/checkins.csv \
+  --dry-run   # optional
+```
+
+### Bulk D1 resync via wrangler SQL dump (`resync-checkins-d1` workflow)
+
+The Python batch-API sync path (`--force-checkins`) is unreliable for 65K rows — a single network failure leaves D1 in a partial state. The wrangler SQL dump path is the safe alternative: it generates one `.sql` file and executes it atomically against D1.
+
+Use after:
+- Stale-row cleanup (e.g. `delete_checkin.py` on a removed check-in)
+- Archive dedup / manual `checkins.csv` correction
+- Any case where `checkin_id` / `venue_id` columns drifted out of sync
+
+```bash
+# Locally (PowerShell — requires wrangler on PATH + CF_D1_TOKEN + CF_ACCOUNT_ID):
+python scripts/gen_d1_dump.py \
+  --csv private-data/checkins.csv \
+  --out /tmp/checkins_venues_dump.sql
+npx wrangler d1 execute swarmdata --file=/tmp/checkins_venues_dump.sql --remote
+```
+
+The workflow additionally runs a `SELECT COUNT(*)` verification query afterwards.
+
+### Force resync individual tables (`resync-d1` workflow)
+
+For tips / ratings / lists / trips that drifted (e.g. after a Foursquare data export reveals extra items), tick the tables to reset in the workflow dispatch inputs. Backed by `sync_to_d1.py --force-tips --force-ratings ...`.
+
+### Venue-metadata hygiene
+
+- `refresh-venue` — re-fetches one venue's metadata from Foursquare (when a venue gets renamed/moved and the hourly diff misses it)
+- `fix-overlaps` — runs `enrich_overlaps.py` / `fix_overlap_dupes.py` to backfill or clean `overlaps_*` fields on older rows
+- `add-venue-tip` / `add-venue-rating` — post a tip or set like/okay/dislike on a venue via the Foursquare API, then sync to D1
 
 ---
 
