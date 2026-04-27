@@ -1098,6 +1098,10 @@
   "Самарканд": "Samarkand"  # ok — Cyrillic → canonical English Samarkand
   "Samarqand": "Samarkand"  # ok — Uzbek-alphabet spelling; canonical English = Samarkand
   "Каган": "Bukhara"  # ok — Cyrillic form of Kagan, railway gateway to Bukhara
+  "Urganch": "Urgench"  # ok — Uzbek Latin spelling; canonical English = Urgench
+  "Ургенч": "Urgench"  # ok — Cyrillic Russian form
+  "Jiva": "Khiva"  # ok — Uzbek variant; canonical English = Khiva
+  "Хива": "Khiva"  # ok — Cyrillic Russian form
 
   # ══ VATICAN ══
   "Vatican": "Vatican City"  # ok — tab-stripped, now resolves correctly
