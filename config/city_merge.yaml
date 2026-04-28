@@ -1101,6 +1101,7 @@
   "Urganch": "Urgench"  # ok — Uzbek Latin spelling; canonical English = Urgench
   "Ургенч": "Urgench"  # ok — Cyrillic Russian form
   "Jiva": "Khiva"  # ok — Uzbek variant; canonical English = Khiva
+  "Xiva": "Khiva"  # ok — official Uzbek Latin spelling
   "Хива": "Khiva"  # ok — Cyrillic Russian form
 
   # ══ VATICAN ══

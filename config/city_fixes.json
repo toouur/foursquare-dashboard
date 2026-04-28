@@ -144,9 +144,12 @@
   "1723975796": "Pryluky",
   "1723977548": "Atolino",
 
-  "_comment_urgench_khiva_2026": "2026-04-26/27 Urgench+Khiva trip: blank/corrupt city rows",
+  "_comment_urgench_khiva_2026": "2026-04-26/27 Urgench+Khiva trip: blank/corrupt city rows (shared + toouur-specific)",
+  "1777159602": "Urgench",
   "1777162260": "Urgench",
   "1777162277": "Urgench",
+  "1777162295": "Urgench",
+  "1777197466": "Urgench",
   "1777197493": "Urgench",
   "1777201791": "Urgench",
   "1777202895": "Urgench",
@@ -155,5 +158,10 @@
   "1777209412": "Urgench",
   "1777272616": "Urgench",
   "1777278276": "Khiva",
-  "1777305083": "Khiva"
+  "1777305083": "Khiva",
+  "1777359631": "Khiva",
+  "1777363779": "Khiva",
+  "1777370607": "Khiva",
+  "1777384655": "Khiva",
+  "1777386332": "Khiva"
 }
