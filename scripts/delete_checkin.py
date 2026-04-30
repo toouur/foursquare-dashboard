@@ -109,17 +109,31 @@ def main() -> None:
         )
         print(f"D1: removed {len(id_list)} row(s) from checkins")
 
-        # Remove venues that are no longer referenced by any check-in
+        # Update or remove venues affected by the deletion
         deleted_venue_ids = {r["venue_id"] for r in deleted if r.get("venue_id")}
         kept_venue_ids    = {r["venue_id"] for r in kept    if r.get("venue_id")}
-        orphans = deleted_venue_ids - kept_venue_ids
+        orphans  = deleted_venue_ids - kept_venue_ids
+        affected = deleted_venue_ids - orphans  # still have remaining check-ins
+
         if orphans:
             ph = ",".join("?" * len(orphans))
             d1_client.query(
-                f"DELETE FROM venues WHERE venue_id IN ({ph})",
+                f"DELETE FROM venues WHERE id IN ({ph})",
                 list(orphans),
             )
             print(f"D1: removed {len(orphans)} orphaned venue(s) from venues")
+
+        for vid in affected:
+            d1_client.query(
+                "UPDATE venues SET "
+                "first_checkin_at = (SELECT MIN(date) FROM checkins WHERE venue_id = ?), "
+                "last_checkin_at  = (SELECT MAX(date) FROM checkins WHERE venue_id = ?), "
+                "checkin_count    = (SELECT COUNT(*)  FROM checkins WHERE venue_id = ?) "
+                "WHERE id = ?",
+                [vid, vid, vid, vid],
+            )
+        if affected:
+            print(f"D1: updated timestamps/count for {len(affected)} venue(s)")
 
     _emit("DELETED", "true")
     _emit("COUNT", str(len(deleted)))
