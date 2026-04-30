@@ -111,7 +111,7 @@ def main() -> None:
         placeholders = ",".join("?" * len(id_list))
 
         d1_client.query(
-            f"DELETE FROM checkins WHERE checkin_id IN ({placeholders})",
+            f"DELETE FROM checkins WHERE id IN ({placeholders})",
             id_list,
         )
         print(f"D1: removed {len(id_list)} row(s) from checkins")
