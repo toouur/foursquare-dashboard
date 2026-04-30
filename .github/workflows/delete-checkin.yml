@@ -71,7 +71,7 @@ jobs:
           python scripts/delete_checkin.py \
             --ids "${{ github.event.inputs.checkin_ids }}" \
             --csv private-data/checkins.csv \
-            $DRY_RUN_FLAG >> "$GITHUB_OUTPUT"
+            $DRY_RUN_FLAG
 
       # ── 5. Commit updated checkins.csv to private data repo ───────────────
       - name: Commit to private data repo

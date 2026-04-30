@@ -60,7 +60,14 @@ def main() -> None:
                     help="Show what would be deleted without making changes")
     args = ap.parse_args()
 
-    ids_to_delete = {i.strip() for i in args.ids.split(",") if i.strip()}
+    def _extract_id(raw: str) -> str:
+        # Accept full Swarm URLs: https://www.swarmapp.com/user/.../checkin/<id>
+        raw = raw.strip()
+        if "/" in raw:
+            raw = raw.rstrip("/").rsplit("/", 1)[-1]
+        return raw
+
+    ids_to_delete = {_extract_id(i) for i in args.ids.split(",") if i.strip()}
     if not ids_to_delete:
         sys.exit("No IDs provided.")
 
