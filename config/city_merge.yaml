@@ -1097,6 +1097,8 @@
   "Тошкент": "Tashkent"  # ok — Uzbek Cyrillic
   "Самарканд": "Samarkand"  # ok — Cyrillic → canonical English Samarkand
   "Samarqand": "Samarkand"  # ok — Uzbek-alphabet spelling; canonical English = Samarkand
+  "Semerkand": "Samarkand"  # ok — Turkish spelling
+  "萨马堪德": "Samarkand"   # ok — Chinese simplified characters
   "Каган": "Bukhara"  # ok — Cyrillic form of Kagan, railway gateway to Bukhara
   "Urganch": "Urgench"  # ok — Uzbek Latin spelling; canonical English = Urgench
   "Ургенч": "Urgench"  # ok — Cyrillic Russian form
