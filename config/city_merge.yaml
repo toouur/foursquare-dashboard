@@ -1106,6 +1106,9 @@
   "Xiva": "Khiva"  # ok — official Uzbek Latin spelling
   "Хива": "Khiva"  # ok — Cyrillic Russian form
 
+  # ══ TAJIKISTAN ══
+  "Душанбе": "Dushanbe"  # ok — Cyrillic Russian/Tajik form
+
   # ══ VATICAN ══
   "Vatican": "Vatican City"  # ok — tab-stripped, now resolves correctly
 
