@@ -1108,6 +1108,9 @@
 
   # ══ TAJIKISTAN ══
   "Душанбе": "Dushanbe"  # ok — Cyrillic Russian/Tajik form
+  "Norak": "Nurek"      # ok — Soviet-era/alternative spelling of Nurek
+  "Nurek Dam": "Nurek"  # ok — venue name leaking as city
+  "Wachdat": "Vahdat"   # ok — German transliteration of Vahdat
 
   # ══ VATICAN ══
   "Vatican": "Vatican City"  # ok — tab-stripped, now resolves correctly
