@@ -239,9 +239,25 @@
   "_comment_ayni_2026": "2026-05 Zarafshan valley transit: bridge check-in GPS-resolved to Ayni",
   "1778414160": "Ayni",
 
-  "_comment_khujand_2026": "2026-05 Khujand trip: blank-city check-ins GPS-resolved to Khujand",
+  "_comment_khujand_2026": "2026-05 Khujand + Sughd area: blank-city check-ins GPS-resolved",
   "1778424546": "Khujand",
   "1778425047": "Khujand",
   "1778436125": "Khujand",
-  "1778436905": "Khujand"
+  "1778436905": "Khujand",
+  "1778483174": "Gafurov",
+  "1778483631": "Khujand",
+  "1778485174": "Chkalovsk",
+  "1778491252": "Khujand",
+  "1778502310": "Khujand",
+  "1778528206": "Khujand",
+  "1778556712": "Gafurov",
+  "1778563350": "Khujand",
+  "1778565291": "Khujand",
+
+  "_comment_tashkent_return_2026": "2026-05 return trip Khujand→Tashkent: blank-city check-ins GPS-resolved",
+  "1778570022": "Tashkent",
+  "1778574251": "Tashkent",
+  "1778577047": "Tashkent",
+  "1778580092": "Tashkent",
+  "1778582652": "Tashkent"
 }
