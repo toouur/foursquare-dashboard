@@ -16,9 +16,11 @@
 <meta name="twitter:description" content="Personalized travel guide based on your check-in history.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css" integrity="sha512-uvXdJud8WaOlQFjlz9B15Yy2Au/bMAvz79F7Xa6OakCl2jvQPdHD0hb3dEqZRdSwG4/sknePXlE7GiarwA/9Wg==" crossorigin="anonymous">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60MpoJ+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous">
 <style>
 :root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
 body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;}
@@ -279,7 +281,7 @@ header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--mut
 <a href="guide.html" class="active"><span class="sn-icon">🧭</span><span class="sn-lbl">GUIDE</span></a>
 </nav>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous"></script>
 <script>
 const D={{DATA_JSON}};
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -420,8 +422,8 @@ function initNearby() {
     return;
   }
   const lat = +LATEST.lat, lng = +LATEST.lng;
-  let RADIUS = 1500;
-  let _unvisitedOnly = false;
+  let RADIUS = +(localStorage.getItem('guide-radius') || 1500);
+  let _unvisitedOnly = localStorage.getItem('guide-unvisited') === '1';
 
   // Anchor header
   const anchorRow = document.getElementById('nearbyAnchorRow');
@@ -438,6 +440,7 @@ function initNearby() {
     const btn = e.target.closest('[data-r]');
     if (!btn) return;
     RADIUS = +btn.dataset.r;
+    localStorage.setItem('guide-radius', RADIUS);
     document.querySelectorAll('.nearby-radius-btn').forEach(b => b.classList.toggle('active', b === btn));
     document.getElementById('nearbySubtitle').textContent = `· ${RADIUS >= 1000 ? RADIUS/1000+' km' : RADIUS+' m'} radius · live OSM`;
     updateRadiusCircle();
@@ -448,10 +451,19 @@ function initNearby() {
   const uvBtn = document.getElementById('nearbyUnvisited');
   uvBtn.addEventListener('click', () => {
     _unvisitedOnly = !_unvisitedOnly;
+    localStorage.setItem('guide-unvisited', _unvisitedOnly ? '1' : '0');
     uvBtn.classList.toggle('active', _unvisitedOnly);
     uvBtn.textContent = _unvisitedOnly ? '★ Unvisited only' : '☆ Unvisited only';
     if (_lastItems) applyFiltersAndRender(_lastItems, _lastCat);
   });
+  // Restore persisted state visually
+  if (_unvisitedOnly) { uvBtn.classList.add('active'); uvBtn.textContent = '★ Unvisited only'; }
+  const savedRadiusBtn = document.querySelector(`.nearby-radius-btn[data-r="${RADIUS}"]`);
+  if (savedRadiusBtn) {
+    document.querySelectorAll('.nearby-radius-btn').forEach(b => b.classList.remove('active'));
+    savedRadiusBtn.classList.add('active');
+    document.getElementById('nearbySubtitle').textContent = `· ${RADIUS >= 1000 ? RADIUS/1000+' km' : RADIUS+' m'} radius · live OSM`;
+  }
 
   // Haversine distance
   function distM(la1, lo1, la2, lo2) {

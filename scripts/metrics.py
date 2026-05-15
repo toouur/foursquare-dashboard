@@ -1296,6 +1296,17 @@ def process(
         trip_top_longest = []
         trip_kpis = {}
 
+    def _trip_km(t: dict) -> int:
+        cks = sorted(t["checkins"], key=lambda c: c.get("date", 0))
+        dist = 0.0
+        for i in range(1, len(cks)):
+            try:
+                dist += _haversine(float(cks[i-1]["lat"]), float(cks[i-1]["lng"]),
+                                   float(cks[i]["lat"]),   float(cks[i]["lng"]))
+            except (TypeError, ValueError):
+                pass
+        return round(dist)
+
     timeline = [
         {
             "id":       t["id"],
@@ -1306,6 +1317,7 @@ def process(
             "countries":t["countries"][:6],
             "count":    t["checkin_count"],
             "year":     t["start_year"],
+            "km":       _trip_km(t),
         }
         for t in trips
     ]

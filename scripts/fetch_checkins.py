@@ -531,13 +531,8 @@ def main() -> None:
                 continue
             unique_vids = {r["venue_id"] for r in group}
             if len(unique_vids) == 1:
-                # Exact duplicates (same venue_id) — keep first only
-                resolved.append(group[0])
-                stale_removed += len(group) - 1
-                log.warning(
-                    "Removed %d exact duplicate(s) at ts=%s venue_id=%s",
-                    len(group) - 1, date, group[0]["venue_id"],
-                )
+                # Same venue_id at same timestamp — keep all rows as-is
+                resolved.extend(group)
                 continue
             # Different venue_ids at same timestamp
             from_api   = [r for r in group if row_key(r) in fetched_map]

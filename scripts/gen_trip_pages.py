@@ -160,6 +160,11 @@ def _render_trip_page(trip: dict, checkins: list[dict],
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>{_esc(base_name)} – Trip Journal</title>
+<meta property="og:title" content="{_esc(base_name)} – Trip Journal">
+<meta property="og:description" content="{trip.get('checkin_count',0):,} check-ins · {trip.get('duration',0)} days · {', '.join(trip.get('countries',[])[:3])}">
+<meta property="og:url" content="https://4sq.pages.dev/trip-{tid}.html">
+<meta property="og:type" content="article">
+<meta name="twitter:card" content="summary">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}}

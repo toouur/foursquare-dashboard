@@ -1,0 +1,128 @@
+# .github/workflows/resync-all.yml
+#
+# Consolidated manual D1 resync. Tick any combination of tables.
+# checkins+venues uses the wrangler SQL dump path (reliable for 65K rows).
+# Other tables use the Python batch-API path (incremental, targeted).
+#
+# Required secrets:
+#   DATA_REPO_PAT      — Fine-grained PAT with Contents read on toouur/foursquare-data
+#   CF_D1_TOKEN        — Cloudflare API token with D1:Edit permission
+#   CF_ACCOUNT_ID      — Cloudflare account ID
+#   CF_D1_DATABASE_ID  — D1 database ID
+
+name: Resync D1 (all tables)
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+    inputs:
+      resync_checkins:
+        description: "checkins + venues — SQL dump via wrangler (safe for 65K rows)"
+        type: boolean
+        default: false
+      resync_ratings:
+        description: "ratings — DELETE + full INSERT from venueRatings.json"
+        type: boolean
+        default: false
+      resync_tips:
+        description: "tips — DELETE + full INSERT from tips.json"
+        type: boolean
+        default: false
+      resync_trips:
+        description: "trips — DELETE + full INSERT from trips_meta.json"
+        type: boolean
+        default: false
+      resync_lists:
+        description: "lists + list_venues — DELETE + full INSERT from lists.json"
+        type: boolean
+        default: false
+
+jobs:
+  resync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # ── checkins + venues via wrangler SQL dump ───────────────────────────────
+      - if: ${{ inputs.resync_checkins == true }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - if: ${{ inputs.resync_checkins == true }}
+        name: Install wrangler
+        run: npm install -g wrangler
+
+      - if: ${{ inputs.resync_checkins == true }}
+        name: Generate SQL dump
+        run: |
+          python scripts/gen_d1_dump.py \
+            --csv private-data/checkins.csv \
+            --out /tmp/checkins_venues_dump.sql
+
+      - if: ${{ inputs.resync_checkins == true }}
+        name: Execute checkins+venues dump
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_D1_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          wrangler d1 execute swarmdata \
+            --file=/tmp/checkins_venues_dump.sql \
+            --remote
+
+      - if: ${{ inputs.resync_checkins == true }}
+        name: Verify checkins+venues row counts
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_D1_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          wrangler d1 execute swarmdata \
+            --command="SELECT 'checkins' tbl,COUNT(*) n FROM checkins UNION ALL SELECT 'venues',COUNT(*) FROM venues" \
+            --remote
+
+      # ── ratings / tips / trips / lists via Python batch API ──────────────────
+      - name: Resync other tables
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          FORCE_FLAGS=""
+          if [ "${{ inputs.resync_ratings }}" = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-ratings"; fi
+          if [ "${{ inputs.resync_tips }}"    = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-tips";    fi
+          if [ "${{ inputs.resync_trips }}"   = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-trips";   fi
+          if [ "${{ inputs.resync_lists }}"   = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-lists";   fi
+
+          if [ -z "$FORCE_FLAGS" ]; then
+            echo "No non-checkins tables selected — skipping Python sync."
+            exit 0
+          fi
+
+          RATINGS_ARG=""
+          [ -f private-data/venueRatings.json ] && RATINGS_ARG="--ratings private-data/venueRatings.json"
+          LISTS_ARG=""
+          [ -f private-data/lists.json ] && LISTS_ARG="--lists private-data/lists.json"
+
+          python scripts/sync_to_d1.py \
+            --csv   private-data/checkins.csv \
+            --tips  private-data/tips.json \
+            --trips trips_meta.json \
+            $RATINGS_ARG $LISTS_ARG \
+            $FORCE_FLAGS

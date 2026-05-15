@@ -22,12 +22,14 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
 
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css" integrity="sha512-uvXdJud8WaOlQFjlz9B15Yy2Au/bMAvz79F7Xa6OakCl2jvQPdHD0hb3dEqZRdSwG4/sknePXlE7GiarwA/9Wg==" crossorigin="anonymous">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60MpoJ+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous">
 
 <style>
 
@@ -47,6 +49,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .page{display:flex;flex-direction:column;height:100vh;}
 
 @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skel{background:linear-gradient(90deg,var(--card2) 25%,rgba(255,255,255,.05) 50%,var(--card2) 75%);background-size:800px 100%;animation:shimmer 1.4s infinite linear;border-radius:4px;}
+.skel-row{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.skel-icon{width:32px;height:32px;border-radius:50%;flex-shrink:0;}
+.skel-lines{flex:1;display:flex;flex-direction:column;gap:6px;padding-top:4px;}
+.skel-line{height:10px;width:70%;}
+.skel-line.short{width:40%;}
+#loadSkel{display:none;}
+#loadSkel.visible{display:block;}
 
 
 
@@ -351,6 +362,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
         </div>
 
+        <div id="loadSkel">
+          <div class="skel-row"><div class="skel skel-icon"></div><div class="skel-lines"><div class="skel skel-line"></div><div class="skel skel-line short"></div></div></div>
+          <div class="skel-row"><div class="skel skel-icon"></div><div class="skel-lines"><div class="skel skel-line"></div><div class="skel skel-line short"></div></div></div>
+          <div class="skel-row"><div class="skel skel-icon"></div><div class="skel-lines"><div class="skel skel-line"></div><div class="skel skel-line short"></div></div></div>
+        </div>
+
       </div>
 
     </div>
@@ -386,7 +403,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous"></script>
 
 <script>
 
@@ -1597,9 +1614,11 @@ async function goOldest(){
 
 // ── Contiguous scroll loading ──
 
+function _skelShow(v){const s=document.getElementById('loadSkel');if(s)s.classList.toggle('visible',v);}
+
 async function loadFwd(){
   if(gapLoading||fwdDone||!fwdCursor) return;
-  gapLoading=true;
+  gapLoading=true;_skelShow(true);
   const gen=_loadGen;
   try{
     const cid=fwdCursorId?`&cursor_id=${encodeURIComponent(fwdCursorId)}`:'';
@@ -1620,12 +1639,12 @@ async function loadFwd(){
       renderVis();
     }
   }catch(e){console.warn('loadFwd',e);}
-  finally{gapLoading=false;}
+  finally{gapLoading=false;_skelShow(false);}
 }
 
 async function loadRev(){
   if(gapLoading||revDone||revCursor==null) return;
-  gapLoading=true;
+  gapLoading=true;_skelShow(true);
   const gen=_loadGen;
   try{
     const rid=revCursorId?`&after_id=${encodeURIComponent(revCursorId)}`:'';
@@ -1653,7 +1672,7 @@ async function loadRev(){
       renderVis();
     }
   }catch(e){console.warn('loadRev',e);}
-  finally{gapLoading=false;}
+  finally{gapLoading=false;_skelShow(false);}
 }
 
 function checkGapLoad(){

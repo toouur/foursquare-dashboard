@@ -15,9 +15,11 @@
 <meta name="twitter:title" content="Statistics — Check-in Journal">
 <meta name="twitter:description" content="Deep analytics of 65,000+ Foursquare check-ins: yearly trends, activity streaks, venue loyalty, discovery rate, category mix and more.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css" integrity="sha512-uvXdJud8WaOlQFjlz9B15Yy2Au/bMAvz79F7Xa6OakCl2jvQPdHD0hb3dEqZRdSwG4/sknePXlE7GiarwA/9Wg==" crossorigin="anonymous">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw==" crossorigin="anonymous"></script>
 <style>
 :root{--bg:#0b0d13;--card:#12151f;--card2:#181c28;--border:#222738;--gold:#e8b86d;--teal:#4ecdc4;--muted:#4a5270;--text:#cdd5f0;--text2:#7a85a8;}
 body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;--text2:#373b58;}
@@ -170,12 +172,15 @@ a{color:inherit;}
 
 <div id="heatmapTip" class="heatmap-tooltip"></div>
 
+{{ANOMALIES}}
+
 <div class="grid">
 
   <!-- 1. Check-ins by Year -->
   <div class="card">
     <div class="card-title">Check-ins by Year</div>
     <canvas id="yearChart" height="210"></canvas>
+    <div id="yoyTable" style="margin-top:14px;overflow-x:auto;"></div>
   </div>
 
   <!-- 2. Monthly Trend -->
@@ -314,6 +319,34 @@ new Chart(document.getElementById('yearChart'),{
     scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'}}}
   }
 });
+
+// ── YoY delta table ─────────────────────────────────────────────────────────
+(function(){
+  var d=S.by_year||[];if(d.length<2)return;
+  var rows='<table style="width:100%;border-collapse:collapse;font-family:\'DM Mono\',monospace;font-size:.65rem;">'
+    +'<thead><tr style="color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">'
+    +'<th style="padding:4px 8px;text-align:left;">Year</th>'
+    +'<th style="padding:4px 8px;text-align:right;">Check-ins</th>'
+    +'<th style="padding:4px 8px;text-align:right;">vs prev</th>'
+    +'<th style="padding:4px 8px;text-align:right;">Δ%</th>'
+    +'</tr></thead><tbody>';
+  for(var i=0;i<d.length;i++){
+    var yr=d[i][0],cnt=d[i][1];
+    var delta=i>0?cnt-d[i-1][1]:null;
+    var pct=i>0&&d[i-1][1]?((delta/d[i-1][1])*100):null;
+    var col=delta===null?'var(--muted)':delta>=0?'#4ecdc4':'#e63946';
+    var sign=delta===null?'':delta>=0?'+':'';
+    var bg=i%2===0?'rgba(255,255,255,.02)':'transparent';
+    rows+='<tr style="background:'+bg+';">'
+      +'<td style="padding:4px 8px;color:var(--gold);">'+yr+'</td>'
+      +'<td style="padding:4px 8px;text-align:right;">'+cnt.toLocaleString()+'</td>'
+      +'<td style="padding:4px 8px;text-align:right;color:'+col+';">'+(delta===null?'—':sign+delta.toLocaleString())+'</td>'
+      +'<td style="padding:4px 8px;text-align:right;color:'+col+';">'+(pct===null?'—':sign+pct.toFixed(1)+'%')+'</td>'
+      +'</tr>';
+  }
+  rows+='</tbody></table>';
+  var el=document.getElementById('yoyTable');if(el)el.innerHTML=rows;
+})();
 
 // ── 2. Monthly Trend ────────────────────────────────────────────────────────
 new Chart(document.getElementById('monthChart'),{
