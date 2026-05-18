@@ -291,15 +291,10 @@ export async function onRequestGet({ request, env }) {
       }
     }
 
-    const [dataRes, countRes] = await Promise.all([
-      env.DB.prepare(
-        `SELECT date, venue, city, country, category, venue_id, lat, lng, id ` +
-        `FROM checkins WHERE ${fwhere} ORDER BY date DESC, id DESC LIMIT ?${fidx}`
-      ).bind(...fparams, flimit + 1).all(),
-      isNaN(fcursorTs)
-        ? env.DB.prepare(`SELECT COUNT(*) as n FROM checkins WHERE ${filterCol} = ?1`).bind(filterVal).first()
-        : Promise.resolve(null),
-    ]);
+    const dataRes = await env.DB.prepare(
+      `SELECT date, venue, city, country, category, venue_id, lat, lng, id ` +
+      `FROM checkins WHERE ${fwhere} ORDER BY date DESC, id DESC LIMIT ?${fidx}`
+    ).bind(...fparams, flimit + 1).all();
 
     const frows = dataRes.results || [];
     const fhas_more = frows.length > flimit;
@@ -311,7 +306,6 @@ export async function onRequestGet({ request, env }) {
       has_more: fhas_more,
       next_cursor:    fhas_more ? flast.date : null,
       next_cursor_id: fhas_more ? flast.id   : null,
-      total: countRes ? (countRes.n ?? 0) : null,
     });
   }
 

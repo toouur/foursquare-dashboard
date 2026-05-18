@@ -2496,7 +2496,7 @@ function buildCityMap(){
 
 // ── Check-in drilldown drawer ────────────────────────────────────────────────
 (function(){
-  let _filter=null, _cursor=null, _cursorId=null, _loading=false, _done=false, _total=null;
+  let _filter=null, _cursor=null, _cursorId=null, _loading=false, _done=false;
 
   function ciRenderRows(items){
     const body=document.getElementById('ciDrawerBody');
@@ -2532,10 +2532,6 @@ function buildCityMap(){
       if(!res.ok) throw new Error(res.status);
       const data=await res.json();
       ciRenderRows(data.items||[]);
-      if(data.total!=null&&_total===null){
-        _total=data.total;
-        document.getElementById('ciDrawerCount').textContent=_total.toLocaleString()+' check-ins';
-      }
       if(data.has_more){_cursor=data.next_cursor;_cursorId=data.next_cursor_id;}
       else{_done=true;}
     }catch(e){console.error('ciDrilldown',e);}
@@ -2548,7 +2544,7 @@ function buildCityMap(){
   }
 
   window.ciOpen=function(filter){
-    _filter=filter;_cursor=null;_cursorId=null;_loading=false;_done=false;_total=null;
+    _filter=filter;_cursor=null;_cursorId=null;_loading=false;_done=false;
     document.getElementById('ciDrawerBody').innerHTML='';
     document.getElementById('ciDrawerTitle').textContent=filter.label||'';
     const initCount=filter.count||null;
