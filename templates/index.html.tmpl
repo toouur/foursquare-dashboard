@@ -93,6 +93,8 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .bar-row .track{height:5px;background:var(--card2);border-radius:3px;overflow:hidden;}
 .bar-row .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--teal));}
 .bar-row .cnt{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--muted);text-align:right;}
+a.bar-row .cnt,a.cnt{color:var(--teal);text-decoration:none;cursor:pointer;}
+a.cnt:hover{color:var(--gold);text-decoration:underline;}
 .bar-row.hidden,.country-city-row.hidden,.country-group.hidden,.world-city-row.hidden{display:none;}
 
 /* ── COUNTRIES GRID ── */
@@ -101,8 +103,31 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .ci-rank{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);width:22px;flex-shrink:0;}
 .ci-name{font-size:0.82rem;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ci-count{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--teal);flex-shrink:0;}
-a.ci-count{text-decoration:none;cursor:pointer;}
+a.ci-count{text-decoration:none;cursor:pointer;color:var(--teal);}
 a.ci-count:hover{color:var(--gold);text-decoration:underline;}
+
+/* ── CHECKIN DRILLDOWN DRAWER ── */
+#ciDrawer{position:fixed;top:0;right:0;height:100vh;width:min(480px,100vw);background:var(--bg);border-left:1px solid var(--border);z-index:11000;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;box-shadow:-8px 0 32px rgba(0,0,0,0.5);}
+#ciDrawer.open{transform:translateX(0);}
+#ciDrawerScrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10999;}
+#ciDrawerScrim.open{display:block;}
+.ci-drawer-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.ci-drawer-title{font-size:0.9rem;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ci-drawer-count{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);flex-shrink:0;}
+.ci-drawer-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:2px 6px;line-height:1;flex-shrink:0;}
+.ci-drawer-close:hover{color:var(--text);}
+.ci-drawer-body{flex:1;overflow-y:auto;padding:0;}
+.ci-row{display:flex;flex-direction:column;padding:10px 16px;border-bottom:1px solid var(--border);gap:2px;}
+.ci-row-top{display:flex;align-items:baseline;gap:8px;}
+.ci-row-venue{font-size:0.82rem;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ci-row-date{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);flex-shrink:0;}
+.ci-row-bot{display:flex;gap:6px;align-items:center;}
+.ci-row-city{font-size:0.7rem;color:var(--muted);}
+.ci-row-cat{font-size:0.68rem;color:var(--gold);opacity:0.75;}
+.ci-drawer-foot{padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;text-align:center;}
+.ci-load-more{background:var(--card2);border:1px solid var(--border);color:var(--teal);border-radius:8px;padding:7px 20px;font-size:0.78rem;font-family:'DM Sans',sans-serif;cursor:pointer;}
+.ci-load-more:hover{border-color:var(--teal);}
+.ci-load-more:disabled{opacity:0.4;cursor:default;}
 
 /* ── MAP ── */
 .map-wrap{position:relative;}
@@ -909,13 +934,13 @@ function renderExplorer(cat){
 renderExplorer(activeCat);
 
 // ── Countries ─────────────────────────────────────────────────────
-function makeCountryGrid(data,id,linkCities){
+function makeCountryGrid(data,id,drilldown){
   const n=data.length, cols=3, rows=Math.ceil(n/cols), vis=[];
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){const i=c*rows+r;if(i<n)vis.push([data[i],i+1]);}
   document.getElementById(id).innerHTML=vis.map(([[name,count],rank])=>{
     const f=flagHtml(name,'1.1em');
-    const countEl=linkCities
-      ? `<a class="ci-count" href="#s-cities" onclick="event.preventDefault();goToCountry(${JSON.stringify(name)})" title="Show cities for ${esc(name)}">${count.toLocaleString()}</a>`
+    const countEl=drilldown
+      ? `<a class="ci-count" href="#" data-filter-country="${esc(name)}" data-filter-count="${count}" title="Show check-ins for ${esc(name)}">${count.toLocaleString()}</a>`
       : `<span class="ci-count">${count.toLocaleString()}</span>`;
     return `<div class="country-item"><span class="ci-rank">#${rank}</span>`+
       `<span class="ci-name" title="${esc(name)}">${f} ${esc(name)}</span>`+
@@ -924,6 +949,13 @@ function makeCountryGrid(data,id,linkCities){
 }
 makeCountryGrid(S.countries,'countriesCheckins',true);
 makeCountryGrid(S.countries_by_venues,'countriesPlaces');
+// event delegation: country count clicks
+document.getElementById('pane-checkins').addEventListener('click',function(e){
+  const a=e.target.closest('a[data-filter-country]');
+  if(!a) return;
+  e.preventDefault();
+  ciOpen({country:a.dataset.filterCountry, label:a.dataset.filterCountry, count:parseInt(a.dataset.filterCount||'0',10)});
+});
 function switchCountryTab(name,el){
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   document.getElementById('pane-'+name).classList.add('active');
@@ -932,20 +964,31 @@ function switchCountryTab(name,el){
 }
 
 // ── Bar Lists ─────────────────────────────────────────────────────
-function barList(id,data){
+function barList(id,data,opts){
+  const linkCity=opts&&opts.linkCity;
   const max=data[0][1];
   document.getElementById(id).innerHTML=data.map(([n,c,country],i)=>{
     const f=country?flagHtml(country):'';
+    const cntEl=linkCity
+      ? `<a class="cnt" href="#" data-filter-city="${esc(n)}" data-filter-count="${c}" title="Show check-ins for ${esc(n)}">${c.toLocaleString()}</a>`
+      : `<span class="cnt">${c.toLocaleString()}</span>`;
     return `<div class="bar-row" data-name="${esc(n).toLowerCase()}${country?' '+country.toLowerCase():''}">
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(n)}">${f} ${esc(n)}</span>
       <div class="track"><div class="fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
-      <span class="cnt">${c.toLocaleString()}</span>
+      ${cntEl}
     </div>`;
   }).join('');
 }
-barList('citiesList',S.cities);
+barList('citiesList',S.cities,{linkCity:true});
 barList('citiesPlacesList',S.cities_by_venues);
+// event delegation: city count clicks
+document.getElementById('paneCityCheckins').addEventListener('click',function(e){
+  const a=e.target.closest('a[data-filter-city]');
+  if(!a) return;
+  e.preventDefault();
+  ciOpen({city:a.dataset.filterCity, label:a.dataset.filterCity, count:parseInt(a.dataset.filterCount||'0',10)});
+});
 // Venues: data is [name, count, city]
 (function(){
   const data=S.venues, max=data[0][1];
@@ -2451,26 +2494,83 @@ function buildCityMap(){
   }
 })();
 
-// ── Country → Cities drilldown ───────────────────────────────────────────────
-function goToCountry(name){
-  document.getElementById('s-cities').scrollIntoView({behavior:'smooth',block:'start'});
-  const tab=document.getElementById('tabCityCheckins');
-  window.switchCityTab('checkins',tab);
-  const box=document.querySelector('#paneCityCheckins .search-box');
-  if(box){box.value=name;filterList('citiesList',name);}
-}
-
-// ── URL param ?city=X: pre-filter cities list (links from world_cities.html) ─
+// ── Check-in drilldown drawer ────────────────────────────────────────────────
 (function(){
-  const city=new URLSearchParams(location.search).get('city');
-  if(!city) return;
-  setTimeout(()=>{
-    document.getElementById('s-cities').scrollIntoView({behavior:'smooth',block:'start'});
-    const tab=document.getElementById('tabCityCheckins');
-    window.switchCityTab('checkins',tab);
-    const box=document.querySelector('#paneCityCheckins .search-box');
-    if(box){box.value=city;filterList('citiesList',city);}
-  },400);
+  let _filter=null, _cursor=null, _cursorId=null, _loading=false, _done=false, _total=null;
+
+  function ciRenderRows(items){
+    const body=document.getElementById('ciDrawerBody');
+    items.forEach(it=>{
+      // it: [ts, dateStr, timeStr, venue, city, country, category, venue_id, lat, lng, id]
+      const row=document.createElement('div');
+      row.className='ci-row';
+      const cityCountry=[it[4],it[5]].filter(Boolean).join(', ');
+      row.innerHTML=
+        `<div class="ci-row-top">`+
+          `<span class="ci-row-venue">${esc(it[3])}</span>`+
+          `<span class="ci-row-date">${it[1]}</span>`+
+        `</div>`+
+        `<div class="ci-row-bot">`+
+          `<span class="ci-row-city">${esc(cityCountry)}</span>`+
+          (it[6]?`<span class="ci-row-cat">${esc(it[6])}</span>`:'')+
+        `</div>`;
+      body.appendChild(row);
+    });
+  }
+
+  async function ciFetch(){
+    if(_loading||_done||!_filter) return;
+    _loading=true;
+    const btn=document.getElementById('ciLoadMoreBtn');
+    if(btn) btn.disabled=true;
+    try{
+      const p=new URLSearchParams({limit:'50'});
+      if(_filter.country) p.set('country',_filter.country);
+      else if(_filter.city) p.set('city',_filter.city);
+      if(_cursor!=null){p.set('cursor',_cursor);if(_cursorId)p.set('cursor_id',_cursorId);}
+      const res=await fetch('/api/feed?'+p);
+      if(!res.ok) throw new Error(res.status);
+      const data=await res.json();
+      ciRenderRows(data.items||[]);
+      if(data.total!=null&&_total===null){
+        _total=data.total;
+        document.getElementById('ciDrawerCount').textContent=_total.toLocaleString()+' check-ins';
+      }
+      if(data.has_more){_cursor=data.next_cursor;_cursorId=data.next_cursor_id;}
+      else{_done=true;}
+    }catch(e){console.error('ciDrilldown',e);}
+    finally{
+      _loading=false;
+      const foot=document.getElementById('ciDrawerFoot');
+      if(_done){if(foot)foot.style.display='none';}
+      else{if(foot)foot.style.display='';if(btn)btn.disabled=false;}
+    }
+  }
+
+  window.ciOpen=function(filter){
+    _filter=filter;_cursor=null;_cursorId=null;_loading=false;_done=false;_total=null;
+    document.getElementById('ciDrawerBody').innerHTML='';
+    document.getElementById('ciDrawerTitle').textContent=filter.label||'';
+    const initCount=filter.count||null;
+    document.getElementById('ciDrawerCount').textContent=initCount?initCount.toLocaleString()+' check-ins':'';
+    document.getElementById('ciDrawerFoot').style.display='none';
+    document.getElementById('ciDrawer').classList.add('open');
+    document.getElementById('ciDrawerScrim').classList.add('open');
+    document.body.style.overflow='hidden';
+    ciFetch();
+  };
+  window.ciClose=function(){
+    document.getElementById('ciDrawer').classList.remove('open');
+    document.getElementById('ciDrawerScrim').classList.remove('open');
+    document.body.style.overflow='';
+    _filter=null;
+  };
+  window.ciLoadMore=function(){ciFetch();};
+  window.ciOnScroll=function(){
+    const body=document.getElementById('ciDrawerBody');
+    if(!_done&&!_loading&&body.scrollTop+body.clientHeight>=body.scrollHeight-120) ciFetch();
+  };
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('ciDrawer').classList.contains('open'))ciClose();});
 })();
 
 // ── City pane initialisation ─────────────────────────────────────────────────
@@ -2490,6 +2590,19 @@ function goToCountry(name){
 })();
 </script>
 <footer style="text-align:center;padding:24px 20px 32px;font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted);">Designed by <a href="https://t.me/toouur" style="color:var(--gold);text-decoration:none;" target="_blank" rel="noopener">@toouur</a></footer>
+<!-- Check-in drilldown drawer -->
+<div id="ciDrawerScrim" onclick="ciClose()"></div>
+<div id="ciDrawer" role="dialog" aria-label="Check-ins">
+  <div class="ci-drawer-head">
+    <button class="ci-drawer-close" onclick="ciClose()" title="Close">&#10005;</button>
+    <span class="ci-drawer-title" id="ciDrawerTitle"></span>
+    <span class="ci-drawer-count" id="ciDrawerCount"></span>
+  </div>
+  <div class="ci-drawer-body" id="ciDrawerBody" onscroll="ciOnScroll()"></div>
+  <div class="ci-drawer-foot" id="ciDrawerFoot" style="display:none">
+    <button class="ci-load-more" id="ciLoadMoreBtn" onclick="ciLoadMore()">Load more</button>
+  </div>
+</div>
 <!-- Photo lightbox for recent photos section -->
 <div id="rcGallery" onclick="if(event.target===this)rcgClose()">
   <img id="rcGallery-img" src="" alt="">

@@ -259,7 +259,64 @@ export async function onRequestGet({ request, env }) {
   }
 
   // --------------------------------------------------------------
-  // 5. Cursor‑based infinite scroll (default)
+  // 5. Country or city exact-match, cursor-paginated
+  // GET /api/feed?country=X[&cursor=TS&cursor_id=ID&limit=N]
+  // GET /api/feed?city=X[&cursor=TS&cursor_id=ID&limit=N]
+  //   → { items: [...], has_more: bool, next_cursor: int|null, next_cursor_id: str|null, total: N }
+  // --------------------------------------------------------------
+  const filterCountry = url.searchParams.get('country');
+  const filterCity    = url.searchParams.get('city');
+  if (filterCountry !== null || filterCity !== null) {
+    const flimit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+    const fcursor   = url.searchParams.get('cursor');
+    const fcursorId = url.searchParams.get('cursor_id');
+    const fcursorTs = fcursor ? parseInt(fcursor, 10) : NaN;
+
+    const filterCol = filterCountry !== null ? 'country' : 'city';
+    const filterVal = filterCountry !== null ? filterCountry : filterCity;
+
+    let fwhere = `${filterCol} = ?1`;
+    const fparams = [filterVal];
+    let fidx = 2;
+
+    if (!isNaN(fcursorTs)) {
+      if (fcursorId) {
+        fwhere += ` AND (date < ?${fidx} OR (date = ?${fidx} AND id < ?${fidx+1}))`;
+        fparams.push(fcursorTs, fcursorId);
+        fidx += 2;
+      } else {
+        fwhere += ` AND date < ?${fidx}`;
+        fparams.push(fcursorTs);
+        fidx++;
+      }
+    }
+
+    const [dataRes, countRes] = await Promise.all([
+      env.DB.prepare(
+        `SELECT date, venue, city, country, category, venue_id, lat, lng, id ` +
+        `FROM checkins WHERE ${fwhere} ORDER BY date DESC, id DESC LIMIT ?${fidx}`
+      ).bind(...fparams, flimit + 1).all(),
+      isNaN(fcursorTs)
+        ? env.DB.prepare(`SELECT COUNT(*) as n FROM checkins WHERE ${filterCol} = ?1`).bind(filterVal).first()
+        : Promise.resolve(null),
+    ]);
+
+    const frows = dataRes.results || [];
+    const fhas_more = frows.length > flimit;
+    const ftrimmed = fhas_more ? frows.slice(0, flimit) : frows;
+    const flast = ftrimmed[ftrimmed.length - 1];
+    const fitems = mapRows(ftrimmed, {});
+    return jsonResp({
+      items: fitems,
+      has_more: fhas_more,
+      next_cursor:    fhas_more ? flast.date : null,
+      next_cursor_id: fhas_more ? flast.id   : null,
+      total: countRes ? (countRes.n ?? 0) : null,
+    });
+  }
+
+  // --------------------------------------------------------------
+  // 6. Cursor‑based infinite scroll (default)
   // --------------------------------------------------------------
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)));
   const cursor   = url.searchParams.get('cursor');    // Unix timestamp integer
