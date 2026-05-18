@@ -79,6 +79,16 @@ jobs:
             --split-mb 8
 
       - if: ${{ inputs.resync_checkins == true }}
+        name: Migrate schema (add city_inferred column if missing)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_D1_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          wrangler d1 execute swarmdata \
+            --command="ALTER TABLE checkins ADD COLUMN city_inferred INTEGER DEFAULT 0;" \
+            --remote || echo "Column already exists — skipping."
+
+      - if: ${{ inputs.resync_checkins == true }}
         name: Execute checkins+venues dump
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_D1_TOKEN }}
