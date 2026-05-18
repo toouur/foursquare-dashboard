@@ -137,9 +137,13 @@ def generate(csv_path: str, out_path: str, batch: int = 100, split_mb: float = 0
         vals = ",\n".join("(" + ",".join(q(v) for v in r) + ")" for r in chunk)
         venue_stmts.append(f"INSERT INTO venues {VENUE_COLS} VALUES\n{vals};\n")
 
+    # Migration line: safe to re-run; IF NOT EXISTS supported in SQLite 3.37+ (D1 uses 3.44+)
+    migration = "ALTER TABLE checkins ADD COLUMN IF NOT EXISTS city_inferred INTEGER DEFAULT 0;\n"
+
     if split_mb <= 0:
         # Single-file mode (original behaviour)
         with open(out_path, "w", encoding="utf-8") as out:
+            out.write(migration)
             out.write("DELETE FROM checkins;\n")
             out.write("DELETE FROM venues;\n")
             for stmt in checkin_stmts:
@@ -150,13 +154,14 @@ def generate(csv_path: str, out_path: str, batch: int = 100, split_mb: float = 0
         print(f"Written: {out_path} ({size_mb:.1f} MB)", flush=True)
         return
 
-    # Split mode: file 0 = DELETEs + venues; subsequent files = checkin chunks
+    # Split mode: file 0 = migration + DELETEs + venues; subsequent files = checkin chunks
     limit = split_mb * 1024 * 1024
     base = os.path.splitext(out_path)[0]
     ext  = os.path.splitext(out_path)[1] or ".sql"
 
-    # File 0: deletes + all venue rows (venues table is small, fits easily)
+    # File 0: migration + deletes + all venue rows (venues table is small, fits easily)
     with open(out_path, "w", encoding="utf-8") as out:
+        out.write(migration)
         out.write("DELETE FROM checkins;\n")
         out.write("DELETE FROM venues;\n")
         for stmt in venue_stmts:
