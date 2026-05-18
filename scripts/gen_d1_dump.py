@@ -57,7 +57,13 @@ VENUE_COLS = (
 )
 
 
-def generate(csv_path: str, out_path: str, batch: int = 100) -> None:
+def generate(csv_path: str, out_path: str, batch: int = 100, split_mb: float = 0) -> None:
+    """
+    split_mb > 0: write multiple files instead of one.
+    File 0 (out_path): DELETE statements + all venue INSERTs.
+    Subsequent files: checkin INSERT chunks, named <stem>_part001.sql, _part002.sql, …
+    This works around D1's ~10 MB per-execute limit for large datasets.
+    """
     checkin_rows = []
     venue_meta: dict = defaultdict(lambda: {
         "name": "", "category": "", "lat": None, "lng": None,
@@ -111,41 +117,97 @@ def generate(csv_path: str, out_path: str, batch: int = 100) -> None:
 
     print(f"Parsed: {len(checkin_rows):,} checkins, {len(venue_meta):,} venues", flush=True)
 
+    venue_rows = [
+        [vid, m["name"], m["category"], m["lat"], m["lng"],
+         m["city"], m["country"], m["count"],
+         m["first_ts"] or None, m["last_ts"] or None]
+        for vid, m in venue_meta.items()
+    ]
+
+    # Build all checkin INSERT statement strings up front
+    checkin_stmts = []
+    for i in range(0, len(checkin_rows), batch):
+        chunk = checkin_rows[i:i + batch]
+        vals = ",\n".join("(" + ",".join(q(v) for v in r) + ")" for r in chunk)
+        checkin_stmts.append(f"INSERT INTO checkins {CHECKIN_COLS} VALUES\n{vals};\n")
+
+    venue_stmts = []
+    for i in range(0, len(venue_rows), batch):
+        chunk = venue_rows[i:i + batch]
+        vals = ",\n".join("(" + ",".join(q(v) for v in r) + ")" for r in chunk)
+        venue_stmts.append(f"INSERT INTO venues {VENUE_COLS} VALUES\n{vals};\n")
+
+    if split_mb <= 0:
+        # Single-file mode (original behaviour)
+        with open(out_path, "w", encoding="utf-8") as out:
+            out.write("DELETE FROM checkins;\n")
+            out.write("DELETE FROM venues;\n")
+            for stmt in checkin_stmts:
+                out.write(stmt)
+            for stmt in venue_stmts:
+                out.write(stmt)
+        size_mb = os.path.getsize(out_path) / 1024 / 1024
+        print(f"Written: {out_path} ({size_mb:.1f} MB)", flush=True)
+        return
+
+    # Split mode: file 0 = DELETEs + venues; subsequent files = checkin chunks
+    limit = split_mb * 1024 * 1024
+    base = os.path.splitext(out_path)[0]
+    ext  = os.path.splitext(out_path)[1] or ".sql"
+
+    # File 0: deletes + all venue rows (venues table is small, fits easily)
     with open(out_path, "w", encoding="utf-8") as out:
         out.write("DELETE FROM checkins;\n")
         out.write("DELETE FROM venues;\n")
-
-        for i in range(0, len(checkin_rows), batch):
-            chunk = checkin_rows[i:i + batch]
-            vals = ",\n".join("(" + ",".join(q(v) for v in r) + ")" for r in chunk)
-            out.write(f"INSERT INTO checkins {CHECKIN_COLS} VALUES\n{vals};\n")
-
-        venue_rows = [
-            [vid, m["name"], m["category"], m["lat"], m["lng"],
-             m["city"], m["country"], m["count"],
-             m["first_ts"] or None, m["last_ts"] or None]
-            for vid, m in venue_meta.items()
-        ]
-        for i in range(0, len(venue_rows), batch):
-            chunk = venue_rows[i:i + batch]
-            vals = ",\n".join("(" + ",".join(q(v) for v in r) + ")" for r in chunk)
-            out.write(f"INSERT INTO venues {VENUE_COLS} VALUES\n{vals};\n")
-
+        for stmt in venue_stmts:
+            out.write(stmt)
     size_mb = os.path.getsize(out_path) / 1024 / 1024
     print(f"Written: {out_path} ({size_mb:.1f} MB)", flush=True)
+
+    # Subsequent files: checkin INSERT chunks, split at limit
+    part = 1
+    buf: list[str] = []
+    buf_size = 0
+    written_parts = []
+
+    def _flush(buf, part):
+        part_path = f"{base}_part{part:03d}{ext}"
+        with open(part_path, "w", encoding="utf-8") as f:
+            f.writelines(buf)
+        size_mb = os.path.getsize(part_path) / 1024 / 1024
+        print(f"Written: {part_path} ({size_mb:.1f} MB)", flush=True)
+        written_parts.append(part_path)
+
+    for stmt in checkin_stmts:
+        stmt_size = len(stmt.encode("utf-8"))
+        if buf and buf_size + stmt_size > limit:
+            _flush(buf, part)
+            part += 1
+            buf = []
+            buf_size = 0
+        buf.append(stmt)
+        buf_size += stmt_size
+
+    if buf:
+        _flush(buf, part)
+
+    print(f"Split into {1 + len(written_parts)} file(s) total.", flush=True)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--csv",   required=True, help="Path to checkins.csv")
-    ap.add_argument("--out",   required=True, help="Output SQL file path")
-    ap.add_argument("--batch", type=int, default=100, help="Rows per INSERT statement (default: 100)")
+    ap.add_argument("--csv",      required=True, help="Path to checkins.csv")
+    ap.add_argument("--out",      required=True, help="Output SQL file path")
+    ap.add_argument("--batch",    type=int,   default=100, help="Rows per INSERT statement (default: 100)")
+    ap.add_argument("--split-mb", type=float, default=0,
+                    help="Split output into multiple files, each at most N MB (default: off). "
+                         "File 0 gets DELETEs + venues; subsequent files get checkin chunks.")
     args = ap.parse_args()
 
     if not os.path.exists(args.csv):
         sys.exit(f"CSV not found: {args.csv}")
 
-    generate(args.csv, args.out, args.batch)
+    generate(args.csv, args.out, args.batch, args.split_mb)
 
 
 if __name__ == "__main__":
