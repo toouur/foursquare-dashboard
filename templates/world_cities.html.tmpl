@@ -71,6 +71,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 .city-country{font-size:.64rem;color:var(--muted);}
 .city-pop{font-size:.60rem;font-family:'DM Mono',monospace;color:var(--muted);margin-top:4px;}
 .city-cnt{font-size:.68rem;font-family:'DM Mono',monospace;color:var(--gold);margin-top:2px;}
+a.city-cnt{display:block;text-decoration:none;}
+a.city-cnt:hover{text-decoration:underline;opacity:.8;}
 .cont-header{grid-column:1/-1;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);padding:8px 0 4px;border-bottom:1px solid var(--border);margin-top:8px;}
 .no-results{grid-column:1/-1;text-align:center;padding:60px;color:var(--muted);font-size:.85rem;}
 @media(max-width:600px){.grid{padding:12px;gap:8px;}.controls{padding:10px 12px;}.search-box{width:100%;margin-left:0;}}
@@ -191,7 +193,7 @@ function render(){
     const popStr=pop>=1?`${pop.toFixed(1)}M`:`${Math.round(pop*1000)}k`;
     html+=`<div class="city-card${cnt?' visited':''}">
       <div class="city-name">${displayName}${contTag}</div>
-      ${cnt?`<div class="city-cnt">✓ ${cnt.toLocaleString()} check-ins</div>`:''}
+      ${cnt?`<a class="city-cnt" href="index.html?city=${encodeURIComponent(displayName)}#s-cities">✓ ${cnt.toLocaleString()} check-ins ↗</a>`:''}
       <div class="city-pop">${popStr} pop</div>
     </div>`;
   });

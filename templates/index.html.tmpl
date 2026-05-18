@@ -101,6 +101,8 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .ci-rank{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);width:22px;flex-shrink:0;}
 .ci-name{font-size:0.82rem;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ci-count{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--teal);flex-shrink:0;}
+a.ci-count{text-decoration:none;cursor:pointer;}
+a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 
 /* ── MAP ── */
 .map-wrap{position:relative;}
@@ -907,17 +909,20 @@ function renderExplorer(cat){
 renderExplorer(activeCat);
 
 // ── Countries ─────────────────────────────────────────────────────
-function makeCountryGrid(data,id){
+function makeCountryGrid(data,id,linkCities){
   const n=data.length, cols=3, rows=Math.ceil(n/cols), vis=[];
   for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){const i=c*rows+r;if(i<n)vis.push([data[i],i+1]);}
   document.getElementById(id).innerHTML=vis.map(([[name,count],rank])=>{
     const f=flagHtml(name,'1.1em');
+    const countEl=linkCities
+      ? `<a class="ci-count" href="#s-cities" onclick="event.preventDefault();goToCountry(${JSON.stringify(name)})" title="Show cities for ${esc(name)}">${count.toLocaleString()}</a>`
+      : `<span class="ci-count">${count.toLocaleString()}</span>`;
     return `<div class="country-item"><span class="ci-rank">#${rank}</span>`+
       `<span class="ci-name" title="${esc(name)}">${f} ${esc(name)}</span>`+
-      `<span class="ci-count">${count.toLocaleString()}</span></div>`;
+      countEl+`</div>`;
   }).join('');
 }
-makeCountryGrid(S.countries,'countriesCheckins');
+makeCountryGrid(S.countries,'countriesCheckins',true);
 makeCountryGrid(S.countries_by_venues,'countriesPlaces');
 function switchCountryTab(name,el){
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
@@ -2444,6 +2449,28 @@ function buildCityMap(){
     const el=document.querySelector(location.hash);
     if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),400);
   }
+})();
+
+// ── Country → Cities drilldown ───────────────────────────────────────────────
+function goToCountry(name){
+  document.getElementById('s-cities').scrollIntoView({behavior:'smooth',block:'start'});
+  const tab=document.getElementById('tabCityCheckins');
+  window.switchCityTab('checkins',tab);
+  const box=document.querySelector('#paneCityCheckins .search-box');
+  if(box){box.value=name;filterList('citiesList',name);}
+}
+
+// ── URL param ?city=X: pre-filter cities list (links from world_cities.html) ─
+(function(){
+  const city=new URLSearchParams(location.search).get('city');
+  if(!city) return;
+  setTimeout(()=>{
+    document.getElementById('s-cities').scrollIntoView({behavior:'smooth',block:'start'});
+    const tab=document.getElementById('tabCityCheckins');
+    window.switchCityTab('checkins',tab);
+    const box=document.querySelector('#paneCityCheckins .search-box');
+    if(box){box.value=city;filterList('citiesList',city);}
+  },400);
 })();
 
 // ── City pane initialisation ─────────────────────────────────────────────────
