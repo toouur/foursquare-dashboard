@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS checkins (
     created_by_id    TEXT,
     overlaps_name    TEXT,
     overlaps_id      TEXT,
-    city_inferred    INTEGER DEFAULT 0   -- 1 = filled by blank-city resolver; 0 = from Foursquare API
+    city_inferred    INTEGER DEFAULT 0   -- 1 = filled by blank-city resolver
 );
 
 -- ── Unique venues (aggregated from checkins) ──────────────────────────────────
