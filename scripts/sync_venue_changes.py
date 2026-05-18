@@ -122,6 +122,12 @@ def detect_changes(
             ov = (old_row.get(field) or "").strip()
             nv = (new_row.get(field) or "").strip()
             if ov != nv:
+                # Skip city changes that are blank-city inference fills (city_inferred=1).
+                # A real Foursquare correction always comes with city_inferred=0 from the
+                # API fetch, so null→value with city_inferred=1 means it's our fill.
+                if (field == "city" and not ov and nv
+                        and (new_row.get("city_inferred") or "").strip() == "1"):
+                    continue
                 diffs[field] = (ov, nv)
         if diffs:
             changes.append(

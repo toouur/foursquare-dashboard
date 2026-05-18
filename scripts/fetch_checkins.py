@@ -49,6 +49,7 @@ FIELDS = [
     "source_app", "source_url", "with_name", "with_id",
     "created_by_name", "created_by_id",
     "overlaps_name", "overlaps_id",
+    "city_inferred",
     "checkin_id",
 ]
 
@@ -176,6 +177,7 @@ def api_to_row(ci: dict) -> dict:
         "created_by_id": created_by_id,
         "overlaps_name": overlaps_names,
         "overlaps_id": overlaps_ids,
+        "city_inferred": "0",
         "checkin_id": str(ci.get("id", "") or ""),
     }
 

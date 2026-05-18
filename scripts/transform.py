@@ -217,6 +217,7 @@ def apply_transforms(
         # city_merge and blank-city inference so manual assignments win.
         if ts in city_fixes:
             row["city"] = city_fixes[ts]
+            row["city_inferred"] = "0"
             continue
 
         # City normalisation
@@ -239,10 +240,13 @@ def apply_transforms(
                 row["city"] = city_merge.get(inferred_norm,
                               city_merge.get(inferred, inferred))
                 blank_filled += 1
+                row["city_inferred"] = "1"
         elif city_normalised in city_merge:
             row["city"] = city_merge[city_normalised]
         elif city in city_merge:
             row["city"] = city_merge[city]
+
+        row.setdefault("city_inferred", "0")
 
         # Validate date
         if ts and not ts.lstrip("-").isdigit():

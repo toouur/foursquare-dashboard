@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS checkins (
     created_by_name  TEXT,
     created_by_id    TEXT,
     overlaps_name    TEXT,
-    overlaps_id      TEXT
+    overlaps_id      TEXT,
+    city_inferred    INTEGER DEFAULT 0   -- 1 = filled by blank-city resolver; 0 = from Foursquare API
 );
 
 -- ── Unique venues (aggregated from checkins) ──────────────────────────────────
@@ -136,6 +137,9 @@ CREATE TABLE IF NOT EXISTS venue_changes (
 -- (safe to run repeatedly -- apply_schema suppresses duplicate-column errors)
 ALTER TABLE venue_changes ADD COLUMN venue_name TEXT;
 ALTER TABLE venue_changes ADD COLUMN action TEXT;
+
+-- Migrations: add new columns to existing checkins tables
+ALTER TABLE checkins ADD COLUMN city_inferred INTEGER DEFAULT 0;
 
 -- ── Indexes ───────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_checkins_id       ON checkins(id);

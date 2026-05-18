@@ -48,7 +48,8 @@ def _float(v):
 CHECKIN_COLS = (
     "(id,date,venue_id,venue,venue_url,city,state,country,neighborhood,"
     "lat,lng,address,category,shout,source_app,source_url,"
-    "with_name,with_id,created_by_name,created_by_id,overlaps_name,overlaps_id)"
+    "with_name,with_id,created_by_name,created_by_id,overlaps_name,overlaps_id,"
+    "city_inferred)"
 )
 VENUE_COLS = (
     "(id,name,category,lat,lng,city,country,"
@@ -92,6 +93,7 @@ def generate(csv_path: str, out_path: str, batch: int = 100) -> None:
                 _str(row.get("created_by_id")),
                 _str(row.get("overlaps_name")),
                 _str(row.get("overlaps_id")),
+                _int(row.get("city_inferred")) or 0,
             ])
             if vid:
                 m = venue_meta[vid]
