@@ -161,6 +161,7 @@
   "Могилев": "Mogilev"  # ok — variant
   "Магiлёў": "Mogilev"  # ok — Belarusian Cyrillic
   "Магілёў": "Mogilev"  # ok — variant Belarusian
+  "Mahilioŭ": "Mogilev"  # ok — Belarusian Latin transliteration
   "Mar'ina Horka": "Maryina Horka"  # ok — apostrophe form
   "Mscislaŭ": "Mstsislaw"  # ok — Belarusian Latin
   "Новогрудок": "Navahrudak"  # ok — Cyrillic → Navahrudak
@@ -201,6 +202,7 @@
   "Вилы": "Vily"  # ok — village
   "Вишнёвка": "Vishniovka"  # ok — village
   "Valer'yanovo": "Valeryanovo"  # ok — apostrophe form
+  "Жлобін": "Zhlobin"  # ok — Belarusian Cyrillic for Zhlobin
   "Зелёное": "Zyelonaye"  # ok — village
   "Ивенец": "Ivyanets"  # ok — town Ivyanets
   "Zales'ye": "Zalesye"  # ok — apostrophe form
@@ -670,6 +672,9 @@
   "Виктория": "Victoria"  # ok — Cyrillic → Victoria (Gozo)
   "Saint Julian's": "Saint Julian's"  # ok — canonical
   "St Julian's": "Saint Julian's"  # ok — abbreviated English form
+  "Marsalforn, Gozo": "Marsalforn"  # ok — strip ", Gozo" suffix
+  "Gharb, Gozo": "Għarb"           # ok — strip suffix + normalise ASCII → Maltese
+  "San Lawrenz, Gozo": "San Lawrenz"  # ok — strip ", Gozo" suffix
 
   # ══ MISC ══
   "Garni": "Garni"  # ok — Armenia, already Latin
@@ -1095,7 +1100,9 @@
   # ══ UZBEKISTAN ══
   "Ташкент": "Tashkent"   # ok — Cyrillic
   "Тошкент": "Tashkent"   # ok — Uzbek Cyrillic
+  "Тоshkent": "Tashkent"  # ok — mixed Cyrillic/Latin corruption (Т + oShkent)
   "タシケント": "Tashkent"  # ok — Japanese transliteration
+  "Karşi": "Qarshi"       # ok — Turkish-influenced spelling of Qarshi (Карши)
   "Bekabad region": "Bekabad"  # ok — strip erroneous "region" qualifier
   "Самарканд": "Samarkand"  # ok — Cyrillic → canonical English Samarkand
   "Samarqand": "Samarkand"  # ok — Uzbek-alphabet spelling; canonical English = Samarkand
@@ -1110,6 +1117,7 @@
 
   # ══ TAJIKISTAN ══
   "Душанбе": "Dushanbe"  # ok — Cyrillic Russian/Tajik form
+  "ホジェンド": "Khujand"  # ok — Japanese katakana for Khujand (formerly Leninabad)
   "Norak": "Nurek"      # ok — Soviet-era/alternative spelling of Nurek
   "Nurek Dam": "Nurek"  # ok — venue name leaking as city
   "Wachdat": "Vahdat"   # ok — German transliteration of Vahdat
