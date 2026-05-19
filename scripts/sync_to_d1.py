@@ -566,22 +566,47 @@ def main() -> None:
             # venues table uses 'name' instead of 'venue' for the venue name
             VENUE_TABLE_FIELD = {"venue": "name", "city": "city", "country": "country",
                                  "lat": "lat", "lng": "lng", "category": "category"}
+            # Build all UPDATE statements as raw SQL and batch via /raw endpoint.
+            # Prior approach: 3 individual d1.query() calls per venue → ~23K HTTP round-trips
+            # for large snapshot diffs. Raw batching collapses this to ~10-50 requests.
+            raw_stmts: list[str] = []
             for vid, recs in by_venue.items():
-                set_clauses = ", ".join(f"{r['field']}=?" for r in recs)
-                set_vals = [r["new_value"] for r in recs]
-                # Update all checkins rows for this venue
-                d1.query(f"UPDATE checkins SET {set_clauses} WHERE venue_id=?", set_vals + [vid])
-                # Update tips rows for this venue (same column names)
-                d1.query(f"UPDATE tips SET {set_clauses} WHERE venue_id=?", set_vals + [vid])
-                # Update venues table row (column 'name' instead of 'venue')
-                v_clauses = ", ".join(f"{VENUE_TABLE_FIELD[r['field']]}=?" for r in recs)
-                d1.query(f"UPDATE venues SET {v_clauses} WHERE id=?", set_vals + [vid])
+                vid_lit = d1._sql_val(vid)
+                set_checkins = ", ".join(
+                    f"{r['field']}={d1._sql_val(r['new_value'])}" for r in recs
+                )
+                raw_stmts.append(f"UPDATE checkins SET {set_checkins} WHERE venue_id={vid_lit}")
+                raw_stmts.append(f"UPDATE tips SET {set_checkins} WHERE venue_id={vid_lit}")
+                set_venues = ", ".join(
+                    f"{VENUE_TABLE_FIELD[r['field']]}={d1._sql_val(r['new_value'])}" for r in recs
+                )
+                raw_stmts.append(f"UPDATE venues SET {set_venues} WHERE id={vid_lit}")
             # Venue merges: reassign checkins + tips to new venue_id
             for r in merge_diffs:
-                old_vid = r["venue_id"]
-                new_vid = r["new_value"]
-                d1.query("UPDATE checkins SET venue_id=? WHERE venue_id=?", [new_vid, old_vid])
-                d1.query("UPDATE tips SET venue_id=? WHERE venue_id=?", [new_vid, old_vid])
+                old_lit = d1._sql_val(r["venue_id"])
+                new_lit = d1._sql_val(r["new_value"])
+                raw_stmts.append(f"UPDATE checkins SET venue_id={new_lit} WHERE venue_id={old_lit}")
+                raw_stmts.append(f"UPDATE tips SET venue_id={new_lit} WHERE venue_id={old_lit}")
+            # Send in ~90 KB chunks via /raw
+            _CHUNK = 90_000
+            chunk: list[str] = []
+            chunk_bytes = 0
+            total_stmts = len(raw_stmts)
+            sent_stmts = 0
+            for stmt in raw_stmts:
+                sb = len(stmt.encode()) + 2  # "; " separator
+                if chunk and chunk_bytes + sb > _CHUNK:
+                    d1._raw_with_retry("; ".join(chunk))
+                    sent_stmts += len(chunk)
+                    print(f"\r  venue_updates: {sent_stmts}/{total_stmts}", end="", flush=True)
+                    chunk = []
+                    chunk_bytes = 0
+                chunk.append(stmt)
+                chunk_bytes += sb
+            if chunk:
+                d1._raw_with_retry("; ".join(chunk))
+                sent_stmts += len(chunk)
+            print(f"\r  venue_updates: {total_stmts}/{total_stmts} done    ")
             # Audit log
             def _derive_action(field: str) -> str:
                 if field == "venue":
