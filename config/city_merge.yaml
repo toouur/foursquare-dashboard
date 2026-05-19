@@ -1116,6 +1116,7 @@
   "Тоshkent": "Tashkent"  # ok — mixed Cyrillic/Latin corruption (Т + oShkent)
   "タシケント": "Tashkent"  # ok — Japanese transliteration
   "Karşi": "Qarshi"       # ok — Turkish-influenced spelling of Qarshi (Карши)
+  "Karchi": "Qarshi"      # ok — Russian-era romanization of Карши (Qarshi)
   "Bekabad region": "Bekabad"  # ok — strip erroneous "region" qualifier
   "Самарканд": "Samarkand"  # ok — Cyrillic → canonical English Samarkand
   "Samarqand": "Samarkand"  # ok — Uzbek-alphabet spelling; canonical English = Samarkand
