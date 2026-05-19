@@ -244,6 +244,7 @@
   "Phnom Pehn": "Phnom Penh"  # ok — typo
   "Chroy Changvar": "Phnom Penh"  # ok — district
   "Krong Siem Reap": "Siem Reap"  # ok — Khmer administrative prefix
+  "Angkor": "Siem Reap"  # ok — Angkor temple complex is in Siem Reap province
 
   # ══ CHILE ══
   "Providencia": "Santiago"  # ok — municipality of Santiago
@@ -283,6 +284,7 @@
   "哈尔滨": "Harbin"  # ok — Chinese characters
   "Guang Zhou Shi": "Guangzhou"  # ok — pinyin
   "Jing’an": "Shanghai"  # auto-added from city_merge_normalized_by_country.json
+  "Langfang": "Beijing"  # ok — Beijing Daxing Airport (PKX) is in Langfang prefecture, treated as Beijing
 
   # ══ CROATIA ══
   "Kaštel Štafilić": "Split"  # user-approved update
@@ -512,6 +514,9 @@
   "Thāne": "Mumbai"  # ok — suburb of Mumbai
   "Borivli": "Mumbai"  # ok — suburb of Mumbai
   "Kolkata & Howrah": "Kolkata"  # ok — compound label for Howrah-Kolkata Ferry
+  "Pahar Ganj": "New Delhi"  # ok — central Delhi neighbourhood
+  "New Aruna Nagar": "New Delhi"  # ok — northwest Delhi neighbourhood
+  "Āmer": "Jaipur"  # ok — Amber Fort is within Jaipur district
 
   # ══ INDONESIA ══
   "Kecamatan Taman Sari": "Jakarta"  # ok — kecamatan = sub-district of Jakarta
@@ -540,6 +545,14 @@
   "Pademangan Barat": "Jakarta"  # ok — neighbourhood
   "Tangerang": "Jakarta"  # ok — suburb in Greater Jakarta
   "Benda": "Jakarta"  # ok — Tangerang area
+  "Kabupaten Lampung Selatan": "Bakauheni"  # ok — Bakauheni ferry terminal, South Lampung regency
+  "Ketapang": "Bakauheni"  # ok — Ketapang ferry dock, same Sunda Strait terminal area
+  "Rajabasa": "Krakatau"  # ok — check-ins at Krakatau islands (coords ~-5.9,105.5)
+  "Lampung": "Krakatau"  # ok — Dermaga Canti ferry dock, departure point for Krakatau
+  "Pulau": "Krakatau"  # ok — check-ins at Cagar Alam Krakatau / Pulau Krakatau
+  "Penengahan": "Lampung"  # ok — Trans-Sumatra highway, South Lampung
+  "Kecamatan Talang Ubi": "South Sumatra"  # ok — check-ins at "South Sumatra" venue, Pali regency
+  "Selat Sunda": "Selat Sunda"  # ok — on-sea check-ins at Merak–Bakauheni ferry crossing
 
   # ══ IRAN ══
   "Tehrān": "Tehran"  # ok — diacritic → Tehran (common English name)
@@ -1154,6 +1167,7 @@
   # ══ VIETNAM / OTHER ══
   "Mỹ Tho": "Mỹ Tho"  # ok — canonical
   "My Tho": "Mỹ Tho"  # ok — ASCII form
+  "Mekong": "Mỹ Tho"  # ok — Coconut Island check-in on Mekong near Mỹ Tho (lat=10.33,lng=106.37)
 
   # ══ SINGLETON REVIEW 716-999 (APPROVED) ══
   "Durlești": "Chișinău"  # approved singleton review rank 738
