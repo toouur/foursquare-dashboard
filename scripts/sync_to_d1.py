@@ -44,6 +44,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import d1_client as d1
+import transform as _transform
 
 HERE = Path(__file__).parent
 
@@ -119,61 +120,67 @@ SQL_VENUE_CHANGES = (
 
 # -- Loaders ------------------------------------------------------------------
 
-def parse_checkins(csv_path: str):
+def parse_checkins(csv_path: str, config_dir: str | None = None, city_review: str | None = None):
     rows = []
     venue_meta: dict = defaultdict(lambda: {
         "name": "", "category": "", "lat": None, "lng": None,
         "city": "", "country": "", "first_ts": 0, "last_ts": 0, "count": 0,
     })
-    with open(csv_path, encoding="utf-8-sig", newline="") as fh:
-        for row in csv.DictReader(fh):
-            cid = _str(row.get("checkin_id"))
-            if not cid:
-                continue
-            ts  = _int(row.get("date"))
-            vid = _str(row.get("venue_id"))
-            lat = _float(row.get("lat"))
-            lng = _float(row.get("lng"))
-            rows.append([
-                cid,
-                ts,
-                vid,
-                _str(row.get("venue")),
-                _str(row.get("venue_url")),
-                _str(row.get("city")),
-                _str(row.get("state")),
-                _str(row.get("country")),
-                _str(row.get("neighborhood")),
-                lat,
-                lng,
-                _str(row.get("address")),
-                _str(row.get("category")),
-                _str(row.get("shout")),
-                _str(row.get("source_app")),
-                _str(row.get("source_url")),
-                _str(row.get("with_name")),
-                _str(row.get("with_id")),
-                _str(row.get("created_by_name")),
-                _str(row.get("created_by_id")),
-                _str(row.get("overlaps_name")),
-                _str(row.get("overlaps_id")),
-                _int(row.get("city_inferred"), 0),
-            ])
-            if vid:
-                m = venue_meta[vid]
-                m["count"] += 1
-                if ts and (not m["first_ts"] or ts < m["first_ts"]):
-                    m["first_ts"] = ts
-                if ts and ts > m["last_ts"]:
-                    m["last_ts"]   = ts
-                    m["name"]     = _str(row.get("venue")) or ""
-                    m["category"] = _str(row.get("category")) or ""
-                    m["city"]     = _str(row.get("city")) or ""
-                    m["country"]  = _str(row.get("country")) or ""
-                if lat is not None:
-                    m["lat"] = lat
-                if lng is not None:
-                    m["lng"] = lng
+    raw_rows = list(csv.DictReader(open(csv_path, encoding="utf-8-sig", newline="")))
+    if config_dir:
+        mappings = _transform.load_mappings(config_dir)
+        resolver = None
+        if city_review and Path(city_review).exists():
+            resolver = _transform.build_blank_city_resolver(city_review)
+        raw_rows = _transform.apply_transforms(raw_rows, mappings, blank_city_resolver=resolver)
+    for row in raw_rows:
+        cid = _str(row.get("checkin_id"))
+        if not cid:
+            continue
+        ts  = _int(row.get("date"))
+        vid = _str(row.get("venue_id"))
+        lat = _float(row.get("lat"))
+        lng = _float(row.get("lng"))
+        rows.append([
+            cid,
+            ts,
+            vid,
+            _str(row.get("venue")),
+            _str(row.get("venue_url")),
+            _str(row.get("city")),
+            _str(row.get("state")),
+            _str(row.get("country")),
+            _str(row.get("neighborhood")),
+            lat,
+            lng,
+            _str(row.get("address")),
+            _str(row.get("category")),
+            _str(row.get("shout")),
+            _str(row.get("source_app")),
+            _str(row.get("source_url")),
+            _str(row.get("with_name")),
+            _str(row.get("with_id")),
+            _str(row.get("created_by_name")),
+            _str(row.get("created_by_id")),
+            _str(row.get("overlaps_name")),
+            _str(row.get("overlaps_id")),
+            _int(row.get("city_inferred"), 0),
+        ])
+        if vid:
+            m = venue_meta[vid]
+            m["count"] += 1
+            if ts and (not m["first_ts"] or ts < m["first_ts"]):
+                m["first_ts"] = ts
+            if ts and ts > m["last_ts"]:
+                m["last_ts"]   = ts
+                m["name"]     = _str(row.get("venue")) or ""
+                m["category"] = _str(row.get("category")) or ""
+                m["city"]     = _str(row.get("city")) or ""
+                m["country"]  = _str(row.get("country")) or ""
+            if lat is not None:
+                m["lat"] = lat
+            if lng is not None:
+                m["lng"] = lng
     return rows, dict(venue_meta)
 
 
@@ -383,7 +390,12 @@ def _sync_lists_diff(list_rows: list, lv_rows: list) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Incremental D1 sync for CI")
-    ap.add_argument("--csv",     required=True)
+    ap.add_argument("--csv",        required=True)
+    ap.add_argument("--config-dir", dest="config_dir", default=str(HERE.parent / "config"),
+                    help="Config dir with city_fixes.json, country_fixes.json, city_merge.yaml "
+                         "(default: <repo>/config). Pass empty string to skip transforms.")
+    ap.add_argument("--city-review", dest="city_review", default=str(HERE.parent / "city_review.csv"),
+                    help="Path to city_review.csv for blank-city resolver (default: <repo>/city_review.csv)")
     ap.add_argument("--tips",    required=True)
     ap.add_argument("--ratings", default=None,
                     help="Path to venueRatings.json (optional; required if --ratings-changed or --force-ratings)")
@@ -420,6 +432,9 @@ def main() -> None:
                     help="DELETE FROM lists + list_venues then full INSERT OR REPLACE (manual resync)")
     ap.add_argument("--force-checkins", dest="force_checkins", action="store_true",
                     help="DELETE FROM checkins + venues then full reinsert (use after stale-row cleanup)")
+    ap.add_argument("--fix-city-country", dest="fix_city_country", action="store_true",
+                    help="UPDATE all D1 checkin rows where transform changed city or country "
+                         "(fixes blank cities synced before transform pipeline was applied)")
     ap.add_argument("--delete-checkin-rows", dest="delete_checkin_rows", default=None,
                     help='JSON file with list of {"venue_id","date"} pairs to DELETE from checkins; '
                          "also prunes orphaned venue_ids from venues table")
@@ -445,9 +460,53 @@ def main() -> None:
             counts_before[tbl] = 0
     print(f"D1 sync: counts before = {counts_before}", flush=True)
 
-    # Parse CSV (always needed)
-    all_checkin_rows, venue_meta = parse_checkins(args.csv)
+    # Parse CSV (always needed) — apply full transform pipeline so D1 gets resolved cities/countries
+    _cfg = args.config_dir if args.config_dir else None
+    _rev = args.city_review if args.config_dir else None
+    all_checkin_rows, venue_meta = parse_checkins(args.csv, config_dir=_cfg, city_review=_rev)
     visited_vids = {r[2] for r in all_checkin_rows if r[2]}  # index 2 = venue_id
+
+    if args.fix_city_country:
+        # Build targeted UPDATEs for all rows where transform changed city or country vs raw CSV.
+        # Necessary because existing D1 rows were synced before the transform pipeline ran there.
+        raw_rows_by_id = {}
+        with open(args.csv, encoding="utf-8-sig", newline="") as _fh:
+            for _r in csv.DictReader(_fh):
+                cid = _str(_r.get("checkin_id"))
+                if cid:
+                    raw_rows_by_id[cid] = (_str(_r.get("city")), _str(_r.get("country")), _int(_r.get("city_inferred"), 0))
+        stmts = []
+        for row in all_checkin_rows:
+            cid, ts, _vid = row[0], row[1], row[2]
+            t_city, t_country, t_inferred = row[5], row[7], row[22]
+            r_city, r_country, r_inferred = raw_rows_by_id.get(cid, (None, None, 0))
+            if t_city != r_city or t_country != r_country or t_inferred != r_inferred:
+                city_lit    = d1._sql_val(t_city)
+                country_lit = d1._sql_val(t_country)
+                id_lit      = d1._sql_val(cid)
+                stmts.append(
+                    f"UPDATE checkins SET city={city_lit},country={country_lit},"
+                    f"city_inferred={t_inferred} WHERE id={id_lit}"
+                )
+        print(f"  fix-city-country: {len(stmts)} rows to UPDATE", flush=True)
+        _CHUNK = 90_000
+        chunk: list[str] = []
+        chunk_bytes = 0
+        sent = 0
+        for stmt in stmts:
+            sb = len(stmt.encode()) + 2
+            if chunk and chunk_bytes + sb > _CHUNK:
+                d1._raw_with_retry("; ".join(chunk))
+                sent += len(chunk)
+                print(f"\r  fix-city-country: {sent}/{len(stmts)}", end="", flush=True)
+                chunk = []
+                chunk_bytes = 0
+            chunk.append(stmt)
+            chunk_bytes += sb
+        if chunk:
+            d1._raw_with_retry("; ".join(chunk))
+            sent += len(chunk)
+        print(f"\r  fix-city-country: {sent}/{len(stmts)} done    ")
 
     if args.force_checkins:
         print("  checkins : FORCE full resync — wiping checkins + venues and reinserting", flush=True)
