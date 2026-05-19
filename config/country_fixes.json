@@ -43,5 +43,20 @@
   "1689538059": "Belarus",
 
   "1636802279": "Belarus",
-  "1686384569": "Belarus"
+  "1686384569": "Belarus",
+
+  "_comment_gulf_finland_spb": "5 Gulf of Finland (Suomenlahti) check-ins: Foursquare venue geocodes to Helsinki → corrected to Russia (SPb beach visits)",
+  "1624113883": "Russia",
+  "1651420144": "Russia",
+  "1688924005": "Russia",
+  "1726323115": "Russia",
+  "1726402671": "Russia",
+
+  "_comment_vatican_country_fix": "Gallery of Maps and Sala degli Indirizzi inside Vatican City assigned to Italy → Holy See",
+  "1581091375": "Holy See (Vatican City State)",
+  "1581093199": "Holy See (Vatican City State)",
+
+  "_comment_macau_airport_country_fix": "Macau Immigration and Currency Exchange at MFM airport assigned to China → Macao",
+  "1704382240": "Macao",
+  "1704384864": "Macao"
 }

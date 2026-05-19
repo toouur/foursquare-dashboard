@@ -417,5 +417,12 @@
   "1704382306": "Macau",
 
   "_comment_bologna_gate12": "Gate 12 at Bologna airport assigned to Ravenna Province → Bologna",
-  "1680401578": "Bologna"
+  "1680401578": "Bologna",
+
+  "_comment_vatican_city_fix": "Gallery of Maps (Galleria delle Carte Geografiche) assigned to Rome → Vatican City",
+  "1581091375": "Vatican City",
+
+  "_comment_macau_airport_fix": "Macau Immigration and Currency Exchange at MFM airport with blank/wrong city → Macau",
+  "1704382240": "Macau",
+  "1704384864": "Macau"
 }
