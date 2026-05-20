@@ -570,6 +570,13 @@
   "1581093199": "Vatican City",
   "1675597375": "Vatican City",
 
+  "_comment_vatican_rome_fix": "5 blank-city check-ins near Vatican that blank_city_resolver incorrectly resolved to Vatican City; venues are in Rome (Prati/Borgo/Flaminio) outside Vatican walls",
+  "1581187893": "Rome",
+  "1581284188": "Rome",
+  "1581332703": "Rome",
+  "1581337705": "Rome",
+  "1581361292": "Rome",
+
   "_comment_hk_blank_city": "12 Hong Kong check-ins with blank city → all normalised to Hong Kong",
   "1704475282": "Hong Kong",
   "1704508746": "Hong Kong",

@@ -129,5 +129,11 @@
   "1704444627": "Macao",
   "1704446945": "Macao",
   "1704455316": "Macao",
-  "1704457793": "Macao"
+  "1704457793": "Macao",
+
+  "_comment_vatican_country_fix": "4 blank-city Vatican venues assigned country=Italy by Foursquare; coordinates confirm they are inside Vatican City walls",
+  "1581090557": "Holy See (Vatican City State)",
+  "1675601224": "Holy See (Vatican City State)",
+  "1675602460": "Holy See (Vatican City State)",
+  "1675602612": "Holy See (Vatican City State)"
 }
