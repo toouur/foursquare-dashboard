@@ -582,5 +582,12 @@
   "1704544441": "Hong Kong",
   "1704550448": "Hong Kong",
   "1704550797": "Hong Kong",
-  "1704551126": "Hong Kong"
+  "1704551126": "Hong Kong",
+
+  "_comment_liechtenstein_2025": "Liechtenstein trip: 1 blank-city (country venue) + 3 city=Oberland (district, physically Vaduz) → Vaduz; 1 city=Liechtenstein (Schaan town venue) → Schaan",
+  "1750672731": "Vaduz",
+  "1750675836": "Vaduz",
+  "1750678818": "Vaduz",
+  "1750680371": "Vaduz",
+  "1750680743": "Schaan"
 }
