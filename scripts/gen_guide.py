@@ -48,91 +48,102 @@ def build_page(csv_path: str, config_dir: str, out_path: str, tmpl_path: str, ro
         if country_fixes.exists():
             with open(country_fixes, encoding="utf-8") as f:
                 mappings["country_fixes"] = json.load(f)
+        city_fixes_path = config_dir / "city_fixes.json"
+        if city_fixes_path.exists():
+            with open(city_fixes_path, encoding="utf-8") as f:
+                mappings["city_fixes"] = {
+                    k: v for k, v in json.load(f).items() if not k.startswith("_")
+                }
     
     city_merge = mappings.get("city_merge", {})
+    city_fixes = mappings.get("city_fixes", {})
     ctry_norm = mappings.get("country_fixes", {})
-    
+
     # Import CTRY_NORM for country normalization (same as other generators)
     try:
         from gen_tips import CTRY_NORM as _CTRY_NORM
     except ImportError:
         _CTRY_NORM = {}
-    
+
+    def norm_country(raw: str) -> str:
+        return _CTRY_NORM.get(raw) or ctry_norm.get(raw, raw)
+
+    def norm_city(raw_city: str, ts: str = "") -> str:
+        # Per-ts override wins (matches transform.py order).
+        if ts and ts in city_fixes:
+            return city_fixes[ts]
+        return city_merge.get(raw_city, raw_city)
+
     # Load rows if not provided
     if rows is None:
         with open(csv_path, encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
         log.info("Loaded %d rows from %s", len(rows), csv_path)
-    
+
     # Sort by date (newest first)
     rows_sorted = sorted(rows, key=lambda x: int(x.get("date", 0) or 0), reverse=True)
-    
-    # Get recent check-ins (last 48 hours)
+
     now_ts = int(datetime.now(timezone.utc).timestamp())
     cutoff_ts = now_ts - (48 * 3600)
-    recent_rows = [r for r in rows_sorted if int(r.get("date", 0) or 0) >= cutoff_ts]
-    
-    # Latest check-in for dynamic suggestions
-    latest = recent_rows[0] if recent_rows else None
-    
-    # Compute user preferences from ALL check-ins (normalized)
+
+    # Single pass over rows_sorted: counters, venue_meta, recent_rows.
     cat_counter = Counter()
     city_counter = Counter()
     country_counter = Counter()
     hour_counter = Counter()
-    
-    for r in rows:
-        # Apply city normalization
-        raw_city = r.get("city", "")
-        city = city_merge.get(raw_city, raw_city)
-        
-        # Apply country normalization
-        raw_country = r.get("country", "")
-        country = _CTRY_NORM.get(raw_country) or ctry_norm.get(raw_country, raw_country)
-        
+    venue_meta: dict = {}
+    recent_rows: list = []
+
+    for r in rows_sorted:
+        ts_str = r.get("date", "") or ""
+        try:
+            ts = int(ts_str)
+        except ValueError:
+            ts = 0
+
+        city = norm_city(r.get("city", ""), ts_str)
+        country = norm_country(r.get("country", ""))
         cat = r.get("category", "").strip()
-        
+
+        # Cache normalized values on the row (used by later steps without re-norm).
+        r["_norm_city"] = city
+        r["_norm_country"] = country
+
         if cat:
             cat_counter[cat] += 1
         if city:
             city_counter[city] += 1
         if country:
             country_counter[country] += 1
-        
-        ts = int(r.get("date", 0) or 0)
         if ts:
-            try:
-                dt = datetime.fromtimestamp(ts, tz=timezone.utc)
-                hour_counter[dt.hour] += 1
-            except:
-                pass
-    
+            # ts // 3600 % 24 = UTC hour-of-day, ~10x faster than datetime build.
+            hour_counter[(ts // 3600) % 24] += 1
+
+        if ts >= cutoff_ts:
+            recent_rows.append(r)
+
+        vid = r.get("venue_id", "").strip()
+        if vid:
+            if vid not in venue_meta:
+                venue_meta[vid] = {
+                    "name": r.get("venue", ""),
+                    "city": r.get("city", ""),
+                    "country": r.get("country", ""),
+                    "category": r.get("category", ""),
+                    "lat": r.get("lat", ""),
+                    "lng": r.get("lng", ""),
+                    "first_ts": ts,
+                }
+            venue_meta[vid]["last_ts"] = ts
+
+    latest = recent_rows[0] if recent_rows else None
+
     top_categories = cat_counter.most_common(20)
     top_cities = city_counter.most_common(15)
     top_countries = country_counter.most_common(10)
-    
-    # Peak hours
+
     peak_hours = sorted(hour_counter.items(), key=lambda x: -x[1])[:3]
     peak_hours_str = ", ".join(f"{h:02d}:00" for h, _ in peak_hours) if peak_hours else "N/A"
-    
-    # Load venue metadata from check-ins (first/last visit per venue)
-    venue_meta = {}
-    for r in rows_sorted:
-        vid = r.get("venue_id", "").strip()
-        if not vid:
-            continue
-        ts = int(r.get("date", 0) or 0)
-        if vid not in venue_meta:
-            venue_meta[vid] = {
-                "name": r.get("venue", ""),
-                "city": r.get("city", ""),
-                "country": r.get("country", ""),
-                "category": r.get("category", ""),
-                "lat": r.get("lat", ""),
-                "lng": r.get("lng", ""),
-                "first_ts": ts,
-            }
-        venue_meta[vid]["last_ts"] = ts
     
     # Load ratings for liked venues
     ratings_path = Path(csv_path).resolve().parent / "venueRatings.json"
@@ -147,19 +158,12 @@ def build_page(csv_path: str, config_dir: str, out_path: str, tmpl_path: str, ro
                 if not vid:
                     continue
                 meta = venue_meta.get(vid, {})
-                
-                # Normalize country/city for venue
-                raw_city = meta.get("city", "")
-                raw_country = meta.get("country", "")
-                norm_city = city_merge.get(raw_city, raw_city)
-                norm_country = _CTRY_NORM.get(raw_country) or ctry_norm.get(raw_country, raw_country)
-                
                 liked_venues.append({
                     "id": vid,
                     "name": v.get("name", ""),
                     "category": meta.get("category", ""),
-                    "city": norm_city,
-                    "country": norm_country,
+                    "city": norm_city(meta.get("city", "")),
+                    "country": norm_country(meta.get("country", "")),
                     "lat": meta.get("lat", ""),
                     "lng": meta.get("lng", ""),
                 })
@@ -186,49 +190,41 @@ def build_page(csv_path: str, config_dir: str, out_path: str, tmpl_path: str, ro
     # Visited venue names in the latest check-in's city (for "already visited" badge)
     visited_names_in_city: list = []
     if latest:
-        raw_city = latest.get("city", "")
-        latest_city_norm = city_merge.get(raw_city, raw_city)
+        latest_city_norm = latest.get("_norm_city", "")
         if latest_city_norm:
             seen_vnames: set = set()
-            for r in rows:
-                rc = city_merge.get(r.get("city", ""), r.get("city", ""))
-                if rc == latest_city_norm:
+            for r in rows_sorted:
+                if r.get("_norm_city", "") == latest_city_norm:
                     vname = r.get("venue", "").strip().lower()
                     if vname and vname not in seen_vnames:
                         visited_names_in_city.append(vname)
                         seen_vnames.add(vname)
 
-    # Build recent history (last 48 hours) with NORMALIZED city/country
+    # Build recent history (last 48 hours) with NORMALIZED city/country.
+    # No row cap: 48h × ~typical density stays well under 100 rows in practice.
     recent_history = []
-    for r in recent_rows[:50]:  # Limit to 50 for performance
+    for r in recent_rows:
         ts = int(r.get("date", 0) or 0)
         if ts:
             dt = datetime.fromtimestamp(ts, tz=timezone.utc)
-            
-            # Apply normalization
-            raw_city = r.get("city", "")
-            raw_country = r.get("country", "")
-            city = city_merge.get(raw_city, raw_city)
-            country = _CTRY_NORM.get(raw_country) or ctry_norm.get(raw_country, raw_country)
-            
             recent_history.append({
                 "ts": ts,
                 "date": dt.strftime("%d %b %Y"),
                 "time": dt.strftime("%H:%M"),
                 "venue": r.get("venue", ""),
                 "venue_id": r.get("venue_id", ""),
-                "city": city,
-                "country": country,
+                "city": r.get("_norm_city", ""),
+                "country": r.get("_norm_country", ""),
                 "category": r.get("category", ""),
                 "lat": r.get("lat", ""),
                 "lng": r.get("lng", ""),
             })
-    
-    # Last 48h stats
+
+    # Last 48h stats — uses normalized cities so variants don't inflate the count.
     recent_stats = {
         "count": len(recent_rows),
         "unique_venues": len(set(r.get("venue_id", "") for r in recent_rows if r.get("venue_id"))),
-        "cities": len(set(r.get("city", "") for r in recent_rows if r.get("city"))),
+        "cities": len(set(r.get("_norm_city", "") for r in recent_rows if r.get("_norm_city"))),
     }
     
     # Suggestion logic - analyze patterns
@@ -241,16 +237,10 @@ def build_page(csv_path: str, config_dir: str, out_path: str, tmpl_path: str, ro
     }
     
     if latest:
-        # Normalize latest check-in
-        raw_city = latest.get("city", "")
-        raw_country = latest.get("country", "")
-        norm_city = city_merge.get(raw_city, raw_city)
-        norm_country = _CTRY_NORM.get(raw_country) or ctry_norm.get(raw_country, raw_country)
-        
         suggestions["based_on_latest"] = {
             "venue": latest.get("venue", ""),
-            "city": norm_city,
-            "country": norm_country,
+            "city": latest.get("_norm_city", ""),
+            "country": latest.get("_norm_country", ""),
             "category": latest.get("category", ""),
             "lat": latest.get("lat", ""),
             "lng": latest.get("lng", ""),
@@ -272,13 +262,13 @@ def build_page(csv_path: str, config_dir: str, out_path: str, tmpl_path: str, ro
         "recent_stats": recent_stats,
         "suggestions": suggestions,
         "latest_checkin": {
-            "venue": latest.get("venue", "") if latest else "",
-            "city": city_merge.get(latest.get("city", ""), latest.get("city", "")) if latest else "",
-            "country": _CTRY_NORM.get(latest.get("country", ""), ctry_norm.get(latest.get("country", ""), latest.get("country", ""))) if latest else "",
-            "category": latest.get("category", "") if latest else "",
-            "lat": latest.get("lat", "") if latest else "",
-            "lng": latest.get("lng", "") if latest else "",
-            "ts": latest.get("date", "") if latest else "",
+            "venue": latest.get("venue", ""),
+            "city": latest.get("_norm_city", ""),
+            "country": latest.get("_norm_country", ""),
+            "category": latest.get("category", ""),
+            "lat": latest.get("lat", ""),
+            "lng": latest.get("lng", ""),
+            "ts": latest.get("date", ""),
         } if latest else None,
     }
     

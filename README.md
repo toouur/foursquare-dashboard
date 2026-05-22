@@ -47,6 +47,12 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── fetch_ratings.py         # Fetch venue ratings (likes/okays/dislikes) → venueRatings.json
 │   ├── fetch_lists.py           # Fetch Foursquare lists → lists.json
 │   ├── transform.py             # Data cleaning: country fixes, city normalisation
+│   ├── fill_city_inferred.py    # Blank-city resolver: centroid Haversine match → city_inferred column
+│   ├── analyze_blanks.py        # Lists remaining blank-city rows with nearest known centroid
+│   ├── extract_blank_fixes.py   # Filters analyze_blanks output via city_canonical.yaml whitelist
+│   ├── apply_blank_fixes.py     # Appends extracted entries to city_fixes.json (preserves format)
+│   ├── gen_city_review.py       # Emits city_review.csv: spot-check window of recent inferred cities
+│   ├── check_city_config.py     # CI gate: validates city_canonical.yaml + city_fixes.json + city_merge.yaml
 │   ├── metrics.py               # All aggregation + trip-detection logic
 │   ├── build.py                 # CLI entry point: checkins.csv → all HTML pages
 │   ├── gen_companions.py        # Generates companions.html
@@ -79,6 +85,10 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── delete-checkin.yml         # Manual: delete check-in by ID from CSV + D1 + rebuild
 │   ├── resync-checkins-d1.yml     # Manual: wipe + reinsert checkins/venues via wrangler SQL dump
 │   ├── resync-d1.yml              # Manual: force resync of tips/ratings/lists/trips tables
+│   ├── resync-all.yml             # Manual: composite — runs checkins dump + every table force resync
+│   ├── backup-d1.yml              # Manual: snapshot D1 to a downloadable SQL backup
+│   ├── fix-city-country-d1.yml    # Manual: re-apply normalization (city_merge/country_fixes/city_inferred) to D1
+│   ├── test-d1-schema.yml         # Manual: verifies D1 schema columns + indexes match expectations
 │   ├── upsert-d1.yml              # Manual: incremental upsert (same as nightly, on demand)
 │   ├── add-venue-tip.yml          # Manual: post a tip to a venue
 │   ├── add-venue-rating.yml       # Manual: set like/okay/dislike on a venue
@@ -108,8 +118,9 @@ lazy loading, lightbox, and inline tip photos ·
 ├── config/
 │   ├── settings.yaml              # home_city, trip_detection thresholds
 │   ├── city_merge.yaml            # Raw Foursquare city names → canonical names
+│   ├── city_canonical.yaml        # Blank-city resolver vocabulary: canonical map, thresholds, skip rules
 │   ├── categories.json            # Category groupings for charts + explorer
-│   ├── city_fixes.json            # Per-timestamp city overrides
+│   ├── city_fixes.json            # Per-timestamp city overrides (accepts unix-ts OR 24-char hex id)
 │   ├── country_fixes.json         # Per-timestamp country overrides
 │   ├── trip_names.json            # Trip name overrides (keyed by _name_ts)
 │   ├── trip_tags.json             # Trip tags, e.g. ["bicycle"] (keyed by _name_ts)
@@ -315,6 +326,63 @@ wrong country:
 
 Groups raw Foursquare category strings into display buckets for the
 category chart and the Category Explorer widget.
+
+### `config/city_canonical.yaml`
+
+Single source of truth for the **blank-city resolver** (`extract_blank_fixes.py`).
+Defines which raw nearest-city names the extractor accepts, what canonical name
+they map to, and the distance thresholds (km) for accepting a centroid match.
+
+```yaml
+default_thresholds: { large_km: 8.0, small_km: 5.5 }
+canonical_map:
+  "Мiнск": "Minsk"
+  "Витебск": "Vitebsk"
+large_canonical: ["Minsk", "Brest", "Vitebsk"]   # use large_km bucket
+valid_canonical: ["Minsk", "Brest", ...]         # whitelist accepted as-is
+skip_set: ["Минский район", "Vitebsk Region"]    # never accept
+skip_patterns: ['район$', 'Rayon$', '\sRegion$'] # regex blocklist
+```
+
+Unicode-fold fallback (NFKD + casefold + strip combining marks) catches
+diacritic/transliteration variants without requiring explicit mappings.
+
+---
+
+## City normalization pipeline
+
+Four stages run in priority order — first match wins per check-in row:
+
+| Stage | File | Granularity | When |
+|-------|------|-------------|------|
+| 1. Country override | `config/country_fixes.json` | per-timestamp | Foursquare tagged wrong country |
+| 2. City override | `config/city_fixes.json` | per-timestamp (or per-venue 24-char hex id) | known-bad city on a specific check-in |
+| 3. String merge | `config/city_merge.yaml` | per-raw-string | already-non-blank city needs renaming |
+| 4. Blank inference | `scripts/fill_city_inferred.py` | per-row centroid match | city was blank; nearest known cluster within threshold wins |
+
+Rows filled by stage 4 get `city_inferred=1` in D1 so the provenance stays visible.
+`scripts/gen_city_review.py` writes `city_review.csv` for spot-checking recent
+inferred values; corrections you add to `config/city_fixes.json` or
+`config/city_merge.yaml` will take precedence on the next build.
+
+### Bulk blank-city recovery workflow
+
+```bash
+# 1. List remaining blank-city rows with the nearest known centroid:
+python scripts/analyze_blanks.py > C:/tmp/blanks_output.txt
+# 2. Filter against the canonical whitelist + per-city thresholds:
+python scripts/extract_blank_fixes.py > C:/tmp/blank_fixes.txt
+# 3. Review C:/tmp/blank_fixes.txt manually, then append to city_fixes.json:
+python scripts/apply_blank_fixes.py
+# 4. CI gate: make sure all configs stay consistent before committing:
+python scripts/check_city_config.py
+```
+
+`check_city_config.py` runs in CI as a merge gate. It validates that every
+`canonical_map` value is in `valid_canonical`, every `large_canonical` /
+`thresholds` key is valid, that `city_fixes.json` keys are well-formed
+(numeric ts or 24-char hex Foursquare object id), and that `city_merge.yaml`
+has no empty canonicals.
 
 ---
 

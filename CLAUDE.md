@@ -154,7 +154,31 @@ python -m http.server 8000
 - Search API (Cloudflare Pages Function): `functions/api/search.js`
 - Other Pages Functions: `functions/api/{feed,search-venues,venue-tips,custom-list}.js`
 - Pages config: `wrangler.toml`
-- Config: `config/city_merge.yaml`, `config/city_fixes.json`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
+- Config: `config/city_merge.yaml`, `config/city_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
+
+## City normalization pipeline (priority order)
+
+1. `country_fixes.json` — per-ts country override.
+2. `city_fixes.json` — per-ts (or per-venue 24-char hex id) city override.
+3. `city_merge.yaml` — raw→canonical string map for non-blank rows.
+4. `fill_city_inferred.py` — centroid Haversine match for blank rows; sets `city_inferred=1` in D1.
+
+`config/city_canonical.yaml` is the single source of truth for blank-row recovery:
+`canonical_map` (raw→canonical), `valid_canonical` (whitelist), `large_canonical`
+(km-bucket override), `thresholds`, `skip_set`, `skip_patterns`.
+`scripts/check_city_config.py` is a CI gate verifying canonical_map values and
+thresholds keys all exist in `valid_canonical`, and that city_fixes.json keys are
+numeric ts or 24-char hex ids.
+
+### Blank-city recovery loop
+```bash
+python scripts/analyze_blanks.py > C:/tmp/blanks_output.txt
+python scripts/extract_blank_fixes.py > C:/tmp/blank_fixes.txt
+python scripts/apply_blank_fixes.py
+python scripts/check_city_config.py
+```
+To accept a new raw nearest-city name, add it to `canonical_map` in
+`city_canonical.yaml` — do not edit `extract_blank_fixes.py`.
 
 ## Stable Implementation Notes
 

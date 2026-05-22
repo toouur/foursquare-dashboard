@@ -1,0 +1,291 @@
+# ─────────────────────────────────────────────────────────────────────
+# city_canonical.yaml — canonical names + nearest-city thresholds for
+# the blank-city extractor (scripts/extract_blank_fixes.py).
+#
+# This is the single source of truth for which raw nearest-city names
+# the extractor will *accept* and what canonical name it writes them
+# under. city_merge.yaml handles already-non-blank rows; this file is
+# specifically for centroid-matched blank rows.
+#
+# Sections:
+#   canonical_map      — raw nearest-city  →  canonical
+#   valid_canonical    — canonical names accepted as-is
+#   large_canonical    — large cities that get the larger distance bucket
+#   default_thresholds — km buckets used when no per-city override exists
+#   thresholds         — per-canonical override (km)
+#   skip_set           — raw names always skipped (districts, regions)
+#   skip_patterns      — regex patterns always skipped
+# ─────────────────────────────────────────────────────────────────────
+
+default_thresholds:
+  large_km: 8.0
+  small_km: 5.5
+
+skip_set:
+  - "Минский район"
+  - "Minski Rayon"
+  - "Hrodzyenski Rayon"
+  - "Logoyski Rayon"
+  - "Логойский р-н"
+  - "Минская Обл."
+  - "Vitebsk Region"
+  - "Biahoml"
+  - "Kamyanyetski Rayon"
+  - "д. Бенякони"
+  - "Страченята"
+  - "д. Страченята"
+
+skip_patterns:
+  - 'район$'
+  - 'Rayon$'
+  - '\sр-н$'
+  - 'область$'
+  - 'Обл\.$'
+  - '\sRegion$'
+  - '^д\.\s'
+
+canonical_map:
+  # Minsk variants
+  "Mink": "Minsk"
+  "Мiнск": "Minsk"
+  "Минск": "Minsk"
+  "Mińsk": "Minsk"
+  "Мінск": "Minsk"
+  "минск": "Minsk"
+  "Минск - Гродно": "Minsk"
+  # Vitebsk
+  "Vitsyebsk": "Vitebsk"
+  "Viciebsk": "Vitebsk"
+  "Витебск": "Vitebsk"
+  # Mogilev
+  "Могилёв": "Mogilev"
+  "Могилев": "Mogilev"
+  "Магілёў": "Mogilev"
+  "Magilëŭ": "Mogilev"
+  # Grodno
+  "Гродно": "Grodno"
+  "Hrodna": "Grodno"
+  # Gomel
+  "Гомель": "Gomel"
+  "Homieĺ": "Gomel"
+  # Borisov
+  "Борисов": "Borisov"
+  "Barysaŭ": "Borisov"
+  # Orsha
+  "Orša": "Orsha"
+  "Арша": "Orsha"
+  # Baranovichi
+  "Баранавічы": "Baranovichi"
+  "Baranavičy": "Baranovichi"
+  # Brest
+  "Брэст": "Brest"
+  # Polatsk
+  "Полацк": "Polatsk"
+  "Полоцк": "Polatsk"
+  # Maladzyechna
+  "Молодечно": "Maladzyechna"
+  "Maladzechna": "Maladzyechna"
+  # Lepel
+  "Lyepyel'": "Lepel"
+  "Лепель": "Lepel"
+  # Pinsk
+  "Пінск": "Pinsk"
+  # Slutsk
+  "Слуцк": "Slutsk"
+  # Lida
+  "Ліда": "Lida"
+  # Salihorsk
+  "Солигорск": "Salihorsk"
+  # Zhodzina
+  "Жодзіна": "Zhodzina"
+  # Myadzyel
+  "Мядзел": "Myadzyel"
+  # Nyasvizh
+  "Нясвіж": "Nyasvizh"
+  # Navahrudak
+  "Навагрудак": "Navahrudak"
+  # Ashmyany
+  "Ашмяны": "Ashmyany"
+  # Pyershaje
+  "Першаи": "Pyershaje"
+  # Kalinkavichy
+  "Калінкавічы": "Kalinkavichy"
+  # Mazyr
+  "Мазыр": "Mazyr"
+  # Rečyca
+  "Рэчыца": "Rečyca"
+  # Braslaw
+  "Браслаў": "Braslaw"
+  # Vilyeyka
+  "Вілейка": "Vilyeyka"
+  # Slonim
+  "Слонім": "Slonim"
+  # Dzyarzhynsk
+  "Дзяржынск": "Dzyarzhynsk"
+  # Fanipol
+  "Фаніпаль": "Fanipol"
+  # Zhdanovichy
+  "Ждановичи": "Zhdanovichy"
+  # Kopishche
+  "Копище": "Kopishche"
+  # Luninyets
+  "Лунінец": "Luninyets"
+  "Лунинец": "Luninyets"
+  # Byaroza
+  "Бяроза": "Byaroza"
+  "Biaroza": "Byaroza"
+  # Pruzhany
+  "Пружаны": "Pruzhany"
+  # Kamianets
+  "Камянец": "Kamianets"
+  # Shchuchin
+  "Шчучын": "Shchuchin"
+  "Щучин": "Shchuchin"
+  # Skidzyel
+  "Скідаль": "Skidzyel'"
+  # Mir
+  "Мір": "Mir"
+  # Valozhyn
+  "Воложин": "Valozhyn"
+  # Mscislaw
+  "Мсціслаў": "Mscislaŭ"
+  # Krichev
+  "Крычаў": "Kryčaŭ"
+  # Bykhov
+  "Быхаў": "Bychaŭ"
+  # Bobruisk
+  "Бабруйск": "Bobruisk"
+  # Loyew
+  "Лоеў": "Loyew"
+  # Navapolatsk
+  "Наваполацк": "Navapolatsk"
+  # Minsk suburbs (Russian/Belarusian)
+  "Щомыслица": "Shchomyslitsa"
+  "Дегтяревка": "Degtaryovka"
+  "Зелёное": "Zyelyonoye"
+  # Asipovichy
+  "Асіповічы": "Asipovichy"
+  # Russia
+  "Москва": "Moscow"
+  "Санкт-Петербург": "Saint Petersburg"
+  "Питер": "Saint Petersburg"
+  "Piter": "Saint Petersburg"
+
+large_canonical:
+  - "Minsk"
+  - "Grodno"
+  - "Brest"
+  - "Vitebsk"
+  - "Mogilev"
+  - "Gomel"
+  - "Baranovichi"
+  - "Borisov"
+  - "Orsha"
+  - "Maladzyechna"
+  - "Pinsk"
+  - "Polatsk"
+  - "Salihorsk"
+  - "Lepel"
+  - "Slonim"
+
+# Per-canonical threshold override (km). Falls back to default_thresholds
+# (large_km if canonical is in large_canonical, else small_km).
+thresholds: {}
+
+valid_canonical:
+  # Belarus — primary cities
+  - "Minsk"
+  - "Grodno"
+  - "Brest"
+  - "Vitebsk"
+  - "Mogilev"
+  - "Gomel"
+  - "Baranovichi"
+  - "Borisov"
+  - "Orsha"
+  - "Maladzyechna"
+  - "Pinsk"
+  - "Polatsk"
+  - "Navapolatsk"
+  - "Salihorsk"
+  - "Slutsk"
+  - "Lepel"
+  - "Slonim"
+  - "Lida"
+  - "Valozhyn"
+  - "Mscislaŭ"
+  - "Kryčaŭ"
+  - "Bychaŭ"
+  - "Rečyca"
+  - "Loyew"
+  - "Myadzyel"
+  - "Nyasvizh"
+  - "Navahrudak"
+  - "Asipovichy"
+  - "Bobruisk"
+  - "Vilyeyka"
+  - "Kopyś"
+  - "Shklov"
+  - "Zhodzina"
+  - "Kalinkavichy"
+  - "Mazyr"
+  - "Braslaw"
+  - "Dzyarzhynsk"
+  - "Fanipol"
+  - "Zhdanovichy"
+  - "Kopishche"
+  - "Luninyets"
+  - "Byaroza"
+  - "Pruzhany"
+  - "Kamianets"
+  - "Kamianiuki"
+  - "Shchuchin"
+  - "Skidzyel'"
+  - "Mir"
+  - "Ashmyany"
+  - "Pyershaje"
+  - "Rakov"
+  - "Borovlyany"
+  - "Zaslawye"
+  - "Astrashytski Haradok"
+  - "Kolodishchi"
+  - "Valer'yanovo"
+  - "Machulishchy"
+  - "Ptich'"
+  - "Atolino"
+  - "Shchomyslitsa"
+  - "Degtaryovka"
+  - "Zyelyonoye"
+  # Russian places
+  - "Saint Petersburg"
+  - "Moscow"
+  - "Krasnoyarsk"
+  # Other countries
+  - "Stockholm"
+  - "Taipa"
+  - "Vatican City"
+  - "Vaduz"
+  - "Schaan"
+  - "Prague"
+  - "Rotterdam"
+  - "Doha"
+  - "Tirana"
+  - "Bratislava"
+  - "Dubai"
+  - "Oslo"
+  - "Sandefjord"
+  # District-level but usable
+  - "Новая Гута"
+  - "Хотислав"
+  # Small Minsk suburbs
+  - "Сеница"
+  - "Прилуки"
+  - "Заречье-1"
+  - "Новая Боровая"
+  - "Kreva"
+  - "Домошаны"
+  - "Samakhvalavichy"
+  - "Чики"
+  - "Старое село"
+  - "Гонолес"
+  - "Grigorovshchina"
