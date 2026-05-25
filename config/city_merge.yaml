@@ -1518,22 +1518,19 @@
   "Hai Ba Trưng": "Hanoi"  # ok — Hai Bà Trưng district without tone on Bà (ASCII partial)
 
   # ══ CROATIA ══
-  "Titova Korenica": "Plitvice Lakes"  # ok — old name for Korenica, closest town to Plitvice Lakes NP
+  "Titova Korenica": "Korenica"  # ok — socialist-era name for Korenica (renamed 1995)
   "Plitvica": "Plitvice Lakes"  # ok — check-ins inside Plitvičke Jezera NP (44.90,15.61)
   "Velika Gorica": "Zagreb"  # ok — Zagreb Airport (ZAG) municipality
 
   # ══ SLOVENIA ══
   "Bregana": "Obrežje"  # ok — Croatian name for HR/SLO border crossing; Slovenian side = Obrežje
-  "Zgornje Gorje": "Bled"  # ok — municipality adjacent to Bled (Podhom station, Radovna valley)
   "Blejska Dobrava": "Bled"  # ok — village near Bled/Vintgar, Jesenice municipality
   "Spodnji Brnik": "Ljubljana"  # ok — Ljubljana Jože Pučnik Airport (LJU)
   "Ukanc": "Bohinj"  # ok — village at west end of Lake Bohinj
   "Bohinjsko jezero": "Bohinj"  # ok — Lake Bohinj (46.28,13.86)
   "Zatolmin": "Tolmin"  # ok — village in Tolmin municipality (46.19,13.73)
   "Dekani": "Koper"  # ok — A1 tunnel near Koper (45.55,13.81)
-  "Bohinjska Bistrica": "Bohinj"  # ok — main town of Bohinj municipality (46.27,13.95)
   "Lesce": "Radovljica"  # ok — village in Radovljica municipality (46.34,14.17)
-  "Zgornje Škofije": "Koper"  # ok — SLO-IT border near Koper (45.58,13.79)
 
   # ══ ARMENIA ══
   "Zvartnots": "Vagharshapat"  # ok — Zvartnots Cathedral in Vagharshapat municipality (40.16,44.33)
@@ -1545,9 +1542,6 @@
 
   # ══ SWITZERLAND ══
   "Kloten": "Zurich"  # ok — Zurich Airport (ZRH) commune
-  "Killwangen": "Würenlos"  # ok — adjacent municipality on A1/A3 interchange near Würenlos
-  "Dietikon": "Zurich"  # ok — suburb of Zurich in Zurich canton
-  "Neuenhof": "Baden"  # ok — Aargau municipality near Baden (47.44,8.32)
   "Le Rhone": "Geneva"  # ok — Rhone river venue near Geneva (46.20,6.14)
 
   # ══ FRANCE ══
