@@ -22,6 +22,14 @@ env:
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "config/city_merge.yaml"
+      - "config/city_fixes.json"
+      - "config/country_fixes.json"
+      - "config/city_canonical.yaml"
+      - "city_review.csv"
 
 jobs:
   fix-city-country:

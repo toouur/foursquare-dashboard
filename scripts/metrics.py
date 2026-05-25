@@ -647,6 +647,268 @@ def detect_trips(
     return result
 
 
+# ── Shout text mining ──────────────────────────────────────────────────────────
+
+import re as _re
+import unicodedata as _ud
+
+# Stopwords across the languages that appear in shouts (en, ru, be).  Kept
+# minimal and additive — false-positives just leak a stopword into the
+# top-N list, which is annoying but not broken.
+_STOPWORDS: frozenset[str] = frozenset({
+    # English
+    "the","a","an","and","or","but","of","to","for","in","on","at","by","with",
+    "is","was","are","be","been","being","am","i","my","me","mine","we","our",
+    "you","your","he","she","it","its","they","them","their","this","that",
+    "these","those","as","if","then","than","so","such","just","not","no",
+    "yes","do","does","did","done","have","has","had","will","would","could",
+    "should","can","may","might","get","got","make","made","go","went","gone",
+    "from","up","down","out","off","over","under","again","still","more",
+    "less","most","least","very","too","also","only","own","other","some",
+    "any","all","each","every","new","old","good","bad","one","two","three",
+    "first","last","time","day","now","here","there","what","who","when",
+    "where","why","how","im","ill","ive","its","dont","didnt","cant","wont",
+    # Russian
+    "и","в","во","не","что","он","на","я","с","со","как","а","то","все",
+    "она","так","его","но","да","ты","к","у","же","вы","за","бы","по","только",
+    "ее","мне","было","вот","от","меня","еще","нет","о","из","ему","теперь",
+    "когда","даже","ну","вдруг","ли","если","уже","или","ни","быть","был",
+    "него","до","вас","нибудь","опять","уж","вам","ведь","там","потом","себя",
+    "ничего","ей","может","они","тут","где","есть","надо","ней","для","мы",
+    "тебя","их","чем","была","сам","чтоб","без","будто","чего","раз","тоже",
+    "себе","под","будет","ж","тогда","кто","этот","того","потому","этого",
+    "какой","совсем","ним","здесь","этом","один","почти","мой","тем","чтобы",
+    "нее","сейчас","были","куда","зачем","всех","никогда","можно","при",
+    "наконец","два","об","другой","хоть","после","над","больше","тот","через",
+    "эти","нас","про","всего","них","какая","много","разве","три","эту",
+    "моя","впрочем","хорошо","свою","этой","перед","иногда","лучше","чуть",
+    "том","нельзя","такой","им","более","всегда","конечно","всю","между",
+    # Belarusian (additions)
+    "у","і","на","ў","да","не","з","ад","па","за","для","пра","над","пад",
+    "цераз","праз","між","без","пры","к","к","і","ці","альбо","ёсць","няма",
+    "быў","была","было","былі","можа","трэба","тут","там","гэта","гэты",
+    "тая","той","той","той","ужо","яшчэ","нават","толькі","мы","вы","ён","яна",
+    "яно","яны","свой","свая","сваё","свае",
+})
+
+# Token regex: keep unicode letters/digits, length ≥ 3.
+_TOKEN_RE = _re.compile(r"[\w']{3,}", _re.UNICODE)
+
+# Emoji extraction — covers the major unicode emoji blocks (not exhaustive
+# but catches >99% of what people actually type).  Uses str scan rather than
+# regex range because Python's re module groks Unicode codepoint ranges
+# inconsistently across platforms.
+_EMOJI_RANGES = (
+    (0x1F300, 0x1F5FF),  # Misc symbols and pictographs
+    (0x1F600, 0x1F64F),  # Emoticons
+    (0x1F680, 0x1F6FF),  # Transport and map
+    (0x1F700, 0x1F77F),
+    (0x1F780, 0x1F7FF),
+    (0x1F800, 0x1F8FF),
+    (0x1F900, 0x1F9FF),  # Supplemental symbols and pictographs
+    (0x1FA00, 0x1FA6F),
+    (0x1FA70, 0x1FAFF),
+    (0x2600,  0x26FF),   # Misc symbols
+    (0x2700,  0x27BF),   # Dingbats
+)
+
+def _is_emoji_char(ch: str) -> bool:
+    cp = ord(ch)
+    return any(lo <= cp <= hi for lo, hi in _EMOJI_RANGES)
+
+def _extract_emojis(text: str) -> list[str]:
+    return [ch for ch in text if _is_emoji_char(ch)]
+
+# Light emoji sentiment lexicon — language-independent.  Conservative: only
+# include emojis whose polarity is unambiguous.  Counted at character level.
+_EMOJI_POS = frozenset("👍😀😁😂😃😄😅😆😊😍🥰😘🤩🥳🎉🎊🍻🥂🌟⭐❤💖💕💗💜💛💚💙🧡🍰🍕🍔🍣🍜🍱🍷🌅🌄🌞🏖🏝🏔🚀")
+_EMOJI_NEG = frozenset("👎😞😢😭😱😡🤬💔😤😨😰😖😣😩😫😒🙄☹😟🤢🤮")
+
+def _detect_lang(text: str) -> str:
+    """Return 'cyr' if cyrillic dominates, 'lat' if latin, else 'mix'."""
+    cyr = lat = 0
+    for ch in text:
+        if 'А' <= ch <= 'я' or ch in 'ЁёІіЎў':
+            cyr += 1
+        elif 'a' <= ch.lower() <= 'z':
+            lat += 1
+    if cyr == 0 and lat == 0:
+        return "other"
+    if cyr > lat * 2:
+        return "cyr"
+    if lat > cyr * 2:
+        return "lat"
+    return "mix"
+
+def shout_analysis(rows: list[dict]) -> dict:
+    """Mine the free-text 'shout' column for words, emojis, language, sentiment.
+
+    Foursquare appends ` — with <Name>` (or ` - with <Name>`) to shouts when a
+    companion is tagged.  Strip that suffix before tokenising so companion
+    names don't pollute the word counts.  Also drop tokens that exactly match
+    a known companion name from the with_name / created_by / overlaps columns.
+    """
+    # Build a denylist of companion-name tokens (lower-cased single words).
+    name_deny: set[str] = set()
+    for r in rows:
+        for col in ("with_name", "created_by_name", "overlaps_name"):
+            raw = (r.get(col) or "").replace(" ,", ",")
+            for part in raw.split(","):
+                for tok in part.strip().split():
+                    t = tok.strip().lower()
+                    if len(t) >= 3 and t != "-":
+                        name_deny.add(t)
+
+    shouts: list[tuple[int, str, str, str]] = []  # (year, country, city, text)
+    _suffix_re = _re.compile(r"\s*[—\-–]\s*with\s+.+$", _re.IGNORECASE | _re.UNICODE)
+    for r in rows:
+        s = (r.get("shout") or "").strip()
+        if not s:
+            continue
+        # Strip "— with X" trailing companion attribution
+        s = _suffix_re.sub("", s).strip()
+        if not s:
+            continue
+        try:
+            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+        except (ValueError, KeyError, OSError):
+            continue
+        shouts.append((yr, r.get("country", "").strip(), r.get("city", "").strip(), s))
+
+    if not shouts:
+        return {}
+
+    # Word frequency — global + per country (companion names denied)
+    word_ctr_global: Counter = Counter()
+    word_ctr_country: dict[str, Counter] = defaultdict(Counter)
+    for _yr, co, _cy, text in shouts:
+        toks = [t.lower() for t in _TOKEN_RE.findall(text)]
+        toks = [t for t in toks
+                if t not in _STOPWORDS
+                and t not in name_deny
+                and not t.isdigit()]
+        word_ctr_global.update(toks)
+        if co:
+            word_ctr_country[co].update(toks)
+
+    # Emoji frequency
+    emoji_ctr: Counter = Counter()
+    emoji_by_year: dict[int, Counter] = defaultdict(Counter)
+    for yr, _co, _cy, text in shouts:
+        for e in _extract_emojis(text):
+            emoji_ctr[e] += 1
+            emoji_by_year[yr][e] += 1
+
+    # Emoji-based sentiment per year — share of pos vs neg emoji-bearing shouts
+    sentiment_by_year: dict[int, list] = defaultdict(lambda: [0, 0, 0])  # [pos, neg, neutral]
+    for yr, _co, _cy, text in shouts:
+        pos = sum(1 for ch in text if ch in _EMOJI_POS)
+        neg = sum(1 for ch in text if ch in _EMOJI_NEG)
+        if pos > neg:
+            sentiment_by_year[yr][0] += 1
+        elif neg > pos:
+            sentiment_by_year[yr][1] += 1
+        else:
+            sentiment_by_year[yr][2] += 1
+
+    # Language distribution per year (cyr/lat/mix/other)
+    lang_by_year: dict[int, Counter] = defaultdict(Counter)
+    for yr, _co, _cy, text in shouts:
+        lang_by_year[yr][_detect_lang(text)] += 1
+
+    # Per-year shout count and avg length
+    per_year: dict[int, list] = defaultdict(lambda: [0, 0])  # [count, total_chars]
+    for yr, _co, _cy, text in shouts:
+        per_year[yr][0] += 1
+        per_year[yr][1] += len(text)
+
+    # Top words per country — top 10 countries by shout volume, top 12 words each
+    shouts_per_country: Counter = Counter(co for _yr, co, _cy, _t in shouts if co)
+    top_cos = [co for co, _ in shouts_per_country.most_common(10)]
+    words_by_country: list = []
+    for co in top_cos:
+        top12 = word_ctr_country[co].most_common(12)
+        if top12:
+            words_by_country.append([co, [[w, c] for w, c in top12]])
+
+    return {
+        "total_shouts":   len(shouts),
+        "total_words":    sum(word_ctr_global.values()),
+        "top_words":      [[w, c] for w, c in word_ctr_global.most_common(60)],
+        "top_emojis":     [[e, c] for e, c in emoji_ctr.most_common(40)],
+        "shouts_per_year": sorted([[str(yr), v[0], round(v[1] / v[0])] for yr, v in per_year.items()]),
+        "sentiment_by_year": sorted([[str(yr), v[0], v[1], v[2]] for yr, v in sentiment_by_year.items()]),
+        "lang_by_year":   sorted([[str(yr), ctr.get("lat", 0), ctr.get("cyr", 0), ctr.get("mix", 0), ctr.get("other", 0)] for yr, ctr in lang_by_year.items()]),
+        "words_by_country": words_by_country,
+    }
+
+
+# ── Cross-dimensional analytics ────────────────────────────────────────────────
+
+def cross_dim_analysis(rows: list[dict], categorize) -> dict:
+    """Hour-of-day and day-of-week breakdowns per category group, in local time."""
+    # Pick top 8 category groups by overall volume so the heatmap stays legible.
+    grp_ctr: Counter = Counter()
+    for r in rows:
+        cat = r.get("category", "").strip()
+        if not cat:
+            continue
+        g = categorize(cat)
+        if g:
+            grp_ctr[g] += 1
+    top_groups = [g for g, _ in grp_ctr.most_common(8)]
+    if not top_groups:
+        return {}
+    g_idx = {g: i for i, g in enumerate(top_groups)}
+
+    # hour_cat[hour][group_idx] = count;  dow_cat[dow][group_idx] = count
+    hour_cat = [[0] * len(top_groups) for _ in range(24)]
+    dow_cat  = [[0] * len(top_groups) for _ in range(7)]
+    country_hour = defaultdict(lambda: [0] * 24)  # country → 24-hour profile
+
+    for r in rows:
+        cat = r.get("category", "").strip()
+        if not cat:
+            continue
+        g = categorize(cat)
+        if g not in g_idx:
+            continue
+        try:
+            d = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc)
+        except (ValueError, KeyError, OSError):
+            continue
+        try:
+            lat = float(r["lat"]); lng = float(r["lng"])
+        except (ValueError, KeyError, TypeError):
+            lat = lng = None
+        country = r.get("country", "").strip()
+        d_local = _localise(d, lat, lng, country)
+        h = d_local.hour
+        dw = d_local.weekday()
+        idx = g_idx[g]
+        hour_cat[h][idx] += 1
+        dow_cat[dw][idx] += 1
+        if country:
+            country_hour[country][h] += 1
+
+    # Country-hour: top 12 countries by volume, normalized so each row sums to 100.
+    top_cos = [c for c, _ in Counter(
+        {k: sum(v) for k, v in country_hour.items()}
+    ).most_common(12)]
+    country_hour_pct = []
+    for co in top_cos:
+        row = country_hour[co]
+        total = sum(row) or 1
+        country_hour_pct.append([co, [round(v * 100 / total, 1) for v in row]])
+
+    return {
+        "groups":           top_groups,
+        "hour_cat":         hour_cat,
+        "dow_cat":          dow_cat,
+        "country_hour_pct": country_hour_pct,
+    }
+
+
 # ── Main aggregation ───────────────────────────────────────────────────────────
 
 def process(
@@ -1363,8 +1625,17 @@ def process(
             }
         )
 
+    # ── Shout text mining + cross-dimensional analytics ──────────────────────
+    shout_stats = shout_analysis(rows)
+    cross_dim   = cross_dim_analysis(rows, categorize)
+
     log.info("Cities: %d | Countries: %d | Unique places: %d | Trips: %d",
              len(cities), len(countries), unique_count, len(trips))
+    if shout_stats:
+        log.info("Shouts: %d analyzed | %d words | %d emoji types",
+                 shout_stats.get("total_shouts", 0),
+                 shout_stats.get("total_words", 0),
+                 len(shout_stats.get("top_emojis", [])))
 
     if not dates:
         raise ValueError("No valid date rows found in CSV.")
@@ -1419,5 +1690,7 @@ def process(
         "trip_countries_dist":trip_countries_dist,
         "trip_top_longest":   trip_top_longest,
         "trip_kpis":          trip_kpis,
+        "shout_stats":        shout_stats,
+        "cross_dim":          cross_dim,
     }
     return stats, trips

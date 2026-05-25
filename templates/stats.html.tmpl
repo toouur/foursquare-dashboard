@@ -271,6 +271,60 @@ a{color:inherit;}
     <canvas id="catChart" height="85"></canvas>
   </div>
 
+  <!-- 16. Hour × Category heatmap (full-width) -->
+  <div class="card full" id="hourCatCard" style="display:none;">
+    <div class="card-title">Hour of Day × Category <em>&middot; local time, top 8 groups</em></div>
+    <div id="hourCatHeat" style="overflow-x:auto;"></div>
+  </div>
+
+  <!-- 17. Day of Week × Category -->
+  <div class="card full" id="dowCatCard" style="display:none;">
+    <div class="card-title">Day of Week × Category <em>&middot; local time</em></div>
+    <div id="dowCatHeat" style="overflow-x:auto;"></div>
+  </div>
+
+  <!-- 18. Country hour profiles -->
+  <div class="card full" id="ctryHourCard" style="display:none;">
+    <div class="card-title">Country Hour Profiles <em>&middot; % of country's check-ins per local hour &middot; top 12 by volume</em></div>
+    <div id="ctryHourHeat" style="overflow-x:auto;"></div>
+  </div>
+
+  <!-- 19. Shout KPIs + emojis + sentiment + language (full-width) -->
+  <div class="card full" id="shoutKpiCard" style="display:none;">
+    <div class="card-title">Shouts <em>&middot; free-text notes you wrote with check-ins</em></div>
+    <div class="streak-row" id="shoutKpiRow"></div>
+  </div>
+
+  <div class="card" id="shoutEmojiCard" style="display:none;">
+    <div class="card-title">Top Emojis <em>&middot; you used in shouts</em></div>
+    <div id="shoutEmojiList" style="line-height:2;"></div>
+  </div>
+
+  <div class="card" id="shoutLangCard" style="display:none;">
+    <div class="card-title">Language Mix by Year <em>&middot; cyrillic vs latin in shouts</em></div>
+    <canvas id="shoutLangChart" height="230"></canvas>
+  </div>
+
+  <div class="card" id="shoutSentimentCard" style="display:none;">
+    <div class="card-title">Shout Mood by Year <em>&middot; emoji-based sentiment</em></div>
+    <canvas id="shoutSentChart" height="230"></canvas>
+  </div>
+
+  <div class="card" id="shoutCountCard" style="display:none;">
+    <div class="card-title">Shouts per Year <em>&middot; count &amp; avg length</em></div>
+    <canvas id="shoutCountChart" height="230"></canvas>
+  </div>
+
+  <div class="card full" id="shoutWordsCard" style="display:none;">
+    <div class="card-title">Top Words <em>&middot; most-used non-stopword tokens in your shouts</em></div>
+    <div id="shoutWordsList"></div>
+  </div>
+
+  <div class="card full" id="shoutWordsByCountryCard" style="display:none;">
+    <div class="card-title">Top Words by Country <em>&middot; top 10 countries by shout volume</em></div>
+    <div id="shoutWordsCountryList"></div>
+  </div>
+
 </div><!-- /.grid -->
 
 <script>
@@ -670,6 +724,214 @@ new Chart(document.getElementById('catChart'),{
     }
   }
 });
+
+// ── 16-18. Cross-dim heatmaps ───────────────────────────────────────────────
+(function(){
+  var X=S.cross_dim||{};var groups=X.groups||[];
+  if(!groups.length)return;
+
+  // Generic heatmap renderer — rowsLabels, cols (group names), matrix[r][c]
+  function renderHeat(target, rowLabels, matrix, opts){
+    opts=opts||{};
+    var maxV=0;
+    for(var r=0;r<matrix.length;r++) for(var c=0;c<matrix[r].length;c++) if(matrix[r][c]>maxV) maxV=matrix[r][c];
+    if(maxV===0) return;
+    var rowTotals=matrix.map(function(row){return row.reduce(function(a,b){return a+b;},0);});
+
+    var html='<table style="border-collapse:collapse;font-family:\'DM Mono\',monospace;font-size:.62rem;width:100%;min-width:'+(120+groups.length*78)+'px;">';
+    html+='<thead><tr><th style="padding:4px 8px;text-align:left;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">'+(opts.rowLabel||'')+'</th>';
+    for(var c=0;c<groups.length;c++){
+      html+='<th style="padding:4px 6px;text-align:center;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:400;">'+esc(groups[c])+'</th>';
+    }
+    html+='<th style="padding:4px 8px;text-align:right;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Total</th></tr></thead><tbody>';
+    for(var r=0;r<matrix.length;r++){
+      html+='<tr><td style="padding:3px 8px;color:var(--gold);font-weight:600;white-space:nowrap;">'+esc(rowLabels[r])+'</td>';
+      for(var c=0;c<groups.length;c++){
+        var v=matrix[r][c];
+        var ratio=maxV?v/maxV:0;
+        var alpha=(0.07+0.78*ratio).toFixed(3);
+        var label=opts.pct?(v.toFixed(1)+'%'):v.toLocaleString();
+        var color=v?'var(--text)':'rgba(122,133,168,.25)';
+        var bg=v?'rgba(78,205,196,'+alpha+')':'transparent';
+        html+='<td style="padding:3px 6px;text-align:center;background:'+bg+';color:'+color+';border-radius:3px;">'+(v?label:'·')+'</td>';
+      }
+      var tot=rowTotals[r];
+      html+='<td style="padding:3px 8px;text-align:right;color:var(--muted);">'+(tot?tot.toLocaleString():'—')+'</td></tr>';
+    }
+    html+='</tbody></table>';
+    target.innerHTML=html;
+  }
+
+  // Hour × Category
+  if(X.hour_cat){
+    var hourLabels=[];for(var h=0;h<24;h++)hourLabels.push((h<10?'0':'')+h+':00');
+    renderHeat(document.getElementById('hourCatHeat'),hourLabels,X.hour_cat,{rowLabel:'Hour'});
+    document.getElementById('hourCatCard').style.display='';
+  }
+  // DOW × Category
+  if(X.dow_cat){
+    var dowLabels=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    renderHeat(document.getElementById('dowCatHeat'),dowLabels,X.dow_cat,{rowLabel:'Day'});
+    document.getElementById('dowCatCard').style.display='';
+  }
+  // Country × Hour (percent profile)
+  if(X.country_hour_pct&&X.country_hour_pct.length){
+    var rows=X.country_hour_pct.map(function(x){return x[0];});
+    var matrix=X.country_hour_pct.map(function(x){return x[1];});
+    var hours24=[];for(var h=0;h<24;h++)hours24.push((h<10?'0':'')+h);
+    // Replace groups for this single render — temp swap
+    var savedGroups=groups; groups=hours24;
+    renderHeat(document.getElementById('ctryHourHeat'),rows,matrix,{rowLabel:'Country',pct:true});
+    groups=savedGroups;
+    document.getElementById('ctryHourCard').style.display='';
+  }
+})();
+
+// ── 19. Shout text mining ────────────────────────────────────────────────────
+(function(){
+  var SH=S.shout_stats||{};
+  if(!SH.total_shouts)return;
+
+  // KPI strip
+  var totalShouts=SH.total_shouts||0;
+  var totalWords=SH.total_words||0;
+  var emojiTypes=(SH.top_emojis||[]).length;
+  var avgWords=totalShouts?Math.round(totalWords/totalShouts):0;
+  document.getElementById('shoutKpiRow').innerHTML=
+    '<div class="streak-stat"><div class="s-num">'+totalShouts.toLocaleString()+'</div><div class="s-lbl">Shouts</div></div>'
+   +'<div class="streak-stat"><div class="s-num">'+totalWords.toLocaleString()+'</div><div class="s-lbl">Total Words</div></div>'
+   +'<div class="streak-stat"><div class="s-num">'+avgWords+'</div><div class="s-lbl">Avg Words / Shout</div></div>'
+   +'<div class="streak-stat"><div class="s-num">'+emojiTypes+'</div><div class="s-lbl">Unique Emojis</div></div>';
+  document.getElementById('shoutKpiCard').style.display='';
+
+  // Top emojis — display as a flowing list of large emoji with counts
+  var emojis=SH.top_emojis||[];
+  if(emojis.length){
+    var maxC=emojis[0][1];
+    var html='';
+    for(var i=0;i<emojis.length;i++){
+      var e=emojis[i][0],c=emojis[i][1];
+      var scale=(0.9+0.8*(c/maxC)).toFixed(2);
+      html+='<span style="display:inline-block;margin:4px 10px;text-align:center;">'
+           +'<span style="font-size:'+scale+'rem;display:block;">'+e+'</span>'
+           +'<span style="font-size:.6rem;color:var(--muted);">'+c.toLocaleString()+'</span></span>';
+    }
+    document.getElementById('shoutEmojiList').innerHTML=html;
+    document.getElementById('shoutEmojiCard').style.display='';
+  }
+
+  // Top words — sorted bars
+  var words=SH.top_words||[];
+  if(words.length){
+    var maxW=words[0][1];
+    var html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px 14px;font-family:\'DM Mono\',monospace;font-size:.7rem;">';
+    for(var i=0;i<words.length;i++){
+      var w=words[i][0],c=words[i][1];
+      var pct=(c/maxW*100).toFixed(1);
+      html+='<div style="display:flex;align-items:center;gap:8px;">'
+           +'<div style="flex:0 0 90px;color:var(--gold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(w)+'</div>'
+           +'<div style="flex:1;background:rgba(78,205,196,0.12);height:14px;border-radius:3px;position:relative;">'
+           +'<div style="position:absolute;left:0;top:0;height:100%;width:'+pct+'%;background:#4ecdc4;border-radius:3px;"></div>'
+           +'</div>'
+           +'<div style="flex:0 0 40px;text-align:right;color:var(--muted);">'+c.toLocaleString()+'</div>'
+           +'</div>';
+    }
+    html+='</div>';
+    document.getElementById('shoutWordsList').innerHTML=html;
+    document.getElementById('shoutWordsCard').style.display='';
+  }
+
+  // Words by country — sectioned list
+  var wbc=SH.words_by_country||[];
+  if(wbc.length){
+    var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;">';
+    for(var i=0;i<wbc.length;i++){
+      var co=wbc[i][0],ws=wbc[i][1];
+      html+='<div><div style="font-size:.66rem;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">'+esc(co)+'</div>';
+      html+='<div style="font-family:\'DM Mono\',monospace;font-size:.66rem;line-height:1.7;">';
+      for(var j=0;j<ws.length;j++){
+        html+='<span style="display:inline-block;margin:1px 8px 1px 0;color:var(--text);">'+esc(ws[j][0])+'<span style="color:var(--muted);font-size:.6rem;"> '+ws[j][1]+'</span></span>';
+      }
+      html+='</div></div>';
+    }
+    html+='</div>';
+    document.getElementById('shoutWordsCountryList').innerHTML=html;
+    document.getElementById('shoutWordsByCountryCard').style.display='';
+  }
+
+  // Language by year — stacked bar
+  var lby=SH.lang_by_year||[];
+  if(lby.length){
+    var yrs=lby.map(function(x){return x[0];});
+    new Chart(document.getElementById('shoutLangChart'),{
+      type:'bar',
+      data:{
+        labels:yrs,
+        datasets:[
+          {label:'Latin',     data:lby.map(function(x){return x[1];}),backgroundColor:'#4ecdc4'},
+          {label:'Cyrillic',  data:lby.map(function(x){return x[2];}),backgroundColor:'#e8b86d'},
+          {label:'Mixed',     data:lby.map(function(x){return x[3];}),backgroundColor:'#c44dff'},
+          {label:'Other',     data:lby.map(function(x){return x[4];}),backgroundColor:'#7a85a8'},
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}}},
+        scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'}}}
+      }
+    });
+    document.getElementById('shoutLangCard').style.display='';
+  }
+
+  // Sentiment by year — stacked bar [pos, neg, neutral]
+  // Only show when there's any positive/negative signal at all (skip all-neutral datasets).
+  var sby=SH.sentiment_by_year||[];
+  var hasPolarity=sby.some(function(x){return x[1]>0||x[2]>0;});
+  if(sby.length&&hasPolarity){
+    new Chart(document.getElementById('shoutSentChart'),{
+      type:'bar',
+      data:{
+        labels:sby.map(function(x){return x[0];}),
+        datasets:[
+          {label:'Positive 😊',data:sby.map(function(x){return x[1];}),backgroundColor:'#4ecdc4'},
+          {label:'Negative 😞',data:sby.map(function(x){return x[2];}),backgroundColor:'#e63946'},
+          {label:'Neutral',   data:sby.map(function(x){return x[3];}),backgroundColor:'#3a4258'},
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}}},
+        scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'}}}
+      }
+    });
+    document.getElementById('shoutSentimentCard').style.display='';
+  }
+
+  // Shouts per year — count + avg length (dual axis)
+  var spy=SH.shouts_per_year||[];
+  if(spy.length){
+    new Chart(document.getElementById('shoutCountChart'),{
+      type:'bar',
+      data:{
+        labels:spy.map(function(x){return x[0];}),
+        datasets:[
+          {label:'Shouts',          data:spy.map(function(x){return x[1];}),backgroundColor:'#e8b86d',yAxisID:'y'},
+          {label:'Avg chars',type:'line',data:spy.map(function(x){return x[2];}),borderColor:'#4ecdc4',backgroundColor:'rgba(78,205,196,0.1)',yAxisID:'y1',tension:0.3,pointRadius:3},
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}}},
+        scales:{
+          x:{grid:{display:false}},
+          y:{position:'left',grid:{color:'#1a1e2e'}},
+          y1:{position:'right',grid:{display:false},ticks:{color:'#4ecdc4'}}
+        }
+      }
+    });
+    document.getElementById('shoutCountCard').style.display='';
+  }
+})();
 </script>
 
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
