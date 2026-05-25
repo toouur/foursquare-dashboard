@@ -612,7 +612,9 @@
   "Mārupe": "Riga"  # ok — municipality near Riga
   "Mārupes Novads 10/1": "Riga"  # ok — address-style Marupe
   "Centrs": "Riga"  # ok — central district of Riga
-  "Lidosta \"Rīga\"": "Riga"  # ok — Riga Airport
+  "Lidosta \"Rīga\"": "Riga"  # ok — Riga Airport (CSV double-quote form)
+  '\Lidosta \\Rīga\\\': "Riga"  # ok — Riga Airport (backslash-escaped form from Foursquare venue)
+  "Mārupes pagasts": "Riga"  # ok — Mārupe parish, same airport/suburb area
   "Daugavpils municipality": "Daugavpils"  # ok — municipality = city
   "Jūrmala": "Jūrmala"  # ok — canonical, diacritics kept
   "Jurmala": "Jūrmala"  # ok — ASCII form
