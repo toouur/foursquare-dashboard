@@ -51,7 +51,7 @@ CTRY_NORM = {
 }
 
 
-def build_page(csv_path, config_dir, out_path, tmpl_path, tips_path=None, pix_url=""):
+def build_page(csv_path, config_dir, out_path, tmpl_path, tips_path=None, pix_url="", country_count=0):
     TEMPLATE = Path(tmpl_path).read_text(encoding="utf-8")
 
     tips_file = Path(tips_path) if tips_path else Path(csv_path).parent / "tips.json"
@@ -120,7 +120,8 @@ def build_page(csv_path, config_dir, out_path, tmpl_path, tips_path=None, pix_ur
     tips_json = json.dumps(tips, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = (TEMPLATE
             .replace("TIPS_DATA_PLACEHOLDER", tips_json)
-            .replace("TABS_DATA_PLACEHOLDER", tabs_json))
+            .replace("TABS_DATA_PLACEHOLDER", tabs_json)
+            .replace("{{COUNTRIES}}", str(country_count)))
     Path(out_path).write_text(html, encoding="utf-8")
     size = Path(out_path).stat().st_size // 1024
     print(f"tips.html -> {out_path}  ({size}KB, {len(tips):,} tips)")

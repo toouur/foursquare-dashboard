@@ -7,7 +7,7 @@ import csv, json, re, sys
 from pathlib import Path
 
 
-def build_page(csv_path, config_dir, out_path, tmpl_path=None, cities_data=None):
+def build_page(csv_path, config_dir, out_path, tmpl_path=None, cities_data=None, country_count=0):
     """cities_data: [[city, count, primary_country], ...] from metrics — same data as index.html.
     When provided, skip CSV re-read so counts and city names exactly match index.html
     (including blank-city-inferred rows). Falls back to CSV if not provided."""
@@ -44,7 +44,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, cities_data=None)
         m = re.search(r'const WORLD_CITIES_100K=(\[[\s\S]*?\]);', tmpl_src, re.DOTALL)
         if m: wc_data = m.group(1)
 
-    html = TEMPLATE.replace('WC_DATA_PLACEHOLDER', wc_data).replace('VISITED_DATA_PLACEHOLDER', visited_json)
+    html = TEMPLATE.replace('WC_DATA_PLACEHOLDER', wc_data).replace('VISITED_DATA_PLACEHOLDER', visited_json).replace('{{COUNTRIES}}', str(country_count))
     Path(out_path).write_text(html, encoding='utf-8')
     print(f"world_cities.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB)")
 

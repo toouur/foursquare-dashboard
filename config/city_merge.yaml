@@ -442,7 +442,7 @@
   # ══ GEORGIA ══
   "Батуми": "Batumi"  # ok — Cyrillic
   "Batum": "Batumi"  # ok — older form
-  "Сигнаги": "Signagi"  # ok — Cyrillic → Signagi
+  "Сигнаги": "Sighnaghi"  # ok — Cyrillic → Sighnaghi (standard EN transliteration)
   "Кутаиси": "Kutaisi"  # ok — Cyrillic
   "აჯარა": "Batumi"  # ok — Georgian script for Adjara region; venue inside Batumi city
 
@@ -1475,6 +1475,98 @@
   # ══ POLAND / SEJNY BORDER ══
   "Sejny - Lazdijai": "Sejny"  # ok — PL-LT border crossing at Ogrodniki; Sejny is nearest PL town (9.7km)
 
+  # ══ NORWAY ══
+  "Gardermoen": "Oslo"  # ok — Oslo Airport (OSL), Ullensaker municipality 50km north of Oslo
+
+  # ══ BOSNIA AND HERZEGOVINA / SARAJEVO SUBURBS ══
+  "Lukavica": "Sarajevo"  # ok — settlement in Istočno Sarajevo municipality, Sarajevo outskirts
+
   # ══ EGYPT / SUEZ CANAL ══
   "Al Temsah": "Ismailia"  # ok — Lake Timsah area, Ismailia (30.59,32.28)
   "El Qantra Shark, Ismailia": "El-Qantara el-Sharqîya"  # ok — El Qantara East, Suez Canal (30.85,32.31)
+
+  # ══ EGYPT / ALEXANDRIA NEIGHBOURHOODS ══
+  "Shatby": "Alexandria"  # ok — Bibliotheca Alexandrina district (31.20,29.90)
+  "Al-Shatbi": "Alexandria"  # ok — Corniche, Alexandria (31.21,29.91)
+  "Al Azaritah WA Ash Shatebi": "Alexandria"  # ok — Azaritah district (31.20,29.90)
+  "As Sayalah Sharq": "Alexandria"  # ok — Qaitbay area, Alexandria (31.20,29.88)
+  "Al Gomrok": "Alexandria"  # ok — Qaitbay Citadel area (31.21,29.88)
+  "Manshiyya": "Alexandria"  # ok — neighbourhood of Alexandria (31.19,29.89)
+  "Al Mansheyah Al Kubra": "Alexandria"  # ok — Saint Catherine Sq area (31.19,29.89)
+
+  # ══ AUSTRIA ══
+  "Lochau": "Bregenz"  # ok — municipality on Lake Constance, 4km from Bregenz
+  "Schaanwald": "Feldkirch"  # ok — AT-FL border crossing, AT city is Feldkirch
+
+  # ══ BULGARIA ══
+  "Varna Municipality": "Varna"  # ok — administrative label
+
+  # ══ SERBIA ══
+  "Petrovaradin": "Novi Sad"  # ok — fortress area, part of City of Novi Sad municipality
+
+  # ══ BELGIUM ══
+  "Gosselies": "Charleroi"  # ok — sub-municipality of Charleroi; Charleroi Airport (CRL) is here
+
+  # ══ GREECE ══
+  "Néa Filadélfeia": "Athens"  # ok — Athens suburb, Attica (38.03,23.73)
+  "Paianía": "Athens"  # ok — Attica municipality near Athens airport (37.93,23.88)
+
+  # ══ CYPRUS ══
+  "Meneou": "Larnaca"  # ok — near Larnaca Airport (LCA), Larnaca District (34.87,33.60)
+
+  # ══ VIETNAM ══
+  "Hai Ba Trưng": "Hanoi"  # ok — Hai Bà Trưng district without tone on Bà (ASCII partial)
+
+  # ══ CROATIA ══
+  "Titova Korenica": "Plitvice Lakes"  # ok — old name for Korenica, closest town to Plitvice Lakes NP
+  "Plitvica": "Plitvice Lakes"  # ok — check-ins inside Plitvičke Jezera NP (44.90,15.61)
+  "Velika Gorica": "Zagreb"  # ok — Zagreb Airport (ZAG) municipality
+
+  # ══ SLOVENIA ══
+  "Bregana": "Obrežje"  # ok — Croatian name for HR/SLO border crossing; Slovenian side = Obrežje
+  "Zgornje Gorje": "Bled"  # ok — municipality adjacent to Bled (Podhom station, Radovna valley)
+  "Blejska Dobrava": "Bled"  # ok — village near Bled/Vintgar, Jesenice municipality
+  "Spodnji Brnik": "Ljubljana"  # ok — Ljubljana Jože Pučnik Airport (LJU)
+  "Ukanc": "Bohinj"  # ok — village at west end of Lake Bohinj
+  "Bohinjsko jezero": "Bohinj"  # ok — Lake Bohinj (46.28,13.86)
+  "Zatolmin": "Tolmin"  # ok — village in Tolmin municipality (46.19,13.73)
+  "Dekani": "Koper"  # ok — A1 tunnel near Koper (45.55,13.81)
+  "Bohinjska Bistrica": "Bohinj"  # ok — main town of Bohinj municipality (46.27,13.95)
+  "Lesce": "Radovljica"  # ok — village in Radovljica municipality (46.34,14.17)
+  "Zgornje Škofije": "Koper"  # ok — SLO-IT border near Koper (45.58,13.79)
+
+  # ══ ARMENIA ══
+  "Zvartnots": "Vagharshapat"  # ok — Zvartnots Cathedral in Vagharshapat municipality (40.16,44.33)
+  "Marmashen": "Gyumri"  # ok — Marmashen Monastery ~14km from Gyumri (40.84,43.75)
+
+  # ══ GEORGIA ══
+  "Chognari": "Kutaisi"  # ok — village ~7km from Kutaisi (42.20,42.71)
+  "Chakvi": "Batumi"  # ok — resort village 15km north of Batumi on Black Sea coast
+
+  # ══ SWITZERLAND ══
+  "Kloten": "Zurich"  # ok — Zurich Airport (ZRH) commune
+  "Killwangen": "Würenlos"  # ok — adjacent municipality on A1/A3 interchange near Würenlos
+  "Dietikon": "Zurich"  # ok — suburb of Zurich in Zurich canton
+  "Neuenhof": "Baden"  # ok — Aargau municipality near Baden (47.44,8.32)
+  "Le Rhone": "Geneva"  # ok — Rhone river venue near Geneva (46.20,6.14)
+
+  # ══ FRANCE ══
+  "Saint-Denis": "Paris"  # ok — commune north of Paris, Île-de-France (48.93,2.35)
+  "Tremblay-en-France": "Paris"  # ok — CDG airport area commune (49.00,2.56)
+  "Huningue": "Saint-Louis"  # ok — adjacent to Saint-Louis near Basel tripoint (47.59,7.58)
+
+  # ══ BRAZIL ══
+  "Santo Cristo": "Rio de Janeiro"  # ok — neighbourhood of Rio (VLT tram line area)
+
+  # ══ SPAIN ══
+  "Sevilla": "Seville"  # ok — Spanish name for Seville
+
+  # ══ GERMANY ══
+  "Ostseebad Nienhagen": "Nienhagen"  # ok — "Ostseebad" prefix for the same beach resort
+
+  # ══ POLAND ══
+  "Balice": "Kraków"  # ok — Kraków John Paul II Airport (KRK) commune
+  "Modlin": "Nowy Dwór Mazowiecki"  # ok — Warsaw Modlin Airport (WMI) area
+
+  # ══ PORTUGAL ══
+  "Colares": "Sintra"  # ok — parish in Sintra municipality (Cabo da Roca area)

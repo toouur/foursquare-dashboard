@@ -14,11 +14,12 @@ def build_page(
     likes: list,
     neutral: list,
     dislikes: list,
+    country_count: int = 0,
 ) -> None:
     tmpl = Path(tmpl_path).read_text(encoding="utf-8")
 
     if not likes and not neutral and not dislikes:
-        html = tmpl.replace("RATINGS_DATA_PLACEHOLDER", "[]").replace("RATINGS_COUNTS_PLACEHOLDER", "{}")
+        html = tmpl.replace("RATINGS_DATA_PLACEHOLDER", "[]").replace("RATINGS_COUNTS_PLACEHOLDER", "{}").replace("{{COUNTRIES}}", str(country_count))
         Path(out_path).write_text(html, encoding="utf-8")
         print(f"ratings.html -> {out_path}  (no ratings data)")
         return
@@ -28,7 +29,7 @@ def build_page(
     counts = {"likes": len(likes), "neutral": len(neutral), "dislikes": len(dislikes)}
     counts_json = json.dumps(counts)
 
-    html = tmpl.replace("RATINGS_DATA_PLACEHOLDER", all_json).replace("RATINGS_COUNTS_PLACEHOLDER", counts_json)
+    html = tmpl.replace("RATINGS_DATA_PLACEHOLDER", all_json).replace("RATINGS_COUNTS_PLACEHOLDER", counts_json).replace("{{COUNTRIES}}", str(country_count))
     Path(out_path).write_text(html, encoding="utf-8")
     total = len(all_ratings)
     size  = Path(out_path).stat().st_size // 1024

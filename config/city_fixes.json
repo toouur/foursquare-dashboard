@@ -2326,5 +2326,15 @@
   "5b2d55f683e380002c135c26": "Хотислав",
   "5d72c5133983e70008db89ac": "Хотислав",
   "_comment_blank_": "Чики: 1 blank-city check-ins",
-  "66b8b871cce74d1f1bf517d1": "Чики"
+  "66b8b871cce74d1f1bf517d1": "Чики",
+
+  "_comment_albania_lin": "Qafë Thanë border crossing (Albania) assigned Lin by FS — keep Lin (Albanian village on Lake Ohrid) to avoid city_merge Lin→Struga (North Macedonia) rule",
+  "66ab8564755f01315459313c": "Lin",
+
+  "_comment_argentina_ciudad": "2 Mendoza check-ins with city=Ciudad (generic Spanish word) — fix to Mendoza to avoid risky global city_merge rule",
+  "674efa24b163bd0c06b877d3": "Mendoza",
+  "674f748436ecb4416711f6ed": "Mendoza",
+
+  "_comment_argentina_la_calera": "La Calera suburb of Córdoba — specific fix to avoid global rule clashing with Chilean city La Calera",
+  "6752125ec42a4c7fff940f83": "Córdoba"
 }

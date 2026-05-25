@@ -113,6 +113,7 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     trips_html = TRIPS_TEMPLATE
     trips_html = trips_html.replace('{{TRIPS_JSON}}', json.dumps(trips, ensure_ascii=False).replace('</', '<\\/'))
     trips_html = trips_html.replace('{{TOTAL_TRIPS}}', str(len(trips)))
+    trips_html = trips_html.replace('{{COUNTRIES}}', str(len(data['countries'])))
     trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     trips_html = trips_html.replace('{{PIX_DIR_JSON}}', pix_dir_json)
     trips_html = trips_html.replace('{{STATS}}', json.dumps(data, ensure_ascii=False).replace('</', '<\\/'))
@@ -672,12 +673,12 @@ if __name__ == "__main__":
     for gen_script, gen_out, gen_tmpl, gen_kwargs in [
         (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {"social_data": data}),
         (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {"swarm_user_id": fs_user_id}),
-        (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities")}),
+        (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities"), "country_count": len(data['countries'])}),
         (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {}),
-        (_here / "gen_tips.py",       "tips.html",         "tips.html.tmpl",         {"tips_path": str(tips_path), "pix_url": _pix_dir_uri}),
+        (_here / "gen_tips.py",       "tips.html",         "tips.html.tmpl",         {"tips_path": str(tips_path), "pix_url": _pix_dir_uri, "country_count": len(data['countries'])}),
         (_here / "gen_stats.py",      "stats.html",        "stats.html.tmpl",        {"stats_data": data, "anomalies_html": _anomalies_html}),
         (_here / "gen_search.py",     "search.html",       "search.html.tmpl",       {"rows": rows, "all_tips": all_tips, "trips": trips, "metrics": data}),
-        (_here / "gen_ratings.py",    "ratings.html",      "ratings.html.tmpl",      {"likes": _likes, "neutral": _neutral, "dislikes": _dislikes}),
+        (_here / "gen_ratings.py",    "ratings.html",      "ratings.html.tmpl",      {"likes": _likes, "neutral": _neutral, "dislikes": _dislikes, "country_count": len(data['countries'])}),
         (_here / "gen_lists.py",      "lists.html",        "lists.html.tmpl",        {"lists_data_json": _lists_data_json}),
         (_here / "gen_guide.py",      "guide.html",        "guide.html.tmpl",        {"rows": rows, "mappings": mappings}),
     ]:
@@ -717,6 +718,7 @@ if __name__ == "__main__":
                     tips=all_tips if _pix_dir_uri else [],
                     city_merge=mappings.get("city_merge", {}),
                     ctry_norm=_CTRY_NORM,
+                    country_count=len(data['countries']),
                 )
             except Exception as _e:
                 log.warning("gen_photos.py failed: %s", _e)

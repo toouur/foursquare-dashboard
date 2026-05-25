@@ -4,18 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Check-in Journal — Foursquare Dashboard</title>
-<meta name="description" content="Personal Foursquare check-in dashboard: 65,000+ check-ins across 62 countries and 838 cities, with interactive maps, trip journal, venue stats and analytics.">
+<meta name="description" content="Personal Foursquare check-in dashboard: 65,000+ check-ins across {{COUNTRIES}} countries and 838 cities, with interactive maps, trip journal, venue stats and analytics.">
 <link rel="canonical" href="https://4sq.pages.dev/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Check-in Journal">
 <meta property="og:title" content="Check-in Journal — Foursquare Dashboard">
-<meta property="og:description" content="Personal Foursquare check-in dashboard: 65,000+ check-ins across 62 countries and 838 cities, with interactive maps, trip journal, venue stats and analytics.">
+<meta property="og:description" content="Personal Foursquare check-in dashboard: 65,000+ check-ins across {{COUNTRIES}} countries and 838 cities, with interactive maps, trip journal, venue stats and analytics.">
 <meta property="og:url" content="https://4sq.pages.dev/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Check-in Journal — Foursquare Dashboard">
-<meta name="twitter:description" content="Personal Foursquare check-in dashboard: 65,000+ check-ins across 62 countries and 838 cities, with interactive maps, trip journal, venue stats and analytics.">
+<meta name="twitter:description" content="Personal Foursquare check-in dashboard: 65,000+ check-ins across {{COUNTRIES}} countries and 838 cities, with interactive maps, trip journal, venue stats and analytics.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Check-in Journal","url":"https://4sq.pages.dev/","description":"Personal Foursquare check-in dashboard tracking 65,000+ check-ins across 62 countries."}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Check-in Journal","url":"https://4sq.pages.dev/","description":"Personal Foursquare check-in dashboard tracking 65,000+ check-ins across {{COUNTRIES}} countries."}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
@@ -553,7 +553,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 
   <div class="card full" id="s-countries">
     <div class="card-title">
-      All 62 Countries <em>&middot;</em>
+      All {{COUNTRIES}} Countries <em>&middot;</em>
       <div class="tabs">
         <div class="tab active" onclick="switchCountryTab('checkins',this)">By Check-ins</div>
         <div class="tab" onclick="switchCountryTab('places',this)">By Unique Places</div>
