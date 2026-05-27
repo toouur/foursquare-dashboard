@@ -2567,7 +2567,7 @@ function buildCityMap(){
       if(_filter.country) p.set('country',_filter.country);
       else if(_filter.city) p.set('city',_filter.city);
       if(_cursor!=null){p.set('cursor',_cursor);if(_cursorId)p.set('cursor_id',_cursorId);}
-      const res=await fetch('/api/feed?'+p);
+      const res=await fetch('/api/feed?_v=companions&'+p);
       if(!res.ok) throw new Error(res.status);
       const data=await res.json();
       ciRenderRows(data.items||[]);

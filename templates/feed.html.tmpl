@@ -1390,7 +1390,7 @@ async function _fetchDayCounts(ym){
   if(_ymDaysFetching.has(ym)) return _ymDaysFetching.get(ym);
   const p=(async()=>{
     try{
-      const data=await(await fetch(`/api/feed?month=${ym}`)).json();
+      const data=await(await fetch(`/api/feed?_v=companions&month=${ym}`)).json();
       const items=data.items||[];
       const[myr,mmo]=ym.split('-').map(Number);
       const mdays=new Date(myr,mmo,0).getDate();
@@ -1466,7 +1466,7 @@ async function goYMD(ymd){
   const ts=YD_IDX[ymd];
   if(ts==null) return;
   try{
-    const d=await(await fetch(`/api/feed?cursor=${ts+1}&limit=50`)).json();
+    const d=await(await fetch(`/api/feed?_v=companions&cursor=${ts+1}&limit=50`)).json();
     const items=d.items||[];
     if(!items.length) return;
     _loadGen++;
@@ -1508,7 +1508,7 @@ async function fetchAndShowMonth(ym){
 
   let rawItems=[];
   try{
-    const res=await fetch(`/api/feed?month=${ym}`);
+    const res=await fetch(`/api/feed?_v=companions&month=${ym}`);
     const data=await res.json();
     rawItems=data.items||[];
   }catch(e){}
@@ -1564,7 +1564,7 @@ async function goLatest(){
   if(monthMode) exitMonthView();
   if(revDone){jumpTo(0);return;}
   try{
-    const d=await(await fetch('/api/feed?limit=100')).json();
+    const d=await(await fetch('/api/feed?_v=companions&limit=100')).json();
     const items=d.items||[];
     if(!items.length) return;
     _loadGen++;
@@ -1591,7 +1591,7 @@ async function goLatest(){
 async function goOldest(){
   if(monthMode) exitMonthView();
   try{
-    const d=await(await fetch('/api/feed?oldest=1&limit=100')).json();
+    const d=await(await fetch('/api/feed?_v=companions&oldest=1&limit=100')).json();
     const items=d.items||[];
     if(!items.length) return;
     _loadGen++;
@@ -1625,7 +1625,7 @@ async function loadFwd(){
   const gen=_loadGen;
   try{
     const cid=fwdCursorId?`&cursor_id=${encodeURIComponent(fwdCursorId)}`:'';
-    const d=await(await fetch(`/api/feed?limit=50&cursor=${fwdCursor}${cid}`)).json();
+    const d=await(await fetch(`/api/feed?_v=companions&limit=50&cursor=${fwdCursor}${cid}`)).json();
     if(gen!==_loadGen) return;
     const items=d.items||[];
     if(!items.length){fwdDone=true;return;}
@@ -1651,7 +1651,7 @@ async function loadRev(){
   const gen=_loadGen;
   try{
     const rid=revCursorId?`&after_id=${encodeURIComponent(revCursorId)}`:'';
-    const d=await(await fetch(`/api/feed?after=${revCursor}${rid}&limit=50`)).json();
+    const d=await(await fetch(`/api/feed?_v=companions&after=${revCursor}${rid}&limit=50`)).json();
     if(gen!==_loadGen) return;
     const items=d.items||[];
     if(!items.length){revDone=true;return;}
@@ -1747,7 +1747,7 @@ function onSearch(q){
       (r[5]||'').toLowerCase().includes(lo)||(r[6]||'').toLowerCase().includes(lo));
     _applySearchResults(local, ql);
     try{
-      const d=await(await fetch('/api/feed?q='+encodeURIComponent(ql))).json();
+      const d=await(await fetch('/api/feed?_v=companions&q='+encodeURIComponent(ql))).json();
       if(gen!==_srchGen) return; // stale
       _applySearchResults(d.items||[], ql);
     }catch(e){console.warn('search',e);}
@@ -1800,7 +1800,7 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
 
   let newestData={items:[],has_more:false,next_cursor:null,next_cursor_id:null};
   try{
-    newestData=await(await fetch(`/api/feed?limit=${PG}`)).json();
+    newestData=await(await fetch(`/api/feed?_v=companions&limit=${PG}`)).json();
   }catch(e){console.warn('init fetch',e);}
 
   const items=newestData.items||[];

@@ -27,7 +27,11 @@
 
 const HEADERS = {
   'Content-Type': 'application/json',
-  'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+  // private = browser-only cache, no CDN edge caching.  60 s window keeps the
+  // feed snappy while ensuring schema-shape changes propagate within a minute
+  // — previously max-age=3600 + stale-while-revalidate=86400 left users on
+  // an old tuple shape for up to a day after a deploy.
+  'Cache-Control': 'private, max-age=60, must-revalidate',
 };
 
 // Country → IANA timezone (same as original)
