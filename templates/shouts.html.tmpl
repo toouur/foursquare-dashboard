@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shouts — Check-in Journal</title>
+<meta name="description" content="{{SHOUTS_TOTAL}} personal shouts (free-text notes) attached to Foursquare check-ins across {{COUNTRIES}} countries.">
+<link rel="canonical" href="https://4sq.pages.dev/shouts.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Check-in Journal">
+<meta property="og:title" content="Shouts — Check-in Journal">
+<meta property="og:description" content="{{SHOUTS_TOTAL}} personal shouts (free-text notes) attached to Foursquare check-ins across {{COUNTRIES}} countries.">
+<meta property="og:url" content="https://4sq.pages.dev/shouts.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Shouts — Check-in Journal">
+<meta name="twitter:description" content="{{SHOUTS_TOTAL}} personal shouts (free-text notes) attached to Foursquare check-ins across {{COUNTRIES}} countries.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<style>
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;--text2:#373b58;}
+body.light header{background:linear-gradient(160deg,#d6d1c8 0%,#dedad1 70%);}
+body.light .side-nav{background:rgba(220,215,208,0.97);}
+body.light .side-nav a:hover,body.light .side-nav button:hover{background:rgba(0,0,0,.08);}
+body.light a{color:var(--teal);}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+.page{display:flex;flex-direction:column;height:100vh;}
+
+/* ── Top nav ── */
+.topnav{display:flex;align-items:center;gap:20px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;}
+.topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;margin-right:4px;white-space:nowrap;}
+.topnav-logo:hover{opacity:.85;}
+.topnav a{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
+.topnav a:hover{color:var(--gold);}
+.topnav-current{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--text);}
+.gs-btn{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .2s;white-space:nowrap;}
+.gs-btn:hover{border-color:var(--gold);color:var(--gold);}
+.gs-btn kbd{font-family:'DM Mono',monospace;font-size:.52rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:1px 5px;letter-spacing:0;}
+@media(max-width:520px){.gs-btn kbd{display:none;}}
+.gs-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding-top:16vh;}.gs-overlay.open{display:flex;}
+.gs-modal{background:var(--card);border:1px solid var(--border);border-radius:14px;width:min(560px,92vw);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.7);}
+.gs-input-wrap{display:flex;align-items:center;gap:10px;padding:14px 18px;}
+.gs-icon{font-size:1rem;color:var(--muted);}
+.gs-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.95rem;}
+.gs-input::placeholder{color:var(--muted);}
+.gs-esc-hint{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
+.side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}
+.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
+.side-nav a:hover,.side-nav button:hover{background:rgba(255,255,255,.06);color:var(--text);}
+.side-nav a.active,.side-nav button.active{color:var(--gold);}
+.side-nav .sn-icon{font-size:.95rem;line-height:1;display:inline-block;transition:transform .15s;}
+.side-nav a:hover .sn-icon,.side-nav button:hover .sn-icon{transform:scale(1.28);}
+.side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}
+.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:2px auto;}
+.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:3px auto;border-radius:1px;}
+@media(max-width:900px){.side-nav{display:none;}}
+
+/* ── Topbar ── */
+.topbar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;z-index:200;flex-wrap:wrap;min-height:48px;}
+.topbar h1{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d 50%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.05em 0 .12em;display:inline-block;white-space:nowrap;}
+.sbtn{background:var(--card2);border:1px solid var(--border);border-radius:7px;color:var(--muted);padding:4px 9px;cursor:pointer;font-size:.70rem;transition:all .12s;font-family:'DM Sans',sans-serif;}
+.sbtn:hover{border-color:var(--gold);color:var(--gold);}
+.sbtn.act{border-color:var(--gold);color:var(--gold);background:rgba(232,184,109,.08);}
+.badge{font-size:.63rem;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap;}
+.page-insight{padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:.78rem;color:var(--muted);font-style:italic;border-bottom:1px solid var(--border);background:var(--card);line-height:1.5;flex-shrink:0;}
+.srch{background:var(--card2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--text);font-size:.73rem;outline:none;width:240px;}
+.srch:focus{border-color:var(--gold);}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+
+/* ── Layout ── */
+.content{flex:1;overflow-y:auto;padding:14px;}
+.content::-webkit-scrollbar{width:4px;}
+.content::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px;}
+.feed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px;max-width:1400px;margin:0 auto;}
+
+/* ── Shout card ── */
+.scard{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:13px 16px 11px;transition:border-color .15s;position:relative;overflow:hidden;}
+.scard::after{content:'';position:absolute;top:0;left:16px;right:16px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.2;}
+.scard:hover{border-color:rgba(232,184,109,.35);}
+.sc-text{font-size:.86rem;line-height:1.5;color:var(--text);margin-bottom:9px;white-space:pre-wrap;overflow-wrap:break-word;}
+.sc-text mark{background:rgba(232,184,109,.25);color:var(--gold);padding:0 1px;border-radius:2px;}
+.sc-head{display:flex;align-items:flex-start;gap:7px;margin-bottom:6px;}
+.sc-cat-icon{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.sc-venue{font-size:.78rem;font-weight:600;line-height:1.3;flex:1;color:var(--text);overflow-wrap:break-word;}
+.sc-venue a{color:var(--text);text-decoration:none;}
+.sc-venue a:hover{color:var(--gold);}
+.sc-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);}
+.sc-loc{display:inline-flex;align-items:center;gap:3px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sc-date{white-space:nowrap;}
+.sc-with{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--teal);margin-left:30px;margin-top:2px;}
+.empty{text-align:center;padding:60px 16px;color:var(--muted);font-size:.85rem;}
+.empty-hint{font-size:.72rem;margin-top:8px;opacity:.7;}
+
+/* ── Sentinel for infinite scroll ── */
+.load-more{grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);font-family:'DM Mono',monospace;font-size:.7rem;}
+
+@media(max-width:700px){
+  .feed-grid{grid-template-columns:1fr;}
+  .topbar{padding:6px 10px;gap:5px;min-height:auto;}
+  .topbar h1{font-size:1rem;}
+  .srch{width:100%;order:10;margin-top:4px;}
+  .tb-right{flex-wrap:wrap;gap:5px;}
+  .sbtn{font-size:.64rem;padding:3px 7px;}
+  .badge{display:none;}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <nav class="topnav">
+    <a href="index.html" class="topnav-logo">Check-in Journal</a>
+    <span class="topnav-current">Shouts</span>
+    <button class="gs-btn" style="margin-left:auto" onclick="gsOpen()"><span>⌕</span> Search<kbd>⌘K</kbd></button>
+  </nav>
+  <div class="gs-overlay" id="gsOverlay" onclick="if(event.target===this)gsClose()">
+    <div class="gs-modal"><div class="gs-input-wrap"><span class="gs-icon">⌕</span><input class="gs-input" id="gsInput" type="text" placeholder="Search venues, cities, trips…" autocomplete="off" spellcheck="false"><span class="gs-esc-hint" onclick="gsClose()">esc</span></div></div>
+  </div>
+  <div class="topbar">
+    <h1>Shouts</h1>
+    <select class="sbtn" id="fYear" onchange="setYear(this.value)" style="padding:4px 7px;cursor:pointer;"></select>
+    <select class="sbtn" id="fCountry" onchange="setCountry(this.value)" style="padding:4px 7px;cursor:pointer;"></select>
+    <div class="tb-right">
+      <input class="srch" id="srch" type="text" placeholder="Search text, venue, city…" oninput="onSearch(this.value)">
+      <span class="badge" id="badge"></span>
+    </div>
+  </div>
+  <div class="page-insight" id="page-insight"></div>
+  <div class="content" id="content">
+    <div class="feed-grid" id="feedGrid"></div>
+  </div>
+</div>
+
+<script>
+const ALL = SHOUTS_DATA_PLACEHOLDER;
+
+const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+const CTRY_CODE = {"Belarus":"by","Moldova":"md","Poland":"pl","Russia":"ru","Ukraine":"ua","Germany":"de","France":"fr","Italy":"it","Spain":"es","Turkey":"tr","Türkiye":"tr","Sweden":"se","Denmark":"dk","Norway":"no","Finland":"fi","Austria":"at","Switzerland":"ch","Netherlands":"nl","Belgium":"be","Portugal":"pt","Czech Republic":"cz","Czechia":"cz","Hungary":"hu","Slovakia":"sk","Romania":"ro","Bulgaria":"bg","Croatia":"hr","Slovenia":"si","Serbia":"rs","Bosnia and Herzegovina":"ba","Montenegro":"me","North Macedonia":"mk","Albania":"al","Kosovo":"xk","Estonia":"ee","Latvia":"lv","Lithuania":"lt","Greece":"gr","Cyprus":"cy","Malta":"mt","Iceland":"is","Ireland":"ie","United Kingdom":"gb","Georgia":"ge","Armenia":"am","Azerbaijan":"az","Kazakhstan":"kz","Uzbekistan":"uz","Kyrgyzstan":"kg","Tajikistan":"tj","Turkmenistan":"tm","Mongolia":"mn","China":"cn","Japan":"jp","South Korea":"kr","Taiwan":"tw","India":"in","Thailand":"th","Vietnam":"vn","Indonesia":"id","Singapore":"sg","Malaysia":"my","Pakistan":"pk","Nepal":"np","Qatar":"qa","UAE":"ae","United Arab Emirates":"ae","Saudi Arabia":"sa","Jordan":"jo","Israel":"il","Iraq":"iq","Lebanon":"lb","Iran":"ir","Egypt":"eg","Morocco":"ma","Tunisia":"tn","South Africa":"za","United States":"us","Canada":"ca","Mexico":"mx","Brazil":"br","Argentina":"ar","Chile":"cl","Colombia":"co","Peru":"pe","Australia":"au","New Zealand":"nz","Holy See (Vatican City State)":"va","San Marino":"sm","Monaco":"mc","Cambodia":"kh","Cuba":"cu"};
+function flagHtml(c){const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span class="fi fi-${code}" style="border-radius:2px;font-size:.85em;vertical-align:middle;"></span> `:''}
+
+// Category icons (subset — most-common in shouts)
+const CAT_ICON={'Coffee Shop':['☕','#6F4E37'],'Café':['☕','#6F4E37'],'Bakery':['🥐','#C8860A'],'Restaurant':['🍽️','#C0392B'],'Fast Food Restaurant':['🍔','#E67E22'],'Pizzeria':['🍕','#E74C3C'],'Bar':['🍺','#F39C12'],'Pub':['🍻','#D4A017'],'Cocktail Bar':['🍸','#E74C3C'],'Wine Bar':['🍷','#922B21'],'Nightclub':['🎵','#6C3483'],'Hotel':['🏨','#2C3E50'],'Hostel':['🛏️','#34495E'],'Bed and Breakfast':['🛏️','#4A235A'],'Apartment or Condo':['🏠','#1A5276'],'Home (private)':['🏠','#17202A'],'Metro Station':['🚇','#2980B9'],'Rail Station':['🚉','#1A5276'],'Train':['🚂','#E74C3C'],'Bus Station':['🚌','#1E8449'],'Airport':['✈️','#154360'],'Airport Terminal':['✈️','#2471A3'],'Airport Gate':['✈️','#1A5276'],'Park':['🌳','#1E8449'],'Beach':['🏖️','#F39C12'],'Museum':['🏛️','#7D3C98'],'Art Gallery':['🖼️','#7D3C98'],'Theater':['🎭','#922B21'],'Movie Theater':['🎬','#C0392B'],'Office':['🏢','#2C3E50'],'University':['🎓','#154360'],'Shopping Mall':['🛍️','#E91E63'],'Grocery Store':['🛒','#27AE60'],'Supermarket':['🛒','#219A52'],'Gym':['💪','#E74C3C'],'Spa':['💆','#1ABC9C'],'Border Crossing':['🛂','#717D7E'],'Road':['🛣️','#7F8C8D'],'Plane':['✈️','#2980B9'],'Bus Line':['🚌','#27AE60']};
+function catIcon(cat){const e=CAT_ICON[cat||''];return e?{em:e[0],bg:e[1]}:{em:'📍',bg:'#4a5270'};}
+
+// ── Filter state ─────────────────────────────────────────────────────────────
+let query='', yearFilter=0, countryFilter='';
+const PAGE_SIZE = 80;
+let renderedCount = 0;
+let lastFilteredCount = 0;
+
+// Year and country option lists derived from data
+(function(){
+  const years=new Set(), countries=new Map();
+  ALL.forEach(s=>{
+    if(s.ts) years.add(new Date(s.ts*1000).getFullYear());
+    if(s.country) countries.set(s.country,(countries.get(s.country)||0)+1);
+  });
+  const yrSel=document.getElementById('fYear');
+  yrSel.appendChild(new Option('All years','0'));
+  [...years].sort((a,b)=>b-a).forEach(y=>yrSel.appendChild(new Option(String(y),String(y))));
+
+  const coSel=document.getElementById('fCountry');
+  coSel.appendChild(new Option('All countries (' + ALL.length.toLocaleString() + ')',''));
+  [...countries.entries()].sort((a,b)=>b[1]-a[1]).forEach(([c,n])=>{
+    coSel.appendChild(new Option(c+' ('+n.toLocaleString()+')',c));
+  });
+})();
+
+// Page insight
+(function(){
+  const ctrSet = new Set(ALL.map(s=>s.country).filter(Boolean));
+  const yrs=[...new Set(ALL.map(s=>new Date(s.ts*1000).getFullYear()))].sort();
+  const span = yrs.length ? (yrs[yrs.length-1]-yrs[0]+1) : 0;
+  const avgChars = ALL.length ? Math.round(ALL.reduce((a,s)=>a+(s.text||'').length,0)/ALL.length) : 0;
+  document.getElementById('page-insight').textContent =
+    ALL.length.toLocaleString() + ' shouts across ' + ctrSet.size + ' countries, ' + span + ' years — average length ' + avgChars + ' characters.';
+})();
+
+function highlight(text, q){
+  if(!q) return esc(text);
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if(i < 0) return esc(text);
+  return esc(text.slice(0,i)) + '<mark>' + esc(text.slice(i, i+q.length)) + '</mark>' + esc(text.slice(i+q.length));
+}
+
+function getFiltered(){
+  const q = query.toLowerCase();
+  return ALL.filter(s=>{
+    if(yearFilter && new Date(s.ts*1000).getFullYear() !== yearFilter) return false;
+    if(countryFilter && s.country !== countryFilter) return false;
+    if(!q) return true;
+    return (s.text||'').toLowerCase().includes(q)
+        || (s.venue||'').toLowerCase().includes(q)
+        || (s.city||'').toLowerCase().includes(q)
+        || (s.country||'').toLowerCase().includes(q)
+        || (s.with_name||'').toLowerCase().includes(q);
+  });
+}
+
+function renderCard(s){
+  const {em,bg} = catIcon(s.category||'');
+  const vUrl = s.venue_id ? `https://foursquare.com/v/${s.venue_id}` : '';
+  const venueLabel = vUrl
+    ? `<a href="${vUrl}" target="_blank" rel="noopener">${esc(s.venue||'Unknown venue')}</a>`
+    : esc(s.venue||'Unknown venue');
+  const loc = [s.city, s.country].filter(Boolean).join(', ');
+  const f = s.country ? flagHtml(s.country) : '';
+  const withRow = s.with_name ? `<div class="sc-with">with ${esc(s.with_name)}</div>` : '';
+  return `<div class="scard">
+    <div class="sc-text">${highlight(s.text||'', query)}</div>
+    <div class="sc-head">
+      <div class="sc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>
+      <div class="sc-venue">${venueLabel}</div>
+    </div>
+    ${withRow}
+    <div class="sc-foot">
+      <span class="sc-loc">${f}${esc(loc)}</span>
+      <span class="sc-date">${s.date||''}</span>
+    </div>
+  </div>`;
+}
+
+let _filteredCache = null;
+function render(reset){
+  if(reset) renderedCount = 0;
+  _filteredCache = getFiltered();
+  lastFilteredCount = _filteredCache.length;
+  document.getElementById('badge').textContent = lastFilteredCount.toLocaleString() + ' / ' + ALL.length.toLocaleString() + ' shouts';
+
+  const grid = document.getElementById('feedGrid');
+  if(reset) grid.innerHTML='';
+
+  if(!lastFilteredCount){
+    grid.innerHTML = '<div class="empty">No shouts match your filter.<div class="empty-hint">Try a different country, year, or clear the search box.</div></div>';
+    return;
+  }
+
+  const slice = _filteredCache.slice(renderedCount, renderedCount + PAGE_SIZE);
+  if(reset) grid.innerHTML = slice.map(renderCard).join('');
+  else grid.insertAdjacentHTML('beforeend', slice.map(renderCard).join(''));
+  renderedCount += slice.length;
+
+  // Maintain a sentinel for infinite scroll
+  let sentinel = document.getElementById('loadMoreSentinel');
+  if(renderedCount < lastFilteredCount){
+    if(!sentinel){
+      sentinel = document.createElement('div');
+      sentinel.id = 'loadMoreSentinel';
+      sentinel.className = 'load-more';
+      sentinel.textContent = 'Loading more…';
+      grid.appendChild(sentinel);
+    } else {
+      grid.appendChild(sentinel);
+    }
+  } else if(sentinel){
+    sentinel.remove();
+  }
+}
+
+function setYear(v){yearFilter=parseInt(v)||0;render(true);}
+function setCountry(v){countryFilter=v||'';render(true);}
+function onSearch(v){query=v;render(true);}
+
+// Infinite scroll handler
+document.getElementById('content').addEventListener('scroll', function(){
+  if(renderedCount >= lastFilteredCount) return;
+  const el = this;
+  if(el.scrollTop + el.clientHeight >= el.scrollHeight - 240){
+    render(false);
+  }
+});
+
+render(true);
+
+// Deep-link via ?q=
+(function(){
+  const _q=new URLSearchParams(location.search).get('q');
+  if(_q){const _inp=document.getElementById('srch');if(_inp){_inp.value=_q;onSearch(_q);}}
+})();
+
+function gsOpen(){document.getElementById('gsOverlay').classList.add('open');document.getElementById('gsInput').focus();}
+function gsClose(){document.getElementById('gsOverlay').classList.remove('open');}
+document.getElementById('gsInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&this.value.trim()){location.href='search.html?q='+encodeURIComponent(this.value.trim());}if(e.key==='Escape')gsClose();});
+document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();gsOpen();}if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open'))gsClose();});
+</script>
+<nav class="side-nav" aria-label="Page shortcuts">
+  <a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
+  <div class="sn-sep--pages"></div>
+  <a href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">FEED</span></a>
+  <a href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">TIPS</span></a>
+  <a href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">RATED</span></a>
+  <a class="active" href="shouts.html"><span class="sn-icon">💭</span><span class="sn-lbl">SHOUTS</span></a>
+  <a href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">PHOTOS</span></a>
+  <a href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">TRIPS</span></a>
+  <a href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">LISTS</span></a>
+  <a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">WORLD CITIES</span></a>
+  <a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">TOTAL PLACES</span></a>
+  <a href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">WITH</span></a>
+  <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
+  <div class="sn-sep"></div>
+  <button id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
+</nav>
+<script>
+(function(){
+  var btn=document.getElementById('snThemeToggle');
+  var ico=document.getElementById('snThemeIcon');
+  var lbl=document.getElementById('snThemeLbl');
+  function apply(light){
+    document.body.classList.toggle('light',light);
+    if(ico) ico.textContent=light?'\u{1F319}':'☀️';
+    if(lbl) lbl.textContent=light?'DARK':'LIGHT';
+  }
+  apply(localStorage.getItem('fsq-theme')==='light');
+  if(btn) btn.addEventListener('click',function(){
+    var isLight=document.body.classList.toggle('light');
+    localStorage.setItem('fsq-theme',isLight?'light':'dark');
+    apply(isLight);
+  });
+})();
+</script>
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>

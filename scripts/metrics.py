@@ -843,6 +843,46 @@ def shout_analysis(rows: list[dict]) -> dict:
     }
 
 
+# ── Shout records (raw list for dedicated page) ───────────────────────────────
+
+# Module-level so build.py / gen_shouts can reuse the same suffix regex.
+_SHOUT_SUFFIX_RE = _re.compile(r"\s*[—\-–]\s*with\s+.+$", _re.IGNORECASE | _re.UNICODE)
+
+def shout_records(rows: list[dict]) -> list[dict]:
+    """Return all check-ins that carry a non-empty shout, sorted newest-first.
+
+    Each record exposes the fields needed by the Shouts page and the index
+    Shouts strip — the trailing " — with X" companion suffix is stripped from
+    `text` so it doesn't visually duplicate the with_name field.
+    """
+    out: list[dict] = []
+    for r in rows:
+        s = (r.get("shout") or "").strip()
+        if not s:
+            continue
+        clean = _SHOUT_SUFFIX_RE.sub("", s).strip()
+        if not clean:
+            continue
+        try:
+            ts = int(r["date"])
+        except (ValueError, KeyError, TypeError):
+            continue
+        out.append({
+            "ts":        ts,
+            "text":      clean,
+            "venue":     (r.get("venue") or "").strip(),
+            "venue_id":  (r.get("venue_id") or "").strip(),
+            "city":      (r.get("city") or "").strip(),
+            "country":   (r.get("country") or "").strip(),
+            "category":  (r.get("category") or "").strip(),
+            "with_name": (r.get("with_name") or "").strip(),
+            "lat":       r.get("lat") or None,
+            "lng":       r.get("lng") or None,
+        })
+    out.sort(key=lambda x: -x["ts"])
+    return out
+
+
 # ── Cross-dimensional analytics ────────────────────────────────────────────────
 
 def cross_dim_analysis(rows: list[dict], categorize) -> dict:

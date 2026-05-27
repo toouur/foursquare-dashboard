@@ -650,6 +650,33 @@ if __name__ == "__main__":
         except Exception as _ae:
             log.warning("Failed to load anomalies: %s", _ae)
 
+    # ── Extract shouts (all + recent strip for index) ───────────────────────────
+    from metrics import shout_records as _shout_records
+    all_shouts = _shout_records(rows)
+    _recent_shouts = []
+    for s in all_shouts[:30]:
+        from datetime import datetime as _dt, timezone as _tz
+        try:
+            _d = _dt.fromtimestamp(s["ts"], tz=_tz.utc)
+            _date_str = _d.strftime("%d %b %Y")
+        except (ValueError, OSError):
+            _date_str = ""
+        _recent_shouts.append({
+            "ts":        s["ts"],
+            "date":      _date_str,
+            "text":      s["text"],
+            "venue":     s.get("venue", ""),
+            "venue_id":  s.get("venue_id", ""),
+            "city":      s.get("city", ""),
+            "country":   s.get("country", ""),
+            "category":  s.get("category", ""),
+        })
+    shouts_recent_json = json.dumps(
+        {"total": len(all_shouts), "items": _recent_shouts},
+        ensure_ascii=False,
+    ).replace("</", "<\\/")
+    log.info("Loaded %d shouts (recent %d)", len(all_shouts), len(_recent_shouts))
+
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir,
           pix_dir_json=json.dumps(_pix_dir_uri),
@@ -663,6 +690,8 @@ if __name__ == "__main__":
               "{{RATINGS_RECENT_JSON}}":   ratings_recent_json,
               "{{RATINGS_COUNTS}}":        ratings_counts_json,
               "{{LISTS_COUNT}}":           str(len(json.loads(_lists_data_json))),
+              "{{SHOUTS_RECENT}}":         shouts_recent_json,
+              "{{SHOUTS_COUNT}}":          f"{len(all_shouts):,}",
           })
 
     if args.cat_list:
@@ -681,6 +710,7 @@ if __name__ == "__main__":
         (_here / "gen_ratings.py",    "ratings.html",      "ratings.html.tmpl",      {"likes": _likes, "neutral": _neutral, "dislikes": _dislikes, "country_count": len(data['countries'])}),
         (_here / "gen_lists.py",      "lists.html",        "lists.html.tmpl",        {"lists_data_json": _lists_data_json}),
         (_here / "gen_guide.py",      "guide.html",        "guide.html.tmpl",        {"rows": rows, "mappings": mappings}),
+        (_here / "gen_shouts.py",     "shouts.html",       "shouts.html.tmpl",       {"shouts": all_shouts, "country_count": len(data['countries'])}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il

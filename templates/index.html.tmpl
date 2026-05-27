@@ -512,6 +512,14 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
   <div class="recent-scroll" id="tipsScroll"></div>
 </div>
 
+<div class="recent-section" id="shoutsFeedSection" style="display:none">
+  <div class="recent-header">
+    <a class="recent-title" href="shouts.html" style="text-decoration:none;">Shouts ↗</a>
+    <span class="recent-sub" id="shoutsSub"></span>
+  </div>
+  <div class="recent-scroll" id="shoutsScroll"></div>
+</div>
+
 <div class="recent-section" id="ratingsFeedSection" style="display:none">
   <div class="recent-header">
     <a class="recent-title" href="ratings.html" style="text-decoration:none;">Liked Places ↗</a>
@@ -1854,6 +1862,30 @@ function filterList(id,q){
   }).join('');
 })();
 
+// ── Shouts recent section ───────────────────────────────────────────────────
+(function(){
+  const sh={{SHOUTS_RECENT}};
+  if(!sh||!sh.items||!sh.items.length)return;
+  const catIcon=window._catIcon||(()=>({em:'📍',bg:'#4a5270'}));
+  document.getElementById('shoutsFeedSection').style.display='';
+  document.getElementById('shoutsSub').textContent=sh.total.toLocaleString()+' shouts total';
+  const scroll=document.getElementById('shoutsScroll');
+  scroll.innerHTML=sh.items.map(s=>{
+    const vUrl=s.venue_id?`https://foursquare.com/v/${s.venue_id}`:'';
+    const tag=vUrl?'a':'div', href=vUrl?` href="${vUrl}" target="_blank" rel="noopener"`:'';
+    const f=s.country?flagHtml(s.country):'';
+    const loc=[s.city,s.country].filter(Boolean).join(', ');
+    return `<${tag}${href} class="recent-card tip-card" style="${vUrl?'text-decoration:none;cursor:pointer;':''}">
+      <div class="rc-tip-text" style="font-style:italic;">${esc(s.text||'')}</div>
+      <div class="rc-venue-row" style="margin-top:8px;"><div class="rc-venue">${esc(s.venue||'Unknown venue')}</div>${(c=>{const ic=catIcon(c||'');return ic&&ic.em?`<div class="rc-cat-icon" style="background:${ic.bg}22;border:1px solid ${ic.bg}55">${ic.em}</div>`:'';})(s.category)}</div>
+      <div class="rc-tip-foot">
+        <span class="rc-location">${f} ${esc(loc)}</span>
+        <span class="rc-date">${s.date}</span>
+      </div>
+    </${tag}>`;
+  }).join('');
+})();
+
 // ── Liked places recent section ───────────────────────────────────────────────
 (function(){
   var ratings={{RATINGS_RECENT_JSON}};
@@ -2620,6 +2652,7 @@ function buildCityMap(){
   <a class="sn-item" href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">FEED</span></a>
   <a class="sn-item" href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">TIPS</span></a>
   <a class="sn-item" href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">RATED</span></a>
+  <a class="sn-item" href="shouts.html"><span class="sn-icon">💭</span><span class="sn-lbl">SHOUTS</span></a>
   <a class="sn-item" href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">PHOTOS</span></a>
   <a class="sn-item" href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">TRIPS</span></a>
   <a class="sn-item" href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">LISTS</span></a>
