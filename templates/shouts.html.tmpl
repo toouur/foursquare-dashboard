@@ -197,7 +197,7 @@ function getFiltered(){
         || (s.venue||'').toLowerCase().includes(q)
         || (s.city||'').toLowerCase().includes(q)
         || (s.country||'').toLowerCase().includes(q)
-        || (s.with_name||'').toLowerCase().includes(q);
+        || (s.companions||[]).some(n => n.toLowerCase().includes(q));
   });
 }
 
@@ -213,7 +213,8 @@ function renderCard(s){
     : esc(s.venue||'Unknown venue');
   const loc = [s.city, s.country].filter(Boolean).join(', ');
   const f = s.country ? flagHtml(s.country) : '';
-  const withRow = s.with_name ? `<div class="sc-with">with ${esc(s.with_name)}</div>` : '';
+  const compList = (s.companions || []).join(', ');
+  const withRow = compList ? `<div class="sc-with">with ${esc(compList)}</div>` : '';
   const cardAttr = swarmUrl
     ? ` onclick="window.open('${swarmUrl}','_blank')" style="cursor:pointer;"`
     : '';

@@ -1107,7 +1107,7 @@ function mkCard(i){
 
   const ci=DATA[i];
 
-  const [ts,date,time,venue,city,country,cat,vid,lat,lng,cid,withName]=ci;
+  const [ts,date,time,venue,city,country,cat,vid,lat,lng,cid,companions]=ci;
 
   const vn=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(venue||'—')}</a>`:esc(venue||'—');
 
@@ -1143,7 +1143,7 @@ function mkCard(i){
 
     <div class="fc-loc">${flag}<span>${esc(locStr)}</span></div>
 
-    ${withName?`<div class="fc-with">with ${esc(withName)}</div>`:''}
+    ${(companions&&companions.length)?`<div class="fc-with">with ${esc(companions.join(', '))}</div>`:''}
 
     <div class="fc-weather-row" id="wrow${i}">${wHtml}</div>
 

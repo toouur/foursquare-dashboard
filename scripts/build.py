@@ -671,6 +671,7 @@ if __name__ == "__main__":
             "country":    s.get("country", ""),
             "category":   s.get("category", ""),
             "checkin_id": s.get("checkin_id", ""),
+            "companions": s.get("companions", []),
         })
     shouts_recent_json = json.dumps(
         {"total": len(all_shouts), "items": _recent_shouts},

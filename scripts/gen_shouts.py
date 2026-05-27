@@ -38,7 +38,7 @@ def build_page(
             "city":       s.get("city", ""),
             "country":    s.get("country", ""),
             "category":   s.get("category", ""),
-            "with_name":  s.get("with_name", ""),
+            "companions": s.get("companions", []),
             "checkin_id": s.get("checkin_id", ""),
         })
 

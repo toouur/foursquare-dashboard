@@ -837,6 +837,43 @@ def shout_analysis(rows: list[dict]) -> dict:
 
 # ── Shout records (raw list for dedicated page) ───────────────────────────────
 
+def collect_companions(row: dict) -> list[str]:
+    """De-duplicated list of companion names from all three Foursquare signals.
+
+    - `with_name`: explicitly tagged ("with Joanna")
+    - `created_by_name`: someone else checked you in
+    - `overlaps_name`: a friend independently checked in to the same venue
+      around the same time
+
+    Names are compared case-insensitively to dedupe; the first-seen original
+    casing wins.  The Foursquare overlaps column uses "-" as a sentinel for
+    "none" — those are excluded.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+
+    def _push(raw: str, allow_dash_sentinel: bool = False) -> None:
+        for part in (raw or "").replace(" ,", ",").split(","):
+            n = part.strip()
+            if not n:
+                continue
+            if not allow_dash_sentinel and n == "-":
+                continue
+            key = n.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(n)
+
+    _push(row.get("with_name") or "")
+    cb = (row.get("created_by_name") or "").strip()
+    if cb and cb.lower() not in seen:
+        seen.add(cb.lower())
+        out.append(cb)
+    _push(row.get("overlaps_name") or "")
+    return out
+
+
 # Module-level so build.py / gen_shouts can reuse the same suffix regex.
 _SHOUT_SUFFIX_RE = _re.compile(r"\s*[—\-–]\s*with\s+.+$", _re.IGNORECASE | _re.UNICODE)
 # Matches shouts whose ENTIRE text is just "with X" companion attribution
@@ -910,7 +947,7 @@ def shout_records(rows: list[dict]) -> list[dict]:
             "city":       (r.get("city") or "").strip(),
             "country":    (r.get("country") or "").strip(),
             "category":   (r.get("category") or "").strip(),
-            "with_name":  (r.get("with_name") or "").strip(),
+            "companions": collect_companions(r),
             "lat":        r.get("lat") or None,
             "lng":        r.get("lng") or None,
             "checkin_id": (r.get("checkin_id") or "").strip(),
@@ -1698,7 +1735,7 @@ def process(
                 "lng":        lng,
                 "tz_name":    tz_name,
                 "checkin_id": r.get("checkin_id", "").strip(),
-                "with_name":  r.get("with_name", "").strip(),
+                "companions": collect_companions(r),
             }
         )
 
