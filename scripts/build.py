@@ -117,6 +117,9 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     trips_html = trips_html.replace('{{PIX_DIR_JSON}}', pix_dir_json)
     trips_html = trips_html.replace('{{STATS}}', json.dumps(data, ensure_ascii=False).replace('</', '<\\/'))
+    if extra_replacements:
+        for key, val in extra_replacements.items():
+            trips_html = trips_html.replace(key, val)
     trips_path = os.path.join(out_dir, 'trips.html')
     with open(trips_path, 'w', encoding='utf-8') as f: f.write(trips_html)
     print(f"Built ->{trips_path}  ({len(trips_html)//1024:,} KB)")
@@ -679,6 +682,17 @@ if __name__ == "__main__":
     ).replace("</", "<\\/")
     log.info("Loaded %d shouts (recent %d)", len(all_shouts), len(_recent_shouts))
 
+    # Load canonical country flag map (English name -> ISO 3166 alpha-2)
+    _flags_path = config_dir / "country_flags.json"
+    if _flags_path.exists():
+        _ctry_flags = json.loads(_flags_path.read_text(encoding="utf-8"))
+        # Skip _comment-prefixed keys reserved for inline documentation
+        _ctry_flags = {k: v for k, v in _ctry_flags.items() if not k.startswith("_")}
+    else:
+        _ctry_flags = {}
+        log.warning("country_flags.json missing at %s — flag icons will be empty", _flags_path)
+    _ctry_flags_json = json.dumps(_ctry_flags, ensure_ascii=False)
+
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir,
           pix_dir_json=json.dumps(_pix_dir_uri),
@@ -694,13 +708,17 @@ if __name__ == "__main__":
               "{{LISTS_COUNT}}":           str(len(json.loads(_lists_data_json))),
               "{{SHOUTS_RECENT}}":         shouts_recent_json,
               "{{SHOUTS_COUNT}}":          f"{len(all_shouts):,}",
+              "{{CTRY_CODE_JSON}}":        _ctry_flags_json,
           })
 
     if args.cat_list:
         save_category_list(rows, os.path.join(args.output_dir, "category_list.txt"))
 
     # ── Generate companion, feed, world-cities, tips pages ──
+    # Templates use {{CTRY_CODE_JSON}} placeholder — substituted in a post-
+    # process pass below from the single canonical config/country_flags.json.
     _here = _SCRIPT_DIR
+    _gen_outputs: list[str] = []
     for gen_script, gen_out, gen_tmpl, gen_kwargs in [
         (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {"social_data": data}),
         (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {"swarm_user_id": fs_user_id}),
@@ -727,10 +745,26 @@ if __name__ == "__main__":
                     tmpl_path  = str(_TEMPLATES_DIR / gen_tmpl),
                     **gen_kwargs,
                 )
+                _gen_outputs.append(os.path.join(args.output_dir, gen_out))
             except Exception as _e:
                 log.warning("Generator %s failed: %s", gen_script.name, _e)
         else:
             log.warning("Generator not found: %s", gen_script)
+
+    # ── Post-process: substitute {{CTRY_CODE_JSON}} in every generated file ──
+    # Single canonical source: config/country_flags.json (loaded once above).
+    # Done after generators run so we don't need to thread ctry_flags_json
+    # through every gen_*.py kwarg signature.
+    for _out_file in _gen_outputs:
+        try:
+            _p = Path(_out_file)
+            if not _p.exists():
+                continue
+            _txt = _p.read_text(encoding="utf-8")
+            if "{{CTRY_CODE_JSON}}" in _txt:
+                _p.write_text(_txt.replace("{{CTRY_CODE_JSON}}", _ctry_flags_json), encoding="utf-8")
+        except Exception as _e:
+            log.warning("post-process flag substitution failed for %s: %s", _out_file, _e)
 
     # ── Generate photos.html (all photos gallery) ────────────────────────────
     if args.photos and _photos_by_checkin:
@@ -752,6 +786,12 @@ if __name__ == "__main__":
                     ctry_norm=_CTRY_NORM,
                     country_count=len(data['countries']),
                 )
+                # Post-process the canonical flag map placeholder.
+                _photos_html = Path(args.output_dir) / "photos.html"
+                if _photos_html.exists():
+                    _txt = _photos_html.read_text(encoding="utf-8")
+                    if "{{CTRY_CODE_JSON}}" in _txt:
+                        _photos_html.write_text(_txt.replace("{{CTRY_CODE_JSON}}", _ctry_flags_json), encoding="utf-8")
             except Exception as _e:
                 log.warning("gen_photos.py failed: %s", _e)
         else:

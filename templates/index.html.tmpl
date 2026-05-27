@@ -770,30 +770,7 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 
 // ── Country flag emoji ──────────────────────────────────────────────────────
 // ── Country → ISO 3166-1 alpha-2 ──────────────────────────────────────────
-const ISO2={
-  'Afghanistan':'af','Albania':'al','Algeria':'dz','Angola':'ao','Argentina':'ar',
-  'Armenia':'am','Australia':'au','Austria':'at','Azerbaijan':'az',
-  'Belarus':'by','Belgium':'be','Bolivia':'bo','Bosnia and Herzegovina':'ba',
-  'Brazil':'br','Bulgaria':'bg','Cambodia':'kh','Canada':'ca','Chile':'cl',
-  'China':'cn','Colombia':'co','Croatia':'hr','Cyprus':'cy','Czech Republic':'cz',
-  'Denmark':'dk','Ecuador':'ec','Egypt':'eg','Estonia':'ee','Finland':'fi',
-  'France':'fr','Georgia':'ge','Germany':'de','Greece':'gr','Hungary':'hu',
-  'Hong Kong':'hk','India':'in','Indonesia':'id','Iran':'ir','Iraq':'iq',
-  'Ireland':'ie','Israel':'il','Italy':'it','Japan':'jp','Kazakhstan':'kz',
-  'Kosovo':'xk','Kyrgyzstan':'kg','Latvia':'lv','Lithuania':'lt','Luxembourg':'lu',
-  'Macao':'mo','Malaysia':'my','Malta':'mt','Mexico':'mx','Moldova':'md',
-  'Montenegro':'me','Morocco':'ma','Myanmar':'mm','Netherlands':'nl',
-  'New Zealand':'nz','North Macedonia':'mk','Norway':'no','Oman':'om',
-  'Pakistan':'pk','Peru':'pe','Philippines':'ph','Poland':'pl','Portugal':'pt',
-  'Qatar':'qa','Romania':'ro','Russia':'ru','Serbia':'rs','Singapore':'sg',
-  'Slovakia':'sk','Slovenia':'si','South Korea':'kr','Spain':'es','Sweden':'se',
-  'Switzerland':'ch','Taiwan':'tw','Thailand':'th','Tunisia':'tn',
-  'Turkey':'tr','Türkiye':'tr','Ukraine':'ua','United Arab Emirates':'ae',
-  'United Kingdom':'gb','United States':'us','Uruguay':'uy','Uzbekistan':'uz','Tajikistan':'tj',
-  'Venezuela':'ve','Vietnam':'vn','Holy See (Vatican City State)':'va','	Holy See (Vatican City State)':'va','Vatican City':'va',
-  'North Korea':'kp','Cuba':'cu','Iceland':'is','Sri Lanka':'lk',
-  'Liechtenstein':'li',
-};
+const ISO2={{CTRY_CODE_JSON}};
 // Returns an HTML <span> using flag-icons CSS library (renders on all platforms)
 function flagHtml(country,size){
   const c=(country||'').trim();

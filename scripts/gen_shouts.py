@@ -15,6 +15,7 @@ def build_page(
     shouts: list | None = None,
     country_count: int = 0,
     swarm_user_id: str = "",
+    **_extra,
 ) -> None:
     tmpl = Path(tmpl_path).read_text(encoding="utf-8")
     shouts = shouts or []
