@@ -89,14 +89,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .gs-input::placeholder{color:var(--muted);}
 .gs-esc-hint{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
 .side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}
-.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
+.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:6px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
 .side-nav a:hover,.side-nav button:hover{background:rgba(255,255,255,.06);color:var(--text);}
 .side-nav a.active,.side-nav button.active{color:var(--gold);}
-.side-nav .sn-icon{font-size:.95rem;line-height:1;display:inline-block;transition:transform .15s;}
+.side-nav .sn-icon{font-size:.82rem;line-height:1;display:inline-block;transition:transform .15s;}
 .side-nav a:hover .sn-icon,.side-nav button:hover .sn-icon{transform:scale(1.28);}
 .side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}
-.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:2px auto;}
-.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:3px auto;border-radius:1px;}
+.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:1px auto;}
+.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:2px auto;border-radius:1px;}
 @media(max-width:900px){.side-nav{display:none;}}
 
 .tb-nav{display:flex;align-items:center;gap:6px;}
@@ -249,6 +249,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .fc-cat{font-family:'DM Mono',monospace;font-size:.57rem;text-transform:uppercase;letter-spacing:.06em;color:var(--teal);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 .fc-loc{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.fc-with{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--teal);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
 
 .fc-loc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
@@ -1106,7 +1107,7 @@ function mkCard(i){
 
   const ci=DATA[i];
 
-  const [ts,date,time,venue,city,country,cat,vid,lat,lng,cid]=ci;
+  const [ts,date,time,venue,city,country,cat,vid,lat,lng,cid,withName]=ci;
 
   const vn=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(venue||'—')}</a>`:esc(venue||'—');
 
@@ -1141,6 +1142,8 @@ function mkCard(i){
     <div class="fc-cat">${esc(cat)}</div>
 
     <div class="fc-loc">${flag}<span>${esc(locStr)}</span></div>
+
+    ${withName?`<div class="fc-with">with ${esc(withName)}</div>`:''}
 
     <div class="fc-weather-row" id="wrow${i}">${wHtml}</div>
 

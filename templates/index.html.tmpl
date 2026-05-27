@@ -254,6 +254,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 .rc-cat-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px;}
 .rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
 .rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
+.rc-with{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--teal);margin-top:3px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);padding-top:4px;}
 .rc-weather{display:flex;align-items:center;gap:6px;margin-top:auto;}
 .rc-weather-icon{font-size:1.3rem;line-height:1;}
@@ -399,14 +400,14 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 
 /* ── FLOATING SIDE NAV ── */
 .side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}
-.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:10px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
+.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:6px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
 .side-nav a:hover,.side-nav button:hover{background:rgba(255,255,255,.06);color:var(--text);}
 .side-nav a.active,.side-nav button.active{color:var(--gold);}
-.side-nav .sn-icon{font-size:.95rem;line-height:1;display:inline-block;transition:transform .15s;}
+.side-nav .sn-icon{font-size:.82rem;line-height:1;display:inline-block;transition:transform .15s;}
 .side-nav a:hover .sn-icon,.side-nav button:hover .sn-icon{transform:scale(1.28);}
 .side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}
-.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:2px auto;}
-.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:3px auto;border-radius:1px;}
+.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:1px auto;}
+.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:2px auto;border-radius:1px;}
 @media(max-width:900px){.side-nav{display:none;}}
 
 /* ── MOBILE BOTTOM NAV ── */
@@ -1803,11 +1804,13 @@ function filterList(id,q){
     const f=r.country?flagHtml(r.country,'1em'):'';
     const loc=[r.city,r.country].filter(Boolean);
     const locStr=loc.join(', ');
+    const withLine=r.with_name?`<div class="rc-with">with ${esc(r.with_name)}</div>`:'';
     return `<div${cardClick} class="recent-card" id="rc_${i}" style="${swarmUrl?'cursor:pointer;':''}">
       ${tileBlock(r.lat,r.lng)}
       <div class="rc-venue-row"><div class="rc-venue">${venueLink}</div>${catIcon(r.category)}</div>
       <div class="rc-cat-row"><div class="rc-cat">${esc(r.category||'')}</div>${streak}</div>
       <div class="rc-location">${f} ${esc(locStr)}</div>
+      ${withLine}
       <div class="rc-weather" id="rcw_${i}"><span class="rc-weather-loading">fetching weather…</span></div>
       <div class="rc-date">${r.datetime}</div>
     </div>`;

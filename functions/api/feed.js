@@ -146,6 +146,7 @@ function mapRows(rows, tzCache) {
       r.lat  != null ? Math.round(r.lat  * 10000) / 10000 : null,
       r.lng  != null ? Math.round(r.lng  * 10000) / 10000 : null,
       r.id        || '',
+      r.with_name || '',
     ];
   });
 }
@@ -185,7 +186,7 @@ export async function onRequestGet({ request, env }) {
     if (!term) return jsonResp({ items: [], total: 0 });
     const like = `%${term}%`;
     const dataRes = await env.DB.prepare(
-      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
+      'SELECT date, venue, city, country, category, venue_id, lat, lng, id, with_name ' +
       'FROM checkins WHERE venue LIKE ?1 OR city LIKE ?1 OR country LIKE ?1 OR category LIKE ?1 ' +
       'ORDER BY date DESC LIMIT 500'
     ).bind(like).all();
@@ -206,7 +207,7 @@ export async function onRequestGet({ request, env }) {
     const tsStart = Math.floor(Date.UTC(yr, mo - 1, 1) / 1000) - PAD;
     const tsEnd   = Math.floor(Date.UTC(yr, mo,     1) / 1000) + PAD;
     const dataRes = await env.DB.prepare(
-      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
+      'SELECT date, venue, city, country, category, venue_id, lat, lng, id, with_name ' +
       'FROM checkins WHERE date >= ?1 AND date < ?2 ORDER BY date DESC'
     ).bind(tsStart, tsEnd).all();
     const rows = dataRes.results || [];
@@ -221,7 +222,7 @@ export async function onRequestGet({ request, env }) {
   if (wantOldest !== null) {
     const lim = Math.min(200, Math.max(1, parseInt(url.searchParams.get('limit') || '100', 10)));
     const dataRes = await env.DB.prepare(
-      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
+      'SELECT date, venue, city, country, category, venue_id, lat, lng, id, with_name ' +
       'FROM checkins ORDER BY date ASC LIMIT ?1'
     ).bind(lim).all();
     const rows = dataRes.results || [];
@@ -248,7 +249,7 @@ export async function onRequestGet({ request, env }) {
     const bindArgs = afterId ? [ts, afterId, lim + 1] : [ts, lim + 1];
     const limitIdx = afterId ? '?3' : '?2';
     const dataRes = await env.DB.prepare(
-      'SELECT date, venue, city, country, category, venue_id, lat, lng, id ' +
+      'SELECT date, venue, city, country, category, venue_id, lat, lng, id, with_name ' +
       `FROM checkins ${whereClause} ORDER BY date ASC, id ASC LIMIT ${limitIdx}`
     ).bind(...bindArgs).all();
     const rows = dataRes.results || [];

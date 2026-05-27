@@ -760,14 +760,16 @@ def shout_analysis(rows: list[dict]) -> dict:
                         name_deny.add(t)
 
     shouts: list[tuple[int, str, str, str]] = []  # (year, country, city, text)
-    _suffix_re = _re.compile(r"\s*[—\-–]\s*with\s+.+$", _re.IGNORECASE | _re.UNICODE)
     for r in rows:
         s = (r.get("shout") or "").strip()
         if not s:
             continue
         # Strip "— with X" trailing companion attribution
-        s = _suffix_re.sub("", s).strip()
+        s = _SHOUT_SUFFIX_RE.sub("", s).strip()
         if not s:
+            continue
+        # Skip pure companion-attribution shouts — same filter as shout_records
+        if _SHOUT_WITH_ONLY_RE.match(s):
             continue
         try:
             yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
@@ -847,13 +849,18 @@ def shout_analysis(rows: list[dict]) -> dict:
 
 # Module-level so build.py / gen_shouts can reuse the same suffix regex.
 _SHOUT_SUFFIX_RE = _re.compile(r"\s*[—\-–]\s*with\s+.+$", _re.IGNORECASE | _re.UNICODE)
+# Matches shouts whose ENTIRE text is just "with X" companion attribution
+# (with or without a leading dash). ~14K of the 18K shouts are this pattern.
+_SHOUT_WITH_ONLY_RE = _re.compile(r"^\s*[—\-–]?\s*with\s+\S+", _re.IGNORECASE | _re.UNICODE)
 
 def shout_records(rows: list[dict]) -> list[dict]:
-    """Return all check-ins that carry a non-empty shout, sorted newest-first.
+    """Return check-ins that carry a real text shout, sorted newest-first.
 
-    Each record exposes the fields needed by the Shouts page and the index
-    Shouts strip — the trailing " — with X" companion suffix is stripped from
-    `text` so it doesn't visually duplicate the with_name field.
+    Two filters are applied to keep only substantive content:
+      1. Strip trailing " — with X" companion suffix.
+      2. Drop shouts whose entire content is just "with X" attribution
+         (Foursquare records ~14K such bare-attribution rows; they belong on
+         the check-in card, not the Shouts page).
     """
     out: list[dict] = []
     for r in rows:
@@ -862,6 +869,9 @@ def shout_records(rows: list[dict]) -> list[dict]:
             continue
         clean = _SHOUT_SUFFIX_RE.sub("", s).strip()
         if not clean:
+            continue
+        # Skip pure companion-attribution shouts ("with Joanna", "— with Tata")
+        if _SHOUT_WITH_ONLY_RE.match(clean):
             continue
         try:
             ts = int(r["date"])
@@ -1662,6 +1672,7 @@ def process(
                 "lng":        lng,
                 "tz_name":    tz_name,
                 "checkin_id": r.get("checkin_id", "").strip(),
+                "with_name":  r.get("with_name", "").strip(),
             }
         )
 
