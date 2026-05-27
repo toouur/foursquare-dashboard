@@ -298,6 +298,15 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 .cities-card{overflow:visible;}
 .sort-btn{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;padding:4px 9px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s;}
 .sort-btn.active,.sort-btn:hover{background:var(--gold);color:#000;border-color:var(--gold);}
+.bycountry-controls{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+.bycountry-controls .search-box{flex:1 1 220px;min-width:0;}
+.bycountry-sort{display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;}
+@media (max-width:520px){
+  .bycountry-controls{gap:8px;}
+  .bycountry-controls .search-box{flex:1 1 100%;}
+  .bycountry-sort{width:100%;justify-content:flex-start;}
+  .bycountry-sort .sort-btn{flex:1 1 auto;text-align:center;padding:6px 6px;}
+}
 .country-group{margin-bottom:14px;}
 .country-group-header{display:flex;align-items:center;gap:8px;padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px;}
 .country-group-name{font-family:'DM Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gold);flex:1;}
@@ -598,9 +607,9 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 
     <!-- Tab: By country -->
     <div id="paneCityCountry" class="city-pane" style="display:none">
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-        <input class="search-box" type="text" placeholder="Search countries or cities..." oninput="filterByCountry(this.value)" style="flex:1;min-width:180px;">
-        <div style="display:flex;gap:6px;">
+      <div class="bycountry-controls">
+        <input class="search-box" type="text" placeholder="Search countries or cities..." oninput="filterByCountry(this.value)">
+        <div class="bycountry-sort">
           <button class="sort-btn active" id="btnSortMostCities" onclick="sortByCountry('cities',this)">Most cities</button>
           <button class="sort-btn" id="btnSortAlpha" onclick="sortByCountry('alpha',this)">A–Z</button>
           <button class="sort-btn" id="btnSortCheckins" onclick="sortByCountry('checkins',this)">Check-ins</button>
