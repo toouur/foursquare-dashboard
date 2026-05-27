@@ -201,16 +201,23 @@ function getFiltered(){
   });
 }
 
+const SWARM_USER_ID = "{{SWARM_USER_ID}}";
+
 function renderCard(s){
   const {em,bg} = catIcon(s.category||'');
   const vUrl = s.venue_id ? `https://foursquare.com/v/${s.venue_id}` : '';
+  const swarmUrl = (s.checkin_id && SWARM_USER_ID)
+    ? `https://www.swarmapp.com/user/${SWARM_USER_ID}/checkin/${s.checkin_id}` : '';
   const venueLabel = vUrl
-    ? `<a href="${vUrl}" target="_blank" rel="noopener">${esc(s.venue||'Unknown venue')}</a>`
+    ? `<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(s.venue||'Unknown venue')}</a>`
     : esc(s.venue||'Unknown venue');
   const loc = [s.city, s.country].filter(Boolean).join(', ');
   const f = s.country ? flagHtml(s.country) : '';
   const withRow = s.with_name ? `<div class="sc-with">with ${esc(s.with_name)}</div>` : '';
-  return `<div class="scard">
+  const cardAttr = swarmUrl
+    ? ` onclick="window.open('${swarmUrl}','_blank')" style="cursor:pointer;"`
+    : '';
+  return `<div class="scard"${cardAttr}>
     <div class="sc-text">${highlight(s.text||'', query)}</div>
     <div class="sc-head">
       <div class="sc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>

@@ -741,12 +741,10 @@ def _detect_lang(text: str) -> str:
     return "mix"
 
 def shout_analysis(rows: list[dict]) -> dict:
-    """Mine the free-text 'shout' column for words, emojis, language, sentiment.
+    """Mine the free-text 'shout' column for words, language, sentiment.
 
-    Foursquare appends ` — with <Name>` (or ` - with <Name>`) to shouts when a
-    companion is tagged.  Strip that suffix before tokenising so companion
-    names don't pollute the word counts.  Also drop tokens that exactly match
-    a known companion name from the with_name / created_by / overlaps columns.
+    Operates over the same filtered set used by shout_records() so the
+    `total_shouts` count on the stats page matches the Shouts page count.
     """
     # Build a denylist of companion-name tokens (lower-cased single words).
     name_deny: set[str] = set()
@@ -759,23 +757,15 @@ def shout_analysis(rows: list[dict]) -> dict:
                     if len(t) >= 3 and t != "-":
                         name_deny.add(t)
 
+    # Reuse the records pipeline so the filtered set is identical.
+    records = shout_records(rows)
     shouts: list[tuple[int, str, str, str]] = []  # (year, country, city, text)
-    for r in rows:
-        s = (r.get("shout") or "").strip()
-        if not s:
-            continue
-        # Strip "— with X" trailing companion attribution
-        s = _SHOUT_SUFFIX_RE.sub("", s).strip()
-        if not s:
-            continue
-        # Skip pure companion-attribution shouts — same filter as shout_records
-        if _SHOUT_WITH_ONLY_RE.match(s):
-            continue
+    for rec in records:
         try:
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
-        except (ValueError, KeyError, OSError):
+            yr = datetime.fromtimestamp(rec["ts"], tz=timezone.utc).year
+        except (ValueError, OSError):
             continue
-        shouts.append((yr, r.get("country", "").strip(), r.get("city", "").strip(), s))
+        shouts.append((yr, rec.get("country", ""), rec.get("city", ""), rec["text"]))
 
     if not shouts:
         return {}
@@ -853,15 +843,42 @@ _SHOUT_SUFFIX_RE = _re.compile(r"\s*[—\-–]\s*with\s+.+$", _re.IGNORECASE | _
 # (with or without a leading dash). ~14K of the 18K shouts are this pattern.
 _SHOUT_WITH_ONLY_RE = _re.compile(r"^\s*[—\-–]?\s*with\s+\S+", _re.IGNORECASE | _re.UNICODE)
 
+def _build_companion_denylist(rows: list[dict]) -> set[str]:
+    """Collect every companion name (full + first-name) seen in the rows.
+
+    Used to drop shouts whose text is just a bare companion name like
+    "Joanna" (~190 such rows) — Foursquare stores attribution without the
+    "with" prefix sometimes, so the regex above misses them.
+    """
+    names: set[str] = set()
+    for r in rows:
+        for col in ("with_name", "created_by_name", "overlaps_name"):
+            raw = (r.get(col) or "").replace(" ,", ",")
+            for part in raw.split(","):
+                n = part.strip()
+                if not n or n == "-" or len(n) < 2:
+                    continue
+                names.add(n.lower())
+                first = n.split()[0] if n.split() else ""
+                if first:
+                    names.add(first.lower())
+    return names
+
+
 def shout_records(rows: list[dict]) -> list[dict]:
     """Return check-ins that carry a real text shout, sorted newest-first.
 
-    Two filters are applied to keep only substantive content:
+    Filters keep only substantive content:
       1. Strip trailing " — with X" companion suffix.
-      2. Drop shouts whose entire content is just "with X" attribution
-         (Foursquare records ~14K such bare-attribution rows; they belong on
-         the check-in card, not the Shouts page).
+      2. Drop shouts whose entire content is just "with X" attribution.
+      3. Drop bare companion-name shouts ("Joanna", "Максим") — same
+         attribution data leaked in without the "with" prefix.
+      4. Drop pure-punctuation shouts (".", "!", "?") which have no signal.
     """
+    companion_names = _build_companion_denylist(rows)
+    # Tokenise candidate text into words for the bare-name check.
+    word_re = _re.compile(r"[^\W_]+", _re.UNICODE)
+
     out: list[dict] = []
     for r in rows:
         s = (r.get("shout") or "").strip()
@@ -873,21 +890,30 @@ def shout_records(rows: list[dict]) -> list[dict]:
         # Skip pure companion-attribution shouts ("with Joanna", "— with Tata")
         if _SHOUT_WITH_ONLY_RE.match(clean):
             continue
+        # Skip if every alphanumeric token is itself a known companion name
+        # (covers bare "Joanna", "Максим", "NIkita Tata" etc.)
+        toks = word_re.findall(clean)
+        if toks and all(t.lower() in companion_names for t in toks):
+            continue
+        # Skip pure-punctuation shouts (no word tokens at all)
+        if not toks:
+            continue
         try:
             ts = int(r["date"])
         except (ValueError, KeyError, TypeError):
             continue
         out.append({
-            "ts":        ts,
-            "text":      clean,
-            "venue":     (r.get("venue") or "").strip(),
-            "venue_id":  (r.get("venue_id") or "").strip(),
-            "city":      (r.get("city") or "").strip(),
-            "country":   (r.get("country") or "").strip(),
-            "category":  (r.get("category") or "").strip(),
-            "with_name": (r.get("with_name") or "").strip(),
-            "lat":       r.get("lat") or None,
-            "lng":       r.get("lng") or None,
+            "ts":         ts,
+            "text":       clean,
+            "venue":      (r.get("venue") or "").strip(),
+            "venue_id":   (r.get("venue_id") or "").strip(),
+            "city":       (r.get("city") or "").strip(),
+            "country":    (r.get("country") or "").strip(),
+            "category":   (r.get("category") or "").strip(),
+            "with_name":  (r.get("with_name") or "").strip(),
+            "lat":        r.get("lat") or None,
+            "lng":        r.get("lng") or None,
+            "checkin_id": (r.get("checkin_id") or "").strip(),
         })
     out.sort(key=lambda x: -x["ts"])
     return out

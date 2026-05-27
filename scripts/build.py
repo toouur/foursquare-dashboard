@@ -662,14 +662,15 @@ if __name__ == "__main__":
         except (ValueError, OSError):
             _date_str = ""
         _recent_shouts.append({
-            "ts":        s["ts"],
-            "date":      _date_str,
-            "text":      s["text"],
-            "venue":     s.get("venue", ""),
-            "venue_id":  s.get("venue_id", ""),
-            "city":      s.get("city", ""),
-            "country":   s.get("country", ""),
-            "category":  s.get("category", ""),
+            "ts":         s["ts"],
+            "date":       _date_str,
+            "text":       s["text"],
+            "venue":      s.get("venue", ""),
+            "venue_id":   s.get("venue_id", ""),
+            "city":       s.get("city", ""),
+            "country":    s.get("country", ""),
+            "category":   s.get("category", ""),
+            "checkin_id": s.get("checkin_id", ""),
         })
     shouts_recent_json = json.dumps(
         {"total": len(all_shouts), "items": _recent_shouts},
@@ -710,7 +711,7 @@ if __name__ == "__main__":
         (_here / "gen_ratings.py",    "ratings.html",      "ratings.html.tmpl",      {"likes": _likes, "neutral": _neutral, "dislikes": _dislikes, "country_count": len(data['countries'])}),
         (_here / "gen_lists.py",      "lists.html",        "lists.html.tmpl",        {"lists_data_json": _lists_data_json}),
         (_here / "gen_guide.py",      "guide.html",        "guide.html.tmpl",        {"rows": rows, "mappings": mappings}),
-        (_here / "gen_shouts.py",     "shouts.html",       "shouts.html.tmpl",       {"shouts": all_shouts, "country_count": len(data['countries'])}),
+        (_here / "gen_shouts.py",     "shouts.html",       "shouts.html.tmpl",       {"shouts": all_shouts, "country_count": len(data['countries']), "swarm_user_id": fs_user_id}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il

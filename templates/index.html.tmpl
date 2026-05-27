@@ -1869,23 +1869,27 @@ function filterList(id,q){
 (function(){
   const sh={{SHOUTS_RECENT}};
   if(!sh||!sh.items||!sh.items.length)return;
-  const catIcon=window._catIcon||(()=>({em:'📍',bg:'#4a5270'}));
+  const catIcon=window._catIcon||(()=>'');
   document.getElementById('shoutsFeedSection').style.display='';
   document.getElementById('shoutsSub').textContent=sh.total.toLocaleString()+' shouts total';
   const scroll=document.getElementById('shoutsScroll');
   scroll.innerHTML=sh.items.map(s=>{
     const vUrl=s.venue_id?`https://foursquare.com/v/${s.venue_id}`:'';
-    const tag=vUrl?'a':'div', href=vUrl?` href="${vUrl}" target="_blank" rel="noopener"`:'';
+    const swarmUrl=s.checkin_id?`https://www.swarmapp.com/user/{{SWARM_USER_ID}}/checkin/${s.checkin_id}`:'';
+    const cardClick=swarmUrl?` onclick="window.open('${swarmUrl}','_blank')"`:'';
+    const venueLink=vUrl
+      ? `<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(s.venue||'Unknown venue')}</a>`
+      : esc(s.venue||'Unknown venue');
     const f=s.country?flagHtml(s.country):'';
     const loc=[s.city,s.country].filter(Boolean).join(', ');
-    return `<${tag}${href} class="recent-card tip-card" style="${vUrl?'text-decoration:none;cursor:pointer;':''}">
+    return `<div${cardClick} class="recent-card tip-card" style="${swarmUrl?'cursor:pointer;':''}">
       <div class="rc-tip-text" style="font-style:italic;">${esc(s.text||'')}</div>
-      <div class="rc-venue-row" style="margin-top:8px;"><div class="rc-venue">${esc(s.venue||'Unknown venue')}</div>${(c=>{const ic=catIcon(c||'');return ic&&ic.em?`<div class="rc-cat-icon" style="background:${ic.bg}22;border:1px solid ${ic.bg}55">${ic.em}</div>`:'';})(s.category)}</div>
+      <div class="rc-venue-row" style="margin-top:8px;"><div class="rc-venue">${venueLink}</div>${catIcon(s.category||'')}</div>
       <div class="rc-tip-foot">
         <span class="rc-location">${f} ${esc(loc)}</span>
         <span class="rc-date">${s.date}</span>
       </div>
-    </${tag}>`;
+    </div>`;
   }).join('');
 })();
 

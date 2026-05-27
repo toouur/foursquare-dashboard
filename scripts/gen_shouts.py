@@ -14,6 +14,7 @@ def build_page(
     tmpl_path: str,
     shouts: list | None = None,
     country_count: int = 0,
+    swarm_user_id: str = "",
 ) -> None:
     tmpl = Path(tmpl_path).read_text(encoding="utf-8")
     shouts = shouts or []
@@ -29,15 +30,16 @@ def build_page(
         except (ValueError, OSError):
             date_str = ""
         out.append({
-            "ts":        ts,
-            "date":      date_str,
-            "text":      s["text"],
-            "venue":     s.get("venue", ""),
-            "venue_id":  s.get("venue_id", ""),
-            "city":      s.get("city", ""),
-            "country":   s.get("country", ""),
-            "category":  s.get("category", ""),
-            "with_name": s.get("with_name", ""),
+            "ts":         ts,
+            "date":       date_str,
+            "text":       s["text"],
+            "venue":      s.get("venue", ""),
+            "venue_id":   s.get("venue_id", ""),
+            "city":       s.get("city", ""),
+            "country":    s.get("country", ""),
+            "category":   s.get("category", ""),
+            "with_name":  s.get("with_name", ""),
+            "checkin_id": s.get("checkin_id", ""),
         })
 
     data_json = json.dumps(out, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
@@ -46,6 +48,7 @@ def build_page(
         .replace("SHOUTS_DATA_PLACEHOLDER", data_json)
         .replace("{{COUNTRIES}}", str(country_count))
         .replace("{{SHOUTS_TOTAL}}", f"{len(out):,}")
+        .replace("{{SWARM_USER_ID}}", swarm_user_id or "")
     )
     Path(out_path).write_text(html, encoding="utf-8")
     size = Path(out_path).stat().st_size // 1024
