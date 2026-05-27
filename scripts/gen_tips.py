@@ -7,48 +7,26 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Foursquare API returns country names in local language; map them to English
-# so they match the CTRY_CODE flag dict and the rest of the dashboard.
-CTRY_NORM = {
-    "Беларусь": "Belarus",
-    "Россия": "Russia",
-    "Україна": "Ukraine",
-    "Republica Moldova": "Moldova",
-    "Italia": "Italy",
-    "Polska": "Poland",
-    "România": "Romania",
-    "مصر": "Egypt",
-    "Lietuva": "Lithuania",
-    "Ўзбекістон": "Uzbekistan",
-    "Ўзбекистон": "Uzbekistan",
-    "Հայաստան": "Armenia",
-    "Κύπρος": "Cyprus",
-    "Ελλάδα": "Greece",
-    "Қазақстан": "Kazakhstan",
-    "Türkiye": "Turkey",
-    "Србија": "Serbia",
-    "Latvija": "Latvia",
-    "Magyarország": "Hungary",
-    "Hrvatska": "Croatia",
-    "Deutschland": "Germany",
-    "España": "Spain",
-    "Danmark": "Denmark",
-    "საქართველო": "Georgia",
-    "Sverige": "Sweden",
-    "Suomi": "Finland",
-    "Norge": "Norway",
-    "Česká republika": "Czech Republic",
-    "Österreich": "Austria",
-    "България": "Bulgaria",
-    "Bosna i Hercegovina": "Bosnia and Herzegovina",
-    "Slovenija": "Slovenia",
-    "Slovensko": "Slovakia",
-    "Кыргызстан": "Kyrgyzstan",
-    "Severna Makedonija": "North Macedonia",
-    "Eesti": "Estonia",
-    "ایران": "Iran",
-    "Việt Nam": "Vietnam",
-}
+# Foursquare API returns country names in local language; CTRY_NORM maps the
+# raw forms to canonical English used everywhere else (flag dict, timezone
+# map, city_merge, country_fixes).
+#
+# Single source of truth: config/country_aliases.json — edit that file when
+# a new raw country name appears.  CTRY_NORM stays here as the module-level
+# import surface because build.py and gen_guide.py do `from gen_tips import
+# CTRY_NORM`.
+def _load_country_aliases() -> dict:
+    cfg = Path(__file__).resolve().parent.parent / "config" / "country_aliases.json"
+    if not cfg.exists():
+        return {}
+    try:
+        data = json.loads(cfg.read_text(encoding="utf-8"))
+        return {k: v for k, v in data.items() if not k.startswith("_")}
+    except Exception:
+        return {}
+
+
+CTRY_NORM = _load_country_aliases()
 
 
 def build_page(csv_path, config_dir, out_path, tmpl_path, tips_path=None, pix_url="", country_count=0):
