@@ -27,11 +27,12 @@
 
 const HEADERS = {
   'Content-Type': 'application/json',
-  // private = browser-only cache, no CDN edge caching.  60 s window keeps the
-  // feed snappy while ensuring schema-shape changes propagate within a minute
-  // — previously max-age=3600 + stale-while-revalidate=86400 left users on
-  // an old tuple shape for up to a day after a deploy.
-  'Cache-Control': 'private, max-age=60, must-revalidate',
+  // Edge cache 1 h, browser cache 1 min, allow 10 min stale-while-revalidate.
+  // Safe to be aggressive because every /api/feed fetch URL carries a `_v=`
+  // schema-version param — bump it whenever the response tuple shape changes
+  // (e.g. _v=companions) to force a clean cache key.  Newest check-ins are
+  // delayed up to 1 h on CDN edge nodes but D1 reads stay near zero.
+  'Cache-Control': 'public, max-age=60, s-maxage=3600, stale-while-revalidate=600',
 };
 
 // Country → IANA timezone (same as original)
