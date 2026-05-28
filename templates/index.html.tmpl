@@ -98,7 +98,7 @@ a.cnt:hover{color:var(--gold);text-decoration:underline;}
 .bar-row.hidden,.country-city-row.hidden,.country-group.hidden,.world-city-row.hidden{display:none;}
 
 /* ── COUNTRIES GRID ── */
-.country-table{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.country-table{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(var(--rows-3, 21), auto);grid-auto-flow:column;gap:6px;}
 .country-item{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;}
 .ci-rank{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);width:22px;flex-shrink:0;}
 .ci-name{font-size:0.82rem;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -355,7 +355,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
   .grid{padding:14px 14px 48px;grid-template-columns:1fr;gap:14px;}
   .card{padding:18px 18px;}
   .card.full{grid-column:1;}
-  .country-table{grid-template-columns:repeat(2,1fr);}
+  .country-table{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(var(--rows-2, 32), auto);}
   #map{height:420px;}
   .bar-row{grid-template-columns:22px 1fr 80px 44px;gap:6px;}
   .bar-row .name{font-size:0.75rem;}
@@ -366,7 +366,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
   header .sub{font-size:0.62rem;letter-spacing:0.1em;}
   .kpis{gap:12px;}
   .kpi .num{font-size:1.5rem;}
-  .country-table{grid-template-columns:1fr;}.kpis{flex-wrap:wrap;}
+  .country-table{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row;}.kpis{flex-wrap:wrap;}
   #map{height:320px;}
   .bar-row{grid-template-columns:18px 1fr 60px 36px;gap:5px;}
   .bar-row .name .city-tag{display:none;}
@@ -930,13 +930,19 @@ renderExplorer(activeCat);
 
 // ── Countries ─────────────────────────────────────────────────────
 function makeCountryGrid(data,id,drilldown){
-  // Natural row-major order: #1 #2 #3 reads left-to-right on desktop's
-  // 3-col grid AND top-to-bottom on mobile's 1-col stack.  Previous
-  // column-major emit (#1, #22, #43, #2, #23 …) was designed for vertical
-  // scanning of the desktop grid but rendered as scrambled rank order on
-  // mobile when the grid collapsed to a single column.
+  // DOM emit is row-major (rank 1..n) so mobile's 1-col layout reads
+  // naturally.  Desktop / tablet restore the original column-major
+  // visual via CSS:
+  //   grid-auto-flow:column + grid-template-rows:repeat(N, auto)
+  // where N is the row count for the current breakpoint.  Setting
+  // --rows-3 and --rows-2 here lets the same DOM render correctly at
+  // every breakpoint.
+  const n = data.length;
+  const el = document.getElementById(id);
+  el.style.setProperty('--rows-3', Math.ceil(n / 3));
+  el.style.setProperty('--rows-2', Math.ceil(n / 2));
   const vis = data.map((d, i) => [d, i + 1]);
-  document.getElementById(id).innerHTML=vis.map(([[name,count],rank])=>{
+  el.innerHTML=vis.map(([[name,count],rank])=>{
     const f=flagHtml(name,'1.1em');
     const countEl=drilldown
       ? `<a class="ci-count" href="#" data-filter-country="${esc(name)}" data-filter-count="${count}" title="Show check-ins for ${esc(name)}">${count.toLocaleString()}</a>`
