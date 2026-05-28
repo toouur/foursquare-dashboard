@@ -930,8 +930,12 @@ renderExplorer(activeCat);
 
 // ── Countries ─────────────────────────────────────────────────────
 function makeCountryGrid(data,id,drilldown){
-  const n=data.length, cols=3, rows=Math.ceil(n/cols), vis=[];
-  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){const i=c*rows+r;if(i<n)vis.push([data[i],i+1]);}
+  // Natural row-major order: #1 #2 #3 reads left-to-right on desktop's
+  // 3-col grid AND top-to-bottom on mobile's 1-col stack.  Previous
+  // column-major emit (#1, #22, #43, #2, #23 …) was designed for vertical
+  // scanning of the desktop grid but rendered as scrambled rank order on
+  // mobile when the grid collapsed to a single column.
+  const vis = data.map((d, i) => [d, i + 1]);
   document.getElementById(id).innerHTML=vis.map(([[name,count],rank])=>{
     const f=flagHtml(name,'1.1em');
     const countEl=drilldown
