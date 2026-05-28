@@ -325,7 +325,7 @@ export async function onRequestGet({ request, env }) {
     }
 
     const dataRes = await env.DB.prepare(
-      `SELECT date, venue, city, country, category, venue_id, lat, lng, id ` +
+      `SELECT date, venue, city, country, category, venue_id, lat, lng, id, with_name, created_by_name, overlaps_name ` +
       `FROM checkins WHERE ${fwhere} ORDER BY date DESC, id DESC LIMIT ?${fidx}`
     ).bind(...fparams, flimit + 1).all();
 
@@ -367,7 +367,7 @@ export async function onRequestGet({ request, env }) {
   }
 
   const query = `
-    SELECT date, venue, city, country, category, venue_id, lat, lng, id
+    SELECT date, venue, city, country, category, venue_id, lat, lng, id, with_name, created_by_name, overlaps_name
     FROM checkins${whereClause}
     ORDER BY date DESC, id DESC LIMIT ?${bindIndex}`;
   params.push(limit + 1); // fetch one extra to detect has_more
