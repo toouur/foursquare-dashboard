@@ -43,6 +43,16 @@ header h1{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3.8rem);
 .pipe-step .ps-time{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--teal);margin-top:3px;}
 .pipe-arrow{font-family:'DM Mono',monospace;color:var(--muted);padding:0 10px;font-size:1rem;flex-shrink:0;}
 
+/* ── TECH SCHEME (ASCII-style block diagram) ── */
+.tech-scheme{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px 24px;margin:24px 0;overflow-x:auto;}
+.tech-scheme pre{font-family:'DM Mono',monospace;font-size:0.72rem;line-height:1.55;color:var(--text2);white-space:pre;margin:0;}
+.tech-scheme .ts-box{color:var(--text);font-weight:600;}
+.tech-scheme .ts-arrow{color:var(--gold);}
+.tech-scheme .ts-label{color:var(--muted);font-style:italic;}
+.tech-scheme .ts-tech{color:var(--teal);}
+.tech-scheme-cap{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.14em;margin-top:12px;text-align:center;}
+@media(max-width:700px){.tech-scheme pre{font-size:0.58rem;}}
+
 /* ── CARDS GRID ── */
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;margin-top:28px;}
 .c-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 28px;position:relative;overflow:hidden;}
@@ -113,11 +123,16 @@ footer a:hover{text-decoration:underline;}
     <div class="section-body">
       <p>
         A personal analytics dashboard that ingests every Foursquare/Swarm check-in and renders it into
-        <strong>ten pages</strong>: a main analytics dashboard, a trip journal with per-trip maps,
+        <strong>fourteen pages</strong>: a main analytics dashboard, a trip journal with per-trip maps,
         a companions tracker, a full check-in feed with historical weather, a tips explorer with country/city
-        tabs, closed/deleted-venue badges, view counts, and filter buttons, a venue loyalty explorer,
-        a world cities map, a full-text search page, a photo gallery with 21 000+ images, a stats overview,
-        and this engineering write-up — all committed to git and served via Cloudflare Pages CDN.
+        tabs and closed/deleted-venue badges, a venue ratings page (likes / okays / dislikes), a venue
+        loyalty explorer, a world cities map, a Foursquare lists page, a full-text search page,
+        a photo gallery with 21&nbsp;000+ images, a <strong>shouts archive</strong> (free-text comments
+        attached to check-ins, with year / country filters and live search), a stats overview with
+        <strong>Hour&nbsp;×&nbsp;Category</strong> and <strong>DOW&nbsp;×&nbsp;Category</strong> heatmaps
+        plus shout text mining, a live travel guide that reads your last 48&nbsp;hours and suggests
+        nearby venues based on your historical preferences, and this engineering write-up — all
+        committed to git and served via Cloudflare Pages CDN.
       </p>
       <p>
         Beyond rendering, the system maintains a <strong>data integrity pipeline</strong>: a manual archive
@@ -145,11 +160,11 @@ footer a:hover{text-decoration:underline;}
       <div class="stat-lbl">Check-in → Live Deploy</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">10</div>
+      <div class="stat-num">14</div>
       <div class="stat-lbl">Generated HTML Pages</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">3-layer</div>
+      <div class="stat-num">4-layer</div>
       <div class="stat-lbl">City Normalisation</div>
     </div>
     <div class="stat-item">
@@ -224,9 +239,171 @@ footer a:hover{text-decoration:underline;}
       </p>
       <p>
         GitHub Actions then fetches the updated check-in data from the private data repository,
-        rebuilds all ten HTML pages, commits and pushes to <code>main</code>. Cloudflare Pages
+        rebuilds all fourteen HTML pages, commits and pushes to <code>main</code>. Cloudflare Pages
         detects the push and deploys automatically — no build command needed, since the HTML is
         already pre-built.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── TECH SCHEME ── -->
+  <div class="section">
+    <div class="section-label">System Diagram</div>
+    <div class="section-title">End-to-End Architecture</div>
+    <div class="section-body">
+      <p>
+        The full path from a check-in tap in Swarm to a deployed page on the public site,
+        showing every component and the data that flows between them. Three external
+        services (Foursquare API, Cloudflare R2, Open-Meteo) are sources; everything else
+        runs on the Cloudflare + GitHub free tiers.
+      </p>
+    </div>
+
+    <div class="tech-scheme">
+<pre>
+                <span class="ts-label">user taps "check in" in Swarm</span>
+                              │
+                              ▼
+                  ┌──────────────────────┐
+                  │  <span class="ts-tech">Foursquare API v2</span>   │  ◄──── data source
+                  └──────────┬───────────┘
+                             │  /users/self/checkins?limit=1
+                             │  every 60 s
+                             ▼
+                  ┌──────────────────────┐         ┌──────────────────┐
+                  │  <span class="ts-box">Cloudflare Worker</span>   │  ───────►  │  <span class="ts-tech">Cloudflare KV</span>   │
+                  │  checkin-poller      │         │  last-seen ts    │
+                  └──────────┬───────────┘         └──────────────────┘
+                             │  workflow_dispatch (REST)
+                             ▼
+                  ┌──────────────────────────────────────────────────┐
+                  │           <span class="ts-box">GitHub Actions (update-dashboard.yml)</span>           │
+                  │                                                  │
+                  │  fetch_checkins.py  ─►  private-data/checkins.csv│
+                  │  fetch_tips.py      ─►  private-data/tips.json   │
+                  │  fetch_photos.py    ─►  private-data/pix/*.jpg   │
+                  │  fetch_ratings.py   ─►  private-data/venue…json  │
+                  │                          │                       │
+                  │                          ▼                       │
+                  │  ┌──────────────────────────────────────────┐    │
+                  │  │  <span class="ts-box">scripts/build.py</span>   (orchestrator)        │    │
+                  │  │                                          │    │
+                  │  │   transform.py  ── 4-layer city/cntry    │    │
+                  │  │   metrics.py    ── aggregations, trips,  │    │
+                  │  │                    companions, shouts,   │    │
+                  │  │                    cross-dim heatmaps    │    │
+                  │  │   gen_*.py × 14 ── templates → *.html    │    │
+                  │  │   POST-PROCESS  ── {{CTRY_CODE_JSON}},   │    │
+                  │  │                    {{CAT_ICON_JSON}}     │    │
+                  │  └──────────────────────────────────────────┘    │
+                  │                          │                       │
+                  │  aws s3 sync ──► <span class="ts-tech">Cloudflare R2</span> (new photos only)   │
+                  │  sync_to_d1.py ──► <span class="ts-tech">Cloudflare D1</span> (incremental)   │
+                  │                          │                       │
+                  │  git push ──► public repo (HTML pre-built)       │
+                  └──────────────────────────┼───────────────────────┘
+                                             │
+                                             ▼
+       ┌──────────────────────────────────────────────────────────────────┐
+       │                  <span class="ts-box">Cloudflare Pages   (4sq.pages.dev)</span>                  │
+       │                                                                  │
+       │  ┌────────────────────────────┐     ┌─────────────────────────┐  │
+       │  │  STATIC HTML (14 pages)    │     │  PAGES FUNCTIONS        │  │
+       │  │  ──────────────────────    │     │  ────────────────────   │  │
+       │  │  index · trips · feed      │     │  /api/feed              │  │
+       │  │  companions · tips         │     │  /api/search            │  │
+       │  │  ratings · shouts          │     │  /api/search-venues     │  │
+       │  │  venues · world_cities     │     │  /api/venue-tips        │  │
+       │  │  lists · photos · stats    │     │  /api/custom-list       │  │
+       │  │  search · guide            │     │                         │  │
+       │  │  + trip-{N}.html × 160     │     │  cache: 60 s browser /  │  │
+       │  │                            │     │  1 h CDN, _v= cache-bust│  │
+       │  └────────────────────────────┘     └────────────┬────────────┘  │
+       │                                                  │               │
+       │                                                  │ SQL           │
+       │                                                  ▼               │
+       │                                     ┌─────────────────────────┐  │
+       │                                     │  <span class="ts-tech">Cloudflare D1</span>          │  │
+       │                                     │  (SQLite, edge-served)  │  │
+       │                                     │  ─────────────────────  │  │
+       │                                     │  checkins   (65 k rows) │  │
+       │                                     │  venues     (~33 k)     │  │
+       │                                     │  tips       (~1.9 k)    │  │
+       │                                     │  ratings    (~3.8 k)    │  │
+       │                                     │  lists / list_venues    │  │
+       │                                     │  trips      (~160)      │  │
+       │                                     │  venue_changes (audit)  │  │
+       │                                     └─────────────────────────┘  │
+       └──────────────────────────────────────────────────────────────────┘
+                                  │
+                                  ▼
+                  <span class="ts-label">CDN edge → user (any device, any country)</span>
+                  + browser fetches historical weather per check-in
+                  from <span class="ts-tech">Open-Meteo</span> archive (no API key, free)
+</pre>
+      <div class="tech-scheme-cap">Source → Build → Sync → CDN → Edge — five stages, $0/mo</div>
+    </div>
+
+    <div class="section-body">
+      <p>
+        Three different cache lifetimes serve three different patterns:
+        the <strong>static HTML</strong> is immutable per commit (CDN edge caches indefinitely
+        via content hash), the <strong>D1-backed feed/search APIs</strong> use a 60 s browser /
+        1 h edge cache with a <code>_v=</code> query-param cache-buster for schema-shape changes,
+        and the <strong>R2 photo CDN</strong> uses long-lived caching since photo filenames are
+        content-addressed and never change.
+      </p>
+    </div>
+
+    <div class="section-body" style="margin-top:32px;">
+      <p>
+        <strong>Canonical normalization layer.</strong> Three pure-data JSON files act as
+        the single source of truth for cross-cutting lookups that used to live inline in
+        nine HTML templates and one Python generator:
+      </p>
+    </div>
+
+    <div class="tech-scheme">
+<pre>
+       <span class="ts-box">config/country_aliases.json</span>     raw native name → English
+                                       <span class="ts-label">"Беларусь":"Belarus"</span>
+                                       <span class="ts-label">"Тоҷикистон":"Tajikistan"</span>
+                                       <span class="ts-label">39 entries</span>
+                            │
+                            │  loaded by gen_tips.py at import
+                            ▼
+                      CTRY_NORM dict   (used by build.py, gen_guide,
+                                        tip normalisation on index)
+
+       <span class="ts-box">config/country_flags.json</span>       English → ISO 3166-1 alpha-2
+                                       <span class="ts-label">"Belarus":"by", "Macao":"mo"</span>
+                                       <span class="ts-label">112 entries</span>
+                            │
+                            │  loaded by build.py once;
+                            │  substituted into {{CTRY_CODE_JSON}}
+                            │  on EVERY generated HTML file as a
+                            ▼  single post-process pass
+                      flagHtml(country) → &lt;span class="fi fi-by"&gt;&lt;/span&gt;
+
+       <span class="ts-box">config/category_icons.json</span>      category → [emoji, hex color]
+                                       <span class="ts-label">"Kebab Restaurant":["🌯","#E67E22"]</span>
+                                       <span class="ts-label">559 entries</span>
+                            │
+                            │  substituted into {{CAT_ICON_JSON}}
+                            ▼  on every page in the same post-process pass
+                      catIcon(cat) → &lt;div class="cat-icon"&gt;🌯&lt;/div&gt;
+</pre>
+      <div class="tech-scheme-cap">Before: 10 drifted copies. After: one JSON edit, applied everywhere.</div>
+    </div>
+
+    <div class="section-body">
+      <p>
+        Adding a new country / category / native-name alias is a <strong>one-line JSON edit</strong>.
+        No code changes anywhere. The post-process pass in <code>build.py</code> sweeps every
+        output file once after generators run — generators don't need to thread these lookups
+        through their own signatures.
       </p>
     </div>
   </div>
@@ -1085,12 +1262,16 @@ totalH = <span class="hl2">0</span>; buildPos(DATA);       <span class="cm">// f
         two Jinja-free template files using simple <code>{{PLACEHOLDER}}</code> substitution.
       </p>
       <p>
-        The generator scripts (<code>gen_companions.py</code>, <code>gen_venues.py</code>,
-        <code>gen_worldcities.py</code>) each embed their complete HTML template as a
-        <strong>base64-encoded string</strong> (<code>_TMPL_B64</code>). This makes each
-        generator fully self-contained — no external template files, no path resolution issues
-        regardless of working directory. To modify a page's design, you base64-decode the
-        string, edit the HTML/CSS/JS, re-encode.
+        Each per-page generator (<code>gen_companions.py</code>, <code>gen_venues.py</code>,
+        <code>gen_tips.py</code>, <code>gen_ratings.py</code>, <code>gen_shouts.py</code>, …)
+        reads a plain <code>templates/*.tmpl</code> file and substitutes its own placeholders.
+        After every generator runs, <code>build.py</code> does a single <strong>post-process pass</strong>
+        on every output HTML file, substituting two cross-cutting placeholders —
+        <code>{{CTRY_CODE_JSON}}</code> and <code>{{CAT_ICON_JSON}}</code> — from
+        <code>config/country_flags.json</code> and <code>config/category_icons.json</code>.
+        This means every page shares one canonical 112-entry country→flag map and one
+        559-entry category→icon map; adding an entry is a one-line JSON edit, no code changes
+        across the nine templates that consume them.
       </p>
       <p>
         <code>gen_feed.py</code> is an exception: after the migration to D1-backed pagination
@@ -1117,20 +1298,30 @@ python scripts/build.py \
 
 <span class="cm">
 # Internal execution order:
-#  1. transform.py      — apply 3-layer city/country normalisation
-#  2. metrics.py        — compute aggregations, trip detection, centroids
-#  3. index.html        — rendered from templates/index.html.tmpl
-#  4. trips.html        — rendered from templates/trips.html.tmpl
-#  5. gen_companions.py → companions.html
-#  6. gen_feed.py       → feed.html
-#  7. gen_venues.py     → venues.html
-#  8. gen_worldcities.py → world_cities.html
-#  9. gen_tips.py       → tips.html
-# 10. gen_photos.py     → photos.html
-# 11. gen_stats.py      → stats.html
-# 12. gen_search.py     → search.html  (no static index — search queries D1 live)
-# 13. sync_to_d1.py     → upserts checkins/venues/tips/ratings/lists/trips into D1
-#                          (incremental; each table gated by its own changed flag)</span>
+#  1. transform.py        — apply 4-layer city/country normalisation
+#  2. metrics.py          — compute aggregations, trip detection, centroids,
+#                            collect_companions, shout_records,
+#                            shout_analysis, cross_dim_analysis
+#  3. index.html          — rendered from templates/index.html.tmpl
+#  4. trips.html          — rendered from templates/trips.html.tmpl
+#  5. gen_companions.py   → companions.html
+#  6. gen_feed.py         → feed.html
+#  7. gen_worldcities.py  → world_cities.html
+#  8. gen_venues.py       → venues.html
+#  9. gen_tips.py         → tips.html
+# 10. gen_stats.py        → stats.html
+# 11. gen_search.py       → search.html  (no static index — D1-backed)
+# 12. gen_ratings.py      → ratings.html
+# 13. gen_lists.py        → lists.html
+# 14. gen_guide.py        → guide.html
+# 15. gen_shouts.py       → shouts.html
+# 16. gen_photos.py       → photos.html  (optional, --photos arg)
+# 17. gen_trip_pages.py   → trip-{N}.html (one per trip, ~160 files)
+# 18. POST-PROCESS PASS   — substitutes {{CTRY_CODE_JSON}} + {{CAT_ICON_JSON}}
+#                            from config/country_flags.json + category_icons.json
+#                            in every generated HTML file (single canonical source)
+# 19. sync_to_d1.py       — upserts checkins/venues/tips/ratings/lists/trips into D1
+#                            (incremental; each table gated by its own changed flag)</span>
     </div>
   </div>
 

@@ -26,8 +26,12 @@ GitHub-style activity heatmap · travel timeline (Gantt) · trip journal with pe
 trip analytics (duration distribution, countries per trip, longest trips leaderboard, furthest destination) ·
 distance travelled per year · activity streaks · category mix drift · new countries timeline ·
 venue loyalty · regular haunts · revisit intervals · venue visit frequency ·
+**Hour × Category** and **Day-of-Week × Category** heatmaps in local time ·
+**country hour profiles** (% per local hour, top 12 countries) ·
+**shout text mining** — word frequency, language mix per year, top words per country, language detection (Cyrillic / Latin / mixed) ·
+**Shouts page** — searchable archive of all real free-text comments (~3.5 k, infinite scroll, year / country filters) ·
 **live full-text search** (venues, cities, tips, companions — powered by Cloudflare D1, no static index file) ·
-**bidirectional infinite-scroll feed** (65 k+ check-ins, cursor-based D1 pagination, on-demand gap fill, virtual scroll) ·
+**bidirectional infinite-scroll feed** (65 k+ check-ins, cursor-based D1 pagination, on-demand gap fill, virtual scroll) — each card shows companions from all three Foursquare sources (`with_name` / `created_by_name` / `overlaps_name`, deduped union) ·
 category explorer · companions · recent check-ins with historical weather ·
 tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons ·
 **photo gallery** with 21 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
@@ -62,8 +66,9 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── gen_photos.py            # Generates photos.html (full gallery, city filter, tip photos)
 │   ├── gen_ratings.py           # Generates ratings.html
 │   ├── gen_search.py            # Generates search.html (no longer writes search-index.json)
-│   ├── gen_stats.py             # Generates stats.html
-│   ├── gen_tips.py              # Generates tips.html (country/city tabs, map, CLOSED badges)
+│   ├── gen_shouts.py            # Generates shouts.html (searchable archive of ~3.5k real free-text comments)
+│   ├── gen_stats.py             # Generates stats.html (+ shout text-mining + Hour×Category & DOW×Category heatmaps)
+│   ├── gen_tips.py              # Generates tips.html; also loads + exports CTRY_NORM from config/country_aliases.json
 │   ├── gen_trip_pages.py        # Generates per-trip HTML pages (trip-N.html)
 │   ├── gen_venues.py            # Generates venues.html (top 500 venues)
 │   ├── gen_worldcities.py       # Generates world_cities.html
@@ -117,11 +122,22 @@ lazy loading, lightbox, and inline tip photos ·
 │       └── wrangler.toml
 ├── config/
 │   ├── settings.yaml              # home_city, trip_detection thresholds
+│   │
+│   │  # ── Canonical lookup tables (single source of truth — see "Canonical normalization layer" below) ──
+│   ├── country_aliases.json       # Raw native country name → English canonical (Беларусь→Belarus, Тоҷикистон→Tajikistan)
+│   ├── country_flags.json         # English country → ISO 3166-1 alpha-2 (used for flag-icons CSS)
+│   ├── category_icons.json        # Foursquare category → [emoji, hex color] (559 entries)
+│   │
+│   │  # ── City / country normalization ──
 │   ├── city_merge.yaml            # Raw Foursquare city names → canonical names
 │   ├── city_canonical.yaml        # Blank-city resolver vocabulary: canonical map, thresholds, skip rules
-│   ├── categories.json            # Category groupings for charts + explorer
 │   ├── city_fixes.json            # Per-timestamp city overrides (accepts unix-ts OR 24-char hex id)
 │   ├── country_fixes.json         # Per-timestamp country overrides
+│   │
+│   │  # ── Display / metrics ──
+│   ├── categories.json            # Category groupings for charts + explorer
+│   │
+│   │  # ── Trips ──
 │   ├── trip_names.json            # Trip name overrides (keyed by _name_ts)
 │   ├── trip_tags.json             # Trip tags, e.g. ["bicycle"] (keyed by _name_ts)
 │   ├── trip_exclude.json          # Trip start timestamps to exclude entirely
@@ -143,6 +159,7 @@ lazy loading, lightbox, and inline tip photos ·
 ├── ratings.html              # Venue ratings page (built by CI)
 ├── lists.html                # Foursquare lists page (built by CI)
 ├── search.html               # Search page — queries live D1 via /api/search (built by CI)
+├── shouts.html               # Searchable archive of real free-text comments (~3.5k, infinite scroll, filters)
 ├── guide.html                # Live "what's around me" guide — 48h session history, nearby suggestions
 ├── trip-*.html               # Per-trip detail pages (~155, auto-generated)
 ├── requirements.txt          # Python deps (requests, pyyaml, timezonefinder)
@@ -346,6 +363,26 @@ skip_patterns: ['район$', 'Rayon$', '\sRegion$'] # regex blocklist
 
 Unicode-fold fallback (NFKD + casefold + strip combining marks) catches
 diacritic/transliteration variants without requiring explicit mappings.
+
+---
+
+## Canonical normalization layer
+
+Three pure-data JSON files act as the single source of truth for cross-cutting lookups
+that used to live inline in nine HTML templates and one Python generator. `build.py`
+loads each file once, then a single post-process pass substitutes the corresponding
+`{{...}}` placeholder in every generated HTML file. Adding a new country / category /
+flag is a one-line edit to the JSON — no code changes anywhere.
+
+| File | Maps | Replaces previously inlined |
+|------|------|-----------------------------|
+| `config/country_aliases.json` | Native name → English canonical (`"Беларусь":"Belarus"`, `"Тоҷикистон":"Tajikistan"`) | `CTRY_NORM` dict in `gen_tips.py` |
+| `config/country_flags.json` | English country → ISO 3166-1 alpha-2 (`"Macao":"mo"`) | `CTRY_CODE` / `ISO2` dicts in 9 templates + `gen_photos.py` (was previously 112 entries, drifted between files) |
+| `config/category_icons.json` | Foursquare category → `[emoji, hex color]` (559 entries) | `CAT_ICON` dicts in 6 templates (the shouts page only had 40 of them before extraction — that's why most of its cards showed the default pin) |
+
+The post-process step also resolves a class of bug where two pages would show
+different icons / flags for the same data because the inline dict had drifted in one
+but not the other. After extraction, the only place to edit is the JSON.
 
 ---
 
@@ -673,9 +710,14 @@ For tips / ratings / lists / trips that drifted (e.g. after a Foursquare data ex
 ```
 data/checkins.csv
   → transform.py (city_merge.yaml, city_fixes.json, country_fixes.json)
-  → metrics.py (categories.json, settings.yaml)
+  → metrics.py (categories.json, settings.yaml; collect_companions, shout_records,
+                shout_analysis, cross_dim_analysis)
   → build.py (templates/*.tmpl → *.html)
-  → gen_*.py (embedded templates → *.html)
+  → gen_*.py (templates/*.tmpl → *.html; some legacy generators still use _TMPL_B64)
+  → build.py post-process pass:
+       {{CTRY_CODE_JSON}} → config/country_flags.json
+       {{CAT_ICON_JSON}}  → config/category_icons.json
+       (applied to every generated HTML file, once, from the canonical source)
 
 data/photos.json + data/pix/           (optional, local only)
   → build.py --photos → gen_photos.py → photos.html
@@ -688,7 +730,11 @@ Cloudflare R2 (pix/ prefix)            (deployed site)
 data/checkins.csv + tips.json + ...    (CI sync, incremental)
   → sync_to_d1.py → Cloudflare D1 (swarmdata)
   → functions/api/search.js → /api/search?q= (live queries from search.html)
-  → functions/api/feed.js   → /api/feed?cursor=N or ?after=N (cursor-based feed for feed.html)
+  → functions/api/feed.js   → /api/feed?cursor=N or ?after=N
+                              (cursor-based feed; cards include `companions` array
+                               built by collectCompanions() = JS mirror of Python's
+                               collect_companions, union of with_name +
+                               created_by_name + overlaps_name)
 ```
 
 ## Dependencies

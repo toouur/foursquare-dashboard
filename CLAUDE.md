@@ -141,9 +141,10 @@ python -m http.server 8000
 
 - Build/orchestration: `scripts/build.py`
 - Normalization: `scripts/transform.py`
-- Metrics/trips: `scripts/metrics.py`
-- Tips generation: `scripts/gen_tips.py`
+- Metrics/trips: `scripts/metrics.py` (also `collect_companions`, `shout_records`, `shout_analysis`, `cross_dim_analysis`)
+- Tips generation: `scripts/gen_tips.py` (also exports `CTRY_NORM`, loaded from `config/country_aliases.json`)
 - Photos generation: `scripts/gen_photos.py`
+- Shouts page: `scripts/gen_shouts.py` (free-text comment archive, ~3.5k entries)
 - Guide page: `scripts/gen_guide.py` (live nearby suggestions, 48h session history)
 - Trip pages: `scripts/gen_trip_pages.py` (per-trip detail HTML)
 - Check-in delete: `scripts/delete_checkin.py`
@@ -152,9 +153,13 @@ python -m http.server 8000
 - Check-ins fetch: `scripts/fetch_checkins.py`
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
 - Search API (Cloudflare Pages Function): `functions/api/search.js`
-- Other Pages Functions: `functions/api/{feed,search-venues,venue-tips,custom-list}.js`
+- Other Pages Functions: `functions/api/{feed,search-venues,venue-tips,custom-list}.js` (feed.js also has `collectCompanions()` mirroring metrics.collect_companions)
 - Pages config: `wrangler.toml`
-- Config: `config/city_merge.yaml`, `config/city_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
+- Config (canonical lookups — single source of truth, edited as one-line additions):
+  - `config/country_aliases.json` — raw native country name → English canonical (was inline `CTRY_NORM` in gen_tips.py)
+  - `config/country_flags.json` — English country → ISO 3166-1 alpha-2 (was inline CTRY_CODE/ISO2 dicts in 9 templates + gen_photos.py)
+  - `config/category_icons.json` — Foursquare category → `[emoji, color]` (was inline CAT_ICON dicts in 6 templates)
+- Config (other): `config/city_merge.yaml`, `config/city_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
 
 ## City normalization pipeline (priority order)
 
@@ -182,14 +187,17 @@ To accept a new raw nearest-city name, add it to `canonical_map` in
 
 ## Stable Implementation Notes
 
-- `gen_*.py` may embed templates as base64 (`_TMPL_B64`); decode/edit/re-encode carefully.
+- Most generators now use plain `templates/*.tmpl` files; a few legacy ones still embed base64 templates (`_TMPL_B64`). Check before editing.
 - `fetch_tips.py --sweep` is required to recover tips missing from `/users/self/tips` (often closed/deleted venue cases).
-- Tips UI normalization path: country via `CTRY_NORM`, city via `city_merge.yaml`.
+- Tips UI normalization path: country via `CTRY_NORM` (loaded from `config/country_aliases.json`), city via `city_merge.yaml`.
 - `window._catIcon = catIcon` is used so index tips can reuse category icon logic from check-ins block.
 - Build placeholders are simple string substitution (`{{PLACEHOLDER}}`), not Jinja.
+- **Post-process placeholder pass** in `build.py`: after every generator runs, every output HTML file gets `{{CTRY_CODE_JSON}}` and `{{CAT_ICON_JSON}}` substituted from `config/country_flags.json` and `config/category_icons.json`. Generators don't thread these through their kwargs — they just leave the placeholder literally in the template.
+- Companion display reads from THREE columns (`with_name`, `created_by_name`, `overlaps_name`) — combined via `metrics.collect_companions()` on the Python side and the JS mirror `collectCompanions()` in `functions/api/feed.js`. The case-insensitive dedup uses first-seen casing; the Foursquare `-` sentinel for overlaps is excluded.
 - Search is served by `functions/api/search.js` (Cloudflare Pages Function at `/api/search?q=`). It queries D1 directly — no static `search-index.json` is generated or committed.
 - `sync_to_d1.py` is incremental: checkins append-only, venues only for touched IDs, tips/ratings/lists gated by `--tips-changed` / `--ratings-changed` / `--lists-changed` flags (CI passes fetch step outputs).
 - Companion search covers all three source fields: `with_name`, `created_by_name` (UNION query), and `overlaps_name` (comma-separated, split in JS).
+- `/api/feed` cache header: `public, max-age=60, s-maxage=3600, stale-while-revalidate=600`. Schema-shape changes propagate immediately via the `_v=<tag>` query param on every fetch URL — bump the tag (currently `_v=companions`) whenever the response tuple shape changes, otherwise edge nodes serve old tuple lengths to the destructure for up to an hour.
 - Feed (`feed.html` / `functions/api/feed.js`) uses a **contiguous-array virtual scroll**:
   - Single `ALL` array; init fetches the 100 newest items only (`revDone=true` from the start).
   - `loadFwd()` appends older items (`?cursor=TS`, 50 at a time); `loadRev()` prepends newer items (`?after=TS`) with scroll-position correction to prevent viewport jumps.
