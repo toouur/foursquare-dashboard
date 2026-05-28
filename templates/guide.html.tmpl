@@ -1,796 +1,862 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Guide — Your Personal Travel Advisor</title>
-<meta name="description" content="Personalized travel guide based on 65,000+ check-ins. Discover places tailored to your tastes.">
+<title>Guide — What's around me right now</title>
+<meta name="description" content="Live nearby venue suggestions tailored to your taste history, day-part, and current location.">
 <link rel="canonical" href="https://4sq.pages.dev/guide.html">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Check-in Journal">
-<meta property="og:title" content="Guide — Your Personal Travel Advisor">
-<meta property="og:description" content="Personalized travel guide based on your check-in history.">
+<meta property="og:title" content="Guide — What's around me right now">
+<meta property="og:description" content="Live nearby venue suggestions tailored to your taste history.">
 <meta property="og:url" content="https://4sq.pages.dev/guide.html">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Guide — Your Personal Travel Advisor">
-<meta name="twitter:description" content="Personalized travel guide based on your check-in history.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
+<link rel="preconnect" href="https://overpass-api.de" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
-body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;}
-body.light header{background:linear-gradient(160deg,#d6d1c8 0%,#dedad1 70%);}
-body.light .side-nav{background:rgba(220,215,208,0.97);}
-* {box-sizing:border-box;margin:0;padding:0;}
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;--rose:#e8778a;}
+body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;--rose:#a83e5a;}
+*{box-sizing:border-box;margin:0;padding:0;}
 html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
+a{color:var(--teal);}
 
-.page{padding:20px 28px 60px;max-width:1400px;margin:0 auto;}
-header{padding:28px 0 24px;border-bottom:1px solid var(--border);margin-bottom:28px;}
-header h1{font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d 50%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-header .sub{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);margin-top:6px;letter-spacing:.08em;}
-header .updated{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:4px;}
+/* ── Layout ── */
+.page{padding:18px 28px 80px;max-width:1280px;margin:0 auto;}
+@media(max-width:600px){.page{padding:12px 14px 60px;}}
 
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-bottom:32px;}
-.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;}
-.card.full{grid-column:1/-1;}
-.card-title{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.2em;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
-.card-title em{opacity:.5;font-style:normal;}
+/* ── Header ── */
+header{padding:18px 0 14px;border-bottom:1px solid var(--border);margin-bottom:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+header h1{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:900;background:linear-gradient(130deg,#f5d48a,#e8b86d 50%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.05;}
+.h-sub{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-left:auto;}
+@media(max-width:600px){header h1{font-size:1.3rem;} .h-sub{display:none;}}
 
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
-.stat-item{text-align:center;padding:14px 8px;background:var(--card2);border-radius:10px;}
-.stat-num{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1;}
-.stat-lbl{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-top:4px;}
+/* ── Hero (anchor) ── */
+.hero{background:linear-gradient(135deg,rgba(232,184,109,.10) 0%,rgba(78,201,176,.05) 100%);border:1px solid rgba(232,184,109,.25);border-radius:14px;padding:18px 22px;margin-bottom:16px;}
+.hero-row1{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+.hero-anchor{flex:1 1 280px;min-width:0;}
+.hero-anchor-lbl{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin-bottom:4px;}
+.hero-venue{font-size:1.15rem;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hero-meta{font-size:.78rem;color:var(--muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;}
+.hero-meta strong{color:var(--text);font-weight:600;}
+.hero-context{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);margin-top:7px;letter-spacing:.05em;}
+.hero-context .ctx-badge{display:inline-block;background:rgba(78,201,176,.12);border:1px solid rgba(78,201,176,.35);border-radius:10px;padding:1px 8px;margin-right:5px;font-size:.58rem;}
+.hero-context .ctx-badge.alert{background:rgba(232,184,109,.10);border-color:rgba(232,184,109,.35);color:var(--gold);}
+.hero-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.hero-btn{padding:6px 11px;border-radius:8px;background:var(--card);border:1px solid var(--border);color:var(--text);font-size:.7rem;font-family:'DM Mono',monospace;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s;letter-spacing:.04em;}
+.hero-btn:hover{border-color:var(--gold);color:var(--gold);}
+.hero-btn.gps{background:rgba(78,201,176,.10);border-color:rgba(78,201,176,.35);color:var(--teal);}
+.hero-btn.gps.active{background:rgba(78,201,176,.20);border-color:var(--teal);}
 
-.pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
-.pill{padding:5px 12px;border-radius:20px;font-size:.72rem;background:var(--card2);border:1px solid var(--border);color:var(--text2);white-space:nowrap;}
-.pill.teal{background:rgba(78,201,196,.12);border-color:var(--teal);color:var(--teal);}
-.pill.gold{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
+/* ── Filter panel + map two-pane ── */
+.discover-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.dc-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.dc-head h2{font-family:'DM Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);font-weight:600;}
+.dc-head .count{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-left:auto;}
+.dc-head .count strong{color:var(--teal);}
 
-.bar-list{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;}
-.bar-list::-webkit-scrollbar{width:3px;}
-.bar-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-.bar-row{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--card2);border-radius:8px;}
-.bar-rank{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);width:24px;text-align:right;flex-shrink:0;}
-.bar-name{flex:1;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.bar-cnt{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--teal);flex-shrink:0;}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:540px;}
+@media(max-width:900px){.layout{grid-template-columns:1fr;}}
 
-.latest-card{background:linear-gradient(135deg,rgba(232,184,109,.08) 0%,rgba(78,201,176,.05) 100%);border:1px solid rgba(232,184,109,.25);}
-.latest-card .card-title{color:var(--gold);}
-.latest-venue{font-size:1.1rem;font-weight:600;margin-bottom:4px;}
-.latest-meta{font-size:.82rem;color:var(--muted);margin-bottom:12px;}
-.latest-meta span{margin-right:12px;}
-.latest-links{display:flex;gap:8px;flex-wrap:wrap;}
-.links-title{font-family:'DM Mono',monospace;font-size:.50rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;width:100%;}
-.links-btn{padding:6px 12px;border-radius:6px;font-size:.72rem;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}
-.links-btn.google{background:#4285f4;color:#fff;border:1px solid #4285f4;}
-.links-btn.google:hover{background:#3367d6;}
-.links-btn.yandex{background:#ff0000;color:#fff;border:1px solid #ff0000;}
-.links-btn.yandex:hover{background:#cc0000;}
-.links-btn.foursquare{background:#f94877;color:#fff;border:1px solid #f94877;}
-.links-btn.foursquare:hover{background:#e03664;}
+/* Left rail */
+.rail{border-right:1px solid var(--border);padding:14px 14px 18px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 240px);overflow-y:auto;}
+@media(max-width:900px){.rail{border-right:none;border-bottom:1px solid var(--border);max-height:none;overflow-y:visible;}}
+.rail::-webkit-scrollbar{width:3px;}
+.rail::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 
-.history-timeline{max-height:400px;overflow-y:auto;}
-.history-item{display:flex;gap:12px;padding:10px 12px;background:var(--card2);border-radius:8px;margin-bottom:6px;}
-.history-time{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);width:50px;flex-shrink:0;text-align:right;}
-.history-details{flex:1;min-width:0;}
-.history-venue{font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.history-meta{font-size:.68rem;color:var(--muted);margin-top:2px;}
-.history-new{font-size:.58rem;background:var(--gold);color:#0c0e14;padding:1px 5px;border-radius:3px;margin-left:6px;font-family:'DM Mono',monospace;}
+.rail-block{display:flex;flex-direction:column;gap:8px;}
+.rail-label{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);}
 
-.suggestion-box{background:var(--card2);border-radius:10px;padding:16px;margin-top:12px;}
-.suggestion-box h4{font-family:'DM Mono',monospace;font-size:.60rem;text-transform:uppercase;letter-spacing:.12em;color:var(--teal);margin-bottom:10px;}
-.suggestion-text{font-size:.88rem;line-height:1.6;color:var(--text);}
+.rec-pills{display:flex;flex-wrap:wrap;gap:5px;}
+.rec-pill{padding:5px 11px;border-radius:14px;font-size:.72rem;cursor:pointer;border:1px solid rgba(232,184,109,.4);background:rgba(232,184,109,.08);color:var(--gold);font-family:inherit;display:inline-flex;align-items:center;gap:4px;transition:all .15s;}
+.rec-pill:hover{background:rgba(232,184,109,.16);}
+.rec-pill.active{background:rgba(232,184,109,.22);border-color:var(--gold);color:var(--gold);}
+.rec-pill .star{font-size:.55rem;}
 
-/* Nearby suggestions */
-.nearby-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
-.nearby-anchor{font-size:.82rem;color:var(--muted);}
-.nearby-anchor strong{color:var(--text);}
-/* Category accordion */
-.cat-accordion{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}
-.cat-group{border:1px solid var(--border);border-radius:8px;overflow:hidden;}
-.cat-group-header{width:100%;display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--card2);cursor:pointer;border:none;color:var(--text);font-family:inherit;text-align:left;transition:background .15s;}
-.cat-group-header:hover{background:rgba(78,201,196,.09);}
-.cat-group.open .cat-group-header{background:rgba(78,201,196,.12);border-bottom:1px solid var(--border);}
-.cat-group-icon{font-size:.85rem;width:18px;text-align:center;flex-shrink:0;}
-.cat-group-name{flex:1;font-size:.78rem;font-weight:500;}
-.cat-group-liked{font-size:.6rem;color:#e8778a;margin-right:2px;}
-.cat-group-count{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--teal);background:rgba(78,201,196,.12);border-radius:10px;padding:1px 6px;flex-shrink:0;}
-.cat-group-arrow{font-size:.6rem;color:var(--muted);transition:transform .2s;flex-shrink:0;}
-.cat-group.open .cat-group-arrow{transform:rotate(180deg);}
-.cat-group-body{display:none;padding:8px;flex-wrap:wrap;gap:5px;}
-.cat-group.open .cat-group-body{display:flex;}
-.nearby-cat-pill{padding:4px 11px;border-radius:16px;font-size:.71rem;cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--muted);transition:all .15s;white-space:nowrap;font-family:inherit;}
-.nearby-cat-pill:hover{background:rgba(78,201,196,.08);border-color:rgba(78,201,196,.4);color:var(--text);}
-.nearby-cat-pill.active{background:rgba(78,201,196,.18);border-color:var(--teal);color:var(--teal);}
-.nearby-cat-pill.pill-was-visited{border-color:rgba(78,201,196,.3);color:var(--text);}
-.nearby-cat-pill.pill-liked-cat{border-color:rgba(232,119,138,.35);color:#e8778a;}
-.pill-liked{color:#e8778a;margin-right:3px;font-size:.6rem;}
-.pill-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--teal);margin-left:4px;vertical-align:middle;opacity:.7;}
-.cat-group-visits{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-left:2px;}
-/* Controls bar */
-.nearby-controls{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
-.nearby-radius-group{display:flex;gap:3px;}
-.nearby-radius-btn{padding:4px 9px;border-radius:12px;font-size:.68rem;cursor:pointer;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;transition:all .15s;}
-.nearby-radius-btn:hover{border-color:var(--teal);color:var(--teal);}
-.nearby-radius-btn.active{background:rgba(78,201,196,.18);border-color:var(--teal);color:var(--teal);}
-.nearby-unvisited-toggle{display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--muted);cursor:pointer;user-select:none;padding:4px 9px;border-radius:12px;border:1px solid var(--border);background:var(--card2);transition:all .15s;}
-.nearby-unvisited-toggle:hover{border-color:var(--gold);color:var(--gold);}
-.nearby-unvisited-toggle.active{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
-.nearby-result-count{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-left:auto;}
-/* Result list */
-.nearby-layout{display:grid;grid-template-columns:1fr 360px;gap:16px;align-items:start;}
-.nearby-result-list{display:flex;flex-direction:column;gap:7px;max-height:420px;overflow-y:auto;padding-right:4px;}
-.nearby-result-list::-webkit-scrollbar{width:3px;}
-.nearby-result-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-.nearby-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--card2);border-radius:8px;border:1px solid var(--border);}
-.nearby-item-dist{font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;color:var(--teal);white-space:nowrap;min-width:44px;text-align:right;padding-top:2px;}
-.nearby-item-body{flex:1;min-width:0;}
-.nearby-item-name{font-size:.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.nearby-item-addr{font-size:.66rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.nearby-item-links{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
-.nearby-item-link{font-size:.65rem;padding:3px 8px;border-radius:4px;text-decoration:none;border:1px solid rgba(255,255,255,.12);color:var(--text);transition:all .12s;}
-.nearby-item-link:hover{background:rgba(255,255,255,.07);}
-.nearby-item-link.glink{border-color:rgba(66,133,244,.35);color:#4285f4;}
-.nearby-item-link.ylink{border-color:rgba(255,80,80,.35);color:#ff6060;}
-.nearby-item-link.osmlink{border-color:rgba(120,200,100,.3);color:#78c864;}
-.nearby-loading{text-align:center;padding:40px 20px;color:var(--muted);font-size:.82rem;}
-.nearby-item.visited{border-color:rgba(232,184,109,.45);background:rgba(232,184,109,.06);}
-.nearby-item.visited .nearby-item-name::after{content:'✓';font-size:.6rem;color:var(--gold);margin-left:5px;vertical-align:middle;}
-.nearby-visited-badge{font-size:.58rem;background:rgba(232,184,109,.18);color:var(--gold);border:1px solid rgba(232,184,109,.4);padding:1px 6px;border-radius:3px;margin-left:5px;font-family:'DM Mono',monospace;white-space:nowrap;}
-@media(max-width:900px){.nearby-layout{grid-template-columns:1fr;}}
+.cat-acc{display:flex;flex-direction:column;gap:3px;}
+.cat-group{border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--card2);}
+.cat-group-h{width:100%;display:flex;align-items:center;gap:7px;padding:6px 10px;background:transparent;cursor:pointer;border:none;color:var(--text);font-family:inherit;text-align:left;transition:background .12s;}
+.cat-group-h:hover{background:rgba(78,201,196,.08);}
+.cat-group.open .cat-group-h{background:rgba(78,201,196,.10);border-bottom:1px solid var(--border);}
+.cgi{font-size:.85rem;width:18px;text-align:center;flex-shrink:0;}
+.cgn{flex:1;font-size:.74rem;font-weight:500;}
+.cgliked{font-size:.55rem;color:var(--rose);margin-right:2px;}
+.cgcount{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--teal);background:rgba(78,201,196,.10);border-radius:9px;padding:1px 6px;flex-shrink:0;}
+.cgarrow{font-size:.55rem;color:var(--muted);transition:transform .15s;flex-shrink:0;}
+.cat-group.open .cgarrow{transform:rotate(180deg);}
+.cgbody{display:none;padding:8px;flex-wrap:wrap;gap:4px;}
+.cat-group.open .cgbody{display:flex;}
+.cat-pill{padding:3px 9px;border-radius:14px;font-size:.66rem;cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--muted);transition:all .12s;font-family:inherit;white-space:nowrap;}
+.cat-pill:hover{background:rgba(78,201,196,.08);border-color:rgba(78,201,196,.35);color:var(--text);}
+.cat-pill.active{background:rgba(78,201,196,.18);border-color:var(--teal);color:var(--teal);}
+.cat-pill.liked{border-color:rgba(232,119,138,.35);color:var(--rose);}
+.cat-pill.liked .heart{font-size:.5rem;margin-right:2px;}
+.cat-pill.visited::after{content:'';display:inline-block;width:4px;height:4px;border-radius:50%;background:var(--teal);margin-left:5px;opacity:.6;vertical-align:middle;}
+.cat-pill-count{font-family:'DM Mono',monospace;font-size:.5rem;opacity:.6;margin-left:3px;}
 
-.empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
-.empty-state h3{font-size:1.1rem;margin-bottom:8px;color:var(--text);}
-.empty-state p{font-size:.82rem;}
+.toggle-row{display:flex;flex-wrap:wrap;gap:5px;}
+.toggle-btn{padding:4px 9px;border-radius:14px;font-size:.65rem;cursor:pointer;background:var(--card2);border:1px solid var(--border);color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.04em;text-transform:none;transition:all .12s;}
+.toggle-btn:hover{border-color:var(--teal);color:var(--text);}
+.toggle-btn.active{background:rgba(78,201,176,.15);border-color:var(--teal);color:var(--teal);}
+.toggle-btn.gold.active{background:rgba(232,184,109,.12);border-color:var(--gold);color:var(--gold);}
 
-.side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);}
-.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:6px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;}
+.radius-slider{width:100%;}
+.radius-slider input{width:100%;accent-color:var(--teal);}
+.radius-display{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--teal);margin-top:2px;text-align:center;}
+
+/* Right pane: map + list */
+.right{display:flex;flex-direction:column;min-width:0;}
+.map-pane{position:relative;height:340px;border-bottom:1px solid var(--border);}
+#nbMap{width:100%;height:100%;background:#0c0e14;}
+.map-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(12,14,20,0.78);color:var(--muted);font-size:.78rem;z-index:500;pointer-events:none;}
+.map-loading.hidden{display:none;}
+.leaflet-popup-content-wrapper{background:var(--card2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;}
+.leaflet-popup-tip{background:var(--card2);}
+
+.list-pane{flex:1;overflow-y:auto;padding:8px 14px 14px;max-height:480px;}
+.list-pane::-webkit-scrollbar{width:3px;}
+.list-pane::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+.nb-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:8px;margin-bottom:5px;cursor:pointer;transition:all .12s;}
+.nb-item:hover, .nb-item.hover{border-color:rgba(78,201,196,.5);background:rgba(78,201,196,.05);}
+.nb-item.visited{border-color:rgba(232,184,109,.4);background:rgba(232,184,109,.06);}
+.nb-item .dist{font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;color:var(--teal);white-space:nowrap;min-width:48px;text-align:right;padding-top:1px;}
+.nb-item .body{flex:1;min-width:0;}
+.nb-item .name{font-size:.85rem;font-weight:500;line-height:1.25;}
+.nb-item.visited .name::after{content:' ✓';color:var(--gold);}
+.nb-item .meta{font-size:.65rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nb-item .meta .sep{margin:0 4px;opacity:.5;}
+.nb-item .meta .opening{color:var(--teal);}
+.nb-item .meta .opening.closed{color:var(--rose);}
+.nb-item .links{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;}
+.nb-link{font-size:.6rem;padding:2px 7px;border-radius:4px;text-decoration:none;border:1px solid rgba(255,255,255,.12);color:var(--text);}
+.nb-link.g{border-color:rgba(66,133,244,.4);color:#5995ff;}
+.nb-link.y{border-color:rgba(255,80,80,.4);color:#ff6060;}
+.nb-link.o{border-color:rgba(120,200,100,.35);color:#78c864;}
+.nb-link.w{border-color:rgba(232,184,109,.35);color:var(--gold);}
+.nb-link:hover{background:rgba(255,255,255,.05);}
+.nb-empty{text-align:center;padding:30px 16px;color:var(--muted);font-size:.82rem;}
+.nb-empty h3{font-size:.95rem;margin-bottom:6px;color:var(--text);}
+.nb-empty a{color:var(--teal);}
+
+/* Side nav */
+.side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}
+.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:6px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
 .side-nav a:hover,.side-nav button:hover{background:rgba(255,255,255,.06);color:var(--text);}
 .side-nav a.active,.side-nav button.active{color:var(--gold);}
-.side-nav .sn-icon{font-size:.95rem;}
-.side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;}
+.side-nav .sn-icon{font-size:.82rem;line-height:1;display:inline-block;transition:transform .15s;}
+.side-nav a:hover .sn-icon,.side-nav button:hover .sn-icon{transform:scale(1.28);}
+.side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}
 .side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:1px auto;}
-.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:3px auto;}
+.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:2px auto;border-radius:1px;}
 @media(max-width:900px){.side-nav{display:none;}}
 
-@media(max-width:600px){
-  .page{padding:12px 14px 40px;}
-  header h1{font-size:1.6rem;}
-  .stat-grid{grid-template-columns:repeat(2,1fr);}
-  .grid{grid-template-columns:1fr;}
-  .suggest-grid{grid-template-columns:1fr;}
-}
+/* Empty state when no anchor */
+.no-anchor{padding:60px 20px;text-align:center;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:14px;}
+.no-anchor h2{font-size:1.2rem;color:var(--text);margin-bottom:10px;}
+.no-anchor p{font-size:.82rem;line-height:1.6;}
+.no-anchor button{margin-top:18px;padding:9px 18px;border-radius:8px;background:rgba(78,201,196,.10);border:1px solid var(--teal);color:var(--teal);font-size:.78rem;cursor:pointer;font-family:inherit;}
 </style>
 </head>
 <body>
 <div class="page">
+
 <header>
-<h1>Your Personal Guide</h1>
-<div class="sub">Travel recommendations based on {{TOTAL_CHECKINS}} check-ins across {{TOTAL_COUNTRIES}} countries</div>
-<div class="updated">Updated {{UPDATED}}</div>
+  <h1>Guide</h1>
+  <div class="h-sub">{{TOTAL_CHECKINS}} check-ins · {{TOTAL_COUNTRIES}} countries · updated {{UPDATED}}</div>
 </header>
 
-<!-- Row 1: Stats + Latest check-in -->
-<div class="grid">
-<div class="card">
-<div class="card-title">📊 Your Preferences</div>
-<div class="stat-grid">
-<div class="stat-item"><div class="stat-num">{{TOTAL_CHECKINS}}</div><div class="stat-lbl">Check-ins</div></div>
-<div class="stat-item"><div class="stat-num">{{UNIQUE_VENUES}}</div><div class="stat-lbl">Venues</div></div>
-<div class="stat-item"><div class="stat-num">{{TOTAL_CITIES}}</div><div class="stat-lbl">Cities</div></div>
-<div class="stat-item"><div class="stat-num">{{TOTAL_COUNTRIES}}</div><div class="stat-lbl">Countries</div></div>
-</div>
-</div>
+<!-- HERO -->
+<div id="heroBox"></div>
 
-<div class="card latest-card" id="latestCard" style="display:none">
-<div class="card-title">📍 Latest Check-in</div>
-<div id="latestContent"></div>
-</div>
-</div>
-
-<!-- Row 2: Top Categories + Cities -->
-<div class="grid">
-<div class="card">
-<div class="card-title">☕ Top Categories</div>
-<div class="pill-row" id="topCats"></div>
-<div class="bar-list" id="catList"></div>
-</div>
-
-<div class="card">
-<div class="card-title">🏙️ Top Cities</div>
-<div class="pill-row" id="topCities"></div>
-<div class="bar-list" id="cityList"></div>
-</div>
-</div>
-
-<!-- Row 3: Countries + Liked Venues -->
-<div class="grid">
-<div class="card">
-<div class="card-title">🌍 Top Countries</div>
-<div class="pill-row" id="topCountries"></div>
-<div class="bar-list" id="countryList"></div>
-</div>
-
-<div class="card">
-<div class="card-title">❤️ Liked Venues with Map Links</div>
-<div class="pill-row" id="topLikedCats"></div>
-<div id="venueLinks" class="bar-list"></div>
-</div>
-</div>
-
-<!-- Row 4: 48h recent activity -->
-<div class="card full">
-<div class="card-title">🕐 Recent 48 Hours Activity</div>
-<div id="recent48Stats" class="pill-row"></div>
-<div class="history-timeline" id="historyTimeline"></div>
-</div>
-
-<!-- Row 5: Nearby suggestions -->
-<div class="card full" id="nearbyCard">
-<div class="card-title">🔍 Nearby For You
-  <em id="nearbySubtitle">· live OSM data</em>
-</div>
-<div id="nearbyAnchorRow" class="nearby-header" style="display:none">
-  <span class="nearby-anchor" id="nearbyAnchorText"></span>
-</div>
-<div id="nearbyCatPills" class="cat-accordion"></div>
-<div class="nearby-controls">
-  <div class="nearby-radius-group" id="nearbyRadiusGroup">
-    <button class="nearby-radius-btn" data-r="500">500 m</button>
-    <button class="nearby-radius-btn active" data-r="1500">1.5 km</button>
-    <button class="nearby-radius-btn" data-r="3000">3 km</button>
-  </div>
-  <button class="nearby-unvisited-toggle" id="nearbyUnvisited">☆ Unvisited only</button>
-  <span class="nearby-result-count" id="nearbyResultCount"></span>
-</div>
-<div class="nearby-layout">
-  <div>
-    <div id="nearbyMapEl" style="width:100%;height:420px;border-radius:10px;position:relative;z-index:1"></div>
-  </div>
-  <div id="nearbyBox"></div>
-</div>
-</div>
-
-<!-- Row 6: Pattern summary -->
-<div class="card full">
-<div class="card-title">💡 Preference Summary</div>
-<div class="suggestion-box">
-<h4>Based on your patterns</h4>
-<div class="suggestion-text" id="suggestionText"></div>
-</div>
-</div>
-
+<!-- DISCOVERY -->
+<div id="discoverBox"></div>
 
 </div><!-- /.page -->
 
 <nav class="side-nav" aria-label="Page shortcuts">
-<a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
-<a href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">FEED</span></a>
-<a href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">TIPS</span></a>
-<a href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">RATED</span></a>
-<a href="shouts.html"><span class="sn-icon">💭</span><span class="sn-lbl">SHOUTS</span></a>
-<a href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">TRIPS</span></a>
-<a href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">LISTS</span></a>
-<a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">WORLD</span></a>
-<a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">VENUES</span></a>
-<a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
-<a href="guide.html" class="active"><span class="sn-icon">🧭</span><span class="sn-lbl">GUIDE</span></a>
+  <a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
+  <div class="sn-sep--pages"></div>
+  <a href="feed.html"><span class="sn-icon">📰</span><span class="sn-lbl">FEED</span></a>
+  <a href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">TIPS</span></a>
+  <a href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">RATED</span></a>
+  <a href="shouts.html"><span class="sn-icon">💭</span><span class="sn-lbl">SHOUTS</span></a>
+  <a href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">TRIPS</span></a>
+  <a href="lists.html"><span class="sn-icon">📋</span><span class="sn-lbl">LISTS</span></a>
+  <a href="world_cities.html"><span class="sn-icon">🌐</span><span class="sn-lbl">WORLD</span></a>
+  <a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">VENUES</span></a>
+  <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
+  <a href="guide.html" class="active"><span class="sn-icon">🧭</span><span class="sn-lbl">GUIDE</span></a>
 </nav>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const D={{DATA_JSON}};
-const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+"use strict";
+const D = {{GUIDE_DATA_JSON}};
+const CAT_ICON = {{CAT_ICON_JSON}};   // canonical category → [emoji, color]
 
-// ── Preference data ──────────────────────────────────────────────────────────
-// Preferred categories: liked categories first, fall back to visit-frequency top cats
-// Filter out transit/infrastructure categories that make poor suggestions
-const SKIP_CATS = new Set(['Road','Bus Line','Bus Stop','Bus Station','Metro Station',
-  'Rail Station','Home (private)','City','Corporate Cafeteria','Neighborhood']);
-const PREF_CATS = (D.suggestions && D.suggestions.prefer_categories || [])
-  .filter(c => !SKIP_CATS.has(c));
-// Fallback: top visited cats minus infrastructure
-const ALL_TOP_CATS = (D.top_categories || []).map(c=>c[0]).filter(c=>!SKIP_CATS.has(c));
-const SUGGEST_CATS = PREF_CATS.length >= 3 ? PREF_CATS : ALL_TOP_CATS.slice(0, 6);
+// ── Utilities ─────────────────────────────────────────────────────────────
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmtDist = m => m < 50 ? '<50 m' : m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(2) + ' km';
+const fmtWalk = m => {
+  const mins = Math.round(m / 80); // 80 m/min ≈ 4.8 km/h
+  if (mins < 1) return '<1 min walk';
+  if (mins < 60) return mins + ' min walk';
+  return Math.round(mins / 60) + ' h walk';
+};
+const distM = (la1, lo1, la2, lo2) => {
+  const R = 6371000, r = Math.PI / 180;
+  const dLa = (la2 - la1) * r, dLo = (lo2 - lo1) * r;
+  const a = Math.sin(dLa / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin(dLo / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+const catEmoji = c => (CAT_ICON[c] && CAT_ICON[c][0]) || '📍';
+const catColor = c => (CAT_ICON[c] && CAT_ICON[c][1]) || '#4a5270';
 
-const LATEST = D.latest_checkin || null;
-const LATEST_LL = LATEST && LATEST.lat && LATEST.lng
-  ? `${LATEST.lat},${LATEST.lng}` : null;
-
-
-// ── Existing renders ─────────────────────────────────────────────────────────
-function renderTopCats(){
-  const cont=document.getElementById('topCats');
-  const list=document.getElementById('catList');
-  if(!D.top_categories||!D.top_categories.length){cont.innerHTML='<span class="pill">No data</span>';return;}
-  cont.innerHTML=D.top_categories.slice(0,5).map(c=>`<span class="pill teal">${esc(c[0])} <span style="opacity:.6">${c[1].toLocaleString()}</span></span>`).join('');
-  list.innerHTML=D.top_categories.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
-}
-
-function renderTopCities(){
-  const cont=document.getElementById('topCities');
-  const list=document.getElementById('cityList');
-  if(!D.top_cities||!D.top_cities.length){cont.innerHTML='<span class="pill">No data</span>';return;}
-  cont.innerHTML=D.top_cities.slice(0,5).map(c=>`<span class="pill">${esc(c[0])}</span>`).join('');
-  list.innerHTML=D.top_cities.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
-}
-
-function renderTopCountries(){
-  const cont=document.getElementById('topCountries');
-  const list=document.getElementById('countryList');
-  if(!D.top_countries||!D.top_countries.length){cont.innerHTML='<span class="pill">No data</span>';return;}
-  cont.innerHTML=D.top_countries.slice(0,3).map(c=>`<span class="pill gold">${esc(c[0])}</span>`).join('');
-  list.innerHTML=D.top_countries.map((c,i)=>`<div class="bar-row"><span class="bar-rank">${i+1}</span><span class="bar-name">${esc(c[0])}</span><span class="bar-cnt">${c[1].toLocaleString()}</span></div>`).join('');
-}
-
-function renderLikedCats(){
-  const cont=document.getElementById('topLikedCats');
-  if(!D.top_liked_cats||!D.top_liked_cats.length){cont.innerHTML='<span class="pill">No liked venues</span>';return;}
-  cont.innerHTML=D.top_liked_cats.slice(0,5).map(c=>`<span class="pill teal">${esc(c[0])} <span style="opacity:.6">${c[1]}</span></span>`).join('');
-}
-
-function renderVenueLinks(){
-  const cont=document.getElementById('venueLinks');
-  if(!D.venue_links||!D.venue_links.length){
-    cont.innerHTML='<div class="empty-state"><h3>No venue links</h3><p>Add ratings to see map links</p></div>';
-    return;
+// Opening-hours probe — very lightweight; returns {open: bool|null, text: ''}
+// Full opening_hours grammar is out of scope; we just look for "24/7", "Mo-Su",
+// and a simple "Mo-Fr 09:00-21:00" form.  Anything else → unknown (null).
+function probeOpen(ohRaw, dt) {
+  if (!ohRaw) return { open: null, text: '' };
+  const oh = ohRaw.trim();
+  if (/^24\/7$/i.test(oh)) return { open: true, text: '24/7' };
+  // Convert dt to "HH:MM"
+  const hh = String(dt.getHours()).padStart(2, '0');
+  const mm = String(dt.getMinutes()).padStart(2, '0');
+  const nowMin = dt.getHours() * 60 + dt.getMinutes();
+  // Map JS DOW (Sun=0) to OSM (Mo=0..Su=6)
+  const osmDow = (dt.getDay() + 6) % 7;
+  const dayKeys = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+  // Try patterns like "Mo-Su 09:00-22:00" / "Mo-Fr 09:00-18:00; Sa 10:00-16:00"
+  for (const part of oh.split(/\s*;\s*/)) {
+    const m = part.match(/^([A-Z][a-z](?:[-,][A-Z][a-z])*)\s+(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+    if (!m) continue;
+    const [, dRange, h1, m1, h2, m2] = m;
+    const days = new Set();
+    for (const dr of dRange.split(',')) {
+      const span = dr.split('-');
+      if (span.length === 1) days.add(span[0]);
+      else {
+        const a = dayKeys.indexOf(span[0]), b = dayKeys.indexOf(span[1]);
+        if (a >= 0 && b >= 0) for (let i = a; i <= b; i++) days.add(dayKeys[i]);
+      }
+    }
+    if (!days.has(dayKeys[osmDow])) continue;
+    const open = +h1 * 60 + +m1;
+    const close = +h2 * 60 + +m2;
+    const isOpen = open <= close
+      ? (nowMin >= open && nowMin < close)
+      : (nowMin >= open || nowMin < close);
+    return { open: isOpen, text: `${h1}:${m1}–${h2}:${m2}` };
   }
-  cont.innerHTML=D.venue_links.map(v=>{
-    const links=[];
-    if(v.google)links.push(`<a href="${esc(v.google)}" class="links-btn google" target="_blank" rel="noopener">📍 Google</a>`);
-    if(v.yandex)links.push(`<a href="${esc(v.yandex)}" class="links-btn yandex" target="_blank" rel="noopener">🗺️ Yandex</a>`);
-    if(links.length)links.push(`<a href="https://foursquare.com/v/${encodeURIComponent(v.name||'').replace(/%20/g,'-')}" class="links-btn foursquare" target="_blank" rel="noopener">4sq</a>`);
-    return `<div class="bar-row" style="flex-wrap:wrap;gap:6px;"><span class="bar-name" style="flex:1 1 100%;margin-bottom:4px;">${esc(v.name)}<span class="bar-cnt" style="margin-left:8px;">${esc(v.category)}</span></span>${links.join('')}</div>`;
-  }).join('');
+  return { open: null, text: oh.length > 22 ? oh.slice(0, 22) + '…' : oh };
 }
 
-function renderLatest(){
-  const card=document.getElementById('latestCard');
-  const cont=document.getElementById('latestContent');
-  if(!LATEST||!LATEST.venue){card.style.display='none';return;}
-  card.style.display='';
-  const lat=LATEST.lat,lng=LATEST.lng;
-  const name=encodeURIComponent(LATEST.venue);
-  let linksHtml='';
-  if(lat&&lng){
-    linksHtml=`<div class="latest-links">
-      <span class="links-title">Open in maps</span>
-      <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" class="links-btn google" target="_blank" rel="noopener">📍 Google Maps</a>
-      <a href="https://yandex.com/maps/?pt=${lng},${lat}&z=16" class="links-btn yandex" target="_blank" rel="noopener">🗺️ Yandex Maps</a>
-      <a href="https://foursquare.com/v/${name}/${LATEST.venue_id||''}" class="links-btn foursquare" target="_blank" rel="noopener">4sq ↗</a>
+// ── IndexedDB cache ───────────────────────────────────────────────────────
+const IDB_NAME = 'guide-overpass-v1';
+const IDB_STORE = 'cache';
+const TTL_MS = 24 * 3600 * 1000;
+
+function idbOpen() {
+  return new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('no indexedDB'));
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbGet(key) {
+  try {
+    const db = await idbOpen();
+    return await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+  } catch { return null; }
+}
+async function idbSet(key, val) {
+  try {
+    const db = await idbOpen();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  } catch {}
+}
+function cacheKey(lat, lng, radius, tags) {
+  // Round coords to ~10m precision so the same area produces cache hits even on
+  // slight GPS drift.
+  const la = Math.round(lat * 10000) / 10000;
+  const lo = Math.round(lng * 10000) / 10000;
+  return `${la},${lo},${radius},${tags.slice().sort().join('|')}`;
+}
+
+// ── App state ─────────────────────────────────────────────────────────────
+const state = {
+  anchor: D.anchor ? { ...D.anchor, source: 'checkin' } : null,
+  radius: +localStorage.getItem('guide-radius') || 1500,
+  filters: {
+    likedOnly:     localStorage.getItem('guide-liked') === '1',
+    unvisitedOnly: localStorage.getItem('guide-unvis') === '1',
+    openNow:       localStorage.getItem('guide-open') === '1',
+  },
+  activeCat:     null,
+  results:       [],    // raw OSM elements (after distance attach)
+  filteredCount: 0,
+  inFlight:      new Map(),  // tags-key → AbortController
+  promiseDedup:  new Map(),  // tags-key → Promise
+  hoverIdx:      -1,
+};
+
+const visitedNames = new Set((D.visited_names || []).map(s => s.toLowerCase()));
+const likedCatsSet = new Set(D.liked_cats || []);
+const visitedCatsMap = new Map((D.visited_cats || []).map(([c, n]) => [c, n]));
+const osmTagMap = D.osm_tags || {};
+
+// ── Hero ──────────────────────────────────────────────────────────────────
+function renderHero() {
+  const box = document.getElementById('heroBox');
+  if (!state.anchor) {
+    box.innerHTML = `<div class="no-anchor">
+      <h2>No location yet</h2>
+      <p>The guide uses your latest check-in as the anchor point.<br>
+      Once you check in somewhere with coordinates, this page will surface nearby venues that match your taste.</p>
+      <button onclick="useDeviceLocation()">📍 Use my device location instead</button>
     </div>`;
-  }
-  cont.innerHTML=`<div class="latest-venue">${esc(LATEST.venue)}</div>
-    <div class="latest-meta"><span>📍 ${esc(LATEST.city)}</span><span>🌍 ${esc(LATEST.country)}</span><span>🏷️ ${esc(LATEST.category)}</span></div>
-    ${linksHtml}`;
-}
-
-function render48h(){
-  const stats=document.getElementById('recent48Stats');
-  const timeline=document.getElementById('historyTimeline');
-  const rs=D.recent_stats||{};
-  stats.innerHTML=`<span class="pill gold">${rs.count||0} check-ins</span><span class="pill">${rs.unique_venues||0} venues</span><span class="pill">${rs.cities||0} cities</span>`;
-  if(!D.recent_history||!D.recent_history.length){
-    timeline.innerHTML='<div class="empty-state"><h3>No recent activity</h3><p>Check-ins in the last 48 hours will appear here</p></div>';
     return;
   }
-  timeline.innerHTML=D.recent_history.map(h=>{
-    const fsqLink=`<a href="https://foursquare.com/v/${h.venue_id||''}" target="_blank" rel="noopener" style="color:var(--teal);font-size:.62rem;margin-left:6px">4sq↗</a>`;
-    const lat=h.lat,lng=h.lng;
-    const gLink=lat&&lng?`<a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" rel="noopener" style="color:#4285f4;font-size:.62rem;margin-left:6px">map↗</a>`:'';
-    return `<div class="history-item">
-    <div class="history-time">${esc(h.time)}<br><span style="font-size:.52rem;opacity:.6">${esc((h.date||'').replace(/^\d{2} /,''))}</span></div>
-    <div class="history-details">
-      <div class="history-venue">${esc(h.venue)}${h.venue_id?fsqLink:''}${gLink}</div>
-      <div class="history-meta">${esc(h.category)} · ${esc(h.city)}, ${esc(h.country)}</div>
+  const a = state.anchor;
+  const gUrl = `https://www.google.com/maps/@${a.lat},${a.lng},15z`;
+  const yUrl = `https://yandex.com/maps/?ll=${a.lng},${a.lat}&z=15`;
+  const isGps = a.source === 'gps';
+  const dpName = { morning: 'Morning', lunch: 'Lunch', afternoon: 'Afternoon', evening: 'Evening', late_night: 'Late night' }[D.session.daypart] || '';
+
+  const badges = [];
+  if (D.session.just_arrived) badges.push(`<span class="ctx-badge alert">✈ just arrived</span>`);
+  if (D.session.in_foreign_country) badges.push(`<span class="ctx-badge alert">🌍 foreign country</span>`);
+  if (D.session.in_new_country) badges.push(`<span class="ctx-badge alert">★ new for you</span>`);
+  if (D.session.is_home) badges.push(`<span class="ctx-badge">🏠 home</span>`);
+  if (dpName) badges.push(`<span class="ctx-badge">⏱ ${dpName}</span>`);
+
+  box.innerHTML = `<div class="hero">
+    <div class="hero-row1">
+      <div class="hero-anchor">
+        <div class="hero-anchor-lbl">${isGps ? 'Device location' : 'Anchored to last check-in'}</div>
+        <div class="hero-venue">${esc(a.venue || 'My location')}</div>
+        <div class="hero-meta">
+          ${a.category ? `<span>${catEmoji(a.category)} <strong>${esc(a.category)}</strong></span>` : ''}
+          ${a.city ? `<span>📍 ${esc(a.city)}${a.country ? ', ' + esc(a.country) : ''}</span>` : ''}
+        </div>
+        <div class="hero-context">${badges.join(' ')}</div>
+      </div>
+      <div class="hero-actions">
+        <button class="hero-btn gps ${isGps ? 'active' : ''}" onclick="useDeviceLocation()">📡 ${isGps ? 'Using GPS' : 'Use GPS'}</button>
+        ${!isGps && D.anchor ? `<button class="hero-btn" onclick="useLastCheckin()">↩ Last check-in</button>` : ''}
+        <a class="hero-btn" href="${gUrl}" target="_blank" rel="noopener">Google Maps ↗</a>
+        <a class="hero-btn" href="${yUrl}" target="_blank" rel="noopener">Yandex Maps ↗</a>
+      </div>
     </div>
   </div>`;
-  }).join('');
 }
 
-function renderSuggestions(){
-  const cont=document.getElementById('suggestionText');
-  const s=D.suggestions||{};
-  let text='';
-  if(s.based_on_latest){
-    text+=`Latest check-in at <strong>${esc(s.based_on_latest.venue)}</strong> in ${esc(s.based_on_latest.city)}, ${esc(s.based_on_latest.country)}. `;
-  }
-  if(s.prefer_categories&&s.prefer_categories.length){
-    text+=`Preferred venue types: <strong>${esc(s.prefer_categories[0])}</strong>`;
-    if(s.prefer_categories.length>1) text+=`, ${s.prefer_categories.slice(1,4).map(c=>esc(c)).join(', ')}`;
-    text+='. ';
-  }
-  if(s.prefer_cities&&s.prefer_cities.length){
-    text+=`Most visited: <strong>${esc(s.prefer_cities[0])}</strong>`;
-    if(s.prefer_cities[1]) text+=` &amp; <strong>${esc(s.prefer_cities[1])}</strong>`;
-    text+='. ';
-  }
-  if(s.peak_hours) text+=`Peak check-in hours: <strong>${esc(s.peak_hours)}</strong>.`;
-  if(!text) text='Keep exploring to build your preferences.';
-  cont.innerHTML=text;
-}
+// ── Discovery panel ───────────────────────────────────────────────────────
+function renderDiscover() {
+  const box = document.getElementById('discoverBox');
+  if (!state.anchor) { box.innerHTML = ''; return; }
 
-// ── Nearby For You: Overpass OSM + Leaflet map ──────────────────────────────
-function initNearby() {
-  const box = document.getElementById('nearbyBox');
-  if (!LATEST_LL) {
-    box.innerHTML = '<div class="empty-state"><h3>No location data</h3><p>Check in somewhere to see nearby suggestions</p></div>';
-    return;
-  }
-  const lat = +LATEST.lat, lng = +LATEST.lng;
-  let RADIUS = +(localStorage.getItem('guide-radius') || 1500);
-  let _unvisitedOnly = localStorage.getItem('guide-unvisited') === '1';
+  // Build category accordion from canonical config/categories.json groups
+  const groupsBlocks = Object.entries(D.groups || {}).map(([groupName, cats]) => {
+    const visited = cats.filter(c => visitedCatsMap.has(c));
+    const hasLiked = cats.some(c => likedCatsSet.has(c));
+    const groupVisits = visited.reduce((s, c) => s + (visitedCatsMap.get(c) || 0), 0);
 
-  // Anchor header
-  const anchorRow = document.getElementById('nearbyAnchorRow');
-  const anchorText = document.getElementById('nearbyAnchorText');
-  anchorRow.style.display = '';
-  const gAnchorUrl = `https://www.google.com/maps/@${lat},${lng},15z`;
-  const yAnchorUrl = `https://yandex.com/maps/?ll=${lng},${lat}&z=15`;
-  anchorText.innerHTML = `Near <strong>${esc(LATEST.venue)}</strong>, ${esc(LATEST.city)}`
-    + ` &mdash; <a href="${gAnchorUrl}" target="_blank" rel="noopener" style="color:var(--teal)">Google Maps ↗</a>`
-    + `&nbsp; <a href="${yAnchorUrl}" target="_blank" rel="noopener" style="color:var(--teal)">Yandex Maps ↗</a>`;
-
-  // Radius buttons
-  document.getElementById('nearbyRadiusGroup').addEventListener('click', e => {
-    const btn = e.target.closest('[data-r]');
-    if (!btn) return;
-    RADIUS = +btn.dataset.r;
-    localStorage.setItem('guide-radius', RADIUS);
-    document.querySelectorAll('.nearby-radius-btn').forEach(b => b.classList.toggle('active', b === btn));
-    document.getElementById('nearbySubtitle').textContent = `· ${RADIUS >= 1000 ? RADIUS/1000+' km' : RADIUS+' m'} radius · live OSM`;
-    updateRadiusCircle();
-    if (_activeCat) { _activeCat = null; selectCat(document.querySelector('.nearby-cat-pill.active')?.dataset.cat || _lastCat); }
-  });
-
-  // Unvisited toggle
-  const uvBtn = document.getElementById('nearbyUnvisited');
-  uvBtn.addEventListener('click', () => {
-    _unvisitedOnly = !_unvisitedOnly;
-    localStorage.setItem('guide-unvisited', _unvisitedOnly ? '1' : '0');
-    uvBtn.classList.toggle('active', _unvisitedOnly);
-    uvBtn.textContent = _unvisitedOnly ? '★ Unvisited only' : '☆ Unvisited only';
-    if (_lastItems) applyFiltersAndRender(_lastItems, _lastCat);
-  });
-  // Restore persisted state visually
-  if (_unvisitedOnly) { uvBtn.classList.add('active'); uvBtn.textContent = '★ Unvisited only'; }
-  const savedRadiusBtn = document.querySelector(`.nearby-radius-btn[data-r="${RADIUS}"]`);
-  if (savedRadiusBtn) {
-    document.querySelectorAll('.nearby-radius-btn').forEach(b => b.classList.remove('active'));
-    savedRadiusBtn.classList.add('active');
-    document.getElementById('nearbySubtitle').textContent = `· ${RADIUS >= 1000 ? RADIUS/1000+' km' : RADIUS+' m'} radius · live OSM`;
-  }
-
-  // Haversine distance
-  function distM(la1, lo1, la2, lo2) {
-    const R = 6371000, r = Math.PI / 180;
-    const dLa = (la2-la1)*r, dLo = (lo2-lo1)*r;
-    const a = Math.sin(dLa/2)**2 + Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  }
-  function fmtDist(m) {
-    if (m < 50) return '<50 m';
-    if (m < 1000) return Math.round(m/10)*10 + ' m';
-    return (m/1000).toFixed(2) + ' km';
-  }
-
-  const visitedNames = new Set((D.visited_names_in_city||[]).map(s=>s.toLowerCase()));
-
-  function getOsmTags(cat) {
-    const entry = D.osm_cat_map && D.osm_cat_map[cat];
-    if (entry && Array.isArray(entry.osm) && entry.osm.length) return entry.osm;
-    return null;
-  }
-
-  function buildOverpassQuery(tags) {
-    const stanzas = tags.map(tag => {
-      const i = tag.indexOf('=');
-      const k = tag.slice(0, i), v = tag.slice(i+1);
-      return `nwr["${k}"="${v}"](around:${RADIUS},${lat},${lng});`;
-    }).join('');
-    return `[out:json][timeout:25];(${stanzas});out center 100;`;
-  }
-
-  // Leaflet map
-  let _map = null, _resultLayer = null, _radiusCircle = null;
-  const youIcon = L.divIcon({
-    className: '',
-    html: '<div style="width:16px;height:16px;border-radius:50%;background:#e8b86d;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)"></div>',
-    iconSize: [16, 16], iconAnchor: [8, 8],
-  });
-
-  function ensureMap() {
-    if (_map) return;
-    _map = L.map('nearbyMapEl', { zoomControl: true, attributionControl: false }).setView([lat, lng], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(_map);
-    L.marker([lat, lng], { icon: youIcon }).addTo(_map)
-      .bindPopup(`<strong>${esc(LATEST.venue)}</strong><br><small>You are here</small>`);
-    _radiusCircle = L.circle([lat, lng], { radius: RADIUS, color: '#4ec9b0', fill: false, weight: 1.5, dashArray: '4 4', opacity: 0.5 }).addTo(_map);
-    _resultLayer = L.layerGroup().addTo(_map);
-  }
-
-  function updateRadiusCircle() {
-    if (_radiusCircle) _radiusCircle.setRadius(RADIUS);
-  }
-
-  function updateMapMarkers(items) {
-    ensureMap();
-    _resultLayer.clearLayers();
-    items.slice(0, 20).forEach(item => {
-      const isVis = visitedNames.has(item.name.toLowerCase());
-      // Name + coords → Google/Yandex resolve to the exact branch, not all places with this name
-      const gUrl = `https://www.google.com/maps/search/${encodeURIComponent(item.name)}/@${item.lat},${item.lng},17z`;
-      const yUrl = `https://yandex.com/maps/?text=${encodeURIComponent(item.name)}&ll=${item.lng},${item.lat}&z=17&sll=${item.lng},${item.lat}&sspn=0.01,0.005`;
-      const osmUrl = `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`;
-      const marker = L.circleMarker([item.lat, item.lng], {
-        radius: isVis ? 9 : 7,
-        fillColor: isVis ? '#e8b86d' : '#4ec9b0',
-        color: '#fff', weight: isVis ? 2.5 : 1.5, fillOpacity: 0.9,
-      }).addTo(_resultLayer);
-      marker.bindPopup(
-        `<strong>${esc(item.name)}</strong>`
-        + (isVis ? `&nbsp;<span style="font-size:.7em;color:#e8b86d">✓ visited</span>` : '')
-        + (item.addr ? `<br><small>📍 ${esc(item.addr)}</small>` : '')
-        + `<br><small>${fmtDist(item.d)}</small>`
-        + `<br><a href="${gUrl}" target="_blank" rel="noopener" style="color:#4285f4">Google</a>`
-        + `&nbsp;<a href="${yUrl}" target="_blank" rel="noopener" style="color:#ff4444">Yandex</a>`
-        + `&nbsp;<a href="${osmUrl}" target="_blank" rel="noopener" style="color:#888">OSM</a>`
-      );
-    });
-    const pts = [[lat, lng], ...items.slice(0, 20).map(i => [i.lat, i.lng])];
-    if (pts.length > 1) _map.fitBounds(L.latLngBounds(pts), { padding: [30, 30], maxZoom: 16 });
-  }
-
-  // ── Category accordion ──────────────────────────────────────────────────────
-  const CAT_GROUPS = [
-    { icon: '☕', label: 'Coffee & Tea', cats: ['Coffee Shop','Café','Cafe, Coffee, and Tea House','Corporate Coffee Shop','Coffee Roaster','Tea Room','Bubble Tea Shop','Juice Bar','Smoothie Shop'] },
-    { icon: '🥐', label: 'Bakery & Sweets', cats: ['Bakery','Pastry Shop','Donut Shop','Bagel Shop','Creperie','Blini House','Dessert Shop','Ice Cream Parlor','Gelato Shop','Candy Store','Pie Shop'] },
-    { icon: '🍽️', label: 'Restaurants', cats: ['Restaurant','Bistro','Diner','Buffet','Cafeteria','Food Court','Breakfast Spot','Snack Place','BBQ Joint','Pizzeria','Pizza Place','Italian Restaurant','Japanese Restaurant','Sushi Restaurant','Ramen Restaurant','Noodle Restaurant','Dumpling Restaurant','Chinese Restaurant','Vietnamese Restaurant','Korean Restaurant','Thai Restaurant','Indian Restaurant','South Indian Restaurant','Asian Restaurant','Cambodian Restaurant','Tibetan Restaurant','Turkish Restaurant','Kebab Restaurant','Doner Restaurant','Shawarma Restaurant','Falafel Restaurant','Middle Eastern Restaurant','Greek Restaurant','Lebanese Restaurant','Syrian Restaurant','Israeli Restaurant','Egyptian Restaurant','Georgian Restaurant','Armenian Restaurant','Caucasian Restaurant','Eastern European Restaurant','Russian Restaurant','Ukrainian Restaurant','Belarusian Restaurant','Romanian Restaurant','Polish Restaurant','German Restaurant','French Restaurant','Spanish Restaurant','Portuguese Restaurant','Modern European Restaurant','Mexican Restaurant','Latin American Restaurant','Argentinian Restaurant','American Restaurant','Steakhouse','Steak House','Seafood Restaurant','Paella Restaurant','Tapas Restaurant','Vegan and Vegetarian Restaurant','Halal Restaurant','Kosher Restaurant','Comfort Food Restaurant','Tatar Restaurant','Yemeni Restaurant','Ethiopian Restaurant','African Restaurant','Scottish Restaurant','Shaanxi Restaurant'] },
-    { icon: '🍔', label: 'Fast Food', cats: ['Fast Food Restaurant','Burger Joint','Sandwich Spot','Food Truck','Food Stand','Fried Chicken Joint','Fish and Chips Shop','Souvlaki Shop'] },
-    { icon: '🍺', label: 'Bars & Nightlife', cats: ['Bar','Beer Bar','Beer Garden','Beach Bar','Pub','Irish Pub','Cocktail Bar','Wine Bar','Hotel Bar','Hookah Bar','Lounge','Dive Bar','Sports Bar','Gastropub','Karaoke Bar','Whisky Bar','Speakeasy','Rock Club','Brewery','Nightclub','Night Club','Wine Store','Liquor Store','Beer Store'] },
-    { icon: '🛍️', label: 'Shopping', cats: ['Shopping Mall','Department Store','Clothing Store','Shoe Store','Electronics Store','Mobile Phone Store','Bookstore','Furniture and Home Store','Hardware Store','Bicycle Store','Cosmetics Store','Big Box Store','Sporting Goods Retail','Health Food Store','Flea Market','Vintage and Thrift Store','Grocery Store','Supermarket','Convenience Store','Gourmet Store','Farmers Market','Market','Food and Beverage Retail','Flower Store','Butcher','Currency Exchange','Eyecare Store','Tailor'] },
-    { icon: '🚉', label: 'Transport', cats: ['Airport','International Airport','Airport Terminal','Metro Station','Rail Station','Tram Station','Light Rail Station','Bus Station','Bus Stop','Taxi','Parking','Fuel Station','Bike Rental','Boat or Ferry','Border Crossing','Cable Car'] },
-    { icon: '🏨', label: 'Accommodation', cats: ['Hotel','Hostel','Bed and Breakfast','Inn','Apartment or Condo','Travel Lounge'] },
-    { icon: '🌿', label: 'Outdoors', cats: ['Park','Plaza','Pedestrian Plaza','Beach','Mountain','Hiking Trail','Garden','Botanical Garden','Scenic Lookout','Waterfront','Lake','Forest','National Park','Nature Preserve','Campground','Ski Area','Sculpture Garden','Playground','Cemetery','Fountain','Lighthouse','Pier','Harbor or Marina'] },
-    { icon: '🎭', label: 'Culture & Arts', cats: ['Museum','Art Museum','History Museum','Science Museum','Art Gallery','Monument','Historic and Protected Site','Castle','Palace','Theater','Concert Hall','Movie Theater','Cultural Center','Arts and Entertainment','Event Space','Amusement Park','Library','Memorial Site','Dance Studio','Exhibit'] },
-    { icon: '⛪', label: 'Religious', cats: ['Church','Cathedral','Mosque','Synagogue','Temple','Monastery','Buddhist Temple','Hindu Temple','Shrine'] },
-    { icon: '💪', label: 'Sports & Fitness', cats: ['Gym','Gym and Studio','Sports and Recreation','Spa','Bath House','Swimming Pool','Pool Hall','College Gym'] },
-    { icon: '🏥', label: 'Health', cats: ['Medical Center','Pharmacy'] },
-    { icon: '🏛️', label: 'Services', cats: ['Bank','Post Office','Police Station','City Hall','Government Building','University','Embassy or Consulate','Hair Salon','Education','College Library','College Arts Building','College Academic Building','Port'] },
-  ];
-
-  const pillsEl = document.getElementById('nearbyCatPills');
-  const likedSet = new Set((D.top_liked_cats||[]).map(([c])=>c));
-  const visitedCatSet = new Set();
-  // Build visited set from user history
-  (D.top_liked_cats||[]).forEach(([c]) => visitedCatSet.add(c));
-  (D.all_categories||D.top_categories||[]).forEach(c => visitedCatSet.add(Array.isArray(c) ? c[0] : c));
-
-  // Build accordion: ALL CAT_GROUPS shown — all children visible, visited ones highlighted
-  // Remaining user-visited cats (not in any group) go to an "Other" group
-  const assignedCats = new Set();
-  let firstSelectCat = null;
-
-  CAT_GROUPS.forEach(group => {
-    const allCats = group.cats;
-    if (!allCats.length) return;
-    const visitedInGroup = allCats.filter(c => visitedCatSet.has(c));
-    const hasLiked = allCats.some(c => likedSet.has(c));
-    const autoOpen = hasLiked && !firstSelectCat;
-
-    const groupEl = document.createElement('div');
-    groupEl.className = 'cat-group' + (autoOpen ? ' open' : '');
-
-    // Google/Yandex category browse links for this group
-    const gCatUrl = `https://www.google.com/maps/search/${encodeURIComponent(group.label)}/@${lat},${lng},15z`;
-    const yCatUrl = `https://yandex.com/maps/?text=${encodeURIComponent(group.label)}&ll=${lng},${lat}&z=15`;
-
-    const header = document.createElement('button');
-    header.className = 'cat-group-header';
-    header.innerHTML = `<span class="cat-group-icon">${group.icon}</span>`
-      + `<span class="cat-group-name">`
-      + (hasLiked ? `<span class="cat-group-liked">❤</span>` : '')
-      + esc(group.label)
-      + `</span>`
-      + (visitedInGroup.length
-        ? `<span class="cat-group-visits">${visitedInGroup.length} visited</span>` : '')
-      + `<span class="cat-group-count">${allCats.length}</span>`
-      + `<span class="cat-group-arrow">▾</span>`;
-    header.onclick = () => groupEl.classList.toggle('open');
-
-    const body = document.createElement('div');
-    body.className = 'cat-group-body';
-
-    // Liked first → visited next → rest alphabetical
-    const sorted = [...allCats].sort((a, b) => {
-      const al = likedSet.has(a) ? 0 : visitedCatSet.has(a) ? 1 : 2;
-      const bl = likedSet.has(b) ? 0 : visitedCatSet.has(b) ? 1 : 2;
+    // Sort: liked first, visited next, others alphabetical
+    const sorted = cats.slice().sort((a, b) => {
+      const al = likedCatsSet.has(a) ? 0 : visitedCatsMap.has(a) ? 1 : 2;
+      const bl = likedCatsSet.has(b) ? 0 : visitedCatsMap.has(b) ? 1 : 2;
       return al - bl || a.localeCompare(b);
     });
-    sorted.forEach(cat => {
-      const isLiked = likedSet.has(cat);
-      const isVis = visitedCatSet.has(cat);
-      const btn = document.createElement('button');
-      btn.className = 'nearby-cat-pill'
-        + (isLiked ? ' pill-liked-cat' : isVis ? ' pill-was-visited' : '');
-      btn.dataset.cat = cat;
-      btn.innerHTML = (isLiked ? '<span class="pill-liked">❤</span>' : '')
-        + esc(cat)
-        + (isVis && !isLiked ? '<span class="pill-dot" title="visited"></span>' : '');
-      btn.onclick = () => selectCat(cat);
-      body.appendChild(btn);
-      assignedCats.add(cat);
-      if (!firstSelectCat && (isLiked || autoOpen)) firstSelectCat = cat;
-    });
-    if (!firstSelectCat && sorted.length) firstSelectCat = sorted[0];
 
-    // Category browse row at bottom of group body
-    const browseRow = document.createElement('div');
-    browseRow.style.cssText = 'width:100%;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;gap:6px;align-items:center;';
-    browseRow.innerHTML = `<span style="font-size:.6rem;color:var(--muted);flex:1">Browse all ${esc(group.label)}:</span>`
-      + `<a href="${gCatUrl}" target="_blank" rel="noopener" style="font-size:.62rem;padding:2px 7px;border-radius:4px;border:1px solid rgba(66,133,244,.35);color:#4285f4;text-decoration:none;">Google ↗</a>`
-      + `<a href="${yCatUrl}" target="_blank" rel="noopener" style="font-size:.62rem;padding:2px 7px;border-radius:4px;border:1px solid rgba(255,80,80,.35);color:#ff6060;text-decoration:none;">Yandex ↗</a>`;
-    body.appendChild(browseRow);
+    const pillsHtml = sorted.map(cat => {
+      const isLiked = likedCatsSet.has(cat);
+      const isVis = visitedCatsMap.has(cat);
+      const n = visitedCatsMap.get(cat) || 0;
+      const cls = ['cat-pill'];
+      if (isLiked) cls.push('liked');
+      else if (isVis) cls.push('visited');
+      return `<button class="${cls.join(' ')}" data-cat="${esc(cat)}">${isLiked ? '<span class="heart">❤</span>' : ''}${esc(cat)}${n ? `<span class="cat-pill-count">${n}</span>` : ''}</button>`;
+    }).join('');
 
-    groupEl.appendChild(header);
-    groupEl.appendChild(body);
-    pillsEl.appendChild(groupEl);
+    const cgIcon = ({ 'Food & Drink': '🍽️', 'Transport': '🚉', 'Culture & Sights': '🎭', 'Nature & Outdoors': '🌿', 'Shopping': '🛍️', 'Home & Office': '🏢', 'Hotels & Lodging': '🏨', 'Sport & Fitness': '💪' })[groupName] || '📌';
+    return `<div class="cat-group${hasLiked ? ' open' : ''}" data-group="${esc(groupName)}">
+      <button class="cat-group-h">
+        <span class="cgi">${cgIcon}</span>
+        <span class="cgn">${hasLiked ? '<span class="cgliked">❤</span>' : ''}${esc(groupName)}</span>
+        ${visited.length ? `<span class="cgcount">${visited.length}/${cats.length}</span>` : `<span class="cgcount">${cats.length}</span>`}
+        <span class="cgarrow">▾</span>
+      </button>
+      <div class="cgbody">${pillsHtml}</div>
+    </div>`;
+  }).join('');
+
+  // Recommendations (sparkle-marked, daypart-aware, taste-aware)
+  const recPills = (D.recommended || []).map(cat =>
+    `<button class="rec-pill" data-cat="${esc(cat)}"><span class="star">★</span> ${esc(cat)}</button>`
+  ).join('');
+
+  box.innerHTML = `<div class="discover-card">
+    <div class="dc-head">
+      <h2>🔍 Nearby for you</h2>
+      <span class="count" id="nbCount"></span>
+    </div>
+    <div class="layout">
+      <div class="rail">
+        ${recPills ? `<div class="rail-block">
+          <div class="rail-label">Recommended for ${esc(D.session.daypart || 'now')}</div>
+          <div class="rec-pills">${recPills}</div>
+        </div>` : ''}
+
+        <div class="rail-block">
+          <div class="rail-label">Radius</div>
+          <div class="radius-slider">
+            <input type="range" id="radiusInput" min="250" max="5000" step="250" value="${state.radius}">
+            <div class="radius-display" id="radiusDisplay">${state.radius < 1000 ? state.radius + ' m' : (state.radius / 1000) + ' km'}</div>
+          </div>
+        </div>
+
+        <div class="rail-block">
+          <div class="rail-label">Filters</div>
+          <div class="toggle-row">
+            <button class="toggle-btn ${state.filters.likedOnly ? 'active' : ''}" data-toggle="likedOnly">❤ Liked cats only</button>
+            <button class="toggle-btn gold ${state.filters.unvisitedOnly ? 'active' : ''}" data-toggle="unvisitedOnly">★ Unvisited only</button>
+            <button class="toggle-btn ${state.filters.openNow ? 'active' : ''}" data-toggle="openNow">🕐 Open now</button>
+          </div>
+        </div>
+
+        <div class="rail-block">
+          <div class="rail-label">Browse all categories</div>
+          <div class="cat-acc">${groupsBlocks}</div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="map-pane">
+          <div id="nbMap"></div>
+          <div class="map-loading" id="mapLoading">Pick a category to see what's nearby…</div>
+        </div>
+        <div class="list-pane" id="nbList"></div>
+      </div>
+    </div>
+  </div>`;
+
+  wireDiscoverEvents();
+  initMap();
+}
+
+// ── Event wiring ──────────────────────────────────────────────────────────
+function wireDiscoverEvents() {
+  document.getElementById('discoverBox').addEventListener('click', e => {
+    const pill = e.target.closest('.cat-pill, .rec-pill');
+    if (pill) { selectCat(pill.dataset.cat); return; }
+    const cgHead = e.target.closest('.cat-group-h');
+    if (cgHead) { cgHead.parentElement.classList.toggle('open'); return; }
+    const toggle = e.target.closest('.toggle-btn');
+    if (toggle) {
+      const k = toggle.dataset.toggle;
+      state.filters[k] = !state.filters[k];
+      toggle.classList.toggle('active', state.filters[k]);
+      localStorage.setItem('guide-' + (k === 'likedOnly' ? 'liked' : k === 'unvisitedOnly' ? 'unvis' : 'open'), state.filters[k] ? '1' : '0');
+      applyAndRender();
+      return;
+    }
   });
 
-  // "Other" group for user-visited categories not covered by any group above
-  const otherCats = [...visitedCatSet].filter(c => !assignedCats.has(c));
-  if (otherCats.length) {
-    const groupEl = document.createElement('div');
-    groupEl.className = 'cat-group';
-    const header = document.createElement('button');
-    header.className = 'cat-group-header';
-    header.innerHTML = `<span class="cat-group-icon">📌</span>`
-      + `<span class="cat-group-name">${esc('Other visited')}</span>`
-      + `<span class="cat-group-count">${otherCats.length}</span>`
-      + `<span class="cat-group-arrow">▾</span>`;
-    header.onclick = () => groupEl.classList.toggle('open');
-    const body = document.createElement('div');
-    body.className = 'cat-group-body';
-    otherCats.forEach(cat => {
-      const btn = document.createElement('button');
-      btn.className = 'nearby-cat-pill pill-was-visited';
-      btn.dataset.cat = cat;
-      btn.innerHTML = (likedSet.has(cat) ? '<span class="pill-liked">❤</span>' : '') + esc(cat);
-      btn.onclick = () => selectCat(cat);
-      body.appendChild(btn);
-    });
-    groupEl.appendChild(header); groupEl.appendChild(body);
-    pillsEl.appendChild(groupEl);
-  }
+  // Debounced radius slider
+  const slider = document.getElementById('radiusInput');
+  let radDebounce = null;
+  slider.addEventListener('input', e => {
+    state.radius = +e.target.value;
+    document.getElementById('radiusDisplay').textContent =
+      state.radius < 1000 ? state.radius + ' m' : (state.radius / 1000).toFixed(2).replace(/\.?0+$/, '') + ' km';
+    updateRadiusCircle();
+    if (radDebounce) clearTimeout(radDebounce);
+    radDebounce = setTimeout(() => {
+      localStorage.setItem('guide-radius', state.radius);
+      if (state.activeCat) fetchAndRender(state.activeCat);
+    }, 350);
+  });
+}
 
-  // ── Overpass fetch ──────────────────────────────────────────────────────────
-  const ENDPOINTS = [
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
-    'https://overpass.openstreetmap.fr/api/interpreter',
-  ];
-  let _activeCat = null, _lastCat = null, _lastItems = null, _busy = false;
+// ── Map ───────────────────────────────────────────────────────────────────
+let _map = null, _radiusCircle = null, _resultLayer = null, _anchorMarker = null;
+const _markerByIdx = [];
 
-  async function fetchNearby(cat) {
-    if (_busy) return;
-    _busy = true;
-    _lastCat = cat;
-    box.innerHTML = '<div class="nearby-loading">⏳ Fetching from OpenStreetMap…</div>';
-    document.getElementById('nearbyResultCount').textContent = '';
-    const tags = getOsmTags(cat);
-    let q;
-    if (tags) {
-      q = buildOverpassQuery(tags);
-    } else {
-      const kw = cat.replace(/['"<>&]/g,'').split(/[\s/]/)[0].trim();
-      q = `[out:json][timeout:25];(nwr["name"~"${kw}",i](around:${RADIUS},${lat},${lng}););out center 100;`;
-    }
+function initMap() {
+  if (_map || !state.anchor) return;
+  const a = state.anchor;
+  _map = L.map('nbMap', { zoomControl: true, attributionControl: false }).setView([a.lat, a.lng], 15);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    { subdomains: 'abcd', maxZoom: 19 }).addTo(_map);
+  _anchorMarker = L.marker([a.lat, a.lng], {
+    icon: L.divIcon({
+      className: '',
+      html: `<div style="width:14px;height:14px;border-radius:50%;background:#e8b86d;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.5)"></div>`,
+      iconSize: [14, 14], iconAnchor: [7, 7],
+    }),
+  }).addTo(_map).bindPopup(`<strong>${esc(a.venue || 'You')}</strong><br><small>${a.source === 'gps' ? 'Device location' : 'Last check-in'}</small>`);
+  _radiusCircle = L.circle([a.lat, a.lng], { radius: state.radius, color: '#4ec9b0', weight: 1.5, dashArray: '4 4', opacity: 0.5, fill: false }).addTo(_map);
+  _resultLayer = L.layerGroup().addTo(_map);
+}
+
+function updateRadiusCircle() {
+  if (_radiusCircle) _radiusCircle.setRadius(state.radius);
+}
+
+function moveAnchor(lat, lng, label, sourceTag) {
+  if (!_map) return;
+  state.anchor.lat = lat; state.anchor.lng = lng;
+  if (label != null) state.anchor.venue = label;
+  if (sourceTag != null) state.anchor.source = sourceTag;
+  _anchorMarker.setLatLng([lat, lng]);
+  _radiusCircle.setLatLng([lat, lng]);
+  _map.setView([lat, lng], _map.getZoom());
+}
+
+// ── Overpass fetch ────────────────────────────────────────────────────────
+const ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter',
+];
+
+async function overpassFetch(tags, abortSignal) {
+  const cacheK = cacheKey(state.anchor.lat, state.anchor.lng, state.radius, tags);
+  // 1. cache check
+  const hit = await idbGet(cacheK);
+  if (hit && (Date.now() - hit.t) < TTL_MS) return hit.v;
+  // 2. dedup in-flight
+  if (state.promiseDedup.has(cacheK)) return state.promiseDedup.get(cacheK);
+
+  const stanzas = tags.map(t => {
+    const i = t.indexOf('='); const k = t.slice(0, i), v = t.slice(i + 1);
+    return `nwr["${k}"="${v}"](around:${state.radius},${state.anchor.lat},${state.anchor.lng});`;
+  }).join('');
+  const query = `[out:json][timeout:25];(${stanzas});out center 150;`;
+
+  const promise = (async () => {
     let lastErr;
     for (const ep of ENDPOINTS) {
       try {
-        const r = await fetch(ep, { method:'POST', body:'data='+encodeURIComponent(q) });
-        if (!r.ok) { lastErr = new Error(`HTTP ${r.status}`); continue; }
+        const r = await fetch(ep, {
+          method: 'POST',
+          body: 'data=' + encodeURIComponent(query),
+          signal: abortSignal,
+        });
+        if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
         const d = await r.json();
-        _lastItems = parseElements(d.elements||[]);
-        applyFiltersAndRender(_lastItems, cat);
-        _busy = false;
-        return;
-      } catch(e) { lastErr = e; }
+        const els = d.elements || [];
+        idbSet(cacheK, { t: Date.now(), v: els });
+        return els;
+      } catch (e) {
+        if (e.name === 'AbortError') throw e;
+        lastErr = e;
+      }
     }
-    box.innerHTML = `<div class="empty-state"><h3>Fetch error</h3>`
-      + `<p>OSM Overpass unavailable &mdash; <a href="${yAnchorUrl}" target="_blank" rel="noopener" style="color:var(--teal)">open Yandex Maps ↗</a></p></div>`;
-    _busy = false;
+    throw lastErr || new Error('all endpoints failed');
+  })();
+  state.promiseDedup.set(cacheK, promise);
+  try {
+    const els = await promise;
+    return els;
+  } finally {
+    state.promiseDedup.delete(cacheK);
   }
-
-  function parseElements(els) {
-    const items = [];
-    for (const el of els) {
-      const elLat = el.lat ?? el.center?.lat;
-      const elLng = el.lon ?? el.center?.lon;
-      const name = el.tags?.name;
-      if (!elLat || !elLng || !name) continue;
-      const d = distM(lat, lng, elLat, elLng);
-      const street = el.tags?.['addr:street'] || '';
-      const num = el.tags?.['addr:housenumber'] || '';
-      const addr = (street + (num ? ' '+num : '')).trim() || el.tags?.['addr:full'] || '';
-      const opening = el.tags?.opening_hours || '';
-      const website = el.tags?.website || el.tags?.['contact:website'] || '';
-      const isVis = visitedNames.has(name.toLowerCase());
-      items.push({ name, addr, opening, website, d, lat: elLat, lng: elLng, isVis,
-        osm_type: el.type, osm_id: el.id });
-    }
-    items.sort((a,b) => a.d - b.d);
-    return items;
-  }
-
-  function applyFiltersAndRender(items, cat) {
-    const filtered = _unvisitedOnly ? items.filter(i => !i.isVis) : items;
-    const countEl = document.getElementById('nearbyResultCount');
-    countEl.textContent = filtered.length
-      ? `${filtered.length} found · ${RADIUS >= 1000 ? RADIUS/1000+' km' : RADIUS+' m'}`
-      : '';
-    if (!filtered.length) {
-      ensureMap();
-      const radiusLabel = RADIUS >= 1000 ? (RADIUS/1000)+' km' : RADIUS+' m';
-      box.innerHTML = `<div class="empty-state"><h3>Nothing found</h3>`
-        + `<p>No <em>${esc(cat)}</em>${_unvisitedOnly ? ' (unvisited)' : ''} mapped within ${radiusLabel} in OSM.<br>`
-        + `<a href="https://yandex.com/maps/?ll=${lng},${lat}&z=14&text=${encodeURIComponent(cat)}" `
-        + `target="_blank" rel="noopener" style="color:var(--teal)">Search on Yandex Maps ↗</a></p></div>`;
-      return;
-    }
-    updateMapMarkers(filtered);
-    const visItems = filtered.slice(0, 20);
-    box.innerHTML = '<div class="nearby-result-list">' + visItems.map(item => {
-      // Name + coords → Google/Yandex resolve to the exact branch; OSM ID is a direct permalink
-      const gUrl = `https://www.google.com/maps/search/${encodeURIComponent(item.name)}/@${item.lat},${item.lng},17z`;
-      const yUrl = `https://yandex.com/maps/?text=${encodeURIComponent(item.name)}&ll=${item.lng},${item.lat}&z=17&sll=${item.lng},${item.lat}&sspn=0.01,0.005`;
-      const osmUrl = `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`;
-      return `<div class="nearby-item${item.isVis ? ' visited' : ''}">`
-        + `<div class="nearby-item-dist">${fmtDist(item.d)}</div>`
-        + `<div class="nearby-item-body">`
-        + `<div class="nearby-item-name">${esc(item.name)}`
-        + (item.isVis ? `<span class="nearby-visited-badge">✓ visited</span>` : '')
-        + `</div>`
-        + (item.addr ? `<div class="nearby-item-addr">📍 ${esc(item.addr)}</div>` : '')
-        + (item.opening ? `<div class="nearby-item-addr">🕐 ${esc(item.opening)}</div>` : '')
-        + `<div class="nearby-item-links">`
-        + `<a href="${gUrl}" class="nearby-item-link glink" target="_blank" rel="noopener">Google</a>`
-        + `<a href="${yUrl}" class="nearby-item-link ylink" target="_blank" rel="noopener">Yandex</a>`
-        + `<a href="${osmUrl}" class="nearby-item-link osmlink" target="_blank" rel="noopener">OSM</a>`
-        + (item.website ? `<a href="${esc(item.website)}" class="nearby-item-link" target="_blank" rel="noopener">🌐</a>` : '')
-        + `</div></div></div>`;
-    }).join('') + '</div>';
-  }
-
-  function selectCat(cat) {
-    if (!cat) return;
-    if (cat === _activeCat && !_busy) return;
-    _activeCat = cat;
-    document.querySelectorAll('.nearby-cat-pill').forEach(p =>
-      p.classList.toggle('active', p.dataset.cat === cat));
-    fetchNearby(cat);
-  }
-
-  if (firstSelectCat) selectCat(firstSelectCat);
 }
 
-// ── Init ─────────────────────────────────────────────────────────────────────
-try {
-  renderTopCats();
-  renderTopCities();
-  renderTopCountries();
-  renderLikedCats();
-  renderVenueLinks();
-  renderLatest();
-  render48h();
-  renderSuggestions();
-  initNearby();
-} catch(e) { console.error('Guide init error:', e); }
+function parseElements(els) {
+  const items = [];
+  for (const el of els) {
+    const lat = el.lat ?? el.center?.lat;
+    const lng = el.lon ?? el.center?.lon;
+    const name = el.tags?.name;
+    if (!lat || !lng || !name) continue;
+    const tags = el.tags || {};
+    const street = tags['addr:street'] || '';
+    const num = tags['addr:housenumber'] || '';
+    const addr = (street + (num ? ' ' + num : '')).trim() || tags['addr:full'] || '';
+    items.push({
+      name,
+      addr,
+      opening: tags.opening_hours || '',
+      website: tags.website || tags['contact:website'] || '',
+      lat, lng,
+      osm_type: el.type, osm_id: el.id,
+      isVis: visitedNames.has(name.toLowerCase()),
+      d: distM(state.anchor.lat, state.anchor.lng, lat, lng),
+    });
+  }
+  items.sort((a, b) => a.d - b.d);
+  return items;
+}
+
+// ── Render / filter ───────────────────────────────────────────────────────
+function applyAndRender() {
+  if (!state.results.length) {
+    renderEmpty('Pick a category', 'Choose a category on the left to see what\'s nearby.');
+    return;
+  }
+  const now = new Date();
+  let items = state.results;
+
+  if (state.filters.unvisitedOnly) items = items.filter(x => !x.isVis);
+  if (state.filters.openNow) items = items.filter(x => probeOpen(x.opening, now).open === true);
+
+  state.filteredCount = items.length;
+  document.getElementById('nbCount').innerHTML = items.length
+    ? `<strong>${items.length}</strong> within ${state.radius < 1000 ? state.radius + ' m' : (state.radius / 1000).toFixed(2).replace(/\.?0+$/, '') + ' km'}`
+    : '';
+
+  if (!items.length) {
+    renderEmpty('Nothing matches', 'Try a wider radius or relaxing filters.');
+    return;
+  }
+
+  // Render full list virtually: 80 cards max in DOM at any time
+  const VISIBLE = 80;
+  const slice = items.slice(0, VISIBLE);
+  _markerByIdx.length = 0;
+  renderMap(slice);
+  renderList(slice);
+}
+
+function renderEmpty(title, body) {
+  document.getElementById('nbList').innerHTML = `<div class="nb-empty">
+    <h3>${esc(title)}</h3>
+    <p>${esc(body)}</p>
+  </div>`;
+}
+
+function renderMap(items) {
+  if (!_map) return;
+  _resultLayer.clearLayers();
+  const now = new Date();
+  items.forEach((item, idx) => {
+    const oh = probeOpen(item.opening, now);
+    const isOpenNow = oh.open === true;
+    const marker = L.circleMarker([item.lat, item.lng], {
+      radius: item.isVis ? 9 : 7,
+      fillColor: item.isVis ? '#e8b86d' : (isOpenNow ? '#4ec9b0' : '#7a85a8'),
+      color: '#fff',
+      weight: item.isVis ? 2.5 : 1.5,
+      fillOpacity: 0.92,
+    }).addTo(_resultLayer);
+    marker.on('mouseover', () => highlightItem(idx, 'marker'));
+    marker.on('mouseout', () => clearHighlight());
+    marker.on('click', () => {
+      const el = document.querySelector(`[data-idx="${idx}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    marker.bindPopup(
+      `<strong>${esc(item.name)}</strong>`
+      + (item.isVis ? `&nbsp;<span style="color:#e8b86d">✓</span>` : '')
+      + `<br><small>${fmtDist(item.d)} · ${fmtWalk(item.d)}</small>`
+      + (item.addr ? `<br><small>📍 ${esc(item.addr)}</small>` : '')
+      + (oh.text ? `<br><small>🕐 ${esc(oh.text)}</small>` : '')
+    );
+    _markerByIdx[idx] = marker;
+  });
+  const pts = [[state.anchor.lat, state.anchor.lng], ...items.map(i => [i.lat, i.lng])];
+  if (pts.length > 1) _map.fitBounds(L.latLngBounds(pts), { padding: [30, 30], maxZoom: 16 });
+}
+
+function renderList(items) {
+  const now = new Date();
+  document.getElementById('nbList').innerHTML = items.map((item, idx) => {
+    const gUrl = `https://www.google.com/maps/search/${encodeURIComponent(item.name)}/@${item.lat},${item.lng},17z`;
+    const yUrl = `https://yandex.com/maps/?text=${encodeURIComponent(item.name)}&ll=${item.lng},${item.lat}&z=17`;
+    const oUrl = `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`;
+    const oh = probeOpen(item.opening, now);
+    const ohHtml = oh.text
+      ? `<span class="opening ${oh.open === false ? 'closed' : ''}">${oh.open === true ? '🟢' : oh.open === false ? '🔴' : '⏱'} ${esc(oh.text)}</span>`
+      : '';
+    const dirChar = bearingChar(state.anchor.lat, state.anchor.lng, item.lat, item.lng);
+    return `<div class="nb-item${item.isVis ? ' visited' : ''}" data-idx="${idx}">
+      <div class="dist">${fmtDist(item.d)}<br><span style="font-size:.55rem;opacity:.7;font-weight:400">${esc(fmtWalk(item.d))}</span></div>
+      <div class="body">
+        <div class="name">${esc(item.name)}</div>
+        <div class="meta">
+          <span>${dirChar}</span>
+          ${item.addr ? `<span class="sep">·</span><span>📍 ${esc(item.addr)}</span>` : ''}
+          ${ohHtml ? `<span class="sep">·</span>${ohHtml}` : ''}
+        </div>
+        <div class="links">
+          <a class="nb-link g" href="${gUrl}" target="_blank" rel="noopener">Google</a>
+          <a class="nb-link y" href="${yUrl}" target="_blank" rel="noopener">Yandex</a>
+          <a class="nb-link o" href="${oUrl}" target="_blank" rel="noopener">OSM</a>
+          ${item.website ? `<a class="nb-link w" href="${esc(item.website)}" target="_blank" rel="noopener">🌐</a>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Map↔list hover sync
+  const list = document.getElementById('nbList');
+  list.addEventListener('mouseover', e => {
+    const item = e.target.closest('.nb-item');
+    if (!item) return;
+    highlightItem(+item.dataset.idx, 'list');
+  }, { passive: true });
+  list.addEventListener('mouseout', () => clearHighlight(), { passive: true });
+}
+
+function bearingChar(la1, lo1, la2, lo2) {
+  const r = Math.PI / 180;
+  const dLo = (lo2 - lo1) * r;
+  const y = Math.sin(dLo) * Math.cos(la2 * r);
+  const x = Math.cos(la1 * r) * Math.sin(la2 * r) - Math.sin(la1 * r) * Math.cos(la2 * r) * Math.cos(dLo);
+  const brng = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  const arrows = ['↑','↗','→','↘','↓','↙','←','↖'];
+  return arrows[Math.round(brng / 45) % 8];
+}
+
+function highlightItem(idx, source) {
+  clearHighlight();
+  state.hoverIdx = idx;
+  const el = document.querySelector(`[data-idx="${idx}"]`);
+  if (el) el.classList.add('hover');
+  const m = _markerByIdx[idx];
+  if (m && source === 'list') m.setStyle({ weight: 3, fillOpacity: 1 });
+}
+function clearHighlight() {
+  if (state.hoverIdx < 0) return;
+  const el = document.querySelector(`.nb-item.hover`);
+  if (el) el.classList.remove('hover');
+  const m = _markerByIdx[state.hoverIdx];
+  if (m) m.setStyle({ weight: 1.5, fillOpacity: 0.92 });
+  state.hoverIdx = -1;
+}
+
+// ── Category selection ───────────────────────────────────────────────────
+async function selectCat(cat) {
+  if (!cat || cat === state.activeCat) return;
+  state.activeCat = cat;
+  document.querySelectorAll('.cat-pill, .rec-pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.cat === cat));
+  await fetchAndRender(cat);
+}
+
+async function fetchAndRender(cat) {
+  if (!state.anchor) return;
+  const tags = osmTagMap[cat] || guessTags(cat);
+  if (!tags || !tags.length) {
+    state.results = [];
+    renderEmpty('No OSM mapping', `Can't query OSM for "${cat}".`);
+    return;
+  }
+  // Cancel any previous fetch for a different category
+  const key = cacheKey(state.anchor.lat, state.anchor.lng, state.radius, tags);
+  for (const [k, ctrl] of state.inFlight) if (k !== key) ctrl.abort();
+  state.inFlight.clear();
+
+  const ctrl = new AbortController();
+  state.inFlight.set(key, ctrl);
+
+  document.getElementById('mapLoading').classList.remove('hidden');
+  document.getElementById('mapLoading').textContent = `⏳ Searching "${cat}" within ${state.radius < 1000 ? state.radius + ' m' : (state.radius / 1000) + ' km'}…`;
+
+  try {
+    const els = await overpassFetch(tags, ctrl.signal);
+    state.results = parseElements(els);
+    applyAndRender();
+    // Background idle prefetch — top 2 recommended cats that aren't active
+    schedulePrefetch();
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    state.results = [];
+    renderEmpty('Fetch error', 'OSM Overpass unavailable. Try again in a moment.');
+  } finally {
+    state.inFlight.delete(key);
+    document.getElementById('mapLoading').classList.add('hidden');
+  }
+}
+
+function guessTags(cat) {
+  // Best-effort fallback for cats not in osm_tags — name-substring search.
+  // Rarely used; main osm_tags covers 250+ categories.
+  return null;
+}
+
+// ── Idle prefetch (next 1-2 likely categories) ───────────────────────────
+function schedulePrefetch() {
+  if (!('requestIdleCallback' in window)) return;
+  const candidates = (D.recommended || []).filter(c => c !== state.activeCat).slice(0, 2);
+  candidates.forEach(c => {
+    const tags = osmTagMap[c];
+    if (!tags) return;
+    requestIdleCallback(() => overpassFetch(tags, undefined).catch(() => {}), { timeout: 5000 });
+  });
+}
+
+// ── Geolocation ───────────────────────────────────────────────────────────
+window.useDeviceLocation = function() {
+  if (!('geolocation' in navigator)) {
+    alert('Geolocation not supported in this browser.');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    if (!state.anchor) {
+      // First-time anchor (no last check-in)
+      state.anchor = {
+        lat: latitude, lng: longitude,
+        venue: 'My location', category: '', city: '', country: '',
+        source: 'gps', ts: Math.floor(Date.now() / 1000),
+      };
+      renderHero();
+      renderDiscover();
+    } else {
+      moveAnchor(latitude, longitude, 'My location', 'gps');
+      renderHero();
+      if (state.activeCat) fetchAndRender(state.activeCat);
+    }
+    localStorage.setItem('guide-source', 'gps');
+  }, err => {
+    alert('Geolocation denied or unavailable: ' + (err.message || err.code));
+  }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+};
+
+window.useLastCheckin = function() {
+  if (!D.anchor) return;
+  state.anchor = { ...D.anchor, source: 'checkin' };
+  if (_map) moveAnchor(D.anchor.lat, D.anchor.lng, D.anchor.venue, 'checkin');
+  localStorage.setItem('guide-source', 'checkin');
+  renderHero();
+  if (state.activeCat) fetchAndRender(state.activeCat);
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────
+renderHero();
+renderDiscover();
+// Auto-select first recommendation
+if (state.anchor && (D.recommended || []).length) {
+  selectCat(D.recommended[0]);
+}
 </script>
+
+<script>
+(function(){
+  function apply(light){document.body.classList.toggle('light',light);}
+  apply(localStorage.getItem('fsq-theme')==='light');
+})();
+</script>
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
