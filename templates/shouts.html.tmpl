@@ -143,7 +143,7 @@ const CTRY_CODE = {{CTRY_CODE_JSON}};
 function flagHtml(c){const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<span class="fi fi-${code}" style="border-radius:2px;font-size:.85em;vertical-align:middle;"></span> `:''}
 
 // Category icons (subset — most-common in shouts)
-const CAT_ICON={'Coffee Shop':['☕','#6F4E37'],'Café':['☕','#6F4E37'],'Bakery':['🥐','#C8860A'],'Restaurant':['🍽️','#C0392B'],'Fast Food Restaurant':['🍔','#E67E22'],'Pizzeria':['🍕','#E74C3C'],'Bar':['🍺','#F39C12'],'Pub':['🍻','#D4A017'],'Cocktail Bar':['🍸','#E74C3C'],'Wine Bar':['🍷','#922B21'],'Nightclub':['🎵','#6C3483'],'Hotel':['🏨','#2C3E50'],'Hostel':['🛏️','#34495E'],'Bed and Breakfast':['🛏️','#4A235A'],'Apartment or Condo':['🏠','#1A5276'],'Home (private)':['🏠','#17202A'],'Metro Station':['🚇','#2980B9'],'Rail Station':['🚉','#1A5276'],'Train':['🚂','#E74C3C'],'Bus Station':['🚌','#1E8449'],'Airport':['✈️','#154360'],'Airport Terminal':['✈️','#2471A3'],'Airport Gate':['✈️','#1A5276'],'Park':['🌳','#1E8449'],'Beach':['🏖️','#F39C12'],'Museum':['🏛️','#7D3C98'],'Art Gallery':['🖼️','#7D3C98'],'Theater':['🎭','#922B21'],'Movie Theater':['🎬','#C0392B'],'Office':['🏢','#2C3E50'],'University':['🎓','#154360'],'Shopping Mall':['🛍️','#E91E63'],'Grocery Store':['🛒','#27AE60'],'Supermarket':['🛒','#219A52'],'Gym':['💪','#E74C3C'],'Spa':['💆','#1ABC9C'],'Border Crossing':['🛂','#717D7E'],'Road':['🛣️','#7F8C8D'],'Plane':['✈️','#2980B9'],'Bus Line':['🚌','#27AE60']};
+const CAT_ICON = {{CAT_ICON_JSON}};
 function catIcon(cat){const e=CAT_ICON[cat||''];return e?{em:e[0],bg:e[1]}:{em:'📍',bg:'#4a5270'};}
 
 // ── Filter state ─────────────────────────────────────────────────────────────

@@ -1,0 +1,2238 @@
+{
+  "Coffee Shop": [
+    "☕",
+    "#6F4E37"
+  ],
+  "Café": [
+    "☕",
+    "#6F4E37"
+  ],
+  "Bakery": [
+    "🥐",
+    "#C8860A"
+  ],
+  "Restaurant": [
+    "🍽️",
+    "#C0392B"
+  ],
+  "Fast Food Restaurant": [
+    "🍔",
+    "#E67E22"
+  ],
+  "Pizzeria": [
+    "🍕",
+    "#E74C3C"
+  ],
+  "Burger Joint": [
+    "🍔",
+    "#D35400"
+  ],
+  "Italian Restaurant": [
+    "🍝",
+    "#C0392B"
+  ],
+  "Kebab Restaurant": [
+    "🌯",
+    "#E67E22"
+  ],
+  "Doner Restaurant": [
+    "🌯",
+    "#D35400"
+  ],
+  "Shawarma Restaurant": [
+    "🌯",
+    "#E67E22"
+  ],
+  "Caucasian Restaurant": [
+    "🍖",
+    "#922B21"
+  ],
+  "Food Court": [
+    "🍱",
+    "#E67E22"
+  ],
+  "Cafeteria": [
+    "🥣",
+    "#D4A017"
+  ],
+  "Corporate Cafeteria": [
+    "🥣",
+    "#D4A017"
+  ],
+  "College Cafeteria": [
+    "🥣",
+    "#D4A017"
+  ],
+  "Farmers Market": [
+    "🥦",
+    "#27AE60"
+  ],
+  "Market": [
+    "🛒",
+    "#27AE60"
+  ],
+  "Grocery Store": [
+    "🛒",
+    "#27AE60"
+  ],
+  "Supermarket": [
+    "🛒",
+    "#219A52"
+  ],
+  "Convenience Store": [
+    "🏪",
+    "#2ECC71"
+  ],
+  "Gourmet Store": [
+    "🧀",
+    "#F39C12"
+  ],
+  "Candy Store": [
+    "🍬",
+    "#F06292"
+  ],
+  "Bar": [
+    "🍺",
+    "#F39C12"
+  ],
+  "Beer Bar": [
+    "🍺",
+    "#E67E22"
+  ],
+  "Pub": [
+    "🍻",
+    "#D4A017"
+  ],
+  "Hookah Bar": [
+    "💨",
+    "#8E44AD"
+  ],
+  "Cocktail Bar": [
+    "🍸",
+    "#E74C3C"
+  ],
+  "Wine Bar": [
+    "🍷",
+    "#922B21"
+  ],
+  "Wine Store": [
+    "🍷",
+    "#7B241C"
+  ],
+  "Liquor Store": [
+    "🥃",
+    "#784212"
+  ],
+  "Lounge": [
+    "🛋️",
+    "#5D6D7E"
+  ],
+  "Gastropub": [
+    "🍖",
+    "#CA6F1E"
+  ],
+  "Brewery": [
+    "🍻",
+    "#BA4A00"
+  ],
+  "Nightclub": [
+    "🎵",
+    "#6C3483"
+  ],
+  "Karaoke Bar": [
+    "🎤",
+    "#7D3C98"
+  ],
+  "Hotel": [
+    "🏨",
+    "#2C3E50"
+  ],
+  "Hostel": [
+    "🛏️",
+    "#34495E"
+  ],
+  "Bed and Breakfast": [
+    "🛏️",
+    "#4A235A"
+  ],
+  "Inn": [
+    "🏠",
+    "#2E4053"
+  ],
+  "Apartment or Condo": [
+    "🏠",
+    "#1A5276"
+  ],
+  "Home (private)": [
+    "🏠",
+    "#17202A"
+  ],
+  "Metro Station": [
+    "🚇",
+    "#2980B9"
+  ],
+  "Rail Station": [
+    "🚉",
+    "#1A5276"
+  ],
+  "Train": [
+    "🚂",
+    "#E74C3C"
+  ],
+  "Tram Station": [
+    "🚃",
+    "#2471A3"
+  ],
+  "Light Rail Station": [
+    "🚈",
+    "#2980B9"
+  ],
+  "Platform": [
+    "🚉",
+    "#1F618D"
+  ],
+  "Bus Line": [
+    "🚌",
+    "#27AE60"
+  ],
+  "Bus Station": [
+    "🚌",
+    "#1E8449"
+  ],
+  "Bus Stop": [
+    "🚏",
+    "#239B56"
+  ],
+  "Airport Terminal": [
+    "✈️",
+    "#2471A3"
+  ],
+  "International Airport": [
+    "✈️",
+    "#154360"
+  ],
+  "Airport Gate": [
+    "✈️",
+    "#1A5276"
+  ],
+  "Airport Service": [
+    "✈️",
+    "#21618C"
+  ],
+  "Plane": [
+    "✈️",
+    "#2980B9"
+  ],
+  "Travel Lounge": [
+    "🛋️",
+    "#21618C"
+  ],
+  "Boat or Ferry": [
+    "⛴️",
+    "#117A65"
+  ],
+  "Border Crossing": [
+    "🛂",
+    "#717D7E"
+  ],
+  "Taxi": [
+    "🚕",
+    "#F4D03F"
+  ],
+  "Parking": [
+    "🅿️",
+    "#2980B9"
+  ],
+  "Fuel Station": [
+    "⛽",
+    "#E67E22"
+  ],
+  "Rest Area": [
+    "🛑",
+    "#7F8C8D"
+  ],
+  "Cable Car": [
+    "🚡",
+    "#8E44AD"
+  ],
+  "Park": [
+    "🌳",
+    "#1E8449"
+  ],
+  "Plaza": [
+    "🏛️",
+    "#2E86C1"
+  ],
+  "Pedestrian Plaza": [
+    "🚶",
+    "#2E86C1"
+  ],
+  "Beach": [
+    "🏖️",
+    "#F39C12"
+  ],
+  "Mountain": [
+    "⛰️",
+    "#7F8C8D"
+  ],
+  "Hiking Trail": [
+    "🥾",
+    "#6E2F1A"
+  ],
+  "Garden": [
+    "🌸",
+    "#1E8449"
+  ],
+  "Scenic Lookout": [
+    "🔭",
+    "#1A5276"
+  ],
+  "Waterfront": [
+    "🌊",
+    "#2471A3"
+  ],
+  "Harbor or Marina": [
+    "⚓",
+    "#154360"
+  ],
+  "River": [
+    "🌊",
+    "#2980B9"
+  ],
+  "Lake": [
+    "🏞️",
+    "#2471A3"
+  ],
+  "Island": [
+    "🏝️",
+    "#27AE60"
+  ],
+  "Bike Trail": [
+    "🚴",
+    "#E67E22"
+  ],
+  "Other Great Outdoors": [
+    "🌲",
+    "#186A3B"
+  ],
+  "Cemetery": [
+    "🪦",
+    "#5D6D7E"
+  ],
+  "Ski Area": [
+    "⛷️",
+    "#85C1E9"
+  ],
+  "Sculpture Garden": [
+    "🗿",
+    "#7F8C8D"
+  ],
+  "Bridge": [
+    "🌉",
+    "#626567"
+  ],
+  "Fountain": [
+    "⛲",
+    "#5DADE2"
+  ],
+  "Museum": [
+    "🏛️",
+    "#7D3C98"
+  ],
+  "Art Museum": [
+    "🎨",
+    "#884EA0"
+  ],
+  "History Museum": [
+    "📜",
+    "#6E2F1A"
+  ],
+  "Art Gallery": [
+    "🖼️",
+    "#7D3C98"
+  ],
+  "Monument": [
+    "🗽",
+    "#626567"
+  ],
+  "Historic and Protected Site": [
+    "🏰",
+    "#784212"
+  ],
+  "Castle": [
+    "🏰",
+    "#6E2F1A"
+  ],
+  "Palace": [
+    "🏯",
+    "#784212"
+  ],
+  "Outdoor Sculpture": [
+    "🗿",
+    "#717D7E"
+  ],
+  "Public Art": [
+    "🎨",
+    "#7D3C98"
+  ],
+  "Street Art": [
+    "🎨",
+    "#8E44AD"
+  ],
+  "Event Space": [
+    "🎪",
+    "#C0392B"
+  ],
+  "Dance Studio": [
+    "💃",
+    "#E74C3C"
+  ],
+  "Theater": [
+    "🎭",
+    "#922B21"
+  ],
+  "Church": [
+    "⛪",
+    "#7D3C98"
+  ],
+  "Mosque": [
+    "🕌",
+    "#117A65"
+  ],
+  "Temple": [
+    "🛕",
+    "#B9770E"
+  ],
+  "Monastery": [
+    "🙏",
+    "#6E2F1A"
+  ],
+  "Synagogue": [
+    "✡️",
+    "#1A5276"
+  ],
+  "Shopping Mall": [
+    "🛍️",
+    "#E91E63"
+  ],
+  "Department Store": [
+    "🏬",
+    "#C0392B"
+  ],
+  "Clothing Store": [
+    "👔",
+    "#8E44AD"
+  ],
+  "Shoe Store": [
+    "👟",
+    "#D35400"
+  ],
+  "Electronics Store": [
+    "💻",
+    "#2471A3"
+  ],
+  "Mobile Phone Store": [
+    "📱",
+    "#2E86C1"
+  ],
+  "Bookstore": [
+    "📚",
+    "#1A5276"
+  ],
+  "Furniture and Home Store": [
+    "🛋️",
+    "#784212"
+  ],
+  "Cosmetics Store": [
+    "💄",
+    "#F06292"
+  ],
+  "Bicycle Store": [
+    "🚲",
+    "#27AE60"
+  ],
+  "Big Box Store": [
+    "📦",
+    "#7F8C8D"
+  ],
+  "Flea Market": [
+    "🏷️",
+    "#D35400"
+  ],
+  "Hardware Store": [
+    "🔧",
+    "#7F8C8D"
+  ],
+  "Gym": [
+    "💪",
+    "#E74C3C"
+  ],
+  "Bath House": [
+    "♨️",
+    "#1ABC9C"
+  ],
+  "Spa": [
+    "💆",
+    "#1ABC9C"
+  ],
+  "Medical Center": [
+    "🏥",
+    "#E74C3C"
+  ],
+  "Pharmacy": [
+    "💊",
+    "#27AE60"
+  ],
+  "Bank": [
+    "🏦",
+    "#1A5276"
+  ],
+  "Office": [
+    "🏢",
+    "#2C3E50"
+  ],
+  "Post Office": [
+    "📮",
+    "#E74C3C"
+  ],
+  "Police Station": [
+    "👮",
+    "#2471A3"
+  ],
+  "City Hall": [
+    "🏛️",
+    "#1A5276"
+  ],
+  "Government Building": [
+    "🏛️",
+    "#154360"
+  ],
+  "University": [
+    "🎓",
+    "#154360"
+  ],
+  "Tech Startup": [
+    "💡",
+    "#F39C12"
+  ],
+  "Business Center": [
+    "🏢",
+    "#2C3E50"
+  ],
+  "Non-Profit Organization": [
+    "🤝",
+    "#1E8449"
+  ],
+  "Road": [
+    "🛣️",
+    "#626567"
+  ],
+  "Tunnel": [
+    "🚧",
+    "#E67E22"
+  ],
+  "Neighborhood": [
+    "🏘️",
+    "#5D6D7E"
+  ],
+  "Intersection": [
+    "🔀",
+    "#717D7E"
+  ],
+  "Housing Development": [
+    "🏘️",
+    "#1A5276"
+  ],
+  "Miscellaneous Store": [
+    "🏪",
+    "#E67E22"
+  ],
+  "Food and Beverage Retail": [
+    "🛒",
+    "#27AE60"
+  ],
+  "Sporting Goods Retail": [
+    "⚽",
+    "#27AE60"
+  ],
+  "Health Food Store": [
+    "🥗",
+    "#1E8449"
+  ],
+  "Butcher": [
+    "🥩",
+    "#C0392B"
+  ],
+  "Eyecare Store": [
+    "👓",
+    "#2471A3"
+  ],
+  "Tailor": [
+    "🧵",
+    "#7D3C98"
+  ],
+  "Bike Rental": [
+    "🚲",
+    "#27AE60"
+  ],
+  "Currency Exchange": [
+    "💱",
+    "#F39C12"
+  ],
+  "Diner": [
+    "🍳",
+    "#E67E22"
+  ],
+  "Bistro": [
+    "🍽️",
+    "#C0392B"
+  ],
+  "Breakfast Spot": [
+    "🥞",
+    "#F39C12"
+  ],
+  "Bagel Shop": [
+    "🥯",
+    "#C8860A"
+  ],
+  "Dessert Shop": [
+    "🍰",
+    "#F06292"
+  ],
+  "Ice Cream Parlor": [
+    "🍦",
+    "#F06292"
+  ],
+  "Sandwich Spot": [
+    "🥪",
+    "#E67E22"
+  ],
+  "Noodle Restaurant": [
+    "🍜",
+    "#E74C3C"
+  ],
+  "Turkish Restaurant": [
+    "🥙",
+    "#C0392B"
+  ],
+  "Indian Restaurant": [
+    "🍛",
+    "#E67E22"
+  ],
+  "Romanian Restaurant": [
+    "🍲",
+    "#C0392B"
+  ],
+  "Ukrainian Restaurant": [
+    "🥟",
+    "#D4A017"
+  ],
+  "Eastern European Restaurant": [
+    "🍲",
+    "#C0392B"
+  ],
+  "Modern European Restaurant": [
+    "🍽️",
+    "#922B21"
+  ],
+  "Middle Eastern Restaurant": [
+    "🧆",
+    "#D35400"
+  ],
+  "Beer Garden": [
+    "🍻",
+    "#D4A017"
+  ],
+  "Concert Hall": [
+    "🎼",
+    "#922B21"
+  ],
+  "Movie Theater": [
+    "🎬",
+    "#C0392B"
+  ],
+  "Cultural Center": [
+    "🎭",
+    "#7D3C98"
+  ],
+  "Exhibit": [
+    "🖼️",
+    "#7D3C98"
+  ],
+  "Science Museum": [
+    "🔬",
+    "#1A5276"
+  ],
+  "Amusement Park": [
+    "🎡",
+    "#E74C3C"
+  ],
+  "Memorial Site": [
+    "🕯️",
+    "#626567"
+  ],
+  "Library": [
+    "📚",
+    "#1A5276"
+  ],
+  "National Park": [
+    "🌲",
+    "#186A3B"
+  ],
+  "Nature Preserve": [
+    "🌿",
+    "#1E8449"
+  ],
+  "Forest": [
+    "🌲",
+    "#186A3B"
+  ],
+  "Botanical Garden": [
+    "🌺",
+    "#1E8449"
+  ],
+  "Waterfall": [
+    "💦",
+    "#2980B9"
+  ],
+  "Canal": [
+    "🚤",
+    "#2471A3"
+  ],
+  "Bay": [
+    "🌊",
+    "#2980B9"
+  ],
+  "Reservoir": [
+    "💧",
+    "#2471A3"
+  ],
+  "Playground": [
+    "🛝",
+    "#E74C3C"
+  ],
+  "Campground": [
+    "⛺",
+    "#186A3B"
+  ],
+  "Well": [
+    "🪣",
+    "#7F8C8D"
+  ],
+  "Tree": [
+    "🌳",
+    "#1E8449"
+  ],
+  "Lighthouse": [
+    "🔦",
+    "#F39C12"
+  ],
+  "Port": [
+    "🚢",
+    "#154360"
+  ],
+  "Pier": [
+    "🎣",
+    "#2471A3"
+  ],
+  "Buddhist Temple": [
+    "☸️",
+    "#D4A017"
+  ],
+  "Hindu Temple": [
+    "🛕",
+    "#E67E22"
+  ],
+  "Shrine": [
+    "⛩️",
+    "#C0392B"
+  ],
+  "Education": [
+    "🎓",
+    "#1A5276"
+  ],
+  "College Arts Building": [
+    "🎨",
+    "#7D3C98"
+  ],
+  "College Technology Building": [
+    "💻",
+    "#2471A3"
+  ],
+  "College Academic Building": [
+    "📖",
+    "#1A5276"
+  ],
+  "College Residence Hall": [
+    "🏠",
+    "#2C3E50"
+  ],
+  "College Library": [
+    "📚",
+    "#154360"
+  ],
+  "College Gym": [
+    "💪",
+    "#C0392B"
+  ],
+  "Airport Lounge": [
+    "🛋️",
+    "#21618C"
+  ],
+  "Airport": [
+    "✈️",
+    "#154360"
+  ],
+  "Airport Ticket Counter": [
+    "🎫",
+    "#2471A3"
+  ],
+  "Baggage Claim": [
+    "🧳",
+    "#2C3E50"
+  ],
+  "Travel and Transportation": [
+    "🧳",
+    "#2C3E50"
+  ],
+  "Transportation Service": [
+    "🚐",
+    "#27AE60"
+  ],
+  "Shipping, Freight, and Material Transportation Service": [
+    "📦",
+    "#7F8C8D"
+  ],
+  "Moving Target": [
+    "📍",
+    "#E74C3C"
+  ],
+  "Toll Plaza": [
+    "🛣️",
+    "#626567"
+  ],
+  "Embassy or Consulate": [
+    "🏛️",
+    "#1A5276"
+  ],
+  "Hair Salon": [
+    "✂️",
+    "#F06292"
+  ],
+  "Swimming Pool": [
+    "🏊",
+    "#2980B9"
+  ],
+  "Pool Hall": [
+    "🎱",
+    "#2C3E50"
+  ],
+  "Factory": [
+    "🏭",
+    "#7F8C8D"
+  ],
+  "Structure": [
+    "🏗️",
+    "#626567"
+  ],
+  "Arts and Entertainment": [
+    "🎭",
+    "#7D3C98"
+  ],
+  "Sports and Recreation": [
+    "⚽",
+    "#27AE60"
+  ],
+  "Gym and Studio": [
+    "💪",
+    "#E74C3C"
+  ],
+  "City": [
+    "🏙️",
+    "#2E86C1"
+  ],
+  "Town": [
+    "🏘️",
+    "#5D6D7E"
+  ],
+  "Village": [
+    "🏡",
+    "#5D6D7E"
+  ],
+  "Country": [
+    "🌍",
+    "#2E86C1"
+  ],
+  "County": [
+    "📍",
+    "#626567"
+  ],
+  "State": [
+    "📍",
+    "#626567"
+  ],
+  "Pastry Shop": [
+    "🥐",
+    "#C8860A"
+  ],
+  "Pie Shop": [
+    "🥧",
+    "#A04000"
+  ],
+  "Donut Shop": [
+    "🍩",
+    "#E91E8C"
+  ],
+  "Gelato Shop": [
+    "🍨",
+    "#9B59B6"
+  ],
+  "Creperie": [
+    "🥞",
+    "#D4A017"
+  ],
+  "Smoothie Shop": [
+    "🥤",
+    "#27AE60"
+  ],
+  "Juice Bar": [
+    "🥤",
+    "#27AE60"
+  ],
+  "Tea Room": [
+    "🫖",
+    "#27AE60"
+  ],
+  "Bubble Tea Shop": [
+    "🧋",
+    "#8E44AD"
+  ],
+  "Snack Place": [
+    "🍿",
+    "#E67E22"
+  ],
+  "Food Truck": [
+    "🚚",
+    "#E67E22"
+  ],
+  "Food Stand": [
+    "🌮",
+    "#E67E22"
+  ],
+  "BBQ Joint": [
+    "🔥",
+    "#C0392B"
+  ],
+  "Souvlaki Shop": [
+    "🍢",
+    "#E67E22"
+  ],
+  "Blini House": [
+    "🫓",
+    "#C8860A"
+  ],
+  "Pelmeni House": [
+    "🥟",
+    "#C8860A"
+  ],
+  "Dumpling Restaurant": [
+    "🥟",
+    "#E67E22"
+  ],
+  "Ramen Restaurant": [
+    "🍜",
+    "#E74C3C"
+  ],
+  "Sushi Restaurant": [
+    "🍣",
+    "#C0392B"
+  ],
+  "Fried Chicken Joint": [
+    "🍗",
+    "#E67E22"
+  ],
+  "Fish and Chips Shop": [
+    "🐟",
+    "#2980B9"
+  ],
+  "Seafood Restaurant": [
+    "🦐",
+    "#2980B9"
+  ],
+  "Steak House": [
+    "🥩",
+    "#922B21"
+  ],
+  "Steakhouse": [
+    "🥩",
+    "#922B21"
+  ],
+  "Paella Restaurant": [
+    "🥘",
+    "#E67E22"
+  ],
+  "Tapas Restaurant": [
+    "🍢",
+    "#E67E22"
+  ],
+  "Falafel Restaurant": [
+    "🧆",
+    "#D4A017"
+  ],
+  "Shaanxi Restaurant": [
+    "🍜",
+    "#E67E22"
+  ],
+  "Chinese Restaurant": [
+    "🥢",
+    "#C0392B"
+  ],
+  "Japanese Restaurant": [
+    "🍱",
+    "#C0392B"
+  ],
+  "Vietnamese Restaurant": [
+    "🍜",
+    "#27AE60"
+  ],
+  "Korean Restaurant": [
+    "🍚",
+    "#E74C3C"
+  ],
+  "Thai Restaurant": [
+    "🍛",
+    "#F39C12"
+  ],
+  "South Indian Restaurant": [
+    "🍛",
+    "#C8860A"
+  ],
+  "Greek Restaurant": [
+    "🫒",
+    "#27AE60"
+  ],
+  "Lebanese Restaurant": [
+    "🌿",
+    "#27AE60"
+  ],
+  "Syrian Restaurant": [
+    "🌿",
+    "#27AE60"
+  ],
+  "Israeli Restaurant": [
+    "🫓",
+    "#D4A017"
+  ],
+  "Egyptian Restaurant": [
+    "🌽",
+    "#F39C12"
+  ],
+  "German Restaurant": [
+    "🍺",
+    "#C8860A"
+  ],
+  "Polish Restaurant": [
+    "🥟",
+    "#E74C3C"
+  ],
+  "Belarusian Restaurant": [
+    "🥟",
+    "#27AE60"
+  ],
+  "Russian Restaurant": [
+    "🥟",
+    "#C0392B"
+  ],
+  "French Restaurant": [
+    "🥐",
+    "#2980B9"
+  ],
+  "Spanish Restaurant": [
+    "🥘",
+    "#E74C3C"
+  ],
+  "Portuguese Restaurant": [
+    "🐟",
+    "#2980B9"
+  ],
+  "Mexican Restaurant": [
+    "🌮",
+    "#27AE60"
+  ],
+  "Latin American Restaurant": [
+    "🌮",
+    "#27AE60"
+  ],
+  "Argentinian Restaurant": [
+    "🥩",
+    "#27AE60"
+  ],
+  "American Restaurant": [
+    "🍔",
+    "#E67E22"
+  ],
+  "Asian Restaurant": [
+    "🥢",
+    "#C0392B"
+  ],
+  "Cambodian Restaurant": [
+    "🍲",
+    "#27AE60"
+  ],
+  "Tibetan Restaurant": [
+    "🍵",
+    "#8E44AD"
+  ],
+  "Tatar Restaurant": [
+    "🥟",
+    "#C0392B"
+  ],
+  "Yemeni Restaurant": [
+    "🍖",
+    "#D4A017"
+  ],
+  "Ethiopian Restaurant": [
+    "🌿",
+    "#27AE60"
+  ],
+  "African Restaurant": [
+    "🌍",
+    "#27AE60"
+  ],
+  "Vegan and Vegetarian Restaurant": [
+    "🥦",
+    "#27AE60"
+  ],
+  "Halal Restaurant": [
+    "🌙",
+    "#2ECC71"
+  ],
+  "Kosher Restaurant": [
+    "✡️",
+    "#2980B9"
+  ],
+  "Scottish Restaurant": [
+    "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+    "#154360"
+  ],
+  "Comfort Food Restaurant": [
+    "🍲",
+    "#C8860A"
+  ],
+  "Corporate Coffee Shop": [
+    "☕",
+    "#6F4E37"
+  ],
+  "Coffee Roaster": [
+    "☕",
+    "#4A235A"
+  ],
+  "Cafe, Coffee, and Tea House": [
+    "☕",
+    "#6F4E37"
+  ],
+  "Beach Bar": [
+    "🍹",
+    "#2980B9"
+  ],
+  "Dive Bar": [
+    "🍺",
+    "#7B241C"
+  ],
+  "Speakeasy": [
+    "🥃",
+    "#4A235A"
+  ],
+  "Whisky Bar": [
+    "🥃",
+    "#784212"
+  ],
+  "Sports Bar": [
+    "📺",
+    "#2C3E50"
+  ],
+  "Rock Club": [
+    "🎸",
+    "#6C3483"
+  ],
+  "Hotel Bar": [
+    "🍸",
+    "#2C3E50"
+  ],
+  "Night Club": [
+    "🎵",
+    "#6C3483"
+  ],
+  "Irish Pub": [
+    "🍀",
+    "#27AE60"
+  ],
+  "Beer Store": [
+    "🍺",
+    "#D4A017"
+  ],
+  "Buffet": [
+    "🍱",
+    "#E67E22"
+  ],
+  "Flower Store": [
+    "🌸",
+    "#E91E8C"
+  ],
+  "Vintage and Thrift Store": [
+    "🎪",
+    "#8E44AD"
+  ],
+  "Duty-free Store": [
+    "✈️",
+    "#2980B9"
+  ],
+  "Discount Store": [
+    "🏷️",
+    "#E67E22"
+  ],
+  "Arts and Crafts Store": [
+    "🎨",
+    "#E91E8C"
+  ],
+  "Souvenir Store": [
+    "🛍️",
+    "#D4A017"
+  ],
+  "Jewelry Store": [
+    "💍",
+    "#D4A017"
+  ],
+  "Watch Store": [
+    "⌚",
+    "#5D6D7E"
+  ],
+  "Leather Goods Store": [
+    "👜",
+    "#784212"
+  ],
+  "Newsstand": [
+    "📰",
+    "#5D6D7E"
+  ],
+  "Print Store": [
+    "🖨️",
+    "#5D6D7E"
+  ],
+  "Tobacco Store": [
+    "🚬",
+    "#616A6B"
+  ],
+  "Smoke Shop": [
+    "💨",
+    "#616A6B"
+  ],
+  "Optical Store": [
+    "👓",
+    "#2980B9"
+  ],
+  "Office Supply Store": [
+    "✏️",
+    "#5D6D7E"
+  ],
+  "Stationery Store": [
+    "✏️",
+    "#5D6D7E"
+  ],
+  "Fish Market": [
+    "🐟",
+    "#2980B9"
+  ],
+  "Fruit and Vegetable Store": [
+    "🥦",
+    "#27AE60"
+  ],
+  "Outlet Store": [
+    "🏷️",
+    "#E74C3C"
+  ],
+  "Outlet Mall": [
+    "🏷️",
+    "#E74C3C"
+  ],
+  "Luggage Store": [
+    "🧳",
+    "#5D6D7E"
+  ],
+  "Textiles Store": [
+    "🧵",
+    "#8E44AD"
+  ],
+  "Toy Store": [
+    "🧸",
+    "#E91E8C"
+  ],
+  "Pet Supplies Store": [
+    "🐾",
+    "#D4A017"
+  ],
+  "Gift Store": [
+    "🎁",
+    "#E91E8C"
+  ],
+  "Hobby Store": [
+    "🎮",
+    "#8E44AD"
+  ],
+  "Music Store": [
+    "🎵",
+    "#8E44AD"
+  ],
+  "Antique Store": [
+    "🏺",
+    "#D4A017"
+  ],
+  "Used Bookstore": [
+    "📚",
+    "#784212"
+  ],
+  "Winery": [
+    "🍷",
+    "#922B21"
+  ],
+  "Computers and Electronics Retail": [
+    "💻",
+    "#2980B9"
+  ],
+  "Lighting Store": [
+    "💡",
+    "#D4A017"
+  ],
+  "Warehouse or Wholesale Store": [
+    "📦",
+    "#7F8C8D"
+  ],
+  "Pop-Up Store": [
+    "🏪",
+    "#E91E8C"
+  ],
+  "s Store": [
+    "👗",
+    "#E91E8C"
+  ],
+  "Ski Store": [
+    "⛷️",
+    "#2980B9"
+  ],
+  "Board Store": [
+    "🏄",
+    "#2980B9"
+  ],
+  "Outdoor Supply Store": [
+    "⛺",
+    "#27AE60"
+  ],
+  "Mattress Store": [
+    "🛏️",
+    "#2C3E50"
+  ],
+  "Car Dealership": [
+    "🚗",
+    "#5D6D7E"
+  ],
+  "Motorcycle Dealership": [
+    "🏍️",
+    "#5D6D7E"
+  ],
+  "Used Car Dealership": [
+    "🚗",
+    "#7F8C8D"
+  ],
+  "Garden Center": [
+    "🌱",
+    "#27AE60"
+  ],
+  "Christmas Market": [
+    "🎄",
+    "#E74C3C"
+  ],
+  "Cruise": [
+    "🚢",
+    "#1A5276"
+  ],
+  "Ski Chairlift": [
+    "🚡",
+    "#2980B9"
+  ],
+  "Marine Terminal": [
+    "⚓",
+    "#1A5276"
+  ],
+  "Toll Booth": [
+    "🚧",
+    "#D4A017"
+  ],
+  "Taxi Stand": [
+    "🚕",
+    "#F39C12"
+  ],
+  "Public Transportation": [
+    "🚇",
+    "#2980B9"
+  ],
+  "Airport Tram Station": [
+    "🚈",
+    "#2471A3"
+  ],
+  "Baggage Locker": [
+    "🔒",
+    "#5D6D7E"
+  ],
+  "Airfield": [
+    "✈️",
+    "#2471A3"
+  ],
+  "Runway": [
+    "✈️",
+    "#154360"
+  ],
+  "Rental Car Location": [
+    "🚗",
+    "#2C3E50"
+  ],
+  "Travel Agency": [
+    "✈️",
+    "#2980B9"
+  ],
+  "Performing Arts Venue": [
+    "🎭",
+    "#8E44AD"
+  ],
+  "Opera House": [
+    "🎭",
+    "#6C3483"
+  ],
+  "Indie Movie Theater": [
+    "🎬",
+    "#6C3483"
+  ],
+  "Amphitheater": [
+    "🎭",
+    "#8E44AD"
+  ],
+  "Music Venue": [
+    "🎸",
+    "#8E44AD"
+  ],
+  "Jazz and Blues Venue": [
+    "🎷",
+    "#8E44AD"
+  ],
+  "Convention Center": [
+    "🏛️",
+    "#2C3E50"
+  ],
+  "Outdoor Event Space": [
+    "🎊",
+    "#27AE60"
+  ],
+  "Festival": [
+    "🎡",
+    "#E91E8C"
+  ],
+  "Music Festival": [
+    "🎵",
+    "#E91E8C"
+  ],
+  "Street Fair": [
+    "🎠",
+    "#E91E8C"
+  ],
+  "Exhibition": [
+    "🖼️",
+    "#8E44AD"
+  ],
+  "Attraction": [
+    "⭐",
+    "#D4A017"
+  ],
+  "Tourist Information and Service": [
+    "ℹ️",
+    "#2980B9"
+  ],
+  "Landmarks and Outdoors": [
+    "🗺️",
+    "#27AE60"
+  ],
+  "Zoo": [
+    "🦁",
+    "#D4A017"
+  ],
+  "Zoo Exhibit": [
+    "🦁",
+    "#C8860A"
+  ],
+  "Aquarium": [
+    "🐠",
+    "#2980B9"
+  ],
+  "Water Park": [
+    "💦",
+    "#2980B9"
+  ],
+  "Casino": [
+    "🎲",
+    "#C0392B"
+  ],
+  "Arcade": [
+    "🕹️",
+    "#8E44AD"
+  ],
+  "Escape Room": [
+    "🔐",
+    "#8E44AD"
+  ],
+  "Bowling Alley": [
+    "🎳",
+    "#2980B9"
+  ],
+  "Shooting Range": [
+    "🎯",
+    "#7F8C8D"
+  ],
+  "Gun Range": [
+    "🎯",
+    "#7F8C8D"
+  ],
+  "Laser Tag Center": [
+    "🔫",
+    "#8E44AD"
+  ],
+  "Paintball Field": [
+    "🎯",
+    "#27AE60"
+  ],
+  "Race Track": [
+    "🏎️",
+    "#E74C3C"
+  ],
+  "Go Kart Track": [
+    "🏎️",
+    "#E74C3C"
+  ],
+  "Hockey Stadium": [
+    "🏒",
+    "#2980B9"
+  ],
+  "Soccer Stadium": [
+    "⚽",
+    "#27AE60"
+  ],
+  "Track Stadium": [
+    "🏃",
+    "#E67E22"
+  ],
+  "College Stadium": [
+    "🏟️",
+    "#E74C3C"
+  ],
+  "Tennis Court": [
+    "🎾",
+    "#27AE60"
+  ],
+  "Tennis Stadium": [
+    "🎾",
+    "#2980B9"
+  ],
+  "Tennis Club": [
+    "🎾",
+    "#27AE60"
+  ],
+  "Soccer Field": [
+    "⚽",
+    "#27AE60"
+  ],
+  "Basketball Court": [
+    "🏀",
+    "#E67E22"
+  ],
+  "Basketball Stadium": [
+    "🏀",
+    "#E67E22"
+  ],
+  "Bathing Area": [
+    "🏊",
+    "#2980B9"
+  ],
+  "Skate Park": [
+    "🛹",
+    "#5D6D7E"
+  ],
+  "Skating Rink": [
+    "⛸️",
+    "#2980B9"
+  ],
+  "Rock Climbing Spot": [
+    "🧗",
+    "#784212"
+  ],
+  "Surf Spot": [
+    "🏄",
+    "#2980B9"
+  ],
+  "Ski Trail": [
+    "⛷️",
+    "#85C1E9"
+  ],
+  "Ski Resort and Area": [
+    "⛷️",
+    "#2980B9"
+  ],
+  "Running and Track": [
+    "🏃",
+    "#27AE60"
+  ],
+  "Dog Park": [
+    "🐕",
+    "#D4A017"
+  ],
+  "Sports Club": [
+    "🏅",
+    "#E67E22"
+  ],
+  "Recreation Center": [
+    "🏅",
+    "#27AE60"
+  ],
+  "Yoga Studio": [
+    "🧘",
+    "#27AE60"
+  ],
+  "Gym Pool": [
+    "🏊",
+    "#2980B9"
+  ],
+  "Dive Spot": [
+    "🤿",
+    "#2980B9"
+  ],
+  "Rafting Spot": [
+    "🛶",
+    "#2980B9"
+  ],
+  "Hot Air Balloon Tour Agency": [
+    "🎈",
+    "#E91E8C"
+  ],
+  "Circus": [
+    "🎪",
+    "#E91E8C"
+  ],
+  "Hospital": [
+    "🏥",
+    "#E74C3C"
+  ],
+  "Medical Lab": [
+    "🔬",
+    "#E74C3C"
+  ],
+  "Dentist": [
+    "🦷",
+    "#2980B9"
+  ],
+  "Drugstore": [
+    "💊",
+    "#27AE60"
+  ],
+  "Emergency Room": [
+    "🚨",
+    "#E74C3C"
+  ],
+  "Massage Clinic": [
+    "💆",
+    "#27AE60"
+  ],
+  "Sauna": [
+    "♨️",
+    "#E74C3C"
+  ],
+  "Laundry Service": [
+    "👕",
+    "#2980B9"
+  ],
+  "Laundromat": [
+    "👕",
+    "#2980B9"
+  ],
+  "Dry Cleaner": [
+    "👔",
+    "#2980B9"
+  ],
+  "Repair Service": [
+    "🔧",
+    "#7F8C8D"
+  ],
+  "Shoe Repair Service": [
+    "👟",
+    "#784212"
+  ],
+  "Automotive Repair Shop": [
+    "🔧",
+    "#5D6D7E"
+  ],
+  "Car Wash and Detail": [
+    "🚿",
+    "#2980B9"
+  ],
+  "Coworking Space": [
+    "💻",
+    "#2C3E50"
+  ],
+  "Office Building": [
+    "🏢",
+    "#2C3E50"
+  ],
+  "Power Plant": [
+    "⚡",
+    "#E67E22"
+  ],
+  "Recycling Facility": [
+    "♻️",
+    "#27AE60"
+  ],
+  "ATM": [
+    "💳",
+    "#1A5276"
+  ],
+  "Financial Service": [
+    "💹",
+    "#1A5276"
+  ],
+  "Banking and Finance": [
+    "🏦",
+    "#1A5276"
+  ],
+  "Government Department": [
+    "🏛️",
+    "#5D6D7E"
+  ],
+  "Capitol Building": [
+    "🏛️",
+    "#2980B9"
+  ],
+  "Town Hall": [
+    "🏛️",
+    "#2C3E50"
+  ],
+  "Courthouse": [
+    "⚖️",
+    "#2C3E50"
+  ],
+  "Fire Station": [
+    "🚒",
+    "#E74C3C"
+  ],
+  "Military Base": [
+    "🪖",
+    "#27AE60"
+  ],
+  "Social Services Organization": [
+    "🤝",
+    "#27AE60"
+  ],
+  "Community Center": [
+    "🤝",
+    "#2980B9"
+  ],
+  "Social Club": [
+    "🤝",
+    "#8E44AD"
+  ],
+  "Rental Service": [
+    "🔑",
+    "#5D6D7E"
+  ],
+  "Storage Facility": [
+    "📦",
+    "#7F8C8D"
+  ],
+  "IT Service": [
+    "💻",
+    "#2980B9"
+  ],
+  "Home Service": [
+    "🏠",
+    "#7F8C8D"
+  ],
+  "Business and Professional Services": [
+    "💼",
+    "#2C3E50"
+  ],
+  "Business Service": [
+    "💼",
+    "#2C3E50"
+  ],
+  "Property Management Office": [
+    "🏢",
+    "#5D6D7E"
+  ],
+  "Notary": [
+    "✍️",
+    "#5D6D7E"
+  ],
+  "TV Station": [
+    "📺",
+    "#2C3E50"
+  ],
+  "Mobile Company": [
+    "📱",
+    "#2980B9"
+  ],
+  "Ticket Seller": [
+    "🎫",
+    "#E91E8C"
+  ],
+  "Auditorium": [
+    "🏛️",
+    "#8E44AD"
+  ],
+  "Conference Room": [
+    "🤝",
+    "#2C3E50"
+  ],
+  "Meeting Room": [
+    "🤝",
+    "#2C3E50"
+  ],
+  "Ballroom": [
+    "💃",
+    "#8E44AD"
+  ],
+  "Assisted Living": [
+    "🏥",
+    "#2980B9"
+  ],
+  "Veterinarian": [
+    "🐾",
+    "#27AE60"
+  ],
+  "Animal Shelter": [
+    "🐾",
+    "#27AE60"
+  ],
+  "High School": [
+    "🏫",
+    "#2C3E50"
+  ],
+  "Community College": [
+    "🎓",
+    "#5D6D7E"
+  ],
+  "Language School": [
+    "📝",
+    "#2980B9"
+  ],
+  "Music School": [
+    "🎵",
+    "#8E44AD"
+  ],
+  "Religious School": [
+    "📖",
+    "#784212"
+  ],
+  "Art Studio": [
+    "🎨",
+    "#E91E8C"
+  ],
+  "Driving School": [
+    "🚗",
+    "#5D6D7E"
+  ],
+  "Swim School": [
+    "🏊",
+    "#2980B9"
+  ],
+  "College Administrative Building": [
+    "🏛️",
+    "#5D6D7E"
+  ],
+  "College Auditorium": [
+    "🎭",
+    "#8E44AD"
+  ],
+  "College Science Building": [
+    "🔬",
+    "#2980B9"
+  ],
+  "College Theater": [
+    "🎭",
+    "#8E44AD"
+  ],
+  "College Quad": [
+    "🌳",
+    "#27AE60"
+  ],
+  "Student Center": [
+    "🎓",
+    "#8E44AD"
+  ],
+  "Law School": [
+    "⚖️",
+    "#2C3E50"
+  ],
+  "Fraternity House": [
+    "🏠",
+    "#8E44AD"
+  ],
+  "Planetarium": [
+    "🌌",
+    "#2C3E50"
+  ],
+  "Observatory": [
+    "🔭",
+    "#1A5276"
+  ],
+  "State or Provincial Park": [
+    "🌳",
+    "#27AE60"
+  ],
+  "Urban Park": [
+    "🌳",
+    "#27AE60"
+  ],
+  "Natural Park": [
+    "🏞️",
+    "#1E8449"
+  ],
+  "Hot Spring": [
+    "♨️",
+    "#E74C3C"
+  ],
+  "Field": [
+    "🌾",
+    "#27AE60"
+  ],
+  "Hill": [
+    "⛰️",
+    "#784212"
+  ],
+  "Vineyard": [
+    "🍇",
+    "#922B21"
+  ],
+  "Farm": [
+    "🚜",
+    "#27AE60"
+  ],
+  "Cave": [
+    "🦇",
+    "#616A6B"
+  ],
+  "Volcano": [
+    "🌋",
+    "#E74C3C"
+  ],
+  "Stable": [
+    "🐴",
+    "#784212"
+  ],
+  "Dam": [
+    "💧",
+    "#2471A3"
+  ],
+  "Canal Lock": [
+    "🚤",
+    "#2471A3"
+  ],
+  "Confucian Temple": [
+    "🛕",
+    "#C8860A"
+  ],
+  "Sikh Temple": [
+    "🛕",
+    "#F39C12"
+  ],
+  "Spiritual Center": [
+    "🕯️",
+    "#8E44AD"
+  ],
+  "Scaffold": [
+    "🏗️",
+    "#7F8C8D"
+  ],
+  "Construction": [
+    "🏗️",
+    "#E67E22"
+  ],
+  "Industrial Estate": [
+    "🏭",
+    "#7F8C8D"
+  ],
+  "Residential Building": [
+    "🏠",
+    "#2C3E50"
+  ],
+  "Trailer Park": [
+    "🚚",
+    "#7F8C8D"
+  ],
+  "RV Park": [
+    "🚌",
+    "#7F8C8D"
+  ],
+  "Boarding House": [
+    "🛏️",
+    "#5D6D7E"
+  ],
+  "Lodging": [
+    "🛏️",
+    "#5D6D7E"
+  ],
+  "Resort": [
+    "🏖️",
+    "#2980B9"
+  ],
+  "Hot Air Balloon": [
+    "🎈",
+    "#E91E8C"
+  ],
+  "Photography Lab": [
+    "📸",
+    "#616A6B"
+  ],
+  "Comic Book Store": [
+    "📚",
+    "#E91E8C"
+  ],
+  "Knitting Store": [
+    "🧶",
+    "#E91E8C"
+  ],
+  "Costume Store": [
+    "🎭",
+    "#E91E8C"
+  ],
+  "Pawn Shop": [
+    "💰",
+    "#D4A017"
+  ],
+  "Adult Store": [
+    "🔞",
+    "#E74C3C"
+  ],
+  "Perfume Store": [
+    "🌸",
+    "#E91E8C"
+  ],
+  "Herb Store": [
+    "🌿",
+    "#27AE60"
+  ],
+  "Herbs and Spices Store": [
+    "🌿",
+    "#27AE60"
+  ],
+  "Internet Cafe": [
+    "💻",
+    "#2980B9"
+  ],
+  "Gaming Cafe": [
+    "🎮",
+    "#8E44AD"
+  ],
+  "Night Market": [
+    "🌙",
+    "#E91E8C"
+  ],
+  "Truck Stop": [
+    "🚚",
+    "#7F8C8D"
+  ],
+  "Hot Dog Joint": [
+    "🌭",
+    "#E67E22"
+  ],
+  "Taco Restaurant": [
+    "🌮",
+    "#27AE60"
+  ],
+  "Burrito Restaurant": [
+    "🌯",
+    "#27AE60"
+  ],
+  "Poke Restaurant": [
+    "🍣",
+    "#E74C3C"
+  ],
+  "Sri Lankan Restaurant": [
+    "🍛",
+    "#E67E22"
+  ],
+  "Mughlai Restaurant": [
+    "🍛",
+    "#C0392B"
+  ],
+  "Bengali Restaurant": [
+    "🍛",
+    "#27AE60"
+  ],
+  "Filipino Restaurant": [
+    "🍚",
+    "#E67E22"
+  ],
+  "Venezuelan Restaurant": [
+    "🌮",
+    "#27AE60"
+  ],
+  "Brazilian Restaurant": [
+    "🥩",
+    "#27AE60"
+  ],
+  "South American Restaurant": [
+    "🌮",
+    "#27AE60"
+  ],
+  "Peruvian Restaurant": [
+    "🥘",
+    "#E67E22"
+  ],
+  "Czech Restaurant": [
+    "🥟",
+    "#2980B9"
+  ],
+  "Belgian Restaurant": [
+    "🧇",
+    "#D4A017"
+  ],
+  "Australian Restaurant": [
+    "🦘",
+    "#D4A017"
+  ],
+  "Mongolian Restaurant": [
+    "🍖",
+    "#C0392B"
+  ],
+  "Bulgarian Restaurant": [
+    "🥗",
+    "#27AE60"
+  ],
+  "Bosnian Restaurant": [
+    "🥘",
+    "#C0392B"
+  ],
+  "New American Restaurant": [
+    "🍔",
+    "#E67E22"
+  ],
+  "Brasserie": [
+    "🍺",
+    "#D4A017"
+  ],
+  "Trattoria": [
+    "🍝",
+    "#C0392B"
+  ],
+  "Salad Restaurant": [
+    "🥗",
+    "#27AE60"
+  ],
+  "Deli": [
+    "🥪",
+    "#D4A017"
+  ],
+  "Food and Beverage Service": [
+    "🍽️",
+    "#E67E22"
+  ],
+  "Soup Spot": [
+    "🍲",
+    "#D4A017"
+  ],
+  "Friterie": [
+    "🍟",
+    "#E67E22"
+  ],
+  "Campanian Restaurant": [
+    "🍕",
+    "#E74C3C"
+  ],
+  "Dim Sum Restaurant": [
+    "🥟",
+    "#E74C3C"
+  ],
+  "Dongbei Restaurant": [
+    "🍜",
+    "#C0392B"
+  ],
+  "Peking Duck Restaurant": [
+    "🦆",
+    "#C0392B"
+  ],
+  "Kafenio": [
+    "☕",
+    "#8E44AD"
+  ],
+  "Kuruyemişçi Shop": [
+    "🌰",
+    "#784212"
+  ],
+  "Turkish Coffeehouse": [
+    "☕",
+    "#6F4E37"
+  ],
+  "Döner Restaurant": [
+    "🌯",
+    "#E67E22"
+  ],
+  "Wing Joint": [
+    "🍗",
+    "#E67E22"
+  ],
+  "Wings Joint": [
+    "🍗",
+    "#E67E22"
+  ],
+  "Coin Laundry": [
+    "🪙",
+    "#2980B9"
+  ],
+  "States and Municipalities": [
+    "🏛️",
+    "#5D6D7E"
+  ],
+  "Entertainment Event": [
+    "🎉",
+    "#E91E8C"
+  ],
+  "Other Event": [
+    "🎉",
+    "#8E44AD"
+  ],
+  "Public Bathroom": [
+    "🚻",
+    "#5D6D7E"
+  ],
+  "Boat Launch": [
+    "⛵",
+    "#2980B9"
+  ],
+  "College and University": [
+    "🎓",
+    "#154360"
+  ],
+  "Chocolate Store": [
+    "🍫",
+    "#6F4E37"
+  ],
+  "Shopping Plaza": [
+    "🛍️",
+    "#E91E63"
+  ],
+  "Boutique": [
+    "👗",
+    "#F06292"
+  ],
+  "Comedy Club": [
+    "😄",
+    "#8E44AD"
+  ],
+  "Campaign Office": [
+    "🗳️",
+    "#2E86C1"
+  ]
+}

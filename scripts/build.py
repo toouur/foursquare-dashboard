@@ -693,6 +693,16 @@ if __name__ == "__main__":
         log.warning("country_flags.json missing at %s — flag icons will be empty", _flags_path)
     _ctry_flags_json = json.dumps(_ctry_flags, ensure_ascii=False)
 
+    # Load canonical category icon map (category name -> [emoji, color])
+    _cat_icon_path = config_dir / "category_icons.json"
+    if _cat_icon_path.exists():
+        _cat_icons = json.loads(_cat_icon_path.read_text(encoding="utf-8"))
+        _cat_icons = {k: v for k, v in _cat_icons.items() if not k.startswith("_")}
+    else:
+        _cat_icons = {}
+        log.warning("category_icons.json missing at %s — category icons will be empty", _cat_icon_path)
+    _cat_icons_json = json.dumps(_cat_icons, ensure_ascii=False)
+
     os.makedirs(args.output_dir, exist_ok=True)
     build(data, trips, out_dir=args.output_dir,
           pix_dir_json=json.dumps(_pix_dir_uri),
@@ -709,6 +719,7 @@ if __name__ == "__main__":
               "{{SHOUTS_RECENT}}":         shouts_recent_json,
               "{{SHOUTS_COUNT}}":          f"{len(all_shouts):,}",
               "{{CTRY_CODE_JSON}}":        _ctry_flags_json,
+              "{{CAT_ICON_JSON}}":         _cat_icons_json,
           })
 
     if args.cat_list:
@@ -751,20 +762,29 @@ if __name__ == "__main__":
         else:
             log.warning("Generator not found: %s", gen_script)
 
-    # ── Post-process: substitute {{CTRY_CODE_JSON}} in every generated file ──
-    # Single canonical source: config/country_flags.json (loaded once above).
-    # Done after generators run so we don't need to thread ctry_flags_json
-    # through every gen_*.py kwarg signature.
+    # ── Post-process: substitute canonical placeholders in every generated file ──
+    # Single source of truth: config/country_flags.json + config/category_icons.json
+    # (both loaded once above).  Done after generators run so we don't need to
+    # thread these through every gen_*.py kwarg signature.
+    _post_subs = {
+        "{{CTRY_CODE_JSON}}": _ctry_flags_json,
+        "{{CAT_ICON_JSON}}":  _cat_icons_json,
+    }
     for _out_file in _gen_outputs:
         try:
             _p = Path(_out_file)
             if not _p.exists():
                 continue
             _txt = _p.read_text(encoding="utf-8")
-            if "{{CTRY_CODE_JSON}}" in _txt:
-                _p.write_text(_txt.replace("{{CTRY_CODE_JSON}}", _ctry_flags_json), encoding="utf-8")
+            _dirty = False
+            for _k, _v in _post_subs.items():
+                if _k in _txt:
+                    _txt = _txt.replace(_k, _v)
+                    _dirty = True
+            if _dirty:
+                _p.write_text(_txt, encoding="utf-8")
         except Exception as _e:
-            log.warning("post-process flag substitution failed for %s: %s", _out_file, _e)
+            log.warning("post-process substitution failed for %s: %s", _out_file, _e)
 
     # ── Generate photos.html (all photos gallery) ────────────────────────────
     if args.photos and _photos_by_checkin:
@@ -786,12 +806,17 @@ if __name__ == "__main__":
                     ctry_norm=_CTRY_NORM,
                     country_count=len(data['countries']),
                 )
-                # Post-process the canonical flag map placeholder.
+                # Post-process the canonical placeholders.
                 _photos_html = Path(args.output_dir) / "photos.html"
                 if _photos_html.exists():
                     _txt = _photos_html.read_text(encoding="utf-8")
-                    if "{{CTRY_CODE_JSON}}" in _txt:
-                        _photos_html.write_text(_txt.replace("{{CTRY_CODE_JSON}}", _ctry_flags_json), encoding="utf-8")
+                    _dirty = False
+                    for _k, _v in _post_subs.items():
+                        if _k in _txt:
+                            _txt = _txt.replace(_k, _v)
+                            _dirty = True
+                    if _dirty:
+                        _photos_html.write_text(_txt, encoding="utf-8")
             except Exception as _e:
                 log.warning("gen_photos.py failed: %s", _e)
         else:
