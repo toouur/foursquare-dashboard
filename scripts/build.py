@@ -273,6 +273,18 @@ if __name__ == "__main__":
             if cid in flight_matches:
                 r["flight"] = flight_matches[cid]
 
+    # Build a recent-flights list for the index "Recent Flights" cards strip.
+    # Re-parse flights here (cheap — ~127 rows) so build.py owns the recent
+    # subset shape; the full history is already on the stats page.
+    data["flights_recent"] = []
+    if flights_path.exists():
+        try:
+            from flights import load_flights as _load_flights
+            _all_fl = _load_flights(flights_path)
+            data["flights_recent"] = list(reversed(_all_fl))[:15]   # newest first
+        except Exception:
+            pass
+
     # Write per-year / per-catgrp heatmap layers as a separate static file.
     # Remove from data dict so they don't bloat index.html.
     _write_venues_filter(data, args.output_dir)
@@ -790,6 +802,38 @@ if __name__ == "__main__":
                 log.warning("Generator %s failed: %s", gen_script.name, _e)
         else:
             log.warning("Generator not found: %s", gen_script)
+
+    # ── Generate year-YYYY.html album pages ─────────────────────────────────
+    _gen_year = _SCRIPT_DIR / "gen_year_pages.py"
+    if _gen_year.exists():
+        try:
+            import importlib.util as _ilu_y
+            _spec_y = _ilu_y.spec_from_file_location("gen_year_pages", _gen_year)
+            _mod_y  = _ilu_y.module_from_spec(_spec_y)
+            _spec_y.loader.exec_module(_mod_y)
+            # Load flights once for the year pages (re-parses if available)
+            _flights_list = []
+            if flights_path.exists():
+                try:
+                    from flights import load_flights as _load_flights2
+                    _flights_list = _load_flights2(flights_path)
+                except Exception:
+                    pass
+            _mod_y.build_page(
+                csv_path=args.input,
+                config_dir=str(config_dir),
+                out_path=args.output_dir,
+                tmpl_path="",                           # not used; template inlined
+                rows=rows,
+                stats_data=data,
+                photos_by_checkin=_photos_by_checkin,
+                pix_url=_pix_dir_uri,
+                trips=trips,
+                flight_history=data.get("flight_history"),
+                flights_data=_flights_list,
+            )
+        except Exception as _ye:
+            log.warning("gen_year_pages failed: %s", _ye)
 
     # ── Post-process: substitute canonical placeholders in every generated file ──
     # Single source of truth: config/country_flags.json + config/category_icons.json

@@ -2059,14 +2059,87 @@ def process(
     dormant_venues.sort(key=lambda x: -x["visits"])
     dormant_venues = dormant_venues[:30]
 
-    # ── Tier 6.1 — Year-in-review narrative ──────────────────────────────────
-    # For each year compute a few headline facts so the UI can render a 3-line summary.
-    _months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    # ── Tier 6.1 — Year-in-review with vivid narrative ──────────────────────
+    # For each year compute a small set of headline facts and a short narrative.
+    # Each year_summary also feeds the per-year album page (gen_year_pages.py).
+    _months_full = ["January","February","March","April","May","June",
+                    "July","August","September","October","November","December"]
+    _MONTH_VIBE = {
+        "January":   "deep-winter",
+        "February":  "snow-bound",
+        "March":     "thawing",
+        "April":     "spring-edged",
+        "May":       "blooming",
+        "June":      "long-day",
+        "July":      "midsummer",
+        "August":    "late-summer",
+        "September": "amber",
+        "October":   "autumnal",
+        "November":  "grey-skied",
+        "December":  "year-closing",
+    }
+    # Compute year totals first so we can compare each year to the personal record
+    _yr_totals = {yr: 0 for yr in {d.year for d in dates}}
+    _yr_rows: dict[int, list] = defaultdict(list)
+    for r in rows:
+        try:
+            t = int(r.get("date", 0) or 0)
+        except ValueError:
+            continue
+        if not t:
+            continue
+        try:
+            yr = datetime.fromtimestamp(t, tz=timezone.utc).year
+        except OSError:
+            continue
+        _yr_rows[yr].append(r)
+        _yr_totals[yr] = _yr_totals.get(yr, 0) + 1
+    _max_yr_total = max(_yr_totals.values()) if _yr_totals else 0
+    _mean_yr_total = sum(_yr_totals.values()) / len(_yr_totals) if _yr_totals else 0
+
+    def _vivid(yr: int, total: int, peak_mon_name: str, peak_mon_n: int,
+               top_city: str, top_city_n: int, top_cat: str, top_cat_n: int,
+               top_venue: str, top_venue_n: int, n_new_countries: int,
+               n_cities: int, n_countries: int) -> str:
+        """Compose a 1-2 sentence atmospheric description."""
+        bits: list[str] = []
+        # Sentence 1 — the year's character vs the personal record
+        if total >= 0.95 * _max_yr_total:
+            bits.append(f"<strong>Your busiest year on record</strong> — <strong>{total:,}</strong> check-ins, <strong>{n_cities}</strong> cities, <strong>{n_countries}</strong> countries.")
+        elif total >= 0.7 * _max_yr_total:
+            bits.append(f"<strong>{total:,}</strong> check-ins through <strong>{n_countries}</strong> countries — a heavy travelling year.")
+        elif n_countries >= 15:
+            bits.append(f"A wide-roaming year — <strong>{n_countries}</strong> countries, <strong>{n_cities}</strong> cities, <strong>{total:,}</strong> check-ins.")
+        elif n_countries <= 3 and total > 0.4 * _max_yr_total:
+            bits.append(f"A grounded year, mostly <strong>{top_city or '—'}</strong>{(' (' + format(top_city_n, ',') + '×)') if top_city_n else ''}.")
+        elif total < 0.3 * _mean_yr_total:
+            bits.append(f"A quieter year — only <strong>{total:,}</strong> check-ins logged.")
+        else:
+            bits.append(f"<strong>{total:,}</strong> check-ins · <strong>{n_cities}</strong> cities · <strong>{n_countries}</strong> countries.")
+
+        # Sentence 2 — peak month + city anchor + new countries
+        bits2: list[str] = []
+        if peak_mon_name and peak_mon_n:
+            vibe = _MONTH_VIBE.get(peak_mon_name, "")
+            bits2.append(f"Peaked in <strong>{vibe + ' ' if vibe else ''}{peak_mon_name}</strong> ({peak_mon_n:,} taps)")
+        if top_city and top_city_n and top_city_n > total * 0.18:
+            bits2.append(f"<strong>{top_city}</strong> pulled you back {top_city_n:,}×")
+        if n_new_countries:
+            label = "new country" if n_new_countries == 1 else "new countries"
+            bits2.append(f"<strong>+{n_new_countries} {label}</strong> on the map")
+        if top_venue and top_venue_n >= 30:
+            bits2.append(f"<strong>{top_venue}</strong> became a daily fixture ({top_venue_n}×)")
+        if not bits2 and top_cat:
+            bits2.append(f"top category <strong>{top_cat}</strong> ({top_cat_n}×)")
+
+        sentence2 = ". ".join(bits2[:3])
+        if sentence2:
+            sentence2 += "."
+        return " ".join([bits[0], sentence2]).strip()
+
     year_summaries = []
     for yr in sorted({d.year for d in dates}):
-        rows_y = [r for r in rows
-                  if r.get("date","") and int(r["date"]) > 0
-                  and datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year == yr]
+        rows_y = _yr_rows.get(yr, [])
         if not rows_y:
             continue
         cat_y = Counter()
@@ -2074,6 +2147,7 @@ def process(
         cty_y = Counter()
         cou_y = Counter()
         mon_y = Counter()
+        comp_y: Counter = Counter()
         for r in rows_y:
             try:
                 d = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc)
@@ -2088,25 +2162,47 @@ def process(
                 cty_y[r["city"]] += 1
             if r.get("country"):
                 cou_y[r["country"]] += 1
+            for n in collect_companions(r):
+                comp_y[n] += 1
         peak_mon = mon_y.most_common(1)[0] if mon_y else (0, 0)
         top_v = ven_y.most_common(1)[0] if ven_y else ((None, ""), 0)
         top_c = cat_y.most_common(1)[0] if cat_y else ("", 0)
         top_city = cty_y.most_common(1)[0] if cty_y else ("", 0)
+        peak_month_name = _months_full[peak_mon[0] - 1] if peak_mon[0] else ""
         n_new_countries = len([c for c, y in _first_country.items() if y == yr])
+        n_distance_y = next((int(v) for k, v in dist_by_year if k == str(yr)), 0)
+        n_trips_y = sum(1 for t in trips if t.get("start_year") == yr)
+        vivid = _vivid(
+            yr=yr, total=len(rows_y),
+            peak_mon_name=peak_month_name, peak_mon_n=peak_mon[1],
+            top_city=top_city[0], top_city_n=top_city[1],
+            top_cat=top_c[0], top_cat_n=top_c[1],
+            top_venue=top_v[0][1] if top_v[0] else "", top_venue_n=top_v[1] if top_v else 0,
+            n_new_countries=n_new_countries,
+            n_cities=len(cty_y), n_countries=len(cou_y),
+        )
+        new_countries_list = sorted([c for c, y in _first_country.items() if y == yr])
         year_summaries.append({
-            "year":            yr,
-            "total":           len(rows_y),
-            "peak_month":      _months[peak_mon[0] - 1] if peak_mon[0] else "",
-            "peak_month_n":    peak_mon[1],
-            "top_venue":       top_v[0][1] if top_v[0] else "",
-            "top_venue_n":     top_v[1] if top_v else 0,
-            "top_cat":         top_c[0],
-            "top_cat_n":       top_c[1],
-            "top_city":        top_city[0],
-            "top_city_n":      top_city[1],
-            "new_countries":   n_new_countries,
-            "cities":          len(cty_y),
-            "countries":       len(cou_y),
+            "year":              yr,
+            "total":             len(rows_y),
+            "peak_month":        peak_month_name[:3] if peak_month_name else "",
+            "peak_month_full":   peak_month_name,
+            "peak_month_n":      peak_mon[1],
+            "top_venue":         top_v[0][1] if top_v[0] else "",
+            "top_venue_id":      top_v[0][0] if top_v[0] else "",
+            "top_venue_n":       top_v[1] if top_v else 0,
+            "top_cat":           top_c[0],
+            "top_cat_n":         top_c[1],
+            "top_city":          top_city[0],
+            "top_city_n":        top_city[1],
+            "new_countries":     n_new_countries,
+            "new_countries_list": new_countries_list,
+            "cities":            len(cty_y),
+            "countries":         len(cou_y),
+            "vivid":             vivid,
+            "distance_km":       n_distance_y,
+            "trip_count":        n_trips_y,
+            "top_companion":     comp_y.most_common(1)[0][0] if comp_y else "",
         })
 
     # ── Tier 3.1 — city_inferred KPI ─────────────────────────────────────────

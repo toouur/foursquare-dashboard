@@ -256,6 +256,23 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 .rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
 .rc-with{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--teal);margin-top:3px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rc-flight{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--gold);margin-top:3px;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(232,184,109,.07);border:1px solid rgba(232,184,109,.25);padding:2px 7px;border-radius:5px;display:inline-block;}
+
+/* Recent flight cards (own strip) */
+.flight-rc-card{display:flex;flex-direction:column;gap:5px;padding:14px 16px 12px;background:linear-gradient(140deg,rgba(232,184,109,.06) 0%,rgba(78,201,176,.04) 100%);border:1px solid rgba(232,184,109,.25);}
+.fl-rc-route{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--gold);line-height:1.1;}
+.fl-rc-fno{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);background:rgba(78,201,176,.10);padding:1px 8px;border-radius:4px;align-self:flex-start;letter-spacing:.05em;}
+.fl-rc-meta{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.45;display:flex;flex-direction:column;gap:1px;margin-top:auto;}
+.fl-rc-meta div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* Year cards (clickable) */
+.year-rc-card{flex:0 0 240px;display:flex;flex-direction:column;gap:5px;padding:18px 18px 14px;background:var(--card);text-decoration:none;color:var(--text);transition:border-color .15s,transform .15s;cursor:pointer;}
+.year-rc-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.yr-rc-num{font-family:'Playfair Display',serif;font-size:2.3rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#f5d48a,#e8b86d 60%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.yr-rc-stats{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.04em;margin-top:2px;}
+.yr-rc-vivid{font-family:'DM Sans',sans-serif;font-size:.75rem;line-height:1.45;color:var(--text);margin-top:8px;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;}
+.yr-rc-vivid strong{color:var(--gold);}
+.yr-rc-cta{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--teal);margin-top:auto;padding-top:8px;}
+@media(max-width:520px){.year-rc-card{flex:0 0 220px;}}
 .rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);padding-top:4px;}
 .rc-weather{display:flex;align-items:center;gap:6px;margin-top:auto;}
 .rc-weather-icon{font-size:1.3rem;line-height:1;}
@@ -545,6 +562,22 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
     <span class="recent-sub" id="photosSub"></span>
   </div>
   <div class="recent-scroll" id="photosScroll"></div>
+</div>
+
+<div class="recent-section" id="flightsFeedSection" style="display:none">
+  <div class="recent-header">
+    <a class="recent-title" href="stats.html#flightCard" style="text-decoration:none;">Recent Flights ✈</a>
+    <span class="recent-sub" id="flightsSub"></span>
+  </div>
+  <div class="recent-scroll" id="flightsScroll"></div>
+</div>
+
+<div class="recent-section" id="yearsFeedSection" style="display:none">
+  <div class="recent-header">
+    <a class="recent-title" href="stats.html#yrSummaryCard" style="text-decoration:none;">Year in Review ↗</a>
+    <span class="recent-sub" id="yearsSub"></span>
+  </div>
+  <div class="recent-scroll" id="yearsScroll"></div>
 </div>
 
 <div class="grid">
@@ -1186,6 +1219,52 @@ function filterList(id,q){
         <span class="rc-date">${s.date}</span>
       </div>
     </div>`;
+  }).join('');
+})();
+
+// ── Recent flights section ────────────────────────────────────────────────────
+(function(){
+  const fl=(S&&S.flights_recent)||[];
+  if(!fl.length)return;
+  document.getElementById('flightsFeedSection').style.display='';
+  const totalFlights=(S.flight_history&&S.flight_history.total_flights)||fl.length;
+  const totalHours=(S.flight_history&&S.flight_history.total_hours)||0;
+  document.getElementById('flightsSub').textContent=totalFlights.toLocaleString()+' flights · '+totalHours+' h aloft';
+  const scroll=document.getElementById('flightsScroll');
+  scroll.innerHTML=fl.map(f=>{
+    const route=(f.from_iata&&f.to_iata)?`${esc(f.from_iata)} → ${esc(f.to_iata)}`:'';
+    const dur=f.dur_min?` · ${Math.floor(f.dur_min/60)}h ${f.dur_min%60}m`:'';
+    const ac=(f.aircraft_code||f.aircraft||'');
+    return `<div class="recent-card flight-rc-card">
+      <div class="fl-rc-route">✈ ${route}</div>
+      ${f.flight?`<div class="fl-rc-fno">${esc(f.flight)}</div>`:''}
+      <div class="fl-rc-meta">
+        <div>📅 ${esc(f.date||'')}</div>
+        ${f.airline?`<div>${esc(f.airline)}</div>`:''}
+        ${ac?`<div>${esc(ac)}</div>`:''}
+        <div style="opacity:.7;">${esc(f.from_name||'')} → ${esc(f.to_name||'')}${dur}</div>
+      </div>
+    </div>`;
+  }).join('');
+})();
+
+// ── Year in Review section ────────────────────────────────────────────────────
+(function(){
+  const ys=(S&&S.year_summaries)||[];
+  if(!ys.length)return;
+  document.getElementById('yearsFeedSection').style.display='';
+  document.getElementById('yearsSub').textContent=ys.length+' years';
+  const scroll=document.getElementById('yearsScroll');
+  // Newest year first
+  const sorted=ys.slice().sort((a,b)=>b.year-a.year);
+  scroll.innerHTML=sorted.map(y=>{
+    const vivid=y.vivid||(y.total.toLocaleString()+' check-ins · '+y.cities+' cities · '+y.countries+' countries');
+    return `<a class="recent-card year-rc-card" href="year-${y.year}.html">
+      <div class="yr-rc-num">${y.year}</div>
+      <div class="yr-rc-stats">${y.total.toLocaleString()} · ${y.cities}c · ${y.countries}🌍${y.new_countries?` · <span style="color:var(--gold);">+${y.new_countries}</span>`:''}</div>
+      <div class="yr-rc-vivid">${vivid}</div>
+      <div class="yr-rc-cta">View the year →</div>
+    </a>`;
   }).join('');
 })();
 
