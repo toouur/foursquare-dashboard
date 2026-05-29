@@ -145,6 +145,11 @@ a{color:inherit;}
   .grid{padding:10px 10px 48px;}
   .card{padding:14px 14px;}
   .card-title{font-size:0.58rem;}
+  /* Mobile: let canvases pick up natural width but cap height so they don't dominate the viewport */
+  .card canvas{max-height:280px !important;height:auto !important;}
+  .card.full canvas{max-height:320px !important;}
+  /* Heatmap tables stay scrollable horizontally */
+  .card.full > div[style*="overflow-x"]{margin:0 -8px;}
   .loyalty-row{grid-template-columns:20px 1fr auto 30px;gap:6px;}
   .reg-row{grid-template-columns:20px 1fr 44px 36px;gap:5px;}
   .reg-name{font-size:.72rem;}
@@ -323,6 +328,86 @@ a{color:inherit;}
   <div class="card full" id="shoutWordsByCountryCard" style="display:none;">
     <div class="card-title">Top Words by Country <em>&middot; top 10 countries by shout volume</em></div>
     <div id="shoutWordsCountryList"></div>
+  </div>
+
+  <!-- 20. Year in Review (full-width) -->
+  <div class="card full" id="yrSummaryCard" style="display:none;">
+    <div class="card-title">Year in Review <em>&middot; auto-generated highlights per year</em></div>
+    <div id="yrSummaryList"></div>
+  </div>
+
+  <!-- 21. Transport Modes (full-width) -->
+  <div class="card full" id="transportCard" style="display:none;">
+    <div class="card-title">Transport Modes <em>&middot; km/year classified by speed between consecutive check-ins</em></div>
+    <div class="streak-row" id="transportKpis"></div>
+    <canvas id="transportChart" height="240"></canvas>
+  </div>
+
+  <!-- 22. Carbon Footprint -->
+  <div class="card" id="carbonCard" style="display:none;">
+    <div class="card-title">Travel Carbon <em>&middot; kg CO₂e per year, est.</em></div>
+    <canvas id="carbonChart" height="220"></canvas>
+  </div>
+
+  <!-- 23. Distance from Home -->
+  <div class="card" id="distHomeCard" style="display:none;">
+    <div class="card-title">Distance from Home <em>&middot; daily mean km from home centroid</em></div>
+    <div class="streak-row" id="nomadKpis"></div>
+    <canvas id="distHomeChart" height="220"></canvas>
+  </div>
+
+  <!-- 24. Daily Extremes (full-width) -->
+  <div class="card full" id="dayExtCard" style="display:none;">
+    <div class="card-title">First &amp; Last Check-in of Day <em>&middot; median local hour per year</em></div>
+    <canvas id="dayExtChart" height="240"></canvas>
+  </div>
+
+  <!-- 25. Cohort Retention (full-width) -->
+  <div class="card full" id="cohortCard" style="display:none;">
+    <div class="card-title">Cohort Venue Retention <em>&middot; venues discovered each year &middot; % revisited later</em></div>
+    <div id="cohortHeat" style="overflow-x:auto;"></div>
+  </div>
+
+  <!-- 26. Activity Trajectory (absolute counts, full-width) -->
+  <div class="card full" id="trajectoryCard" style="display:none;">
+    <div class="card-title">Category Trajectory <em>&middot; absolute check-in count per category group per year</em></div>
+    <canvas id="trajectoryChart" height="260"></canvas>
+  </div>
+
+  <!-- 27. City Funnel -->
+  <div class="card" id="cityFunnelCard" style="display:none;">
+    <div class="card-title">City Graduation <em>&middot; cities by total check-in count</em></div>
+    <canvas id="cityFunnelChart" height="240"></canvas>
+  </div>
+
+  <!-- 28. Diversity Index -->
+  <div class="card" id="diversityCard" style="display:none;">
+    <div class="card-title">Diversity Index <em>&middot; Shannon entropy of category mix per year</em></div>
+    <canvas id="diversityChart" height="240"></canvas>
+  </div>
+
+  <!-- 29. Companion Lifecycle (full-width) -->
+  <div class="card full" id="compLifeCard" style="display:none;">
+    <div class="card-title">Companion Lifecycle <em>&middot; first &amp; last seen, active span, top venue</em></div>
+    <div id="compLifeList"></div>
+  </div>
+
+  <!-- 30. Source App Trends -->
+  <div class="card" id="srcAppCard" style="display:none;">
+    <div class="card-title">Source App Trends <em>&middot; check-ins per client per year</em></div>
+    <canvas id="srcAppChart" height="220"></canvas>
+  </div>
+
+  <!-- 31. City inferred (data quality) -->
+  <div class="card" id="cityInferredCard" style="display:none;">
+    <div class="card-title">Data Quality <em>&middot; city values filled by centroid resolver</em></div>
+    <div class="streak-row" id="cityInferredKpis"></div>
+  </div>
+
+  <!-- 32. Dormant Venues (full-width) -->
+  <div class="card full" id="dormantCard" style="display:none;">
+    <div class="card-title">What You Miss <em>&middot; 10+ visit venues you haven't been to in over a year</em></div>
+    <div id="dormantList"></div>
   </div>
 
 </div><!-- /.grid -->
@@ -931,6 +1016,267 @@ new Chart(document.getElementById('catChart'),{
     });
     document.getElementById('shoutCountCard').style.display='';
   }
+})();
+
+// ── 20. Year in Review ───────────────────────────────────────────────────────
+(function(){
+  var ys=S.year_summaries||[];if(!ys.length)return;
+  document.getElementById('yrSummaryCard').style.display='';
+  var html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">';
+  for(var i=ys.length-1;i>=0;i--){var y=ys[i];
+    html+='<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:14px 16px;">'
+      +'<div style="font-family:\'Playfair Display\',serif;font-size:1.5rem;color:var(--gold);font-weight:700;">'+y.year+'</div>'
+      +'<div style="font-family:\'DM Mono\',monospace;font-size:.55rem;color:var(--muted);letter-spacing:.06em;margin-top:1px;">'+y.total.toLocaleString()+' check-ins · '+y.cities+' cities · '+y.countries+' countries</div>'
+      +'<div style="margin-top:10px;font-size:.74rem;line-height:1.55;color:var(--text);">'
+      +(y.peak_month?'Peak month <strong>'+esc(y.peak_month)+'</strong> ('+y.peak_month_n+' check-ins). ':'')
+      +(y.top_city?'Most visited city: <strong>'+esc(y.top_city)+'</strong> ('+y.top_city_n+'×). ':'')
+      +(y.top_cat?'Top category: <strong>'+esc(y.top_cat)+'</strong> ('+y.top_cat_n+'×). ':'')
+      +(y.top_venue?'Anchor venue: <strong>'+esc(y.top_venue)+'</strong> ('+y.top_venue_n+'×). ':'')
+      +(y.new_countries?'<span style="color:var(--gold);">+'+y.new_countries+' new countr'+(y.new_countries>1?'ies':'y')+'</span>.':'')
+      +'</div></div>';
+  }
+  html+='</div>';
+  document.getElementById('yrSummaryList').innerHTML=html;
+})();
+
+// ── 21. Transport Modes ─────────────────────────────────────────────────────
+(function(){
+  var tm=S.transport_modes||[];var k=S.transport_kpis||{};
+  if(!tm.length)return;
+  document.getElementById('transportCard').style.display='';
+  document.getElementById('transportKpis').innerHTML=
+    '<div class="streak-stat"><div class="s-num">'+(k.flight_legs||0).toLocaleString()+'</div><div class="s-lbl">Flight legs</div></div>'
+   +'<div class="streak-stat"><div class="s-num">'+(k.walk_km_total||0).toLocaleString()+' km</div><div class="s-lbl">Total walked</div></div>'
+   +'<div class="streak-stat"><div class="s-num">'+(k.co2_tonnes||0)+' t</div><div class="s-lbl">CO₂ est.</div></div>';
+  var labels=tm.map(function(x){return x[0];});
+  function ds(mode,color,label){return {label:label,data:tm.map(function(x){return x[1][mode]||0;}),backgroundColor:color};}
+  new Chart(document.getElementById('transportChart'),{
+    type:'bar',
+    data:{labels:labels,datasets:[
+      ds('walking','#4ecdc4','Walking'),
+      ds('ground','#e8b86d','Ground (car/bus)'),
+      ds('rail_likely','#c44dff','Rail-likely'),
+      ds('flight','#e63946','Flight'),
+    ]},
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}},tooltip:{callbacks:{label:function(c){return ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+' km';}}}},
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'},title:{display:true,text:'km',color:'#7a85a8'}}}
+    }
+  });
+})();
+
+// ── 22. Carbon Footprint ─────────────────────────────────────────────────────
+(function(){
+  var co=S.transport_co2||[];if(!co.length)return;
+  document.getElementById('carbonCard').style.display='';
+  new Chart(document.getElementById('carbonChart'),{
+    type:'bar',
+    data:{labels:co.map(function(x){return x[0];}),
+          datasets:[{data:co.map(function(x){return x[1];}),backgroundColor:'#e63946',borderRadius:4}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return ' '+c.parsed.y.toLocaleString()+' kg CO₂e';}}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},title:{display:true,text:'kg CO₂e',color:'#7a85a8'}}}
+    }
+  });
+})();
+
+// ── 23. Distance from Home ──────────────────────────────────────────────────
+(function(){
+  var dh=S.distance_from_home||[];var nk=S.nomad_kpis||{};
+  if(!dh.length)return;
+  document.getElementById('distHomeCard').style.display='';
+  document.getElementById('nomadKpis').innerHTML=
+    '<div class="streak-stat"><div class="s-num">'+(nk.nomad_pct||0)+'%</div><div class="s-lbl">Days &gt; 50 km</div></div>'
+   +'<div class="streak-stat"><div class="s-num">'+(nk.max_dist_km||0).toLocaleString()+' km</div><div class="s-lbl">Furthest day</div></div>';
+  // Down-sample: one point per week for performance
+  var sampled=[];for(var i=0;i<dh.length;i+=7) sampled.push(dh[i]);
+  new Chart(document.getElementById('distHomeChart'),{
+    type:'line',
+    data:{labels:sampled.map(function(x){return x[0];}),
+          datasets:[{data:sampled.map(function(x){return x[1];}),borderColor:'#4ecdc4',backgroundColor:'rgba(78,205,196,.08)',borderWidth:1.5,pointRadius:0,fill:true,tension:0.3}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return ' '+c.parsed.y.toLocaleString()+' km';}}}},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,maxRotation:0}},y:{grid:{color:'#1a1e2e'},title:{display:true,text:'km',color:'#7a85a8'}}}
+    }
+  });
+})();
+
+// ── 24. Daily Extremes (first/last) ─────────────────────────────────────────
+(function(){
+  var de=S.daily_extremes||[];if(!de.length)return;
+  document.getElementById('dayExtCard').style.display='';
+  new Chart(document.getElementById('dayExtChart'),{
+    type:'line',
+    data:{labels:de.map(function(x){return x[0];}),datasets:[
+      {label:'Median first check-in',data:de.map(function(x){return x[1];}),borderColor:'#e8b86d',backgroundColor:'rgba(232,184,109,.07)',borderWidth:2,tension:0.3,pointRadius:3},
+      {label:'Median last check-in', data:de.map(function(x){return x[2];}),borderColor:'#c44dff',backgroundColor:'rgba(196,77,255,.07)',borderWidth:2,tension:0.3,pointRadius:3},
+    ]},
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}},tooltip:{callbacks:{label:function(c){var h=c.parsed.y;return ' '+c.dataset.label+': '+Math.floor(h)+':'+String(Math.round((h-Math.floor(h))*60)).padStart(2,'0');}}}},
+      scales:{x:{grid:{display:false}},y:{min:0,max:24,grid:{color:'#1a1e2e'},ticks:{callback:function(v){return v+':00';}},title:{display:true,text:'local hour',color:'#7a85a8'}}}
+    }
+  });
+})();
+
+// ── 25. Cohort Retention Heatmap ────────────────────────────────────────────
+(function(){
+  var cr=S.cohort_retention||[];if(!cr.length)return;
+  document.getElementById('cohortCard').style.display='';
+  var years=cr.map(function(r){return r.cohort;});
+  var html='<table style="border-collapse:collapse;font-family:\'DM Mono\',monospace;font-size:.62rem;width:100%;min-width:'+(140+years.length*52)+'px;">';
+  html+='<thead><tr><th style="padding:4px 8px;text-align:left;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Cohort</th>';
+  for(var c=0;c<years.length;c++){
+    html+='<th style="padding:4px 6px;text-align:center;color:var(--muted);font-weight:400;">'+years[c]+'</th>';
+  }
+  html+='<th style="padding:4px 8px;text-align:right;color:var(--muted);">Size</th></tr></thead><tbody>';
+  for(var r=0;r<cr.length;r++){
+    html+='<tr><td style="padding:3px 8px;color:var(--gold);font-weight:600;">'+cr[r].cohort+'</td>';
+    for(var c=0;c<cr[r].by_year.length;c++){
+      var v=cr[r].by_year[c];
+      if(v===null){html+='<td style="padding:3px 6px;text-align:center;color:rgba(122,133,168,.15);">·</td>';continue;}
+      var alpha=(0.05+0.85*(v/100)).toFixed(3);
+      var color=v>0?'var(--text)':'rgba(122,133,168,.25)';
+      html+='<td style="padding:3px 6px;text-align:center;background:rgba(78,205,196,'+alpha+');color:'+color+';border-radius:3px;">'+v+'%</td>';
+    }
+    html+='<td style="padding:3px 8px;text-align:right;color:var(--muted);">'+cr[r].size.toLocaleString()+'</td></tr>';
+  }
+  html+='</tbody></table>';
+  document.getElementById('cohortHeat').innerHTML=html;
+})();
+
+// ── 26. Activity Trajectory (absolute) ──────────────────────────────────────
+(function(){
+  var ta=S.cat_trajectory_abs||[];var yrs=S.cat_trajectory_years||[];
+  if(!ta.length||!yrs.length)return;
+  document.getElementById('trajectoryCard').style.display='';
+  var pal=['#e8b86d','#4ecdc4','#c44dff','#e63946','#f4831f','#96ceb4','#45b7d1','#ff6b9d'];
+  var datasets=ta.map(function(t,i){return {
+    label:t.group,data:t.series,
+    borderColor:pal[i%pal.length],backgroundColor:'transparent',
+    borderWidth:2,tension:0.3,pointRadius:2
+  };});
+  new Chart(document.getElementById('trajectoryChart'),{
+    type:'line',
+    data:{labels:yrs,datasets:datasets},
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},title:{display:true,text:'check-ins',color:'#7a85a8'}}}
+    }
+  });
+})();
+
+// ── 27. City Funnel ─────────────────────────────────────────────────────────
+(function(){
+  var cf=S.city_funnel||[];if(!cf.length)return;
+  document.getElementById('cityFunnelCard').style.display='';
+  new Chart(document.getElementById('cityFunnelChart'),{
+    type:'bar',
+    data:{labels:cf.map(function(x){return '≥ '+x[0];}),
+          datasets:[{data:cf.map(function(x){return x[1];}),backgroundColor:'#e8b86d',borderRadius:5}]},
+    options:{
+      indexAxis:'y',responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return ' '+c.parsed.x.toLocaleString()+' cities';}}}},
+      scales:{x:{grid:{color:'#1a1e2e'}},y:{grid:{display:false}}}
+    }
+  });
+})();
+
+// ── 28. Diversity Index ─────────────────────────────────────────────────────
+(function(){
+  var di=S.diversity_by_year||[];if(!di.length)return;
+  document.getElementById('diversityCard').style.display='';
+  new Chart(document.getElementById('diversityChart'),{
+    type:'line',
+    data:{labels:di.map(function(x){return x[0];}),
+          datasets:[{data:di.map(function(x){return x[1];}),borderColor:'#c44dff',backgroundColor:'rgba(196,77,255,.07)',borderWidth:2,tension:0.3,pointRadius:3,fill:true}]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return ' '+c.parsed.y.toFixed(2)+' bits (Shannon)';}}}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#1a1e2e'},title:{display:true,text:'bits',color:'#7a85a8'}}}
+    }
+  });
+})();
+
+// ── 29. Companion Lifecycle ─────────────────────────────────────────────────
+(function(){
+  var cl=S.companion_lifecycle||[];if(!cl.length)return;
+  document.getElementById('compLifeCard').style.display='';
+  // Lifeline-style horizontal bars: x = first_ts → last_ts
+  var allFirst=Math.min.apply(null,cl.map(function(c){return c.first_ts;}));
+  var allLast =Math.max.apply(null,cl.map(function(c){return c.last_ts;}));
+  var span=allLast-allFirst||1;
+  function fmt(ts){var d=new Date(ts*1000);return d.toLocaleDateString('en-GB',{month:'short',year:'numeric'});}
+  var html='<div style="display:flex;flex-direction:column;gap:5px;font-family:\'DM Mono\',monospace;font-size:.65rem;">';
+  // Header timeline (rough years)
+  cl.forEach(function(c){
+    var a=(c.first_ts-allFirst)/span*100;
+    var w=Math.max(0.6,(c.last_ts-c.first_ts)/span*100);
+    html+='<div style="display:grid;grid-template-columns:130px 1fr 60px;align-items:center;gap:8px;padding:5px 8px;background:var(--card2);border-radius:6px;">'
+      +'<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gold);">'+esc(c.name)+'</div>'
+      +'<div style="position:relative;height:14px;background:rgba(78,205,196,.06);border-radius:7px;">'
+      +'<div style="position:absolute;left:'+a.toFixed(2)+'%;width:'+w.toFixed(2)+'%;height:14px;background:var(--teal);border-radius:7px;opacity:.7;" title="'+fmt(c.first_ts)+' → '+fmt(c.last_ts)+'"></div>'
+      +'</div>'
+      +'<div style="text-align:right;color:var(--muted);">'+c.n.toLocaleString()+'×</div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:130px 1fr 60px;gap:8px;padding:0 8px;font-size:.55rem;color:var(--muted);">'
+      +'<div></div>'
+      +'<div>'+fmt(c.first_ts)+' → '+fmt(c.last_ts)+(c.top_city?' · '+esc(c.top_city):'')+(c.med_gap?' · median '+c.med_gap+'d gap':'')+'</div>'
+      +'<div></div>'
+      +'</div>';
+  });
+  html+='</div>';
+  document.getElementById('compLifeList').innerHTML=html;
+})();
+
+// ── 30. Source App Trends ───────────────────────────────────────────────────
+(function(){
+  var sa=S.source_app_by_year||[];if(!sa.length)return;
+  document.getElementById('srcAppCard').style.display='';
+  var apps=Object.keys(sa[0][1]||{});
+  var pal=['#4ecdc4','#e8b86d','#c44dff','#e63946','#f4831f','#96ceb4'];
+  var datasets=apps.map(function(a,i){return {
+    label:a,data:sa.map(function(x){return x[1][a]||0;}),backgroundColor:pal[i%pal.length]
+  };});
+  new Chart(document.getElementById('srcAppChart'),{
+    type:'bar',
+    data:{labels:sa.map(function(x){return x[0];}),datasets:datasets},
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}}},
+      scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'}}}
+    }
+  });
+})();
+
+// ── 31. City Inferred KPI ───────────────────────────────────────────────────
+(function(){
+  var k=S.city_inferred_kpis||{};if(!k.total)return;
+  document.getElementById('cityInferredCard').style.display='';
+  document.getElementById('cityInferredKpis').innerHTML=
+    '<div class="streak-stat"><div class="s-num">'+(k.inferred_n||0).toLocaleString()+'</div><div class="s-lbl">Cities Resolved</div></div>'
+   +'<div class="streak-stat"><div class="s-num">'+(k.inferred_pct||0)+'%</div><div class="s-lbl">Of all check-ins</div></div>';
+})();
+
+// ── 32. Dormant Venues ──────────────────────────────────────────────────────
+(function(){
+  var dv=S.dormant_venues||[];if(!dv.length)return;
+  document.getElementById('dormantCard').style.display='';
+  var html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;">';
+  dv.forEach(function(v){
+    var yrs=Math.floor(v.days_ago/365);var mos=Math.floor((v.days_ago%365)/30);
+    var ago=yrs?(yrs+' y'+(mos?' '+mos+' mo':'')+' ago'):mos+' mo ago';
+    html+='<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;">'
+      +'<div style="font-size:.78rem;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(v.name)+'</div>'
+      +'<div style="font-family:\'DM Mono\',monospace;font-size:.6rem;color:var(--muted);margin-top:2px;">'+esc(v.city||'—')+' · '+v.visits+'× visits · last '+ago+'</div>'
+      +'</div>';
+  });
+  html+='</div>';
+  document.getElementById('dormantList').innerHTML=html;
 })();
 </script>
 

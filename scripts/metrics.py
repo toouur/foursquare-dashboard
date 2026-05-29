@@ -1743,6 +1743,380 @@ def process(
     shout_stats = shout_analysis(rows)
     cross_dim   = cross_dim_analysis(rows, categorize)
 
+    # ── Tier 1.1 — Transport mode classification + walking + carbon ──────────
+    # Speeds inferred from consecutive (ts, lat, lng) pairs.  Each segment is
+    # classified into a mode; the chart shows km/year per mode + carbon est.
+    # Coefficients (g CO2e per km): flight 285, car/bus 75, train 41, walk 0.
+    # Boundaries below are conservative (drop 15-min gaps to avoid stop noise).
+    _MODES = ["walking", "ground", "rail_likely", "flight"]
+    _CO2 = {"walking": 0, "ground": 75, "rail_likely": 41, "flight": 285}
+    _seg_rows = []
+    for r in sorted(rows, key=lambda r: int(r.get("date", "0") or "0")):
+        try:
+            t = int(r["date"]); la = float(r["lat"]); lo = float(r["lng"])
+            if la == 0 and lo == 0:
+                continue
+            _seg_rows.append((t, la, lo))
+        except (ValueError, KeyError, TypeError):
+            pass
+    _mode_km_by_year: dict[int, dict[str, float]] = defaultdict(lambda: {m: 0.0 for m in _MODES})
+    _co2_by_year: dict[int, float] = defaultdict(float)
+    _flight_legs = []   # [year, from_lat, from_lng, to_lat, to_lng, km]
+    _walk_km_total = 0.0
+    for i in range(1, len(_seg_rows)):
+        t0, la0, lo0 = _seg_rows[i - 1]
+        t1, la1, lo1 = _seg_rows[i]
+        dt = t1 - t0
+        if dt <= 0 or dt > 86400:           # cap to 24h between pts
+            continue
+        try:
+            d_km = _haversine(la0, lo0, la1, lo1)
+        except Exception:
+            continue
+        if d_km <= 0 or d_km > 20000:
+            continue
+        # km/h
+        speed = d_km / (dt / 3600.0)
+        # mode buckets (defensive — middle band stays "ground")
+        if speed > 200:
+            mode = "flight"
+        elif 80 < speed <= 200 and d_km > 50:
+            mode = "rail_likely"
+        elif speed <= 6 and d_km < 12:
+            mode = "walking"
+        else:
+            mode = "ground"
+        yr = datetime.fromtimestamp(t1, tz=timezone.utc).year
+        _mode_km_by_year[yr][mode] += d_km
+        _co2_by_year[yr] += d_km * _CO2[mode]
+        if mode == "flight":
+            _flight_legs.append([yr, round(la0, 3), round(lo0, 3),
+                                  round(la1, 3), round(lo1, 3), round(d_km)])
+        elif mode == "walking":
+            _walk_km_total += d_km
+    transport_modes = sorted([
+        [str(yr), {m: round(_mode_km_by_year[yr][m]) for m in _MODES}]
+        for yr in _mode_km_by_year
+    ])
+    transport_co2 = sorted([[str(yr), round(_co2_by_year[yr] / 1000)] for yr in _co2_by_year])
+    transport_kpis = {
+        "flight_legs":     len(_flight_legs),
+        "walk_km_total":   round(_walk_km_total),
+        "co2_tonnes":      round(sum(_co2_by_year.values()) / 1_000_000, 1),
+    }
+    # Limit flight legs payload to the longest 100 for the map overlay
+    flight_legs = sorted(_flight_legs, key=lambda x: -x[5])[:100]
+
+    # ── Tier 1.2 — Cohort venue retention ────────────────────────────────────
+    # For each venue, get the year of FIRST visit (cohort) and every year visited.
+    # cohort_retention[i][j] = % of cohort-i venues revisited in year-i+j.
+    _venue_years: dict[str, set] = defaultdict(set)
+    _venue_first: dict[str, int] = {}
+    for r in rows:
+        vid = r.get("venue_id", "").strip()
+        if not vid:
+            continue
+        try:
+            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+        except (ValueError, OSError):
+            continue
+        _venue_years[vid].add(yr)
+        if vid not in _venue_first or yr < _venue_first[vid]:
+            _venue_first[vid] = yr
+    _all_years = sorted(set(_venue_first.values()))
+    _cohort_size: dict[int, int] = Counter(_venue_first.values())
+    cohort_retention = []
+    for cohort_yr in _all_years:
+        cohort_vids = [v for v, y in _venue_first.items() if y == cohort_yr]
+        size = len(cohort_vids)
+        row = {"cohort": cohort_yr, "size": size, "by_year": []}
+        for yr in _all_years:
+            if yr < cohort_yr:
+                row["by_year"].append(None)
+            else:
+                hits = sum(1 for v in cohort_vids if yr in _venue_years[v])
+                row["by_year"].append(round(hits * 100 / size) if size else 0)
+        cohort_retention.append(row)
+
+    # ── Tier 1.3 — Distance from home + nomad score ──────────────────────────
+    # Per-day mean distance from home centroid + rolling 30-day mean for chart.
+    _HOME_LAT, _HOME_LNG = country_centroids.get(home_city, [53.9045, 27.5615, 0])[:2] \
+        if home_city in country_centroids else (53.9045, 27.5615)
+    # Try to use the actual home_city centroid first (more accurate than country)
+    if home_city in city_centroids:
+        _HOME_LAT, _HOME_LNG = city_centroids[home_city]
+    _daily_dist: dict[str, list[float]] = defaultdict(list)
+    for r in rows:
+        try:
+            t = int(r["date"]); la = float(r["lat"]); lo = float(r["lng"])
+            if la == 0 and lo == 0:
+                continue
+            d = _haversine(_HOME_LAT, _HOME_LNG, la, lo)
+            key = datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d")
+            _daily_dist[key].append(d)
+        except (ValueError, KeyError, TypeError, OSError):
+            pass
+    # Sample: one mean per day, sorted
+    distance_from_home = []
+    for k in sorted(_daily_dist.keys()):
+        m = sum(_daily_dist[k]) / len(_daily_dist[k])
+        distance_from_home.append([k, round(m)])
+    # Nomad score: % of days where mean > 50km
+    _nomad_days = sum(1 for k, m in distance_from_home if m > 50)
+    nomad_kpis = {
+        "nomad_days":    _nomad_days,
+        "total_days":    len(distance_from_home),
+        "nomad_pct":     round(_nomad_days * 100 / len(distance_from_home), 1) if distance_from_home else 0,
+        "max_dist_km":   round(max((m for _, m in distance_from_home), default=0)),
+    }
+
+    # ── Tier 1.4 — Daily extremes (first / last check-in of day drift) ───────
+    # Per day in LOCAL time, find earliest and latest hour (decimal).
+    # Then aggregate per year (median first/last) so the chart shows long-term drift.
+    _day_extremes: dict[str, dict] = defaultdict(lambda: {"first": 24, "last": 0})
+    for r in rows:
+        try:
+            t = int(r["date"])
+        except (ValueError, KeyError):
+            continue
+        try:
+            la = float(r["lat"]); lo = float(r["lng"])
+        except (ValueError, KeyError, TypeError):
+            la = lo = None
+        d_utc = datetime.fromtimestamp(t, tz=timezone.utc)
+        d_loc = _localise(d_utc, la, lo, r.get("country", "").strip())
+        key = d_loc.strftime("%Y-%m-%d")
+        h = d_loc.hour + d_loc.minute / 60.0
+        if h < _day_extremes[key]["first"]:
+            _day_extremes[key]["first"] = h
+        if h > _day_extremes[key]["last"]:
+            _day_extremes[key]["last"] = h
+    # Aggregate to median per year
+    _ext_by_year: dict[int, dict] = defaultdict(lambda: {"first": [], "last": []})
+    for key, ext in _day_extremes.items():
+        yr = int(key[:4])
+        _ext_by_year[yr]["first"].append(ext["first"])
+        _ext_by_year[yr]["last"].append(ext["last"])
+    def _med(xs):
+        if not xs:
+            return None
+        xs2 = sorted(xs)
+        n = len(xs2)
+        return xs2[n // 2] if n % 2 else (xs2[n // 2 - 1] + xs2[n // 2]) / 2
+    daily_extremes = sorted([
+        [str(yr),
+         round(_med(_ext_by_year[yr]["first"]), 2),
+         round(_med(_ext_by_year[yr]["last"]),  2)]
+        for yr in _ext_by_year
+    ])
+
+    # ── Tier 2.1 — Companion lifecycle (first / last seen, gap, active span) ─
+    # For each top-15 companion compute: first_ts, last_ts, active_days, n_meetings,
+    # median gap (days), most-common city, top 3 venues.
+    _comp_ts: dict[str, list] = defaultdict(list)        # name -> [ts, ...]
+    _comp_venues: dict[str, Counter] = defaultdict(Counter)
+    _comp_cities: dict[str, Counter] = defaultdict(Counter)
+    for r in rows:
+        try:
+            t = int(r["date"])
+        except (ValueError, KeyError):
+            continue
+        names = set()
+        for name in [n.strip() for n in r.get("with_name", "").replace(" ,", ",").split(",")]:
+            if name:
+                names.add(name)
+        cb = r.get("created_by_name", "").strip()
+        if cb:
+            names.add(cb)
+        for name in [n.strip() for n in r.get("overlaps_name", "").replace(" ,", ",").split(",") if n.strip() and n.strip() != "-"]:
+            names.add(name)
+        venue = r.get("venue", "").strip()
+        city  = r.get("city",  "").strip()
+        for n in names:
+            _comp_ts[n].append(t)
+            if venue:
+                _comp_venues[n][venue] += 1
+            if city:
+                _comp_cities[n][city] += 1
+    companion_lifecycle = []
+    for name, _cnt in comp_raw.most_common(20):
+        ts_list = sorted(_comp_ts[name])
+        if not ts_list:
+            continue
+        first_ts = ts_list[0]
+        last_ts  = ts_list[-1]
+        gaps = [(ts_list[i] - ts_list[i - 1]) / 86400 for i in range(1, len(ts_list))]
+        med_gap = _med(gaps) if gaps else 0
+        top_v = _comp_venues[name].most_common(1)
+        top_c = _comp_cities[name].most_common(1)
+        companion_lifecycle.append({
+            "name":      name,
+            "n":         len(ts_list),
+            "first_ts":  first_ts,
+            "last_ts":   last_ts,
+            "active_days": round((last_ts - first_ts) / 86400),
+            "med_gap":   round(med_gap, 1) if med_gap else 0,
+            "top_venue": top_v[0][0] if top_v else "",
+            "top_city":  top_c[0][0] if top_c else "",
+        })
+
+    # ── Tier 2.3 — City graduation funnel ────────────────────────────────────
+    _funnel_thresholds = [1, 5, 10, 25, 50, 100, 250]
+    _city_visit_counts = cities  # already a Counter
+    _funnel_counts = []
+    for t in _funnel_thresholds:
+        _funnel_counts.append(sum(1 for _, n in _city_visit_counts.items() if n >= t))
+    city_funnel = [[t, n] for t, n in zip(_funnel_thresholds, _funnel_counts)]
+
+    # ── Tier 2.4 — Activity decay per category (absolute counts per year) ────
+    _cat_abs: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    for r in rows:
+        cat = r.get("category", "").strip()
+        if not cat:
+            continue
+        grp = categorize(cat)
+        if not grp:
+            continue
+        try:
+            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            _cat_abs[grp][yr] += 1
+        except (ValueError, OSError):
+            pass
+    _years_sorted = sorted({yr for yrs in _cat_abs.values() for yr in yrs})
+    cat_trajectory_abs = []
+    for grp in _top_grps:
+        series = [_cat_abs[grp].get(yr, 0) for yr in _years_sorted]
+        cat_trajectory_abs.append({"group": grp, "series": series})
+    cat_trajectory_years = [str(yr) for yr in _years_sorted]
+
+    # ── Tier 5.2 — source_app trends ─────────────────────────────────────────
+    _app_by_year: dict[int, Counter] = defaultdict(Counter)
+    for r in rows:
+        app = (r.get("source_app", "") or "").strip()
+        if not app:
+            continue
+        try:
+            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            _app_by_year[yr][app] += 1
+        except (ValueError, OSError):
+            pass
+    _all_apps = set()
+    for c in _app_by_year.values():
+        _all_apps |= set(c.keys())
+    _top_apps = sorted(_all_apps,
+                       key=lambda a: -sum(_app_by_year[y].get(a, 0) for y in _app_by_year))[:6]
+    source_app_by_year = sorted([
+        [str(yr), {a: _app_by_year[yr].get(a, 0) for a in _top_apps}]
+        for yr in _app_by_year
+    ])
+
+    # ── Tier 6.4 — Diversity index (Shannon entropy of category mix / year) ─
+    diversity_by_year = []
+    import math as _math2
+    for yr, ctr in _cg_year.items():
+        total = sum(ctr.values())
+        if not total:
+            continue
+        h = 0.0
+        for v in ctr.values():
+            p = v / total
+            if p > 0:
+                h -= p * _math2.log2(p)
+        diversity_by_year.append([str(yr), round(h, 2)])
+    diversity_by_year.sort()
+
+    # ── Tier 6.3 — Dormant venues ("what you miss") ──────────────────────────
+    # Venues with >=10 historical visits but no visit in the last 365 days,
+    # surfaced as top 30 by total visits.
+    _365_ago = (int(datetime.now(tz=timezone.utc).timestamp())) - 365 * 86400
+    _v_last: dict[str, int] = {}
+    _v_total: Counter = Counter()
+    _v_info: dict[str, tuple] = {}
+    for r in rows:
+        vid = r.get("venue_id", "").strip()
+        if not vid:
+            continue
+        try:
+            t = int(r["date"])
+        except (ValueError, KeyError):
+            continue
+        if t > _v_last.get(vid, 0):
+            _v_last[vid] = t
+        _v_total[vid] += 1
+        if vid not in _v_info:
+            _v_info[vid] = (r.get("venue", "").strip(), r.get("city", "").strip())
+    dormant_venues = []
+    for vid, last in _v_last.items():
+        if _v_total[vid] >= 10 and last < _365_ago:
+            nm, cy = _v_info[vid]
+            dormant_venues.append({
+                "name":    nm,
+                "city":    cy,
+                "visits":  _v_total[vid],
+                "last_ts": last,
+                "days_ago": round((int(datetime.now(tz=timezone.utc).timestamp()) - last) / 86400),
+            })
+    dormant_venues.sort(key=lambda x: -x["visits"])
+    dormant_venues = dormant_venues[:30]
+
+    # ── Tier 6.1 — Year-in-review narrative ──────────────────────────────────
+    # For each year compute a few headline facts so the UI can render a 3-line summary.
+    _months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    year_summaries = []
+    for yr in sorted({d.year for d in dates}):
+        rows_y = [r for r in rows
+                  if r.get("date","") and int(r["date"]) > 0
+                  and datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year == yr]
+        if not rows_y:
+            continue
+        cat_y = Counter()
+        ven_y = Counter()
+        cty_y = Counter()
+        cou_y = Counter()
+        mon_y = Counter()
+        for r in rows_y:
+            try:
+                d = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc)
+            except (ValueError, OSError):
+                continue
+            mon_y[d.month] += 1
+            if r.get("category"):
+                cat_y[r["category"]] += 1
+            if r.get("venue_id"):
+                ven_y[(r["venue_id"], r.get("venue", ""))] += 1
+            if r.get("city"):
+                cty_y[r["city"]] += 1
+            if r.get("country"):
+                cou_y[r["country"]] += 1
+        peak_mon = mon_y.most_common(1)[0] if mon_y else (0, 0)
+        top_v = ven_y.most_common(1)[0] if ven_y else ((None, ""), 0)
+        top_c = cat_y.most_common(1)[0] if cat_y else ("", 0)
+        top_city = cty_y.most_common(1)[0] if cty_y else ("", 0)
+        n_new_countries = len([c for c, y in _first_country.items() if y == yr])
+        year_summaries.append({
+            "year":            yr,
+            "total":           len(rows_y),
+            "peak_month":      _months[peak_mon[0] - 1] if peak_mon[0] else "",
+            "peak_month_n":    peak_mon[1],
+            "top_venue":       top_v[0][1] if top_v[0] else "",
+            "top_venue_n":     top_v[1] if top_v else 0,
+            "top_cat":         top_c[0],
+            "top_cat_n":       top_c[1],
+            "top_city":        top_city[0],
+            "top_city_n":      top_city[1],
+            "new_countries":   n_new_countries,
+            "cities":          len(cty_y),
+            "countries":       len(cou_y),
+        })
+
+    # ── Tier 3.1 — city_inferred KPI ─────────────────────────────────────────
+    inferred_n = sum(1 for r in rows if str(r.get("city_inferred", "0")) == "1")
+    city_inferred_kpis = {
+        "inferred_n":    inferred_n,
+        "total":         len(rows),
+        "inferred_pct":  round(inferred_n * 100 / len(rows), 1) if rows else 0,
+    }
+
     log.info("Cities: %d | Countries: %d | Unique places: %d | Trips: %d",
              len(cities), len(countries), unique_count, len(trips))
     if shout_stats:
@@ -1806,5 +2180,23 @@ def process(
         "trip_kpis":          trip_kpis,
         "shout_stats":        shout_stats,
         "cross_dim":          cross_dim,
+        # ── New tier-1/2/3/5/6 analytics ──
+        "transport_modes":    transport_modes,
+        "transport_co2":      transport_co2,
+        "transport_kpis":     transport_kpis,
+        "flight_legs":        flight_legs,
+        "cohort_retention":   cohort_retention,
+        "distance_from_home": distance_from_home,
+        "nomad_kpis":         nomad_kpis,
+        "daily_extremes":     daily_extremes,
+        "companion_lifecycle":companion_lifecycle,
+        "city_funnel":        city_funnel,
+        "cat_trajectory_abs": cat_trajectory_abs,
+        "cat_trajectory_years": cat_trajectory_years,
+        "source_app_by_year": source_app_by_year,
+        "diversity_by_year":  diversity_by_year,
+        "dormant_venues":     dormant_venues,
+        "year_summaries":     year_summaries,
+        "city_inferred_kpis": city_inferred_kpis,
     }
     return stats, trips

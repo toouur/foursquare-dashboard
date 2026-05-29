@@ -359,6 +359,41 @@ def build_page(
         in_foreign_country=in_foreign_country,
     )
 
+    # ── Same-day-other-years memory band ────────────────────────────────────
+    # For today's MM-DD across all prior years, collect check-ins so the page
+    # can render "5 years ago today…" memories.
+    today = datetime.now(tz=timezone.utc)
+    today_md = today.strftime("%m-%d")
+    same_day: list[dict] = []
+    for r in rows_sorted:
+        try:
+            ts = int(r.get("date", 0) or 0)
+        except ValueError:
+            continue
+        if not ts:
+            continue
+        d = datetime.fromtimestamp(ts, tz=timezone.utc)
+        if d.strftime("%m-%d") != today_md or d.year == today.year:
+            continue
+        same_day.append({
+            "year":     d.year,
+            "ts":       ts,
+            "venue":    r.get("venue", ""),
+            "venue_id": r.get("venue_id", ""),
+            "city":     r.get("_norm_city", ""),
+            "country":  r.get("_norm_country", ""),
+            "category": r.get("category", ""),
+        })
+    # Group by year, keep up to 5 per year
+    by_year: dict[int, list] = defaultdict(list)
+    for s in same_day:
+        if len(by_year[s["year"]]) < 5:
+            by_year[s["year"]].append(s)
+    same_day_grouped = sorted(
+        [{"year": y, "items": items} for y, items in by_year.items()],
+        key=lambda x: -x["year"],
+    )
+
     # ── Visited venue names in the current city (for "✓ visited" badge) ────
     visited_names: list = []
     if anchor:
@@ -414,6 +449,8 @@ def build_page(
         "visited_names":        visited_names,          # lowercased venue names in current city
         "groups":               groups,                 # canonical 8-group taxonomy
         "osm_tags":             osm_tags,               # cat → [osm tags]
+        "same_day":             same_day_grouped,
+        "today_md":             today_md,
         # ── For the page hero (light context) ──
         "totals": {
             "total_checkins":   len(rows),

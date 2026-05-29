@@ -288,19 +288,41 @@ function selectVenue(i){
   }
 }
 
+function syncURL(){
+  const p=new URLSearchParams();
+  if(query) p.set('q',query);
+  if(yearFilter) p.set('year',String(yearFilter));
+  if(filterRating&&filterRating!=='like') p.set('filter',filterRating);
+  if(showClosed) p.set('closed','1');
+  const qs=p.toString();
+  history.replaceState(null,'',qs?'?'+qs:location.pathname);
+}
 function setFilter(r,btn){
   filterRating=r;
   document.querySelectorAll('.sbtn:not(#fClosed)').forEach(b=>b.classList.remove('act'));
   btn.classList.add('act');
-  render();
+  render();syncURL();
 }
-function toggleClosed(btn){showClosed=!showClosed;btn.classList.toggle('act');render();}
-function onSearch(v){query=v;render();}
-function setYear(v){yearFilter=parseInt(v)||0;render();}
+function toggleClosed(btn){showClosed=!showClosed;btn.classList.toggle('act');render();syncURL();}
+function onSearch(v){query=v;render();syncURL();}
+function setYear(v){yearFilter=parseInt(v)||0;render();syncURL();}
 
 render();
 
-(function(){const _q=new URLSearchParams(location.search).get('q');if(_q){const _inp=document.getElementById('srch');if(_inp){_inp.value=_q;onSearch(_q);}}})();
+(function(){
+  const sp=new URLSearchParams(location.search);
+  const _q=sp.get('q'); const _yr=sp.get('year'); const _f=sp.get('filter'); const _cl=sp.get('closed');
+  if(_q){const i=document.getElementById('srch');if(i){i.value=_q;query=_q;}}
+  if(_yr){yearFilter=parseInt(_yr)||0;const s=document.getElementById('fYear');if(s)s.value=_yr;}
+  if(_f && ['like','neutral','dislike'].indexOf(_f)>=0){
+    filterRating=_f;
+    document.querySelectorAll('.sbtn:not(#fClosed)').forEach(b=>b.classList.remove('act'));
+    const tgt=document.getElementById(_f==='like'?'fLike':_f==='neutral'?'fNeutral':'fDislike');
+    if(tgt) tgt.classList.add('act');
+  }
+  if(_cl==='1'){showClosed=true;const b=document.getElementById('fClosed');if(b)b.classList.add('act');}
+  if(_q||_yr||_f||_cl) render();
+})();
 </script>
 <script>
 function gsOpen(){document.getElementById('gsOverlay').classList.add('open');document.getElementById('gsInput').focus();}
