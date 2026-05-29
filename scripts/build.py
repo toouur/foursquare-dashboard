@@ -244,6 +244,35 @@ if __name__ == "__main__":
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
     data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides)
 
+    # ── Flights: parse FR24 flight-diary CSV if present ─────────────────────
+    # data/flights.csv lives next to checkins.csv in the private data repo.
+    flights_path = Path(args.input).resolve().parent / "flights.csv"
+    flight_matches: dict[str, dict] = {}
+    if flights_path.exists():
+        try:
+            from flights import (
+                load_flights, build_iata_coords, match_to_checkins, summarise as _flights_summary,
+            )
+            _fl = load_flights(flights_path)
+            _iata = build_iata_coords(rows, _fl)
+            flight_matches = match_to_checkins(_fl, rows, _iata)
+            data["flight_history"] = _flights_summary(_fl, _iata)
+            data["flight_matches"] = flight_matches    # checkin_id → flight info
+            log.info("Flights: %d parsed | %d IATA airports resolved | %d check-ins matched",
+                     len(_fl), len(_iata), len(flight_matches))
+        except Exception as _fe:
+            log.warning("flights.csv load failed: %s", _fe)
+    else:
+        log.info("No flights.csv at %s — Flight History card will be hidden", flights_path)
+
+    # Enrich the metrics.recent[] list with matched flight info so the index
+    # recent strip can show "✈ PC842 MSQ→IST · A320" inline.
+    if flight_matches:
+        for r in data.get("recent", []):
+            cid = r.get("checkin_id", "")
+            if cid in flight_matches:
+                r["flight"] = flight_matches[cid]
+
     # Write per-year / per-catgrp heatmap layers as a separate static file.
     # Remove from data dict so they don't bloat index.html.
     _write_venues_filter(data, args.output_dir)

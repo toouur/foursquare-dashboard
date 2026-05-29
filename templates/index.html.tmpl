@@ -255,6 +255,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 .rc-cat{font-family:'DM Mono',monospace;font-size:0.57rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--teal);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
 .rc-location{font-size:0.75rem;color:var(--text2);margin-top:4px;}
 .rc-with{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--teal);margin-top:3px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rc-flight{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--gold);margin-top:3px;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(232,184,109,.07);border:1px solid rgba(232,184,109,.25);padding:2px 7px;border-radius:5px;display:inline-block;}
 .rc-date{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);padding-top:4px;}
 .rc-weather{display:flex;align-items:center;gap:6px;margin-top:auto;}
 .rc-weather-icon{font-size:1.3rem;line-height:1;}
@@ -1088,12 +1089,24 @@ function filterList(id,q){
     const loc=[r.city,r.country].filter(Boolean);
     const locStr=loc.join(', ');
     const withLine=(r.companions&&r.companions.length)?`<div class="rc-with">with ${esc(r.companions.join(', '))}</div>`:'';
+    // Flight info from FR24 match (set in build.py from data/flights.csv)
+    let flightLine='';
+    if(r.flight){
+      const f2=r.flight;
+      const route=(f2.from_iata&&f2.to_iata)?`${esc(f2.from_iata)} → ${esc(f2.to_iata)}`:'';
+      const fno=f2.flight?esc(f2.flight):'';
+      const ac=f2.aircraft?esc(f2.aircraft):'';
+      const dur=f2.dur_min?` · ${Math.floor(f2.dur_min/60)}h ${f2.dur_min%60}m`:'';
+      const km =f2.km?` · ${(+f2.km).toLocaleString()} km`:'';
+      flightLine=`<div class="rc-flight">✈ ${fno?fno+' ':''}${route}${ac?' · '+ac:''}${dur}${km}</div>`;
+    }
     return `<div${cardClick} class="recent-card" id="rc_${i}" style="${swarmUrl?'cursor:pointer;':''}">
       ${tileBlock(r.lat,r.lng)}
       <div class="rc-venue-row"><div class="rc-venue">${venueLink}</div>${catIcon(r.category)}</div>
       <div class="rc-cat-row"><div class="rc-cat">${esc(r.category||'')}</div>${streak}</div>
       <div class="rc-location">${f} ${esc(locStr)}</div>
       ${withLine}
+      ${flightLine}
       <div class="rc-weather" id="rcw_${i}"><span class="rc-weather-loading">fetching weather…</span></div>
       <div class="rc-date">${r.datetime}</div>
     </div>`;

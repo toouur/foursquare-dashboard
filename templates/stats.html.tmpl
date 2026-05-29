@@ -410,6 +410,14 @@ a{color:inherit;}
     <div id="dormantList"></div>
   </div>
 
+  <!-- 33. Flight History (full-width) -->
+  <div class="card full" id="flightCard" style="display:none;">
+    <div class="card-title">Flight History <em>&middot; FlightRadar24 verified</em></div>
+    <div class="streak-row" id="flightKpis"></div>
+    <canvas id="flightYearChart" height="200"></canvas>
+    <div id="flightLists" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:18px;"></div>
+  </div>
+
 </div><!-- /.grid -->
 
 <script>
@@ -1277,6 +1285,55 @@ new Chart(document.getElementById('catChart'),{
   });
   html+='</div>';
   document.getElementById('dormantList').innerHTML=html;
+})();
+
+// ── 33. Flight History (FR24 verified) ──────────────────────────────────────
+(function(){
+  var fh=S.flight_history||null;
+  if(!fh||!fh.total_flights)return;
+  document.getElementById('flightCard').style.display='';
+  // Compare with the speed-based heuristic for transparency
+  var heur=(S.transport_kpis||{}).flight_legs||0;
+  document.getElementById('flightKpis').innerHTML=
+     '<div class="streak-stat"><div class="s-num">'+fh.total_flights+'</div><div class="s-lbl">Flights (verified)</div></div>'
+    +'<div class="streak-stat"><div class="s-num">'+fh.total_hours+' h</div><div class="s-lbl">In the air</div></div>'
+    +'<div class="streak-stat"><div class="s-num">'+fh.total_km.toLocaleString()+' km</div><div class="s-lbl">Distance flown</div></div>'
+    +(heur?'<div class="streak-stat"><div class="s-num" style="color:var(--muted);">'+heur+'</div><div class="s-lbl">Heuristic legs<br><span style="opacity:.6;font-size:.5rem;">(speed&gt;200 km/h)</span></div></div>':'');
+  // Per-year chart: bars = flights, line = km
+  var by=fh.by_year||[];
+  var labels=by.map(function(x){return x[0];});
+  new Chart(document.getElementById('flightYearChart'),{
+    type:'bar',
+    data:{labels:labels,datasets:[
+      {label:'Flights',data:by.map(function(x){return x[1];}),backgroundColor:'#e8b86d',yAxisID:'y',borderRadius:4},
+      {label:'Distance (km)',type:'line',data:by.map(function(x){return x[2];}),borderColor:'#4ecdc4',backgroundColor:'rgba(78,205,196,.07)',yAxisID:'y1',tension:0.3,pointRadius:3}
+    ]},
+    options:{
+      responsive:true,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}}},
+      scales:{x:{grid:{display:false}},y:{position:'left',grid:{color:'#1a1e2e'},title:{display:true,text:'flights',color:'#7a85a8'}},y1:{position:'right',grid:{display:false},ticks:{color:'#4ecdc4'},title:{display:true,text:'km',color:'#4ecdc4'}}}
+    }
+  });
+  // Bottom: 3 lists (top routes, top airlines, top aircraft)
+  function listHtml(title,items,renderItem){
+    var rows=items.slice(0,8).map(renderItem).join('');
+    return '<div><div style="font-family:\'DM Mono\',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin-bottom:8px;">'+title+'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:4px;">'+rows+'</div></div>';
+  }
+  var html='';
+  html+=listHtml('Top routes',fh.top_routes_pair||[],function(r){
+    return '<div class="bar-row"><span class="bar-name">'+esc(r[0])+'</span><span class="bar-cnt">'+r[1]+'×</span></div>';
+  });
+  html+=listHtml('Top airlines',fh.top_airlines||[],function(r){
+    return '<div class="bar-row"><span class="bar-name">'+esc(r[0])+'</span><span class="bar-cnt">'+r[1]+'×</span></div>';
+  });
+  html+=listHtml('Top aircraft',fh.top_aircraft||[],function(r){
+    return '<div class="bar-row"><span class="bar-name">'+esc(r[0])+'</span><span class="bar-cnt">'+r[1]+'×</span></div>';
+  });
+  html+=listHtml('Top airports',fh.top_airports||[],function(r){
+    return '<div class="bar-row"><span class="bar-name">'+esc(r[0])+'</span><span class="bar-cnt">'+r[1]+'×</span></div>';
+  });
+  document.getElementById('flightLists').innerHTML=html;
 })();
 </script>
 
