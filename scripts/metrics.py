@@ -2097,71 +2097,83 @@ def process(
     _max_yr_total = max(_yr_totals.values()) if _yr_totals else 0
     _mean_yr_total = sum(_yr_totals.values()) / len(_yr_totals) if _yr_totals else 0
 
-    # Atmospheric phrasing pools — used by _vivid() to vary tone without
-    # randomness (each year deterministically picks a single phrase based
-    # on its character).
+    # ── Magazine-prose phrasing pools ──────────────────────────────────────
+    # Each pool is picked deterministically by year so adjacent years feel
+    # different but every rebuild reads the same.  Goal: literary, atmospheric
+    # sentences that name places and patterns rather than dump counts.
     _BUSY_INTROS = [
-        "A year of <strong>relentless motion</strong>.",
-        "Your <strong>widest-open</strong> year.",
-        "Twelve months of constant going.",
+        "A year that <strong>widened its arc</strong> beyond all the others",
+        "Your <strong>widest-open year</strong> on record",
+        "Twelve months that moved <strong>almost without pause</strong>",
+        "The busiest stretch you've ever logged",
     ]
     _TRAVEL_INTROS = [
-        "A <strong>heavy-travelling</strong> year.",
-        "A year of long horizons.",
-        "Borders bent often this year.",
+        "A year of <strong>long horizons</strong>",
+        "Borders bent often, and somewhere new came into focus",
+        "A heavy-travelling year, threaded with departures",
+        "Twelve months that kept turning the map",
     ]
     _ROAM_INTROS = [
-        "A <strong>wide-roaming</strong> year — threads across the map.",
-        "Many flags, many time-zones.",
-        "A year stitched together by passport stamps.",
+        "A year of <strong>far reach</strong> — many flags, many time-zones",
+        "The map stretched wide this year",
+        "A passport-stamped year, full of new horizons",
+        "A wandering year, country after country",
     ]
     _HOME_INTROS = [
-        "A year <strong>close to home</strong>.",
-        "Quiet roots — the year you stayed put.",
-        "Deep familiarity over distance.",
+        "A year <strong>closer to home</strong> than usual",
+        "The year you stayed put — and noticed more",
+        "A grounded year, the kind familiar places deepen",
+        "Less distance, more familiarity",
     ]
     _QUIET_INTROS = [
-        "A <strong>softer</strong> year by the count.",
-        "Fewer stops, more depth.",
-        "A year of restraint and pauses.",
+        "A <strong>softer</strong> year by the count",
+        "Fewer stops, more between them",
+        "A year of restraint — pauses, second visits, slow streets",
+        "A quieter chapter than the years around it",
     ]
     _DEFAULT_INTROS = [
-        "A steady year through the world.",
-        "Balanced motion across the map.",
-        "A measured year of going and returning.",
+        "A steady year through the world",
+        "Twelve months of measured going and returning",
+        "A balanced year — familiar grounds and a few new ones",
+        "A year that found its own rhythm",
     ]
     _ANCHOR_PHRASES = [
-        "<strong>{city}</strong> was the gravitational center",
-        "<strong>{city}</strong> stayed the home base",
-        "<strong>{city}</strong> kept calling you back",
-        "<strong>{city}</strong> anchored the rhythm",
-        "you orbited <strong>{city}</strong>",
+        "with <strong>{city}</strong> as the gravitational centre",
+        "anchored deep in <strong>{city}</strong>",
+        "always returning to <strong>{city}</strong>",
+        "with <strong>{city}</strong> pulling the thread back home",
+        "orbiting <strong>{city}</strong> between everything else",
     ]
     _PEAK_PHRASES = [
-        "{vibe}<strong>{mon}</strong> burned brightest",
-        "{vibe}<strong>{mon}</strong> held the peak",
-        "{vibe}<strong>{mon}</strong> was the loudest stretch",
-        "{vibe}<strong>{mon}</strong> stood out from the rest",
+        "and {vibe}<strong>{mon}</strong> burning the brightest stretch",
+        "with {vibe}<strong>{mon}</strong> as the loudest weeks",
+        "peaking in the {vibe}weeks of <strong>{mon}</strong>",
+        "with {vibe}<strong>{mon}</strong> running fastest of all",
     ]
     _NEW_PHRASES = [
-        "<strong>{n} fresh dots</strong> on the world map",
-        "<strong>{n}</strong> first-time countries entered the rotation",
-        "<strong>+{n}</strong> brand-new flags",
-        "<strong>{n} new horizons</strong> opened",
+        "<strong>{n} fresh flags</strong> appeared on the map",
+        "you added <strong>{n}</strong> first-time countries to the rotation",
+        "<strong>{n}</strong> new horizons opened",
+        "<strong>{n}</strong> new countries entered the album",
     ]
     _ANCHOR_VENUE = [
-        "<strong>{v}</strong> became a daily rhythm",
-        "<strong>{v}</strong> turned into your fixture",
-        "you orbited <strong>{v}</strong> again and again",
+        "and <strong>{v}</strong> quietly became a daily ritual",
+        "and <strong>{v}</strong> turned into your steady fixture",
+        "while you orbited <strong>{v}</strong> again and again",
     ]
     _COMPANION_PHRASES = [
-        "much of it travelled with <strong>{c}</strong>",
-        "<strong>{c}</strong> was the steady companion",
-        "more often than not, with <strong>{c}</strong>",
+        "and much of it travelled with <strong>{c}</strong>",
+        "with <strong>{c}</strong> as the steady companion through it",
+        "more often than not, in the company of <strong>{c}</strong>",
+    ]
+    _FIRST_COUNTRY_PHRASES = [
+        "<strong>{c}</strong> entered the album for the first time",
+        "you set foot in <strong>{c}</strong> for the first time",
+        "<strong>{c}</strong> opened up as a first-time country",
     ]
 
     def _pick(pool: list[str], yr: int, salt: int = 0) -> str:
-        """Deterministic 'pick' so the same year always reads the same."""
+        """Deterministic pick — same year reads the same on every build."""
         return pool[(yr + salt) % len(pool)]
 
     def _vivid(yr: int, total: int, peak_mon_name: str, peak_mon_n: int,
@@ -2169,14 +2181,14 @@ def process(
                top_venue: str, top_venue_n: int, n_new_countries: int,
                n_cities: int, n_countries: int, top_companion: str = "",
                first_new_country: str = "") -> str:
-        """Compose a 2-3 sentence atmospheric description.
+        """Compose a magazine-style 2-sentence year description.
 
-        Style: stats-driven but narrative — names places and patterns
-        rather than counts.  Each year deterministically picks one
-        phrasing from each pool so the page reads the same on every
-        rebuild but adjacent years feel different.
+        Sentence 1 weaves the year's character + place anchor + temporal peak
+        into one flowing line.  Sentence 2 is a flourish (new countries,
+        anchor venue, or companion).  Reads like the opener of a small
+        magazine feature, not a numeric bullet list.
         """
-        # Sentence 1 — the year's character (no raw count)
+        # Pick the intro by year character
         if total >= 0.95 * _max_yr_total:
             intro = _pick(_BUSY_INTROS, yr)
         elif total >= 0.7 * _max_yr_total:
@@ -2190,36 +2202,33 @@ def process(
         else:
             intro = _pick(_DEFAULT_INTROS, yr)
 
-        # Sentence 2 — a place anchor + a temporal anchor
-        clauses: list[str] = []
-        if top_city and top_city_n and top_city_n > max(60, total * 0.15):
-            clauses.append(_pick(_ANCHOR_PHRASES, yr, 1).format(city=top_city))
+        # Build sentence-1 with anchor + peak woven in
+        s1_parts: list[str] = [intro]
+        if top_city and top_city_n and top_city_n > max(40, total * 0.10):
+            s1_parts.append(_pick(_ANCHOR_PHRASES, yr, 1).format(city=top_city))
         if peak_mon_name:
             vibe = _MONTH_VIBE.get(peak_mon_name, "")
             vibe_str = (vibe + " ") if vibe else ""
-            clauses.append(_pick(_PEAK_PHRASES, yr, 2).format(vibe=vibe_str, mon=peak_mon_name))
-        sentence2 = (", ".join(clauses) + ".") if clauses else ""
-        # Capitalise the first word of sentence2
-        if sentence2:
-            sentence2 = sentence2[0].upper() + sentence2[1:]
+            s1_parts.append(_pick(_PEAK_PHRASES, yr, 2).format(vibe=vibe_str, mon=peak_mon_name))
+        sentence1 = ", ".join(s1_parts).rstrip(",") + "."
 
-        # Sentence 3 — a flourish: new countries / anchor venue / companion
+        # Sentence 2 — flourish
         flourishes: list[str] = []
         if n_new_countries:
             if n_new_countries <= 2 and first_new_country:
-                flourishes.append(f"<strong>{first_new_country}</strong> entered the rotation for the first time")
+                flourishes.append(_pick(_FIRST_COUNTRY_PHRASES, yr, 3).format(c=first_new_country))
             else:
                 flourishes.append(_pick(_NEW_PHRASES, yr, 3).format(n=n_new_countries))
         if top_venue and top_venue_n >= 35:
             flourishes.append(_pick(_ANCHOR_VENUE, yr, 4).format(v=top_venue))
-        elif top_companion:
+        elif top_companion and not flourishes:
             flourishes.append(_pick(_COMPANION_PHRASES, yr, 5).format(c=top_companion))
-        sentence3 = ""
+        sentence2 = ""
         if flourishes:
-            s = ", ".join(flourishes[:2]) + "."
-            sentence3 = s[0].upper() + s[1:]    # only flip the very first char
+            joined = ", ".join(flourishes[:2])
+            sentence2 = joined[0].upper() + joined[1:] + "."
 
-        return " ".join(s for s in [intro, sentence2, sentence3] if s).strip()
+        return " ".join(s for s in [sentence1, sentence2] if s).strip()
 
     year_summaries = []
     for yr in sorted({d.year for d in dates}):

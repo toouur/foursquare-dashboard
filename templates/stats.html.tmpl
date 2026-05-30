@@ -330,12 +330,6 @@ a{color:inherit;}
     <div id="shoutWordsCountryList"></div>
   </div>
 
-  <!-- 20. Year in Review (full-width) -->
-  <div class="card full" id="yrSummaryCard" style="display:none;">
-    <div class="card-title">Year in Review <em>&middot; auto-generated highlights per year</em></div>
-    <div id="yrSummaryList"></div>
-  </div>
-
   <!-- 21. Transport Modes (full-width) -->
   <div class="card full" id="transportCard" style="display:none;">
     <div class="card-title">Transport Modes <em>&middot; km/year classified by speed between consecutive check-ins</em></div>
@@ -408,14 +402,6 @@ a{color:inherit;}
   <div class="card full" id="dormantCard" style="display:none;">
     <div class="card-title">What You Miss <em>&middot; 10+ visit venues you haven't been to in over a year</em></div>
     <div id="dormantList"></div>
-  </div>
-
-  <!-- 33. Flight History (full-width) -->
-  <div class="card full" id="flightCard" style="display:none;">
-    <div class="card-title">Flight History <em>&middot; FlightRadar24 verified</em></div>
-    <div class="streak-row" id="flightKpis"></div>
-    <canvas id="flightYearChart" height="200"></canvas>
-    <div id="flightLists" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:18px;"></div>
   </div>
 
 </div><!-- /.grid -->
@@ -1026,27 +1012,6 @@ new Chart(document.getElementById('catChart'),{
   }
 })();
 
-// ── 20. Year in Review ───────────────────────────────────────────────────────
-(function(){
-  var ys=S.year_summaries||[];if(!ys.length)return;
-  document.getElementById('yrSummaryCard').style.display='';
-  var html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">';
-  for(var i=ys.length-1;i>=0;i--){var y=ys[i];
-    html+='<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:14px 16px;">'
-      +'<div style="font-family:\'Playfair Display\',serif;font-size:1.5rem;color:var(--gold);font-weight:700;">'+y.year+'</div>'
-      +'<div style="font-family:\'DM Mono\',monospace;font-size:.55rem;color:var(--muted);letter-spacing:.06em;margin-top:1px;">'+y.total.toLocaleString()+' check-ins · '+y.cities+' cities · '+y.countries+' countries</div>'
-      +'<div style="margin-top:10px;font-size:.74rem;line-height:1.55;color:var(--text);">'
-      +(y.peak_month?'Peak month <strong>'+esc(y.peak_month)+'</strong> ('+y.peak_month_n+' check-ins). ':'')
-      +(y.top_city?'Most visited city: <strong>'+esc(y.top_city)+'</strong> ('+y.top_city_n+'×). ':'')
-      +(y.top_cat?'Top category: <strong>'+esc(y.top_cat)+'</strong> ('+y.top_cat_n+'×). ':'')
-      +(y.top_venue?'Anchor venue: <strong>'+esc(y.top_venue)+'</strong> ('+y.top_venue_n+'×). ':'')
-      +(y.new_countries?'<span style="color:var(--gold);">+'+y.new_countries+' new countr'+(y.new_countries>1?'ies':'y')+'</span>.':'')
-      +'</div></div>';
-  }
-  html+='</div>';
-  document.getElementById('yrSummaryList').innerHTML=html;
-})();
-
 // ── 21. Transport Modes ─────────────────────────────────────────────────────
 (function(){
   var tm=S.transport_modes||[];var k=S.transport_kpis||{};
@@ -1286,55 +1251,6 @@ new Chart(document.getElementById('catChart'),{
   html+='</div>';
   document.getElementById('dormantList').innerHTML=html;
 })();
-
-// ── 33. Flight History (FR24 verified) ──────────────────────────────────────
-(function(){
-  var fh=S.flight_history||null;
-  if(!fh||!fh.total_flights)return;
-  document.getElementById('flightCard').style.display='';
-  // Compare with the speed-based heuristic for transparency
-  var heur=(S.transport_kpis||{}).flight_legs||0;
-  document.getElementById('flightKpis').innerHTML=
-     '<div class="streak-stat"><div class="s-num">'+fh.total_flights+'</div><div class="s-lbl">Flights (verified)</div></div>'
-    +'<div class="streak-stat"><div class="s-num">'+fh.total_hours+' h</div><div class="s-lbl">In the air</div></div>'
-    +'<div class="streak-stat"><div class="s-num">'+fh.total_km.toLocaleString()+' km</div><div class="s-lbl">Distance flown</div></div>'
-    +(heur?'<div class="streak-stat"><div class="s-num" style="color:var(--muted);">'+heur+'</div><div class="s-lbl">Heuristic legs<br><span style="opacity:.6;font-size:.5rem;">(speed&gt;200 km/h)</span></div></div>':'');
-  // Per-year chart: bars = flights, line = km
-  var by=fh.by_year||[];
-  var labels=by.map(function(x){return x[0];});
-  new Chart(document.getElementById('flightYearChart'),{
-    type:'bar',
-    data:{labels:labels,datasets:[
-      {label:'Flights',data:by.map(function(x){return x[1];}),backgroundColor:'#e8b86d',yAxisID:'y',borderRadius:4},
-      {label:'Distance (km)',type:'line',data:by.map(function(x){return x[2];}),borderColor:'#4ecdc4',backgroundColor:'rgba(78,205,196,.07)',yAxisID:'y1',tension:0.3,pointRadius:3}
-    ]},
-    options:{
-      responsive:true,
-      plugins:{legend:{position:'bottom',labels:{boxWidth:10,boxHeight:10}}},
-      scales:{x:{grid:{display:false}},y:{position:'left',grid:{color:'#1a1e2e'},title:{display:true,text:'flights',color:'#7a85a8'}},y1:{position:'right',grid:{display:false},ticks:{color:'#4ecdc4'},title:{display:true,text:'km',color:'#4ecdc4'}}}
-    }
-  });
-  // Bottom: 3 lists (top routes, top airlines, top aircraft)
-  function listHtml(title,items,renderItem){
-    var rows=items.slice(0,8).map(renderItem).join('');
-    return '<div><div style="font-family:\'DM Mono\',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin-bottom:8px;">'+title+'</div>'
-      +'<div style="display:flex;flex-direction:column;gap:4px;">'+rows+'</div></div>';
-  }
-  var html='';
-  html+=listHtml('Top routes',fh.top_routes_pair||[],function(r){
-    return '<div class="bar-row"><span class="bar-name">'+esc(r[0])+'</span><span class="bar-cnt">'+r[1]+'×</span></div>';
-  });
-  html+=listHtml('Top airlines',fh.top_airlines||[],function(r){
-    return '<div class="bar-row"><span class="bar-name">'+esc(r[0])+'</span><span class="bar-cnt">'+r[1]+'×</span></div>';
-  });
-  html+=listHtml('Top aircraft',fh.top_aircraft||[],function(r){
-    return '<div class="bar-row"><span class="bar-name">'+esc(r[0])+'</span><span class="bar-cnt">'+r[1]+'×</span></div>';
-  });
-  html+=listHtml('Top airports',fh.top_airports||[],function(r){
-    return '<div class="bar-row"><span class="bar-name">'+esc(r[0])+'</span><span class="bar-cnt">'+r[1]+'×</span></div>';
-  });
-  document.getElementById('flightLists').innerHTML=html;
-})();
 </script>
 
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
@@ -1351,6 +1267,7 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
   <a href="tips.html"><span class="sn-icon">💬</span><span class="sn-lbl">TIPS</span></a>
   <a href="ratings.html"><span class="sn-icon">⭐</span><span class="sn-lbl">RATED</span></a>
   <a href="flights.html"><span class="sn-icon">✈</span><span class="sn-lbl">FLIGHTS</span></a>
+  <a href="years.html"><span class="sn-icon">🗓️</span><span class="sn-lbl">YEARS</span></a>
   <a href="shouts.html"><span class="sn-icon">💭</span><span class="sn-lbl">SHOUTS</span></a>
   <a href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">PHOTOS</span></a>
   <a href="trips.html"><span class="sn-icon">✈</span><span class="sn-lbl">TRIPS</span></a>

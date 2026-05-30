@@ -88,10 +88,14 @@ a{{color:var(--teal);}}
 .crumb{{position:fixed;top:14px;left:18px;z-index:200;font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);background:rgba(18,21,31,.85);backdrop-filter:blur(8px);border:1px solid var(--border);padding:6px 12px;border-radius:6px;text-decoration:none;}}
 .crumb:hover{{color:var(--gold);}}
 
+/* ── Scroll progress bar ── */
+.progbar{{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#f5d48a,#e8b86d 50%,#b97c30);z-index:300;width:0%;transition:width .1s ease-out;box-shadow:0 0 12px rgba(232,184,109,.45);}}
+
 /* ── Scrolling background photo (fixed, fades in per section) ── */
 .scroll-bg{{position:fixed;inset:0;z-index:0;pointer-events:none;}}
-.scroll-bg .sbg-img{{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.2s ease;filter:brightness(.30) contrast(1.05) saturate(.9);}}
-.scroll-bg .sbg-img.active{{opacity:1;}}
+.scroll-bg .sbg-img{{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.4s ease;filter:brightness(.28) contrast(1.08) saturate(.85);transform:scale(1.05);}}
+.scroll-bg .sbg-img.active{{opacity:1;animation:slowPan 24s ease-in-out infinite;}}
+@keyframes slowPan{{0%{{transform:scale(1.05) translateY(0);}}50%{{transform:scale(1.12) translateY(-1.5%);}}100%{{transform:scale(1.05) translateY(0);}}}}
 .scroll-bg::after{{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,12,18,0.55) 0%,rgba(10,12,18,0.92) 100%);}}
 
 /* ── Hero ── */
@@ -99,24 +103,32 @@ a{{color:var(--teal);}}
 .hero-bg{{position:absolute;inset:0;z-index:0;}}
 .hero-bg .ph{{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.6s ease;filter:brightness(.45) contrast(1.05);}}
 .hero-bg .ph.active{{opacity:1;animation:kb 18s ease-in-out infinite;}}
-@keyframes kb{{0%{{transform:scale(1.05);}}50%{{transform:scale(1.18);}}100%{{transform:scale(1.05);}}}}
+@keyframes kb{{0%{{transform:scale(1.05);}}50%{{transform:scale(1.20);}}100%{{transform:scale(1.05);}}}}
 .hero-overlay{{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(10,12,18,0.10) 0%,rgba(10,12,18,0.85) 80%);z-index:1;}}
-.hero-content{{position:relative;z-index:2;text-align:center;padding:24px;max-width:820px;}}
-.hero-yr{{font-family:'Playfair Display',serif;font-size:clamp(7rem,18vw,18rem);font-weight:900;line-height:0.92;letter-spacing:-0.035em;background:linear-gradient(150deg,#f5d48a 0%,#e8b86d 40%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}}
-.hero-vivid{{font-family:'Playfair Display',serif;font-size:clamp(1rem,2.2vw,1.45rem);font-weight:400;color:#f0f1f6;line-height:1.55;margin-top:24px;text-shadow:0 2px 18px rgba(0,0,0,0.55);max-width:740px;margin-left:auto;margin-right:auto;font-style:italic;}}
+.hero-content{{position:relative;z-index:2;text-align:center;padding:24px;max-width:840px;}}
+.hero-eyebrow{{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.32em;color:var(--gold);margin-bottom:18px;opacity:0;animation:fadeUp .9s .25s forwards;text-shadow:0 1px 6px rgba(0,0,0,.7);}}
+.hero-yr{{font-family:'Playfair Display',serif;font-size:clamp(7rem,18vw,18rem);font-weight:900;line-height:0.92;letter-spacing:-0.035em;background:linear-gradient(150deg,#f5d48a 0%,#e8b86d 40%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0;animation:fadeUp 1.1s .55s forwards;}}
+.hero-vivid{{font-family:'Playfair Display',serif;font-size:clamp(1.05rem,2vw,1.5rem);font-weight:400;color:#f0f1f6;line-height:1.6;margin-top:24px;text-shadow:0 2px 18px rgba(0,0,0,0.6);max-width:760px;margin-left:auto;margin-right:auto;font-style:italic;opacity:0;animation:fadeUp 1.4s .95s forwards;}}
 .hero-vivid strong{{color:var(--gold);font-style:normal;font-weight:500;}}
-.hero-scroll{{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;animation:bob 2s ease-in-out infinite;}}
+@keyframes fadeUp{{from{{opacity:0;transform:translateY(20px);}}to{{opacity:1;transform:translateY(0);}}}}
+.hero-scroll{{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:3;font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;animation:bob 2s ease-in-out infinite;opacity:0;animation:fadeUp 1.6s 1.4s forwards, bob 2s 2.4s infinite;}}
 @keyframes bob{{0%,100%{{transform:translateX(-50%) translateY(0);}}50%{{transform:translateX(-50%) translateY(6px);}}}}
 
+/* ── Sticky section header strip ── */
+.sticky-strip{{position:sticky;top:0;z-index:60;background:linear-gradient(180deg,rgba(10,12,18,0.96) 0%,rgba(10,12,18,0.78) 100%);backdrop-filter:blur(10px);border-bottom:1px solid rgba(232,184,109,.15);padding:14px 28px;display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;}}
+.sticky-strip .ssh-yr{{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:700;background:linear-gradient(150deg,#f5d48a,#e8b86d 50%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;letter-spacing:-.01em;}}
+.sticky-strip .ssh-sec{{font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.16em;color:var(--muted);}}
+.sticky-strip .ssh-sec strong{{color:var(--gold);font-weight:500;}}
+
 /* ── Sections ── */
-.section{{padding:110px 28px;max-width:1200px;margin:0 auto;opacity:0;transform:translateY(40px);transition:opacity 1s ease,transform 1s ease;position:relative;z-index:5;}}
+.section{{padding:120px 28px;max-width:1200px;margin:0 auto;opacity:0;transform:translateY(50px);transition:opacity 1.1s cubic-bezier(.16,1,.3,1),transform 1.1s cubic-bezier(.16,1,.3,1);position:relative;z-index:5;}}
 .section.in{{opacity:1;transform:translateY(0);}}
-.section-h{{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.22em;color:var(--gold);margin-bottom:6px;}}
-.section-title{{font-family:'Playfair Display',serif;font-size:clamp(1.7rem,3.2vw,2.8rem);font-weight:700;color:var(--text);margin-bottom:34px;line-height:1.15;letter-spacing:-0.01em;}}
+.section-h{{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.22em;color:var(--gold);margin-bottom:8px;}}
+.section-title{{font-family:'Playfair Display',serif;font-size:clamp(1.9rem,3.6vw,3.2rem);font-weight:700;color:var(--text);margin-bottom:34px;line-height:1.1;letter-spacing:-0.015em;}}
 .section-title em{{font-style:normal;color:var(--gold);font-weight:500;}}
-.section-intro{{font-size:.95rem;color:#cdd5f0;max-width:680px;margin-bottom:32px;line-height:1.7;}}
-.section-intro strong{{color:var(--gold);font-weight:500;}}
-@media(max-width:600px){{.section{{padding:60px 18px;}}.section-title{{font-size:1.6rem;margin-bottom:24px;}}}}
+.section-intro{{font-family:'Playfair Display',serif;font-size:1.08rem;color:#cdd5f0;max-width:720px;margin-bottom:36px;line-height:1.75;font-style:italic;font-weight:400;}}
+.section-intro strong{{color:var(--gold);font-weight:500;font-style:normal;}}
+@media(max-width:600px){{.section{{padding:70px 18px;}}.section-title{{font-size:1.65rem;margin-bottom:24px;}}.sticky-strip{{padding:10px 16px;}}}}
 
 /* ── KPI tiles ── */
 .kpi-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;}}
@@ -126,23 +138,27 @@ a{{color:var(--teal);}}
 .kpi-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:7px;}}
 .kpi-sub{{font-size:.66rem;color:var(--text);margin-top:5px;opacity:.7;}}
 
-/* ── Month timeline ── */
-.months{{display:flex;flex-direction:column;gap:0;border-left:2px solid rgba(232,184,109,.25);padding-left:24px;margin-left:8px;position:relative;}}
-.mo{{position:relative;padding:18px 0 24px;}}
-.mo::before{{content:'';position:absolute;left:-32px;top:24px;width:14px;height:14px;border-radius:50%;background:var(--card);border:2px solid var(--gold);}}
-.mo.empty::before{{border-color:var(--muted);opacity:.5;}}
-.mo-name{{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);line-height:1.1;}}
-.mo-count{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.06em;margin-left:8px;font-weight:400;text-transform:uppercase;}}
-.mo-body{{display:grid;grid-template-columns:160px 1fr;gap:18px;margin-top:10px;align-items:start;}}
-.mo-thumb{{width:160px;height:120px;border-radius:10px;background-size:cover;background-position:center;background-color:rgba(255,255,255,.04);background-blend-mode:luminosity;}}
-.mo-thumb-empty{{background:linear-gradient(135deg,rgba(232,184,109,.06),rgba(78,201,176,.04));display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;font-family:'DM Mono',monospace;}}
-.mo-text{{font-size:.88rem;line-height:1.65;color:var(--text);}}
-.mo-text strong{{color:var(--gold);font-weight:500;}}
-.mo-shout{{margin-top:10px;padding:10px 14px;border-left:2px solid var(--teal);background:rgba(78,201,176,.05);font-style:italic;font-size:.78rem;color:#cdd5f0;border-radius:0 6px 6px 0;}}
-.mo-shout-meta{{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:5px;font-style:normal;}}
-.mo.empty .mo-name{{color:var(--muted);font-weight:400;}}
-.mo.empty .mo-text{{color:var(--muted);font-style:italic;}}
-@media(max-width:600px){{.mo-body{{grid-template-columns:1fr;}}.mo-thumb{{width:100%;height:160px;}}}}
+/* ── Month timeline — alternating photo / text columns ── */
+.months{{display:flex;flex-direction:column;gap:18px;}}
+.mo{{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;padding:14px 0;opacity:0;transform:translateY(40px);transition:opacity 1s cubic-bezier(.16,1,.3,1),transform 1s cubic-bezier(.16,1,.3,1);}}
+.mo.in{{opacity:1;transform:translateY(0);}}
+.mo:nth-child(even){{direction:rtl;}}
+.mo:nth-child(even) > *{{direction:ltr;}}
+.mo-photo{{aspect-ratio:4/3;border-radius:12px;background-size:cover;background-position:center;background-color:rgba(255,255,255,.03);position:relative;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.45);}}
+.mo-photo::after{{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 60%,rgba(0,0,0,.25));pointer-events:none;}}
+.mo-photo-empty{{aspect-ratio:4/3;border-radius:12px;background:linear-gradient(135deg,rgba(232,184,109,.05),rgba(78,201,176,.04));display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;border:1px dashed rgba(255,255,255,.06);}}
+.mo-text-box{{position:relative;}}
+.mo-num{{font-family:'Playfair Display',serif;font-size:5.5rem;font-weight:900;color:rgba(232,184,109,.16);line-height:.9;letter-spacing:-.04em;position:absolute;top:-26px;right:-4px;pointer-events:none;user-select:none;}}
+.mo-name{{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1.1;margin-bottom:4px;letter-spacing:-.01em;position:relative;z-index:1;}}
+.mo-count{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.12em;margin-bottom:14px;font-weight:400;text-transform:uppercase;}}
+.mo-narrative{{font-family:'Playfair Display',serif;font-size:1.05rem;line-height:1.7;color:var(--text);font-style:italic;font-weight:400;}}
+.mo-narrative strong{{color:var(--gold);font-weight:500;font-style:normal;}}
+.mo-shout{{margin-top:18px;padding:14px 0 14px 18px;border-left:2px solid var(--teal);font-family:'Playfair Display',serif;font-style:italic;font-size:.92rem;color:#e8e9ee;line-height:1.55;font-weight:400;position:relative;}}
+.mo-shout::before{{content:'"';font-family:'Playfair Display',serif;font-size:3rem;color:rgba(78,201,176,.35);position:absolute;top:-12px;left:6px;line-height:1;font-style:normal;font-weight:700;}}
+.mo-shout-meta{{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:8px;font-style:normal;letter-spacing:.04em;}}
+.mo.empty .mo-name{{color:var(--muted);}}
+.mo.empty .mo-narrative{{color:var(--muted);}}
+@media(max-width:700px){{.mo{{grid-template-columns:1fr;gap:16px;}}.mo:nth-child(even){{direction:ltr;}}.mo-num{{font-size:4rem;top:-18px;right:0;}}.mo-name{{font-size:1.45rem;}}}}
 
 /* ── List items ── */
 .three-col{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;}}
@@ -186,11 +202,13 @@ a{{color:var(--teal);}}
 .photo .ph-meta{{position:absolute;left:0;right:0;bottom:0;padding:6px 8px 8px;background:linear-gradient(transparent,rgba(0,0,0,.92));font-size:.62rem;color:#fff;opacity:0;transition:opacity .2s;}}
 .photo:hover .ph-meta{{opacity:1;}}
 
-/* ── Shouts ── */
-.shouts{{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}}
-.shout-card{{background:rgba(18,21,31,0.78);backdrop-filter:blur(6px);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}}
-.shout-text{{font-family:'Playfair Display',serif;font-style:italic;font-size:.94rem;color:var(--text);line-height:1.55;font-weight:400;}}
-.shout-meta{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:10px;letter-spacing:.04em;}}
+/* ── Shouts — drop-quote style ── */
+.shouts{{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;}}
+.shout-card{{position:relative;padding:30px 20px 18px 26px;background:rgba(18,21,31,0.7);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:12px;border-left:3px solid var(--gold);}}
+.shout-card::before{{content:'"';font-family:'Playfair Display',serif;font-size:5rem;font-weight:900;line-height:.8;color:rgba(232,184,109,.18);position:absolute;top:8px;left:14px;pointer-events:none;}}
+.shout-text{{font-family:'Playfair Display',serif;font-style:italic;font-size:1.04rem;color:var(--text);line-height:1.6;font-weight:400;position:relative;}}
+.shout-meta{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:14px;letter-spacing:.06em;text-transform:uppercase;}}
+.shout-meta strong{{color:var(--text);text-transform:none;letter-spacing:.04em;font-weight:500;}}
 
 /* ── Lightbox ── */
 .lb{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9000;align-items:center;justify-content:center;cursor:zoom-out;padding:36px;}}
@@ -215,21 +233,31 @@ a{{color:var(--teal);}}
 </head>
 <body>
 
-<a class="crumb" href="index.html">← Dashboard</a>
+<a class="crumb" href="years.html">← All years</a>
+
+<!-- Scroll progress bar -->
+<div class="progbar" id="progBar"></div>
 
 <!-- Scrolling background photo layer (fixed) -->
 <div class="scroll-bg" id="scrollBg">{scroll_bg_imgs}</div>
 
 <!-- HERO -->
-<section class="hero" data-bg-index="0">
+<section class="hero" data-bg-index="0" data-sec-title="The year of {year}">
   <div class="hero-bg" id="heroBg">{hero_bg_html}</div>
   <div class="hero-overlay"></div>
   <div class="hero-content">
+    <div class="hero-eyebrow">A year in review · {year}</div>
     <div class="hero-yr">{year}</div>
     <div class="hero-vivid">{vivid}</div>
   </div>
-  <div class="hero-scroll">scroll ↓</div>
+  <div class="hero-scroll">scroll to begin ↓</div>
 </section>
+
+<!-- Sticky section strip (appears after hero) -->
+<div class="sticky-strip" id="stickyStrip" style="opacity:0;pointer-events:none;transition:opacity .4s ease;">
+  <div class="ssh-yr">{year}</div>
+  <div class="ssh-sec" id="sshSec"><strong>—</strong></div>
+</div>
 
 {kpi_section}
 {months_section}
@@ -255,7 +283,57 @@ a{{color:var(--teal);}}
 <script>
 // ── Section fade-in ──
 const sObs = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('in')), {{threshold: 0.06}});
-document.querySelectorAll('.section').forEach(s => sObs.observe(s));
+document.querySelectorAll('.section, .mo').forEach(s => sObs.observe(s));
+
+// ── Scroll progress bar ──
+(function(){{
+  const bar = document.getElementById('progBar');
+  if (!bar) return;
+  const update = () => {{
+    const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    const pct = (window.scrollY / max) * 100;
+    bar.style.width = pct + '%';
+  }};
+  window.addEventListener('scroll', update, {{passive: true}});
+  window.addEventListener('resize', update);
+  update();
+}})();
+
+// ── Sticky section strip ──
+(function(){{
+  const strip = document.getElementById('stickyStrip');
+  const secEl = document.getElementById('sshSec');
+  if (!strip || !secEl) return;
+  const hero = document.querySelector('.hero');
+  const sections = Array.from(document.querySelectorAll('[data-sec-title]'));
+  // Track current section title for the sticky strip
+  const titleMap = new Map();
+  sections.forEach(s => titleMap.set(s, s.dataset.secTitle));
+  // Show strip after the hero is past the viewport
+  const heroObs = new IntersectionObserver(es => {{
+    es.forEach(e => {{
+      if (e.isIntersecting) {{
+        strip.style.opacity = '0';
+        strip.style.pointerEvents = 'none';
+      }} else {{
+        strip.style.opacity = '1';
+        strip.style.pointerEvents = '';
+      }}
+    }});
+  }}, {{threshold: 0}});
+  heroObs.observe(hero);
+  // Update sticky title based on the most-visible section
+  const sObs2 = new IntersectionObserver(es => {{
+    let best = null, bestScore = 0;
+    sections.forEach(s => {{
+      const r = s.getBoundingClientRect();
+      const inview = Math.max(0, Math.min(window.innerHeight, r.bottom) - Math.max(0, r.top));
+      if (inview > bestScore) {{ bestScore = inview; best = s; }}
+    }});
+    if (best) secEl.innerHTML = '<strong>' + (titleMap.get(best) || '') + '</strong>';
+  }}, {{rootMargin: '-20% 0px -50% 0px', threshold: 0}});
+  sections.forEach(s => sObs2.observe(s));
+}})();
 
 // ── KPI counters ──
 function animateCount(el, target) {{
@@ -317,6 +395,23 @@ document.querySelectorAll('.kpi-grid').forEach(g => kObs.observe(g));
 }})();
 
 window.openLB = src => {{ document.getElementById('lbImg').src = src; document.getElementById('lb').classList.add('open'); }};
+
+// ── Airline-logo multi-CDN fallback (Kiwi → gstatic → Airhex → ✈) ──
+function setLogo(img, iata) {{
+  if (!iata) {{ img.style.display='none'; const fb=img.nextElementSibling; if(fb)fb.style.display='flex'; return; }}
+  const cdns = [
+    'https://images.kiwi.com/airlines/64/'+iata+'.png',
+    'https://www.gstatic.com/flights/airline_logos/70px/'+iata+'.png',
+    'https://content.airhex.com/content/logos/airlines_'+iata+'_70_70_s.png',
+  ];
+  let i = 0;
+  img.onerror = () => {{ i++; if (i < cdns.length) img.src = cdns[i]; else {{ img.style.display='none'; const fb=img.nextElementSibling; if(fb)fb.style.display='flex'; }} }};
+  img.src = cdns[0];
+}}
+document.querySelectorAll('img.fl-logo[id^="ypfl_"]').forEach(img => {{
+  const iata = img.dataset.iata || '';
+  setLogo(img, iata);
+}});
 
 (function(){{document.body.classList.toggle('light', localStorage.getItem('fsq-theme') === 'light');}})();
 </script>
@@ -527,76 +622,87 @@ def build_page(
                 + "</div>"
             )
         kpi_section = (
-            f'<section class="section" id="sec-kpi" data-bg-index="1">'
+            f'<section class="section" id="sec-kpi" data-bg-index="1" data-sec-title="By the Numbers">'
             f'<div class="section-h">By the numbers</div>'
-            f'<div class="section-title">A year in numbers</div>'
-            f'<div class="section-intro">The shape of {yr}, distilled into eight counts.</div>'
+            f'<div class="section-title">{yr}, distilled</div>'
+            f'<div class="section-intro">A year measured in steps and stamps — eight ways to see the shape of it.</div>'
             f'<div class="kpi-grid">{kpi_html}</div>'
             f'</section>'
         )
 
-        # ── Month-by-month timeline ──
+        # ── Month-by-month timeline — alternating photo / text layout ──
+        # Each month is a 2-column grid; even rows reverse via direction:rtl.
+        # Empty months stay in flow as "Quiet" panels so the rhythm is honest.
         mo_rows_html: list[str] = []
         for mo in range(1, 13):
             n = mon_y_counter.get(mo, 0)
             mo_name = months_full[mo - 1]
+            mo_num = f"{mo:02d}"
             if n == 0:
                 mo_rows_html.append(
                     f'<div class="mo empty">'
-                    f'<div class="mo-name">{mo_name}<span class="mo-count">— no check-ins</span></div>'
-                    f'<div class="mo-body">'
-                    f'<div class="mo-thumb mo-thumb-empty">Quiet</div>'
-                    f'<div class="mo-text">A month off the map.</div>'
+                    f'<div class="mo-photo-empty">Quiet</div>'
+                    f'<div class="mo-text-box">'
+                    f'<div class="mo-num">{mo_num}</div>'
+                    f'<div class="mo-name">{mo_name}</div>'
+                    f'<div class="mo-count">No check-ins logged</div>'
+                    f'<div class="mo-narrative">A month off the map — the calendar quietly empty.</div>'
                     f'</div></div>'
                 )
                 continue
             top_v = mon_venue[mo].most_common(1)[0] if mon_venue[mo] else ("", 0)
             top_c = mon_city[mo].most_common(1)[0] if mon_city[mo] else ("", 0)
             top_cat = mon_cat[mo].most_common(1)[0] if mon_cat[mo] else ("", 0)
-            # Pick a thumbnail from this month's photos
             mo_photos = photos_by_yr_mo.get((yr, mo), [])
-            thumb_html = ""
-            if mo_photos:
-                thumb_html = f'<div class="mo-thumb" style="background-image:url(\'{_esc(mo_photos[0]["src"])}\')"></div>'
-            else:
-                thumb_html = f'<div class="mo-thumb mo-thumb-empty">{mo_name}</div>'
-            # Compose month narrative
+            photo_html = (
+                f'<div class="mo-photo" style="background-image:url(\'{_esc(mo_photos[0]["src"])}\')"></div>'
+                if mo_photos else f'<div class="mo-photo-empty">{mo_name}</div>'
+            )
+            # Compose flowing narrative (single sentence, atmospheric)
             bits: list[str] = []
             if top_c[0]:
-                bits.append(f"<strong>{_esc(top_c[0])}</strong> held the most days")
+                bits.append(f"<strong>{_esc(top_c[0])}</strong> held most of it")
             if top_v[0] and top_v[1] >= 4:
-                bits.append(f"<strong>{_esc(top_v[0])}</strong> ({top_v[1]}× visits)")
-            if top_cat[0]:
+                bits.append(f"with <strong>{_esc(top_v[0])}</strong> a recurring stop ({top_v[1]}×)")
+            if top_cat[0] and top_cat[1] >= 5:
                 bits.append(f"mostly <strong>{_esc(top_cat[0])}</strong>")
-            mo_narr = ". ".join(bits[:3])
-            if mo_narr:
-                mo_narr = mo_narr[0].upper() + mo_narr[1:] + "."
+            if bits:
+                mo_narr = ", ".join(bits[:3]) + "."
+                mo_narr = mo_narr[0].upper() + mo_narr[1:]
+            else:
+                mo_narr = "A month in the rotation."
 
-            # Memorable shout (longest from this month, or null)
+            # Pick the most memorable shout from this month
             mo_shouts = shouts_by_yr_mo.get((yr, mo), [])
             shout_html = ""
             if mo_shouts:
                 top_shout = max(mo_shouts, key=lambda s: len(s["text"]))
-                if len(top_shout["text"]) >= 12:
+                if len(top_shout["text"]) >= 14:
+                    meta_parts = [p for p in [top_shout["venue"], top_shout["city"]] if p]
+                    meta_str = " · ".join(_esc(p) for p in meta_parts)
                     shout_html = (
-                        f'<div class="mo-shout">"{_esc(top_shout["text"])}"'
-                        f'<div class="mo-shout-meta">— at {_esc(top_shout["venue"] or "—")}, {_esc(top_shout["city"] or "—")}</div>'
-                        f'</div>'
+                        f'<div class="mo-shout">'
+                        f'{_esc(top_shout["text"])}'
+                        + (f'<div class="mo-shout-meta">— {meta_str}</div>' if meta_str else '')
+                        + '</div>'
                     )
+
             mo_rows_html.append(
                 f'<div class="mo">'
-                f'<div class="mo-name">{mo_name}<span class="mo-count">{n:,} check-ins</span></div>'
-                f'<div class="mo-body">'
-                f'{thumb_html}'
-                f'<div class="mo-text">{mo_narr or "A month in the rotation."}'
+                f'{photo_html}'
+                f'<div class="mo-text-box">'
+                f'<div class="mo-num">{mo_num}</div>'
+                f'<div class="mo-name">{mo_name}</div>'
+                f'<div class="mo-count">{n:,} check-ins</div>'
+                f'<div class="mo-narrative">{mo_narr}</div>'
                 f'{shout_html}'
-                f'</div></div></div>'
+                f'</div></div>'
             )
         months_section = (
-            f'<section class="section" id="sec-months" data-bg-index="2">'
+            f'<section class="section" id="sec-months" data-bg-index="2" data-sec-title="Month by Month">'
             f'<div class="section-h">Month by month</div>'
-            f'<div class="section-title">The shape of <em>{yr}</em></div>'
-            f'<div class="section-intro">Twelve panels, twelve textures. Each row picks the busiest city, the venue that kept showing up, and a sample of your words from those weeks.</div>'
+            f'<div class="section-title">Twelve panels of <em>{yr}</em></div>'
+            f'<div class="section-intro">A pace check, month by month. The photo on each row is from those weeks; the line beside it picks the busiest city and the venue that kept reappearing, with a quoted shout when there was one.</div>'
             f'<div class="months">{"".join(mo_rows_html)}</div>'
             f'</section>'
         )
@@ -625,10 +731,10 @@ def build_page(
             return "".join(out_lines) or '<div style="color:var(--muted);font-size:.78rem;">—</div>'
 
         top_section = (
-            f'<section class="section" id="sec-top" data-bg-index="3">'
+            f'<section class="section" id="sec-top" data-bg-index="3" data-sec-title="Anchors">'
             f'<div class="section-h">Anchors</div>'
-            f'<div class="section-title">Where <em>{yr}</em> kept landing</div>'
-            f'<div class="section-intro">The places, venues and types of stops that defined the year.</div>'
+            f'<div class="section-title">The places that <em>kept showing up</em></div>'
+            f'<div class="section-intro">Some venues become rituals. Some cities pull you back without trying. Here\'s the gravity of {yr}.</div>'
             f'<div class="three-col">'
             f'<div><div class="list-col-h">Top venues</div><div class="item-list">{_list_html(ven_y.most_common(8), with_link=True)}</div></div>'
             f'<div><div class="list-col-h">Top cities</div><div class="item-list">{_list_html(cty_y.most_common(8))}</div></div>'
@@ -644,10 +750,10 @@ def build_page(
                 for c in nc
             )
             new_countries_section = (
-                f'<section class="section" id="sec-newc" data-bg-index="4">'
+                f'<section class="section" id="sec-newc" data-bg-index="4" data-sec-title="New Ground">'
                 f'<div class="section-h">Firsts</div>'
-                f'<div class="section-title">New on the map in <em>{yr}</em></div>'
-                f'<div class="section-intro">First-time countries this year — the dots that turned gold.</div>'
+                f'<div class="section-title">New ground in <em>{yr}</em></div>'
+                f'<div class="section-intro">Borders crossed for the first time — the dots that turned gold.</div>'
                 f'<div class="flag-grid">{nc_html}</div>'
                 f'</section>'
             )
@@ -665,10 +771,10 @@ def build_page(
                 for t in trips_y
             )
             trips_section = (
-                f'<section class="section" id="sec-trips" data-bg-index="5">'
+                f'<section class="section" id="sec-trips" data-bg-index="5" data-sec-title="Journeys">'
                 f'<div class="section-h">Journeys</div>'
                 f'<div class="section-title">{len(trips_y)} trip{"s" if len(trips_y) != 1 else ""} <em>this year</em></div>'
-                f'<div class="section-intro">Tap a card to open the full trip page.</div>'
+                f'<div class="section-intro">Departures and returns — tap any card to enter the trip in full.</div>'
                 f'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">{trip_cards}</div>'
                 f'</section>'
             )
@@ -678,9 +784,10 @@ def build_page(
         # ── Flights (year page) ──
         if flights_y:
             f_cards_parts: list[str] = []
-            for f in flights_y:
+            for f_idx, f in enumerate(flights_y):
+                ia = _esc(f.get("airline_iata", ""))
                 logo = (
-                    f'<img class="fl-logo" src="https://content.airhex.com/content/logos/airlines_{_esc(f.get("airline_iata", ""))}_70_70_s.png" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';"/>'
+                    f'<img class="fl-logo" id="ypfl_{yr}_{f_idx}" data-iata="{ia}" alt=""/>'
                     f'<div class="fl-logo-fb" style="display:none;">✈</div>'
                 ) if f.get("airline_iata") else '<div class="fl-logo-fb">✈</div>'
                 meta_bits = [f'<span>📅 {_esc(f.get("date", ""))}</span>']
@@ -698,10 +805,10 @@ def build_page(
                     + '</div>'
                 )
             flights_section = (
-                f'<section class="section" id="sec-flights" data-bg-index="6">'
+                f'<section class="section" id="sec-flights" data-bg-index="6" data-sec-title="In the Air">'
                 f'<div class="section-h">In the air</div>'
-                f'<div class="section-title">{len(flights_y)} flight{"s" if len(flights_y) != 1 else ""} <em>across the year</em></div>'
-                f'<div class="section-intro">Each leg verified against the FlightRadar24 diary.</div>'
+                f'<div class="section-title">{len(flights_y)} flight{"s" if len(flights_y) != 1 else ""} <em>across {yr}</em></div>'
+                f'<div class="section-intro">Every leg cross-checked with the FlightRadar24 diary.</div>'
                 f'<div style="display:flex;flex-direction:column;gap:8px;">{"".join(f_cards_parts)}</div>'
                 f'</section>'
             )
@@ -718,33 +825,39 @@ def build_page(
                 for p in photos_y[:90]
             )
             photos_section = (
-                f'<section class="section" id="sec-photos" data-bg-index="7">'
+                f'<section class="section" id="sec-photos" data-bg-index="7" data-sec-title="Memory">'
                 f'<div class="section-h">Memory</div>'
-                f'<div class="section-title">{len(photos_y)} photo{"s" if len(photos_y) != 1 else ""} from <em>{yr}</em></div>'
-                f'<div class="section-intro">Tap any image to open it full-screen.</div>'
+                f'<div class="section-title">{len(photos_y)} frame{"s" if len(photos_y) != 1 else ""} kept</div>'
+                f'<div class="section-intro">The pictures you held onto. Tap to open any one full-screen.</div>'
                 f'<div class="photo-grid">{ph_cards}</div>'
-                + (f'<div style="text-align:center;margin-top:18px;font-size:.74rem;color:var(--muted);">Showing 90 of {len(photos_y)}.</div>' if len(photos_y) > 90 else "")
+                + (f'<div style="text-align:center;margin-top:18px;font-size:.74rem;color:var(--muted);">Showing 90 of {len(photos_y):,}.</div>' if len(photos_y) > 90 else "")
                 + '</section>'
             )
         else:
             photos_section = ""
 
-        # ── Memorable shouts (longest 12) ──
+        # ── Memorable shouts (longest 12, drop-quote style) ──
         memorable = sorted(shouts_y, key=lambda s: -len(s["text"]))[:12]
         if memorable:
-            s_cards = "".join(
-                f'<div class="shout-card">'
-                f'<div class="shout-text">"{_esc(s["text"])}"</div>'
-                f'<div class="shout-meta">— {_esc(s["venue"])}{" · " + _esc(s["city"]) if s["city"] else ""}{" · " + _esc(s["country"]) if s["country"] else ""}</div>'
-                f'</div>'
-                for s in memorable
-            )
+            s_cards_parts: list[str] = []
+            for s in memorable:
+                meta_str = f'<strong>{_esc(s["venue"])}</strong>' if s["venue"] else ""
+                if s["city"]:
+                    meta_str += (" · " if meta_str else "") + _esc(s["city"])
+                if s["country"]:
+                    meta_str += (" · " if meta_str else "") + _esc(s["country"])
+                s_cards_parts.append(
+                    f'<div class="shout-card">'
+                    f'<div class="shout-text">{_esc(s["text"])}</div>'
+                    f'<div class="shout-meta">— {meta_str}</div>'
+                    f'</div>'
+                )
             shouts_section = (
-                f'<section class="section" id="sec-shouts" data-bg-index="8">'
+                f'<section class="section" id="sec-shouts" data-bg-index="8" data-sec-title="Your Own Voice">'
                 f'<div class="section-h">Words</div>'
                 f'<div class="section-title"><em>{yr}</em> in your own voice</div>'
-                f'<div class="section-intro">A sample of the year\'s longest shouts.</div>'
-                f'<div class="shouts">{s_cards}</div>'
+                f'<div class="section-intro">A handful of the year\'s longest shouts — fragments you wrote as you stood there.</div>'
+                f'<div class="shouts">{"".join(s_cards_parts)}</div>'
                 f'</section>'
             )
         else:
@@ -754,9 +867,10 @@ def build_page(
         top_comp = comp_y.most_common(12)
         if top_comp:
             companions_section = (
-                f'<section class="section" id="sec-comp" data-bg-index="9">'
+                f'<section class="section" id="sec-comp" data-bg-index="9" data-sec-title="With You">'
                 f'<div class="section-h">With you</div>'
-                f'<div class="section-title">Most-frequent companions in <em>{yr}</em></div>'
+                f'<div class="section-title">In good company</div>'
+                f'<div class="section-intro">The names that showed up most often beside yours through {yr}.</div>'
                 f'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;">{_list_html(top_comp)}</div>'
                 f'</section>'
             )

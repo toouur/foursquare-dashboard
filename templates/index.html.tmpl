@@ -573,7 +573,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 
 <div class="recent-section" id="flightsFeedSection" style="display:none">
   <div class="recent-header">
-    <a class="recent-title" href="stats.html#flightCard" style="text-decoration:none;">Recent Flights ✈</a>
+    <a class="recent-title" href="flights.html" style="text-decoration:none;">Recent Flights ✈</a>
     <span class="recent-sub" id="flightsSub"></span>
   </div>
   <div class="recent-scroll" id="flightsScroll"></div>
@@ -581,7 +581,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 
 <div class="recent-section" id="yearsFeedSection" style="display:none">
   <div class="recent-header">
-    <a class="recent-title" href="stats.html#yrSummaryCard" style="text-decoration:none;">Year in Review ↗</a>
+    <a class="recent-title" href="years.html" style="text-decoration:none;">Year in Review ↗</a>
     <span class="recent-sub" id="yearsSub"></span>
   </div>
   <div class="recent-scroll" id="yearsScroll"></div>
@@ -1230,6 +1230,21 @@ function filterList(id,q){
 })();
 
 // ── Recent flights section ────────────────────────────────────────────────────
+// Airline logos via a multi-CDN fallback chain.  Different CDNs cover
+// different airlines (Kiwi has best coverage, Google Flights covers majors,
+// Airhex covers everything but sometimes blocks hotlinking).  We try them
+// in order via onerror.
+window._setAirlineLogo = function(img, iata) {
+  if (!iata) { img.style.display='none'; const fb=img.nextElementSibling; if(fb)fb.style.display='inline-flex'; return; }
+  const cdns = [
+    `https://images.kiwi.com/airlines/64/${iata}.png`,
+    `https://www.gstatic.com/flights/airline_logos/70px/${iata}.png`,
+    `https://content.airhex.com/content/logos/airlines_${iata}_70_70_s.png`,
+  ];
+  let i = 0;
+  img.onerror = () => { i++; if (i < cdns.length) img.src = cdns[i]; else { img.style.display='none'; const fb=img.nextElementSibling; if(fb)fb.style.display='inline-flex'; } };
+  img.src = cdns[0];
+};
 (function(){
   const fl=(S&&S.flights_recent)||[];
   if(!fl.length)return;
@@ -1239,16 +1254,14 @@ function filterList(id,q){
   const totalKm=(S.flight_history&&S.flight_history.total_km)||0;
   document.getElementById('flightsSub').textContent=`${totalFlights.toLocaleString()} flights · ${totalHours} h aloft · ${totalKm.toLocaleString()} km`;
   const scroll=document.getElementById('flightsScroll');
-  // Airline logo via Airhex CDN (free, IATA-keyed).  Fallback to ✈ on error.
-  const logoUrl=ia=>ia?`https://content.airhex.com/content/logos/airlines_${ia}_70_70_s.png`:'';
-  scroll.innerHTML=fl.map(f=>{
+  scroll.innerHTML=fl.map((f,i)=>{
     const from=esc(f.from_iata||'—'),to=esc(f.to_iata||'—');
     const dur=f.dur_min?`${Math.floor(f.dur_min/60)}h ${f.dur_min%60}m`:'';
     const ac=esc(f.aircraft_code||f.aircraft||'');
-    const logo=logoUrl(f.airline_iata);
+    const logoId=`flrc_logo_${i}`;
     return `<div class="recent-card flight-rc-card">
       <div class="fl-rc-head">
-        ${logo?`<img class="fl-rc-logo" src="${logo}" alt="" onerror="this.style.display='none';this.nextSibling.style.display='inline-flex';"/><span class="fl-rc-logo-fallback" style="display:none;">✈</span>`:`<span class="fl-rc-logo-fallback">✈</span>`}
+        ${f.airline_iata?`<img class="fl-rc-logo" id="${logoId}" alt=""/><span class="fl-rc-logo-fallback" style="display:none;">✈</span>`:`<span class="fl-rc-logo-fallback">✈</span>`}
         <div class="fl-rc-route"><span>${from}</span><span class="fl-rc-arrow">→</span><span>${to}</span></div>
       </div>
       ${f.flight?`<div class="fl-rc-fno">${esc(f.flight)}</div>`:''}
@@ -1261,6 +1274,8 @@ function filterList(id,q){
       <div class="fl-rc-route-names">${esc(f.from_name||'')} → ${esc(f.to_name||'')}</div>
     </div>`;
   }).join('');
+  // Trigger logo loads after innerHTML is set
+  fl.forEach((f,i)=>{ if(f.airline_iata){ const el=document.getElementById(`flrc_logo_${i}`); if(el) window._setAirlineLogo(el, f.airline_iata); } });
 })();
 
 // ── Year in Review section ────────────────────────────────────────────────────

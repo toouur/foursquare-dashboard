@@ -829,6 +829,24 @@ if __name__ == "__main__":
         except Exception as _fle:
             log.warning("gen_flights failed: %s", _fle)
 
+    # ── Generate years.html (overview index of year cards) ──────────────────
+    _gen_yix = _SCRIPT_DIR / "gen_years_index.py"
+    if _gen_yix.exists():
+        try:
+            import importlib.util as _ilu_yi
+            _spec_yi = _ilu_yi.spec_from_file_location("gen_years_index", _gen_yix)
+            _mod_yi  = _ilu_yi.module_from_spec(_spec_yi)
+            _spec_yi.loader.exec_module(_mod_yi)
+            _mod_yi.build_page(
+                csv_path=args.input, config_dir=str(config_dir),
+                out_path=os.path.join(args.output_dir, "years.html"),
+                tmpl_path="",
+                stats_data=data, photos_by_checkin=_photos_by_checkin,
+                rows=rows, pix_url=_pix_dir_uri,
+            )
+        except Exception as _yie:
+            log.warning("gen_years_index failed: %s", _yie)
+
     # ── Generate year-YYYY.html album pages ─────────────────────────────────
     _gen_year = _SCRIPT_DIR / "gen_year_pages.py"
     if _gen_year.exists():

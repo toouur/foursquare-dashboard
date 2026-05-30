@@ -211,7 +211,20 @@ const FLIGHTS = {flights_json};
 const COORDS  = {coords_json};
 const HISTORY = {history_json};
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}}[c]));
-const logoUrl = ia => ia ? `https://content.airhex.com/content/logos/airlines_${{ia}}_70_70_s.png` : '';
+// Multi-CDN airline-logo fallback chain.  Kiwi has best coverage; Google
+// Flights covers majors; Airhex covers everything but sometimes blocks
+// hotlinking.  Set src to first; onerror walks the list.
+function setLogo(img, iata) {{
+  if (!iata) {{ img.style.display='none'; const fb=img.nextElementSibling; if(fb)fb.style.display='flex'; return; }}
+  const cdns = [
+    `https://images.kiwi.com/airlines/64/${{iata}}.png`,
+    `https://www.gstatic.com/flights/airline_logos/70px/${{iata}}.png`,
+    `https://content.airhex.com/content/logos/airlines_${{iata}}_70_70_s.png`,
+  ];
+  let i = 0;
+  img.onerror = () => {{ i++; if (i < cdns.length) img.src = cdns[i]; else {{ img.style.display='none'; const fb=img.nextElementSibling; if(fb)fb.style.display='flex'; }} }};
+  img.src = cdns[0];
+}}
 const fmtDur = m => m ? `${{Math.floor(m/60)}}h ${{m%60}}m` : '';
 const haversine = (la1, lo1, la2, lo2) => {{
   const R = 6371, r = Math.PI/180;
@@ -301,14 +314,14 @@ function render() {{
   const filtered = getFiltered();
   document.getElementById('fCount').textContent = `${{filtered.length}} / ${{FLIGHTS.length}}`;
   const grid = document.getElementById('grid');
-  grid.innerHTML = filtered.map(f => {{
-    const logo = logoUrl(f.airline_iata);
+  grid.innerHTML = filtered.map((f, idx) => {{
     const ca = COORDS[f.from_iata], cb = COORDS[f.to_iata];
     const km = (ca && cb) ? haversine(ca[0], ca[1], cb[0], cb[1]) : 0;
     return `<div class="fcard">
       <div class="fc-head">
-        ${{logo ? `<img class="fc-logo" src="${{logo}}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"/><div class="fc-logo-fb" style="display:none;">✈</div>`
-                : `<div class="fc-logo-fb">✈</div>`}}
+        ${{f.airline_iata
+            ? `<img class="fc-logo" id="fc_logo_${{idx}}" alt=""/><div class="fc-logo-fb" style="display:none;">✈</div>`
+            : `<div class="fc-logo-fb">✈</div>`}}
         <div class="fc-airline-block">
           <div class="fc-airline">${{esc(f.airline || 'Unknown')}}</div>
           ${{f.flight ? `<div class="fc-fno">${{esc(f.flight)}}</div>` : ''}}
@@ -334,6 +347,12 @@ function render() {{
       ${{f.note ? `<div class="fc-note">"${{esc(f.note)}}"</div>` : ''}}
     </div>`;
   }}).join('');
+  // Boot the logo loaders after innerHTML is set
+  filtered.forEach((f, idx) => {{
+    if (!f.airline_iata) return;
+    const el = document.getElementById(`fc_logo_${{idx}}`);
+    if (el) setLogo(el, f.airline_iata);
+  }});
 }}
 
 ['fYear','fAirline','fAircraft'].forEach(id => document.getElementById(id).addEventListener('change', render));
