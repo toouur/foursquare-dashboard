@@ -258,11 +258,18 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 .rc-flight{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--gold);margin-top:3px;letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(232,184,109,.07);border:1px solid rgba(232,184,109,.25);padding:2px 7px;border-radius:5px;display:inline-block;}
 
 /* Recent flight cards (own strip) */
-.flight-rc-card{display:flex;flex-direction:column;gap:5px;padding:14px 16px 12px;background:linear-gradient(140deg,rgba(232,184,109,.06) 0%,rgba(78,201,176,.04) 100%);border:1px solid rgba(232,184,109,.25);}
-.fl-rc-route{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--gold);line-height:1.1;}
-.fl-rc-fno{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);background:rgba(78,201,176,.10);padding:1px 8px;border-radius:4px;align-self:flex-start;letter-spacing:.05em;}
-.fl-rc-meta{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.45;display:flex;flex-direction:column;gap:1px;margin-top:auto;}
-.fl-rc-meta div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.flight-rc-card{flex:0 0 260px;display:flex;flex-direction:column;gap:10px;padding:16px 18px 14px;background:linear-gradient(155deg,rgba(232,184,109,.08) 0%,rgba(18,21,31,1) 100%);border:1px solid rgba(232,184,109,.25);}
+.fl-rc-head{display:flex;align-items:center;gap:10px;}
+.fl-rc-logo{width:34px;height:34px;border-radius:6px;background:rgba(255,255,255,.92);object-fit:contain;padding:3px;flex-shrink:0;}
+.fl-rc-logo-fallback{width:34px;height:34px;border-radius:6px;background:rgba(232,184,109,.15);display:inline-flex;align-items:center;justify-content:center;color:var(--gold);font-size:.95rem;flex-shrink:0;}
+.fl-rc-route{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);line-height:1;display:flex;align-items:center;gap:6px;flex:1;}
+.fl-rc-arrow{font-family:'DM Sans',sans-serif;font-size:.8rem;color:var(--muted);font-weight:400;}
+.fl-rc-fno{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);background:rgba(78,201,176,.10);padding:2px 9px;border-radius:5px;align-self:flex-start;letter-spacing:.05em;}
+.fl-rc-stack{display:flex;flex-direction:column;gap:3px;}
+.fl-rc-airline{font-family:'DM Sans',sans-serif;font-size:.78rem;color:var(--text);font-weight:500;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fl-rc-row{display:flex;justify-content:space-between;gap:6px;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text2,#cdd5f0);}
+.fl-rc-row span:first-child{color:var(--muted);}
+.fl-rc-route-names{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);opacity:.75;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-top:1px solid rgba(255,255,255,.06);padding-top:6px;margin-top:auto;}
 
 /* Year cards (clickable) */
 .year-rc-card{flex:0 0 240px;display:flex;flex-direction:column;gap:5px;padding:18px 18px 14px;background:var(--card);text-decoration:none;color:var(--text);transition:border-color .15s,transform .15s;cursor:pointer;}
@@ -1229,21 +1236,29 @@ function filterList(id,q){
   document.getElementById('flightsFeedSection').style.display='';
   const totalFlights=(S.flight_history&&S.flight_history.total_flights)||fl.length;
   const totalHours=(S.flight_history&&S.flight_history.total_hours)||0;
-  document.getElementById('flightsSub').textContent=totalFlights.toLocaleString()+' flights · '+totalHours+' h aloft';
+  const totalKm=(S.flight_history&&S.flight_history.total_km)||0;
+  document.getElementById('flightsSub').textContent=`${totalFlights.toLocaleString()} flights · ${totalHours} h aloft · ${totalKm.toLocaleString()} km`;
   const scroll=document.getElementById('flightsScroll');
+  // Airline logo via Airhex CDN (free, IATA-keyed).  Fallback to ✈ on error.
+  const logoUrl=ia=>ia?`https://content.airhex.com/content/logos/airlines_${ia}_70_70_s.png`:'';
   scroll.innerHTML=fl.map(f=>{
-    const route=(f.from_iata&&f.to_iata)?`${esc(f.from_iata)} → ${esc(f.to_iata)}`:'';
-    const dur=f.dur_min?` · ${Math.floor(f.dur_min/60)}h ${f.dur_min%60}m`:'';
-    const ac=(f.aircraft_code||f.aircraft||'');
+    const from=esc(f.from_iata||'—'),to=esc(f.to_iata||'—');
+    const dur=f.dur_min?`${Math.floor(f.dur_min/60)}h ${f.dur_min%60}m`:'';
+    const ac=esc(f.aircraft_code||f.aircraft||'');
+    const logo=logoUrl(f.airline_iata);
     return `<div class="recent-card flight-rc-card">
-      <div class="fl-rc-route">✈ ${route}</div>
-      ${f.flight?`<div class="fl-rc-fno">${esc(f.flight)}</div>`:''}
-      <div class="fl-rc-meta">
-        <div>📅 ${esc(f.date||'')}</div>
-        ${f.airline?`<div>${esc(f.airline)}</div>`:''}
-        ${ac?`<div>${esc(ac)}</div>`:''}
-        <div style="opacity:.7;">${esc(f.from_name||'')} → ${esc(f.to_name||'')}${dur}</div>
+      <div class="fl-rc-head">
+        ${logo?`<img class="fl-rc-logo" src="${logo}" alt="" onerror="this.style.display='none';this.nextSibling.style.display='inline-flex';"/><span class="fl-rc-logo-fallback" style="display:none;">✈</span>`:`<span class="fl-rc-logo-fallback">✈</span>`}
+        <div class="fl-rc-route"><span>${from}</span><span class="fl-rc-arrow">→</span><span>${to}</span></div>
       </div>
+      ${f.flight?`<div class="fl-rc-fno">${esc(f.flight)}</div>`:''}
+      <div class="fl-rc-stack">
+        ${f.airline?`<div class="fl-rc-airline">${esc(f.airline)}</div>`:''}
+        <div class="fl-rc-row"><span class="fl-rc-lbl">Date</span><span>${esc(f.date||'')}</span></div>
+        ${ac?`<div class="fl-rc-row"><span class="fl-rc-lbl">Plane</span><span>${ac}</span></div>`:''}
+        ${dur?`<div class="fl-rc-row"><span class="fl-rc-lbl">Time</span><span>${dur}</span></div>`:''}
+      </div>
+      <div class="fl-rc-route-names">${esc(f.from_name||'')} → ${esc(f.to_name||'')}</div>
     </div>`;
   }).join('');
 })();

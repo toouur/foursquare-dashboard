@@ -803,6 +803,32 @@ if __name__ == "__main__":
         else:
             log.warning("Generator not found: %s", gen_script)
 
+    # ── Generate flights.html (dedicated page) ───────────────────────────────
+    _gen_flights = _SCRIPT_DIR / "gen_flights.py"
+    if _gen_flights.exists() and flights_path.exists():
+        try:
+            import importlib.util as _ilu_f
+            _spec_f = _ilu_f.spec_from_file_location("gen_flights", _gen_flights)
+            _mod_f  = _ilu_f.module_from_spec(_spec_f)
+            _spec_f.loader.exec_module(_mod_f)
+            from flights import (
+                load_flights as _lf,
+                build_iata_coords as _bic,
+                summarise as _summ,
+            )
+            _all_fl2 = _lf(flights_path)
+            _iata2 = _bic(rows, _all_fl2)
+            _mod_f.build_page(
+                csv_path=args.input, config_dir=str(config_dir),
+                out_path=os.path.join(args.output_dir, "flights.html"),
+                tmpl_path="",
+                flights_data=_all_fl2,
+                flight_history=_summ(_all_fl2, _iata2),
+                iata_coords=_iata2,
+            )
+        except Exception as _fle:
+            log.warning("gen_flights failed: %s", _fle)
+
     # ── Generate year-YYYY.html album pages ─────────────────────────────────
     _gen_year = _SCRIPT_DIR / "gen_year_pages.py"
     if _gen_year.exists():

@@ -2097,45 +2097,129 @@ def process(
     _max_yr_total = max(_yr_totals.values()) if _yr_totals else 0
     _mean_yr_total = sum(_yr_totals.values()) / len(_yr_totals) if _yr_totals else 0
 
+    # Atmospheric phrasing pools — used by _vivid() to vary tone without
+    # randomness (each year deterministically picks a single phrase based
+    # on its character).
+    _BUSY_INTROS = [
+        "A year of <strong>relentless motion</strong>.",
+        "Your <strong>widest-open</strong> year.",
+        "Twelve months of constant going.",
+    ]
+    _TRAVEL_INTROS = [
+        "A <strong>heavy-travelling</strong> year.",
+        "A year of long horizons.",
+        "Borders bent often this year.",
+    ]
+    _ROAM_INTROS = [
+        "A <strong>wide-roaming</strong> year — threads across the map.",
+        "Many flags, many time-zones.",
+        "A year stitched together by passport stamps.",
+    ]
+    _HOME_INTROS = [
+        "A year <strong>close to home</strong>.",
+        "Quiet roots — the year you stayed put.",
+        "Deep familiarity over distance.",
+    ]
+    _QUIET_INTROS = [
+        "A <strong>softer</strong> year by the count.",
+        "Fewer stops, more depth.",
+        "A year of restraint and pauses.",
+    ]
+    _DEFAULT_INTROS = [
+        "A steady year through the world.",
+        "Balanced motion across the map.",
+        "A measured year of going and returning.",
+    ]
+    _ANCHOR_PHRASES = [
+        "<strong>{city}</strong> was the gravitational center",
+        "<strong>{city}</strong> stayed the home base",
+        "<strong>{city}</strong> kept calling you back",
+        "<strong>{city}</strong> anchored the rhythm",
+        "you orbited <strong>{city}</strong>",
+    ]
+    _PEAK_PHRASES = [
+        "{vibe}<strong>{mon}</strong> burned brightest",
+        "{vibe}<strong>{mon}</strong> held the peak",
+        "{vibe}<strong>{mon}</strong> was the loudest stretch",
+        "{vibe}<strong>{mon}</strong> stood out from the rest",
+    ]
+    _NEW_PHRASES = [
+        "<strong>{n} fresh dots</strong> on the world map",
+        "<strong>{n}</strong> first-time countries entered the rotation",
+        "<strong>+{n}</strong> brand-new flags",
+        "<strong>{n} new horizons</strong> opened",
+    ]
+    _ANCHOR_VENUE = [
+        "<strong>{v}</strong> became a daily rhythm",
+        "<strong>{v}</strong> turned into your fixture",
+        "you orbited <strong>{v}</strong> again and again",
+    ]
+    _COMPANION_PHRASES = [
+        "much of it travelled with <strong>{c}</strong>",
+        "<strong>{c}</strong> was the steady companion",
+        "more often than not, with <strong>{c}</strong>",
+    ]
+
+    def _pick(pool: list[str], yr: int, salt: int = 0) -> str:
+        """Deterministic 'pick' so the same year always reads the same."""
+        return pool[(yr + salt) % len(pool)]
+
     def _vivid(yr: int, total: int, peak_mon_name: str, peak_mon_n: int,
                top_city: str, top_city_n: int, top_cat: str, top_cat_n: int,
                top_venue: str, top_venue_n: int, n_new_countries: int,
-               n_cities: int, n_countries: int) -> str:
-        """Compose a 1-2 sentence atmospheric description."""
-        bits: list[str] = []
-        # Sentence 1 — the year's character vs the personal record
+               n_cities: int, n_countries: int, top_companion: str = "",
+               first_new_country: str = "") -> str:
+        """Compose a 2-3 sentence atmospheric description.
+
+        Style: stats-driven but narrative — names places and patterns
+        rather than counts.  Each year deterministically picks one
+        phrasing from each pool so the page reads the same on every
+        rebuild but adjacent years feel different.
+        """
+        # Sentence 1 — the year's character (no raw count)
         if total >= 0.95 * _max_yr_total:
-            bits.append(f"<strong>Your busiest year on record</strong> — <strong>{total:,}</strong> check-ins, <strong>{n_cities}</strong> cities, <strong>{n_countries}</strong> countries.")
+            intro = _pick(_BUSY_INTROS, yr)
         elif total >= 0.7 * _max_yr_total:
-            bits.append(f"<strong>{total:,}</strong> check-ins through <strong>{n_countries}</strong> countries — a heavy travelling year.")
+            intro = _pick(_TRAVEL_INTROS, yr)
         elif n_countries >= 15:
-            bits.append(f"A wide-roaming year — <strong>{n_countries}</strong> countries, <strong>{n_cities}</strong> cities, <strong>{total:,}</strong> check-ins.")
+            intro = _pick(_ROAM_INTROS, yr)
         elif n_countries <= 3 and total > 0.4 * _max_yr_total:
-            bits.append(f"A grounded year, mostly <strong>{top_city or '—'}</strong>{(' (' + format(top_city_n, ',') + '×)') if top_city_n else ''}.")
+            intro = _pick(_HOME_INTROS, yr)
         elif total < 0.3 * _mean_yr_total:
-            bits.append(f"A quieter year — only <strong>{total:,}</strong> check-ins logged.")
+            intro = _pick(_QUIET_INTROS, yr)
         else:
-            bits.append(f"<strong>{total:,}</strong> check-ins · <strong>{n_cities}</strong> cities · <strong>{n_countries}</strong> countries.")
+            intro = _pick(_DEFAULT_INTROS, yr)
 
-        # Sentence 2 — peak month + city anchor + new countries
-        bits2: list[str] = []
-        if peak_mon_name and peak_mon_n:
+        # Sentence 2 — a place anchor + a temporal anchor
+        clauses: list[str] = []
+        if top_city and top_city_n and top_city_n > max(60, total * 0.15):
+            clauses.append(_pick(_ANCHOR_PHRASES, yr, 1).format(city=top_city))
+        if peak_mon_name:
             vibe = _MONTH_VIBE.get(peak_mon_name, "")
-            bits2.append(f"Peaked in <strong>{vibe + ' ' if vibe else ''}{peak_mon_name}</strong> ({peak_mon_n:,} taps)")
-        if top_city and top_city_n and top_city_n > total * 0.18:
-            bits2.append(f"<strong>{top_city}</strong> pulled you back {top_city_n:,}×")
-        if n_new_countries:
-            label = "new country" if n_new_countries == 1 else "new countries"
-            bits2.append(f"<strong>+{n_new_countries} {label}</strong> on the map")
-        if top_venue and top_venue_n >= 30:
-            bits2.append(f"<strong>{top_venue}</strong> became a daily fixture ({top_venue_n}×)")
-        if not bits2 and top_cat:
-            bits2.append(f"top category <strong>{top_cat}</strong> ({top_cat_n}×)")
-
-        sentence2 = ". ".join(bits2[:3])
+            vibe_str = (vibe + " ") if vibe else ""
+            clauses.append(_pick(_PEAK_PHRASES, yr, 2).format(vibe=vibe_str, mon=peak_mon_name))
+        sentence2 = (", ".join(clauses) + ".") if clauses else ""
+        # Capitalise the first word of sentence2
         if sentence2:
-            sentence2 += "."
-        return " ".join([bits[0], sentence2]).strip()
+            sentence2 = sentence2[0].upper() + sentence2[1:]
+
+        # Sentence 3 — a flourish: new countries / anchor venue / companion
+        flourishes: list[str] = []
+        if n_new_countries:
+            if n_new_countries <= 2 and first_new_country:
+                flourishes.append(f"<strong>{first_new_country}</strong> entered the rotation for the first time")
+            else:
+                flourishes.append(_pick(_NEW_PHRASES, yr, 3).format(n=n_new_countries))
+        if top_venue and top_venue_n >= 35:
+            flourishes.append(_pick(_ANCHOR_VENUE, yr, 4).format(v=top_venue))
+        elif top_companion:
+            flourishes.append(_pick(_COMPANION_PHRASES, yr, 5).format(c=top_companion))
+        sentence3 = ""
+        if flourishes:
+            s = ", ".join(flourishes[:2]) + "."
+            sentence3 = s[0].upper() + s[1:]    # only flip the very first char
+
+        return " ".join(s for s in [intro, sentence2, sentence3] if s).strip()
 
     year_summaries = []
     for yr in sorted({d.year for d in dates}):
@@ -2172,6 +2256,7 @@ def process(
         n_new_countries = len([c for c, y in _first_country.items() if y == yr])
         n_distance_y = next((int(v) for k, v in dist_by_year if k == str(yr)), 0)
         n_trips_y = sum(1 for t in trips if t.get("start_year") == yr)
+        new_countries_list = sorted([c for c, y in _first_country.items() if y == yr])
         vivid = _vivid(
             yr=yr, total=len(rows_y),
             peak_mon_name=peak_month_name, peak_mon_n=peak_mon[1],
@@ -2180,8 +2265,9 @@ def process(
             top_venue=top_v[0][1] if top_v[0] else "", top_venue_n=top_v[1] if top_v else 0,
             n_new_countries=n_new_countries,
             n_cities=len(cty_y), n_countries=len(cou_y),
+            top_companion=comp_y.most_common(1)[0][0] if comp_y else "",
+            first_new_country=new_countries_list[0] if new_countries_list else "",
         )
-        new_countries_list = sorted([c for c, y in _first_country.items() if y == yr])
         year_summaries.append({
             "year":              yr,
             "total":             len(rows_y),
