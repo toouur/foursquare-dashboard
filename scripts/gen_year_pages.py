@@ -30,11 +30,124 @@ leaves the viewport (IntersectionObserver-driven).
 from __future__ import annotations
 
 import json
+import math
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 CTRY_CODE: dict[str, str] = {}
+
+# ── Activity buckets ────────────────────────────────────────────────────
+# Two kinds:
+#   • landmark = 1+ check-in is notable enough to call out by venue ("a
+#     concert at X", "a poker night at Y")
+#   • routine  = recurring background pattern; only the busiest one per
+#     month is surfaced as the "rhythm" of the month.
+# Match strings are lower-case substrings checked against the Foursquare
+# category text — works across en/ru/local variants when Foursquare keeps
+# the English category label.
+ACTIVITY_BUCKETS: dict[str, dict] = {
+    # Landmarks
+    "concerts": {
+        "match": ["music venue", "concert hall", "rock club", "amphitheater", "opera house", "jazz club"],
+        "kind": "landmark",
+        "phrases": ["a concert at", "live music at", "a gig at", "a show at"],
+    },
+    "theatre": {
+        "match": ["theater", "theatre", "playhouse"],
+        "kind": "landmark",
+        "phrases": ["a play at", "a theatre night at", "stagelight at"],
+    },
+    "cinema": {
+        "match": ["movie theater", "cinema"],
+        "kind": "landmark",
+        "phrases": ["a film at", "a cinema night at", "screening at"],
+    },
+    "museums": {
+        "match": ["museum", "art gallery", "exhibition"],
+        "kind": "landmark",
+        "phrases": ["a museum afternoon at", "wandering through", "a gallery visit to"],
+    },
+    "monuments": {
+        "match": ["monument", "historic", "castle", "palace"],
+        "kind": "landmark",
+        "phrases": ["walks past", "a slow visit to", "a stop at"],
+    },
+    "sports": {
+        "match": ["stadium", "sports arena", "soccer field", "basketball court", "hockey arena", "athletic field"],
+        "kind": "landmark",
+        "phrases": ["a match at", "courtside at", "a game at"],
+    },
+    "poker": {
+        "match": ["casino", "card room", "poker"],
+        "kind": "landmark",
+        "phrases": ["a poker night at", "tables at", "a late hand at"],
+    },
+    "nightclub": {
+        "match": ["nightclub", "night club", "disco"],
+        "kind": "landmark",
+        "phrases": ["a night out at", "the dancefloor at", "the small hours at"],
+    },
+    "wellness": {
+        "match": ["spa", "hammam", "sauna", "bathhouse"],
+        "kind": "landmark",
+        "phrases": ["spa hours at", "a steam at", "unwinding at"],
+    },
+    "outdoors": {
+        "match": ["park", "garden", "beach", "trail", "scenic lookout", "mountain", "national park", "lake"],
+        "kind": "landmark",
+        "phrases": ["walks in", "long hours in", "outdoor stretches at"],
+    },
+    # Routines
+    "coffee": {
+        "match": ["coffee shop", "café", "cafe", "tea room", "bakery", "tea house"],
+        "kind": "routine",
+        "phrases": ["coffee runs and café mornings", "long afternoons over flat whites", "café-stop rhythm", "espresso punctuation"],
+    },
+    "dining": {
+        "match": ["restaurant", "diner", "steakhouse", "bbq joint", "pizzeria", "bistro", "trattoria"],
+        "kind": "routine",
+        "phrases": ["restaurant dinners", "long table nights", "kitchen-to-kitchen rotation"],
+    },
+    "bars": {
+        "match": ["bar", "pub", "brewery", "wine bar", "cocktail"],
+        "kind": "routine",
+        "phrases": ["evenings out", "bar lights and conversation", "after-work pints", "late nightcaps"],
+    },
+    "travel": {
+        "match": ["airport", "plane", "hotel", "hostel", "train station", "rail station", "bus station"],
+        "kind": "routine",
+        "phrases": ["travel days and transit lounges", "on the move", "hotel-and-runway weeks"],
+    },
+    "work": {
+        "match": ["office", "coworking", "business center"],
+        "kind": "routine",
+        "phrases": ["desk hours", "office days running into each other", "head-down work weeks"],
+    },
+    "home": {
+        "match": ["home (private)", "residential"],
+        "kind": "routine",
+        "phrases": ["mostly at home", "anchored close to home", "a quiet rhythm at home"],
+    },
+    "shopping": {
+        "match": ["shopping mall", "supermarket", "grocery", "market", "convenience store"],
+        "kind": "routine",
+        "phrases": ["weekend errands", "grocery loops", "shopping-mall rounds"],
+    },
+}
+
+# Soft mood lexicon used to label the "feel" of a month based on shout
+# wording (en/ru/be).  Imperfect but adds a little colour.
+_POS_TOKENS = {
+    "люблю", "любим", "обожаю", "круто", "класс", "классно", "прекрасно",
+    "великолепно", "восторг", "amazing", "love", "loved", "great", "perfect",
+    "best", "wonderful", "beautiful", "хорошо", "supercute", "лучший", "лучшая",
+    "ВКУСНО", "вкусно", "🔥", "🥰", "❤", "👍",
+}
+_NEG_TOKENS = {
+    "плохо", "ужас", "хрень", "не понравил", "не очень",
+    "awful", "terrible", "worst", "hate", "bad", "👎",
+}
 
 
 def _load_flags(config_dir: Path) -> None:
@@ -60,6 +173,276 @@ def _esc(s) -> str:
         return ""
     return (str(s).replace("&", "&amp;").replace("<", "&lt;")
             .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+_BUCKET_RES: dict[str, list] = {}
+
+
+def _bucket_for(category: str) -> str:
+    """Return bucket key for a Foursquare category, or '' if no match.
+    Word-boundary aware so 'park' doesn't catch 'parking' / 'parker'."""
+    if not category:
+        return ""
+    import re as _re
+    cl = category.lower()
+    if not _BUCKET_RES:
+        for key, cfg in ACTIVITY_BUCKETS.items():
+            _BUCKET_RES[key] = [_re.compile(rf"\b{_re.escape(m)}\b") for m in cfg["match"]]
+    for key, patterns in _BUCKET_RES.items():
+        for pat in patterns:
+            if pat.search(cl):
+                return key
+    return ""
+
+
+def _mood_score(shouts: list[dict]) -> int:
+    """Score the emotional tilt of a month from its shouts. Positive →
+    upbeat; negative → grumbly; 0 → neutral / no shouts."""
+    if not shouts:
+        return 0
+    s = 0
+    for sh in shouts:
+        t = (sh.get("text") or "").lower()
+        for tok in _POS_TOKENS:
+            if tok in t:
+                s += 1
+        for tok in _NEG_TOKENS:
+            if tok in t:
+                s -= 1
+        # exclamation marks add a touch of intensity
+        if "!" in t:
+            s += min(1, t.count("!"))
+    return s
+
+
+def _mood_phrase(score: int, yr: int, mo: int) -> str:
+    """Pick a short atmospheric phrase from the month's mood score."""
+    if score >= 4:
+        pool = ["a bright stretch", "an upbeat month", "the kind of weeks that hold up well"]
+    elif score >= 2:
+        pool = ["a buoyant month", "a warm note running through it", "good days adding up"]
+    elif score <= -2:
+        pool = ["a grumbly stretch", "a sharper month", "edges visible in the journal"]
+    else:
+        return ""
+    return pool[(yr * 12 + mo) % len(pool)]
+
+
+def _wedge_path(cx: float, cy: float, r_inner: float, r_outer: float,
+                start_deg: float, end_deg: float) -> str:
+    """SVG path for an annular wedge from start_deg → end_deg (degrees,
+    0 = right, 90 = bottom; using SVG convention)."""
+    a1, a2 = math.radians(start_deg), math.radians(end_deg)
+    x1, y1 = cx + r_outer * math.cos(a1), cy + r_outer * math.sin(a1)
+    x2, y2 = cx + r_outer * math.cos(a2), cy + r_outer * math.sin(a2)
+    x3, y3 = cx + r_inner * math.cos(a2), cy + r_inner * math.sin(a2)
+    x4, y4 = cx + r_inner * math.cos(a1), cy + r_inner * math.sin(a1)
+    large = 1 if (end_deg - start_deg) > 180 else 0
+    return (f"M{x1:.2f},{y1:.2f} A{r_outer},{r_outer} 0 {large},1 {x2:.2f},{y2:.2f} "
+            f"L{x3:.2f},{y3:.2f} A{r_inner},{r_inner} 0 {large},0 {x4:.2f},{y4:.2f} Z")
+
+
+def _render_year_clock(yr: int, mon_counter: Counter, months_short: list[str]) -> str:
+    """Polar bar chart: 12 wedges of 30deg each, outer radius proportional
+    to that month's check-in count.  Each wedge is clickable to scroll to
+    that month's row."""
+    cx = cy = 130
+    r_inner = 56
+    r_outer_max = 120
+    max_v = max(mon_counter.values()) if mon_counter else 1
+    if max_v == 0:
+        max_v = 1
+    total = sum(mon_counter.values())
+    wedges: list[str] = []
+    labels: list[str] = []
+    for mo in range(12):
+        v = mon_counter.get(mo + 1, 0)
+        ratio = v / max_v if max_v else 0
+        # min visible radius so empty months show as faint
+        r_o = r_inner + (r_outer_max - r_inner) * (0.10 + 0.90 * ratio) if v else r_inner + 5
+        start = mo * 30 - 90      # start at 12-o'clock, clockwise
+        end = start + 30 - 1.2    # tiny gap between wedges
+        path = _wedge_path(cx, cy, r_inner, r_o, start, end)
+        opacity = 0.25 + 0.70 * ratio if v else 0.10
+        # Gold gradient by intensity (lighter = quieter)
+        fill = "url(#yc-grad)" if v else "rgba(255,255,255,.06)"
+        wedges.append(
+            f'<a href="#mo-{mo+1:02d}" aria-label="{months_short[mo]} {v} check-ins">'
+            f'<path d="{path}" fill="{fill}" opacity="{opacity:.2f}" class="yc-wedge"/>'
+            f'</a>'
+        )
+        # Outer month label
+        ang = math.radians(start + 14)
+        lx = cx + (r_outer_max + 16) * math.cos(ang)
+        ly = cy + (r_outer_max + 16) * math.sin(ang)
+        labels.append(
+            f'<text x="{lx:.1f}" y="{ly:.1f}" class="yc-mlbl" text-anchor="middle" '
+            f'dominant-baseline="middle">{months_short[mo]}</text>'
+        )
+    return (
+        f'<svg viewBox="0 0 260 260" class="yearclock" role="img" aria-label="{yr} month activity ring">'
+        f'<defs><linearGradient id="yc-grad" x1="0" y1="0" x2="1" y2="1">'
+        f'<stop offset="0%" stop-color="#f5d48a"/>'
+        f'<stop offset="55%" stop-color="#e8b86d"/>'
+        f'<stop offset="100%" stop-color="#b97c30"/>'
+        f'</linearGradient></defs>'
+        f'<circle cx="{cx}" cy="{cy}" r="{r_inner-3}" fill="none" stroke="rgba(232,184,109,.18)" stroke-width="1"/>'
+        f'{"".join(wedges)}'
+        f'{"".join(labels)}'
+        f'<text x="{cx}" y="{cy-4}" text-anchor="middle" class="yc-total">{total:,}</text>'
+        f'<text x="{cx}" y="{cy+14}" text-anchor="middle" class="yc-totlbl">CHECK-INS</text>'
+        f'</svg>'
+    )
+
+
+def _compose_month_narrative(
+    yr: int, mo: int,
+    rows_m: list[dict], mon_venue_m: Counter, mon_city_m: Counter,
+    mon_cat_m: Counter, shouts_m: list[dict],
+) -> str:
+    """Build a richer flowing narrative for a single month — picks up the
+    busiest city, the dominant routine bucket (coffee / dining / travel /
+    work / home), and any landmark events (concerts, museums, sports,
+    poker, nightclubs, outdoor walks) by name.  Mood phrase from shouts
+    closes the sentence when strong enough."""
+    # Bucket the month's check-ins
+    bucket_n: Counter = Counter()
+    bucket_venue: dict[str, Counter] = defaultdict(Counter)
+    # Track which city each venue lives in (most-common city for the
+    # venue in this month) so we can annotate cross-city landmarks
+    # honestly: "walks in Park X · Minsk" when the lead city differs.
+    venue_city: dict[str, Counter] = defaultdict(Counter)
+    for r in rows_m:
+        b = _bucket_for(r.get("category") or "")
+        v = (r.get("venue") or "").strip()
+        c = (r.get("city") or "").strip()
+        if v and c:
+            venue_city[v][c] += 1
+        if not b:
+            continue
+        bucket_n[b] += 1
+        if v:
+            bucket_venue[b][v] += 1
+
+    routines = sorted(
+        [(b, n) for b, n in bucket_n.items() if ACTIVITY_BUCKETS[b]["kind"] == "routine" and n > 0],
+        key=lambda x: -x[1],
+    )
+    landmarks = sorted(
+        [(b, n) for b, n in bucket_n.items() if ACTIVITY_BUCKETS[b]["kind"] == "landmark" and n > 0],
+        key=lambda x: -x[1],
+    )
+
+    # Detect how concentrated the month is: if the top city has < 55% of
+    # all check-ins, treat it as a multi-city month (otherwise the lead
+    # "Minsk set the rhythm" hides week-long trips elsewhere).
+    total_m = sum(mon_city_m.values()) or 1
+    top_c = mon_city_m.most_common(1)[0] if mon_city_m else ("", 0)
+    cities_significant = sum(1 for c, n in mon_city_m.items() if n / total_m >= 0.12)
+    multi_city = bool(top_c[0]) and (top_c[1] / total_m) < 0.55
+    second_c = mon_city_m.most_common(2)[1] if len(mon_city_m) >= 2 else ("", 0)
+
+    salt = yr * 12 + mo
+
+    bits: list[str] = []
+    # Lead: shape depends on geographic spread.  Skip the travel routine
+    # phrase when we're already saying "on the move" — otherwise the line
+    # reads "on the move ... on the move ...".
+    suppress_travel = False
+    if multi_city and second_c[0]:
+        if cities_significant >= 3:
+            bits.append(
+                f"Across <strong>{cities_significant}</strong> cities, "
+                f"anchored in <strong>{_esc(top_c[0])}</strong>"
+            )
+        else:
+            bits.append(
+                f"Split between <strong>{_esc(top_c[0])}</strong> "
+                f"and <strong>{_esc(second_c[0])}</strong>"
+            )
+        suppress_travel = True
+        # Append routine flavour, but not the travel one
+        if routines:
+            for b, _ in routines:
+                if suppress_travel and b == "travel":
+                    continue
+                ph = ACTIVITY_BUCKETS[b]["phrases"]
+                bits.append(ph[salt % len(ph)])
+                break
+    elif top_c[0] and routines:
+        b, _ = routines[0]
+        ph = ACTIVITY_BUCKETS[b]["phrases"]
+        bits.append(f"<strong>{_esc(top_c[0])}</strong> set the rhythm — {ph[salt % len(ph)]}")
+    elif top_c[0]:
+        bits.append(f"<strong>{_esc(top_c[0])}</strong> held most of it")
+    elif routines:
+        b, _ = routines[0]
+        ph = ACTIVITY_BUCKETS[b]["phrases"]
+        bits.append(ph[salt % len(ph)].capitalize())
+
+    # Landmarks — pick top 2 by count, name venues.  Annotate the venue's
+    # city when it differs from the month's lead city, so cross-city
+    # months don't read as if everything happened in one place.
+    lead_city = top_c[0] if top_c and not multi_city else ""
+    landmark_bits: list[str] = []
+    for b, n in landmarks[:2]:
+        ph = ACTIVITY_BUCKETS[b]["phrases"]
+        phrase = ph[(yr + mo + len(b)) % len(ph)]
+        top_v = bucket_venue[b].most_common(1)
+        if top_v and top_v[0][0]:
+            venue = top_v[0][0]
+            v_city = venue_city[venue].most_common(1)[0][0] if venue_city.get(venue) else ""
+            label = f"<strong>{_esc(venue)}</strong>"
+            # Only annotate if multi-city month and the venue is in a
+            # different city than the lead — keeps single-city months clean.
+            if v_city and lead_city and v_city != lead_city:
+                label += f" <span style=\"color:var(--muted);font-style:normal;font-size:.85em;\">· {_esc(v_city)}</span>"
+            elif v_city and multi_city:
+                label += f" <span style=\"color:var(--muted);font-style:normal;font-size:.85em;\">· {_esc(v_city)}</span>"
+            if n >= 2:
+                landmark_bits.append(f"{phrase} {label} ({n}×)")
+            else:
+                landmark_bits.append(f"{phrase} {label}")
+        elif n >= 2:
+            landmark_bits.append(f"{n} {b}")
+    if landmark_bits:
+        bits.append("with " + " and ".join(landmark_bits[:2]))
+
+    # Fallback if nothing else
+    if not bits:
+        top_v = mon_venue_m.most_common(1)[0] if mon_venue_m else ("", 0)
+        if top_v[0]:
+            bits.append(f"<strong>{_esc(top_v[0])}</strong> the recurring stop ({top_v[1]}×)")
+        else:
+            bits.append("A month in the rotation")
+
+    # Mood from shouts
+    mp = _mood_phrase(_mood_score(shouts_m), yr, mo)
+    if mp:
+        bits.append(mp)
+
+    narr = ", ".join(bits) + "."
+    return narr[0].upper() + narr[1:]
+
+
+def _find_nearest_photo(yr: int, mo: int,
+                        photos_by_yr_mo: dict[tuple[int, int], list[dict]],
+                        months_full: list[str]) -> tuple[dict | None, str]:
+    """Walk outward from `mo` looking for the nearest month with a photo
+    in the same year. Returns (photo, label) — label is empty if photo
+    is from the requested month, else 'from {month}'."""
+    own = photos_by_yr_mo.get((yr, mo))
+    if own:
+        return own[0], ""
+    for delta in range(1, 12):
+        for d in (-delta, delta):
+            cm = mo + d
+            if cm < 1 or cm > 12:
+                continue
+            ph = photos_by_yr_mo.get((yr, cm))
+            if ph:
+                return ph[0], f"from {months_full[cm - 1]}"
+    return None, ""
 
 
 PAGE_TEMPLATE = r"""<!DOCTYPE html>
@@ -138,6 +521,17 @@ a{{color:var(--teal);}}
 .kpi-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:7px;}}
 .kpi-sub{{font-size:.66rem;color:var(--text);margin-top:5px;opacity:.7;}}
 
+/* ── Year clock — polar bar at top of timeline ── */
+.yearclock-wrap{{display:flex;flex-direction:column;align-items:center;gap:10px;margin:0 auto 60px;max-width:340px;animation:rotateIn 1.6s cubic-bezier(.22,1,.36,1) both;}}
+@keyframes rotateIn{{from{{opacity:0;transform:rotate(-6deg) scale(.92);}}to{{opacity:1;transform:rotate(0) scale(1);}}}}
+.yearclock{{width:100%;max-width:300px;height:auto;display:block;}}
+.yc-wedge{{transition:opacity .2s,transform .2s;transform-origin:130px 130px;cursor:pointer;}}
+.yc-wedge:hover{{opacity:1!important;transform:scale(1.04);filter:drop-shadow(0 0 8px rgba(232,184,109,.55));}}
+.yc-mlbl{{font-family:'DM Mono',monospace;font-size:9px;fill:var(--muted);letter-spacing:.1em;text-transform:uppercase;}}
+.yc-total{{font-family:'Playfair Display',serif;font-size:30px;fill:var(--gold);font-weight:700;}}
+.yc-totlbl{{font-family:'DM Mono',monospace;font-size:7px;fill:var(--muted);letter-spacing:.18em;}}
+.yc-caption{{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);letter-spacing:.16em;text-transform:uppercase;text-align:center;}}
+
 /* ── Month timeline — alternating photo / text columns ── */
 .months{{display:flex;flex-direction:column;gap:18px;}}
 .mo{{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;padding:14px 0;opacity:0;transform:translateY(40px);transition:opacity 1s cubic-bezier(.16,1,.3,1),transform 1s cubic-bezier(.16,1,.3,1);}}
@@ -146,7 +540,14 @@ a{{color:var(--teal);}}
 .mo:nth-child(even) > *{{direction:ltr;}}
 .mo-photo{{aspect-ratio:4/3;border-radius:12px;background-size:cover;background-position:center;background-color:rgba(255,255,255,.03);position:relative;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.45);}}
 .mo-photo::after{{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent 60%,rgba(0,0,0,.25));pointer-events:none;}}
-.mo-photo-empty{{aspect-ratio:4/3;border-radius:12px;background:linear-gradient(135deg,rgba(232,184,109,.05),rgba(78,201,176,.04));display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;border:1px dashed rgba(255,255,255,.06);}}
+.mo-photo-empty{{aspect-ratio:4/3;border-radius:12px;background:linear-gradient(135deg,rgba(232,184,109,.05),rgba(78,201,176,.04));display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;border:1px dashed rgba(255,255,255,.06);position:relative;overflow:hidden;}}
+.mo-photo-empty::before{{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(232,184,109,.06),transparent 70%),radial-gradient(circle at 70% 70%,rgba(78,201,176,.05),transparent 70%);}}
+.mo-photo.borrowed{{filter:grayscale(.45) brightness(.8) contrast(.95);}}
+.mo-photo.borrowed::after{{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,.55) 100%);pointer-events:none;}}
+.mo-photo-tag{{position:absolute;top:10px;left:10px;z-index:2;background:rgba(10,12,18,.7);backdrop-filter:blur(4px);padding:3px 9px;border-radius:4px;font-family:'DM Mono',monospace;font-size:.5rem;color:rgba(232,184,109,.9);letter-spacing:.16em;text-transform:uppercase;border:1px solid rgba(232,184,109,.18);}}
+.mo-mood{{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:4px 10px;background:rgba(78,201,176,.10);border:1px solid rgba(78,201,176,.25);border-radius:10px;font-family:'DM Mono',monospace;font-size:.54rem;color:var(--teal);letter-spacing:.12em;text-transform:uppercase;}}
+.mo-mood.warm{{background:rgba(232,184,109,.12);border-color:rgba(232,184,109,.3);color:var(--gold);}}
+.mo-mood.dim{{background:rgba(232,119,138,.10);border-color:rgba(232,119,138,.25);color:var(--rose);}}
 .mo-text-box{{position:relative;}}
 .mo-num{{font-family:'Playfair Display',serif;font-size:5.5rem;font-weight:900;color:rgba(232,184,109,.16);line-height:.9;letter-spacing:-.04em;position:absolute;top:-26px;right:-4px;pointer-events:none;user-select:none;}}
 .mo-name{{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1.1;margin-bottom:4px;letter-spacing:-.01em;position:relative;z-index:1;}}
@@ -632,16 +1033,43 @@ def build_page(
 
         # ── Month-by-month timeline — alternating photo / text layout ──
         # Each month is a 2-column grid; even rows reverse via direction:rtl.
-        # Empty months stay in flow as "Quiet" panels so the rhythm is honest.
+        # Empty months borrow a photo from the nearest non-empty month so
+        # the visual rhythm stays consistent.
+        months_short = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+        # Group rows by month for richer narrative composition
+        rows_by_mo: dict[int, list] = defaultdict(list)
+        for r in rows_y:
+            try:
+                ts_r = int(r.get("date", 0) or 0)
+                if not ts_r:
+                    continue
+                rows_by_mo[datetime.fromtimestamp(ts_r, tz=timezone.utc).month].append(r)
+            except ValueError:
+                continue
+
         mo_rows_html: list[str] = []
         for mo in range(1, 13):
             n = mon_y_counter.get(mo, 0)
             mo_name = months_full[mo - 1]
             mo_num = f"{mo:02d}"
+            mo_shouts = shouts_by_yr_mo.get((yr, mo), [])
+
             if n == 0:
+                # Empty month — try to borrow a photo from a nearby month
+                borrowed, tag = _find_nearest_photo(yr, mo, photos_by_yr_mo, months_full)
+                if borrowed:
+                    photo_html = (
+                        f'<div class="mo-photo borrowed" style="background-image:url(\'{_esc(borrowed["src"])}\')">'
+                        f'<div class="mo-photo-tag">↺ {_esc(tag)}</div>'
+                        f'</div>'
+                    )
+                else:
+                    photo_html = f'<div class="mo-photo-empty">Quiet · {mo_name}</div>'
                 mo_rows_html.append(
-                    f'<div class="mo empty">'
-                    f'<div class="mo-photo-empty">Quiet</div>'
+                    f'<div class="mo empty" id="mo-{mo_num}">'
+                    f'{photo_html}'
                     f'<div class="mo-text-box">'
                     f'<div class="mo-num">{mo_num}</div>'
                     f'<div class="mo-name">{mo_name}</div>'
@@ -650,30 +1078,40 @@ def build_page(
                     f'</div></div>'
                 )
                 continue
-            top_v = mon_venue[mo].most_common(1)[0] if mon_venue[mo] else ("", 0)
-            top_c = mon_city[mo].most_common(1)[0] if mon_city[mo] else ("", 0)
-            top_cat = mon_cat[mo].most_common(1)[0] if mon_cat[mo] else ("", 0)
+
             mo_photos = photos_by_yr_mo.get((yr, mo), [])
-            photo_html = (
-                f'<div class="mo-photo" style="background-image:url(\'{_esc(mo_photos[0]["src"])}\')"></div>'
-                if mo_photos else f'<div class="mo-photo-empty">{mo_name}</div>'
-            )
-            # Compose flowing narrative (single sentence, atmospheric)
-            bits: list[str] = []
-            if top_c[0]:
-                bits.append(f"<strong>{_esc(top_c[0])}</strong> held most of it")
-            if top_v[0] and top_v[1] >= 4:
-                bits.append(f"with <strong>{_esc(top_v[0])}</strong> a recurring stop ({top_v[1]}×)")
-            if top_cat[0] and top_cat[1] >= 5:
-                bits.append(f"mostly <strong>{_esc(top_cat[0])}</strong>")
-            if bits:
-                mo_narr = ", ".join(bits[:3]) + "."
-                mo_narr = mo_narr[0].upper() + mo_narr[1:]
+            if mo_photos:
+                photo_html = (
+                    f'<div class="mo-photo" style="background-image:url(\'{_esc(mo_photos[0]["src"])}\')"></div>'
+                )
             else:
-                mo_narr = "A month in the rotation."
+                # Borrow from neighbour, fall back to empty card
+                borrowed, tag = _find_nearest_photo(yr, mo, photos_by_yr_mo, months_full)
+                if borrowed:
+                    photo_html = (
+                        f'<div class="mo-photo borrowed" style="background-image:url(\'{_esc(borrowed["src"])}\')">'
+                        f'<div class="mo-photo-tag">↺ {_esc(tag)}</div>'
+                        f'</div>'
+                    )
+                else:
+                    photo_html = f'<div class="mo-photo-empty">{mo_name}</div>'
+
+            mo_narr = _compose_month_narrative(
+                yr, mo, rows_by_mo[mo],
+                mon_venue[mo], mon_city[mo], mon_cat[mo], mo_shouts,
+            )
+
+            # Mood badge
+            mood = _mood_score(mo_shouts)
+            mood_html = ""
+            if mood >= 3:
+                mood_html = '<span class="mo-mood warm">↑ bright stretch</span>'
+            elif mood >= 1:
+                mood_html = '<span class="mo-mood warm">↑ upbeat</span>'
+            elif mood <= -2:
+                mood_html = '<span class="mo-mood dim">↓ sharper edges</span>'
 
             # Pick the most memorable shout from this month
-            mo_shouts = shouts_by_yr_mo.get((yr, mo), [])
             shout_html = ""
             if mo_shouts:
                 top_shout = max(mo_shouts, key=lambda s: len(s["text"]))
@@ -688,21 +1126,24 @@ def build_page(
                     )
 
             mo_rows_html.append(
-                f'<div class="mo">'
+                f'<div class="mo" id="mo-{mo_num}">'
                 f'{photo_html}'
                 f'<div class="mo-text-box">'
                 f'<div class="mo-num">{mo_num}</div>'
                 f'<div class="mo-name">{mo_name}</div>'
                 f'<div class="mo-count">{n:,} check-ins</div>'
                 f'<div class="mo-narrative">{mo_narr}</div>'
+                f'{mood_html}'
                 f'{shout_html}'
                 f'</div></div>'
             )
+        year_clock_html = _render_year_clock(yr, mon_y_counter, months_short)
         months_section = (
             f'<section class="section" id="sec-months" data-bg-index="2" data-sec-title="Month by Month">'
             f'<div class="section-h">Month by month</div>'
             f'<div class="section-title">Twelve panels of <em>{yr}</em></div>'
-            f'<div class="section-intro">A pace check, month by month. The photo on each row is from those weeks; the line beside it picks the busiest city and the venue that kept reappearing, with a quoted shout when there was one.</div>'
+            f'<div class="section-intro">A pace check, month by month. The dial below sets the shape of the year at a glance — each wedge sized to that month\'s volume. Below, the photo on each row is from those weeks; the line beside it picks the city, the rhythm, and the landmark events that broke the routine.</div>'
+            f'<div class="yearclock-wrap">{year_clock_html}<div class="yc-caption">{yr} · ring of months · tap a wedge to jump</div></div>'
             f'<div class="months">{"".join(mo_rows_html)}</div>'
             f'</section>'
         )

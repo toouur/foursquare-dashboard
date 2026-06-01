@@ -15,7 +15,108 @@ Page content:
 """
 
 import json
+import math
+from collections import Counter
+from datetime import datetime
 from pathlib import Path
+
+
+def _hav_km(la1: float, lo1: float, la2: float, lo2: float) -> int:
+    """Great-circle distance between two lat/lon points, km."""
+    R = 6371.0
+    r = math.pi / 180
+    d_la = (la2 - la1) * r
+    d_lo = (lo2 - lo1) * r
+    a = (math.sin(d_la / 2) ** 2
+         + math.cos(la1 * r) * math.cos(la2 * r) * math.sin(d_lo / 2) ** 2)
+    return round(R * 2 * math.asin(math.sqrt(a)))
+
+
+def _summarise(flights: list[dict], iata_coords: dict) -> dict:
+    """Crunch a flights list into derived stats. Returns a dict that
+    drives the expanded KPI strip and the records section on flights.html.
+
+    Records are tuple-of-records so ties don't drop entries: we surface the
+    single longest leg, the shortest, the slowest cruise, the busiest year,
+    etc."""
+    n_total = len(flights)
+    airlines: Counter = Counter()
+    aircraft_types: Counter = Counter()
+    airports: Counter = Counter()
+    routes_dir: Counter = Counter()      # directed (A→B ≠ B→A)
+    routes_pair: Counter = Counter()     # undirected
+    countries: set = set()
+    years: Counter = Counter()
+    dow: Counter = Counter()
+    durs: list[int] = []
+    legs: list[tuple[int, dict]] = []    # (km, flight)
+
+    for f in flights:
+        if f.get("airline"):
+            airlines[f["airline"]] += 1
+        ac = f.get("aircraft_code") or f.get("aircraft") or ""
+        if ac:
+            aircraft_types[ac] += 1
+        fa, ta = f.get("from_iata", ""), f.get("to_iata", "")
+        if fa: airports[fa] += 1
+        if ta: airports[ta] += 1
+        if fa and ta:
+            routes_dir[(fa, ta)] += 1
+            routes_pair[tuple(sorted([fa, ta]))] += 1
+            ca, cb = iata_coords.get(fa), iata_coords.get(ta)
+            if ca and cb and ca[0] and cb[0]:
+                km = _hav_km(ca[0], ca[1], cb[0], cb[1])
+                legs.append((km, f))
+        dur = f.get("dur_min") or 0
+        if dur > 0:
+            durs.append(dur)
+        try:
+            d = datetime.strptime(f.get("date", "")[:10], "%Y-%m-%d")
+            years[d.year] += 1
+            dow[d.weekday()] += 1   # Monday = 0
+        except (ValueError, TypeError):
+            pass
+
+    legs.sort(key=lambda x: -x[0])
+    longest = legs[0] if legs else None
+    shortest = legs[-1] if legs else None
+    busiest_yr = years.most_common(1)[0] if years else (None, 0)
+    avg_dur = round(sum(durs) / len(durs)) if durs else 0
+    longest_dur = max(durs) if durs else 0
+
+    return {
+        "n_total": n_total,
+        "n_airlines": len(airlines),
+        "n_aircraft_types": len(aircraft_types),
+        "n_airports": len(airports),
+        "n_routes_dir": len(routes_dir),
+        "n_routes_pair": len(routes_pair),
+        "avg_dur_min": avg_dur,
+        "longest_dur_min": longest_dur,
+        "busiest_year": busiest_yr,
+        "longest": {
+            "km": longest[0],
+            "from": longest[1].get("from_iata", ""),
+            "to": longest[1].get("to_iata", ""),
+            "date": longest[1].get("date", ""),
+            "dur_min": longest[1].get("dur_min", 0),
+            "airline": longest[1].get("airline", ""),
+        } if longest else None,
+        "shortest": {
+            "km": shortest[0],
+            "from": shortest[1].get("from_iata", ""),
+            "to": shortest[1].get("to_iata", ""),
+            "date": shortest[1].get("date", ""),
+            "dur_min": shortest[1].get("dur_min", 0),
+            "airline": shortest[1].get("airline", ""),
+        } if shortest else None,
+        "top_airlines": airlines.most_common(5),
+        "top_aircraft": aircraft_types.most_common(5),
+        "top_routes": routes_pair.most_common(5),
+        "top_airports": airports.most_common(5),
+        "dow": [dow.get(i, 0) for i in range(7)],
+        "years": [(y, n) for y, n in sorted(years.items())],
+    }
 
 
 def build_page(csv_path, config_dir, out_path, tmpl_path=None,
@@ -64,6 +165,95 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
     coords_json = json.dumps(iata_for_js, ensure_ascii=False).replace("</", "<\\/")
     history_json = json.dumps(flight_history, ensure_ascii=False).replace("</", "<\\/")
 
+    # Derive richer stats
+    stats = _summarise(flights_data, iata_coords)
+
+    # Build the Records HTML server-side so it's there pre-JS
+    def _fmt_dur(m):
+        return f"{m // 60}h {m % 60:02d}m" if m else "—"
+
+    def _esc(s):
+        return (str(s or "").replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace('"', "&quot;"))
+
+    longest = stats["longest"]
+    shortest = stats["shortest"]
+    busy_y, busy_n = stats["busiest_year"]
+
+    records_html = ""
+    if longest:
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">Longest leg</div>'
+            f'<div class="rec-val">{_esc(longest["from"])} → {_esc(longest["to"])}</div>'
+            f'<div class="rec-sub">{longest["km"]:,} km · {_fmt_dur(longest["dur_min"])} · {_esc(longest["date"])}</div>'
+            f'<div class="rec-tag">{_esc(longest["airline"])}</div></div>'
+        )
+    if shortest and shortest["km"] > 0:
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">Shortest leg</div>'
+            f'<div class="rec-val">{_esc(shortest["from"])} → {_esc(shortest["to"])}</div>'
+            f'<div class="rec-sub">{shortest["km"]:,} km · {_fmt_dur(shortest["dur_min"])} · {_esc(shortest["date"])}</div>'
+            f'<div class="rec-tag">{_esc(shortest["airline"])}</div></div>'
+        )
+    if busy_y:
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">Busiest year</div>'
+            f'<div class="rec-val">{busy_y}</div>'
+            f'<div class="rec-sub">{busy_n} flights</div></div>'
+        )
+    if stats["avg_dur_min"]:
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">Average duration</div>'
+            f'<div class="rec-val">{_fmt_dur(stats["avg_dur_min"])}</div>'
+            f'<div class="rec-sub">across {stats["n_total"]} legs</div></div>'
+        )
+    if stats["longest_dur_min"]:
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">Longest by time</div>'
+            f'<div class="rec-val">{_fmt_dur(stats["longest_dur_min"])}</div>'
+            f'<div class="rec-sub">single leg</div></div>'
+        )
+
+    # Top lists rendered server-side
+    def _list_block(label, items, fmt=None):
+        if not items:
+            return ""
+        lines = []
+        for i, (name, n) in enumerate(items, 1):
+            if fmt == "route":
+                name = " ↔ ".join(name)
+            lines.append(
+                f'<div class="ti-row"><span class="ti-rank">#{i}</span>'
+                f'<span class="ti-name">{_esc(name)}</span>'
+                f'<span class="ti-n">{n}×</span></div>'
+            )
+        return (
+            f'<div class="ti-block"><div class="ti-lbl">{label}</div>'
+            f'<div class="ti-list">{"".join(lines)}</div></div>'
+        )
+
+    top_block_html = (
+        _list_block("Top airlines", stats["top_airlines"])
+        + _list_block("Top routes", stats["top_routes"], fmt="route")
+        + _list_block("Top airports", stats["top_airports"])
+        + _list_block("Top aircraft", stats["top_aircraft"])
+    )
+
+    # DOW mini-bar chart (Mon..Sun)
+    dow_labels = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
+    dow = stats["dow"]
+    dow_max = max(dow) or 1
+    dow_html = ""
+    for i, label in enumerate(dow_labels):
+        v = dow[i]
+        h = round(100 * v / dow_max) if v else 4
+        dow_html += (
+            f'<div class="dow-col" title="{label}: {v} flights">'
+            f'<div class="dow-bar" style="height:{h}%"></div>'
+            f'<div class="dow-num">{v}</div>'
+            f'<div class="dow-lbl">{label}</div></div>'
+        )
+
     html = HTML.format(
         flights_json=flights_json,
         coords_json=coords_json,
@@ -71,6 +261,13 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
         total_flights=flight_history.get("total_flights", len(slim)),
         total_hours=flight_history.get("total_hours", 0),
         total_km=f"{flight_history.get('total_km', 0):,}",
+        n_airlines=stats["n_airlines"],
+        n_aircraft=stats["n_aircraft_types"],
+        n_routes=stats["n_routes_pair"],
+        n_airports=stats["n_airports"],
+        records_html=records_html,
+        top_block_html=top_block_html,
+        dow_html=dow_html,
     )
     out_path.write_text(html, encoding="utf-8")
     print(f"flights.html -> {out_path}  ({len(slim)} flights, {len(html)//1024} KB)")
@@ -108,10 +305,45 @@ a{{color:var(--teal);}}
 .hero::before{{content:'';position:absolute;top:-50%;right:-20%;width:80%;height:160%;background:radial-gradient(closest-side,rgba(232,184,109,.10),transparent);pointer-events:none;}}
 .hero h1{{font-family:'Playfair Display',serif;font-size:clamp(2rem,5vw,3.6rem);font-weight:900;background:linear-gradient(140deg,#f5d48a,#e8b86d 60%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.02em;}}
 .hero .sub{{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-top:6px;}}
-.kpi-strip{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-top:28px;max-width:1200px;}}
-.kpi{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}}
-.kpi-num{{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1;}}
+.kpi-strip{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:28px;max-width:1300px;}}
+.kpi{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;}}
+.kpi::after{{content:'';position:absolute;top:0;left:18px;right:18px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.35;}}
+.kpi-num{{font-family:'Playfair Display',serif;font-size:1.75rem;font-weight:700;color:var(--gold);line-height:1;}}
 .kpi-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:5px;}}
+.kpi-sub{{font-size:.62rem;color:var(--muted);margin-top:3px;opacity:.85;}}
+
+/* ── Records strip ── */
+.records-section{{padding:30px 28px 0;max-width:1300px;margin:0 auto;}}
+.records-h{{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.22em;color:var(--gold);margin-bottom:8px;}}
+.records-title{{font-family:'Playfair Display',serif;font-size:clamp(1.4rem,2.6vw,2.2rem);font-weight:700;color:var(--text);margin-bottom:20px;letter-spacing:-0.01em;}}
+.records-title em{{font-style:normal;color:var(--gold);font-weight:500;}}
+.records-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}}
+.rec{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;border-left:3px solid var(--teal);transition:border-left-color .2s,transform .15s;}}
+.rec:hover{{border-left-color:var(--gold);transform:translateY(-2px);}}
+.rec-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.18em;color:var(--muted);margin-bottom:6px;}}
+.rec-val{{font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--gold);line-height:1.1;letter-spacing:-.01em;}}
+.rec-sub{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text);opacity:.75;margin-top:6px;}}
+.rec-tag{{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--teal);margin-top:4px;letter-spacing:.04em;}}
+
+/* ── Top blocks ── */
+.tops-section{{padding:30px 28px 0;max-width:1300px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;}}
+.ti-block{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}}
+.ti-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);margin-bottom:12px;}}
+.ti-list{{display:flex;flex-direction:column;gap:5px;}}
+.ti-row{{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);}}
+.ti-row:last-child{{border-bottom:none;}}
+.ti-rank{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);width:22px;text-align:right;flex-shrink:0;}}
+.ti-name{{flex:1;font-size:.76rem;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
+.ti-n{{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--teal);flex-shrink:0;}}
+
+/* ── Day-of-week chart ── */
+.dow-section{{padding:30px 28px 16px;max-width:1300px;margin:0 auto;}}
+.dow-chart{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 18px 14px;display:grid;grid-template-columns:repeat(7,1fr);gap:10px;height:200px;align-items:end;}}
+.dow-col{{display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end;cursor:default;}}
+.dow-bar{{width:100%;max-width:36px;background:linear-gradient(180deg,#f5d48a 0%,#e8b86d 60%,#b97c30);border-radius:6px 6px 2px 2px;min-height:4px;transition:filter .15s;box-shadow:0 0 10px rgba(232,184,109,.18);}}
+.dow-col:hover .dow-bar{{filter:brightness(1.2);}}
+.dow-num{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text);font-weight:600;}}
+.dow-lbl{{font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);letter-spacing:.1em;}}
 
 /* ── Map ── */
 .map-section{{padding:32px 28px 16px;max-width:1400px;margin:0 auto;}}
@@ -171,8 +403,25 @@ a{{color:var(--teal);}}
     <div class="kpi"><div class="kpi-num">{total_flights}</div><div class="kpi-lbl">Flights</div></div>
     <div class="kpi"><div class="kpi-num">{total_hours} h</div><div class="kpi-lbl">In the air</div></div>
     <div class="kpi"><div class="kpi-num">{total_km} km</div><div class="kpi-lbl">Distance flown</div></div>
-    <div class="kpi"><div class="kpi-num" id="kpiAirports">—</div><div class="kpi-lbl">Unique airports</div></div>
+    <div class="kpi"><div class="kpi-num">{n_airports}</div><div class="kpi-lbl">Airports</div></div>
+    <div class="kpi"><div class="kpi-num">{n_airlines}</div><div class="kpi-lbl">Airlines</div></div>
+    <div class="kpi"><div class="kpi-num">{n_aircraft}</div><div class="kpi-lbl">Aircraft types</div></div>
+    <div class="kpi"><div class="kpi-num">{n_routes}</div><div class="kpi-lbl">Unique routes</div><div class="kpi-sub">undirected pairs</div></div>
   </div>
+</div>
+
+<div class="records-section">
+  <div class="records-h">Records</div>
+  <div class="records-title">The <em>edges</em> of the logbook</div>
+  <div class="records-grid">{records_html}</div>
+</div>
+
+<div class="tops-section">{top_block_html}</div>
+
+<div class="dow-section">
+  <div class="records-h">Cadence</div>
+  <div class="records-title">By <em>day of week</em></div>
+  <div class="dow-chart">{dow_html}</div>
 </div>
 
 <div class="map-section">
@@ -270,7 +519,6 @@ Object.entries(COORDS).forEach(([iata, [la, lo, name]]) => {{
     .addTo(airportLayer)
     .bindPopup(`<strong>${{iata}}</strong><br>${{esc(name)}}`);
 }});
-document.getElementById('kpiAirports').textContent = seenAirports.size;
 
 // Plot routes — collapsed to undirected pairs with thickness ∝ frequency
 const pairCount = new Map();
