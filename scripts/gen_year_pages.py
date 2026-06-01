@@ -299,6 +299,14 @@ def _compose_month_narrative(
     yr: int, mo: int,
     rows_m: list[dict], mon_venue_m: Counter, mon_city_m: Counter,
     mon_cat_m: Counter, shouts_m: list[dict],
+    *,
+    comp_m: Counter | None = None,
+    days_active: int = 0,
+    new_venues_m: list[tuple[str, str]] | None = None,
+    trips_starting: list[dict] | None = None,
+    trips_ending: list[dict] | None = None,
+    photos_count_m: int = 0,
+    new_countries_m: list[str] | None = None,
 ) -> str:
     """Build a richer flowing narrative for a single month — picks up the
     busiest city, the dominant routine bucket (coffee / dining / travel /
@@ -416,33 +424,155 @@ def _compose_month_narrative(
         else:
             bits.append("A month in the rotation")
 
-    # Mood from shouts
+    sentence1 = ", ".join(bits) + "."
+    sentence1 = sentence1[0].upper() + sentence1[1:]
+
+    # ── Sentence 2 — what punctuated the routine ─────────────────────
+    s2_bits: list[str] = []
+
+    # Anchor venue: 25+ check-ins is a "regular" / 10-24 is a frequent stop
+    top_v = mon_venue_m.most_common(1)[0] if mon_venue_m else ("", 0)
+    if top_v[0] and top_v[1] >= 25:
+        s2_bits.append(
+            f"<strong>{_esc(top_v[0])}</strong> kept showing up — "
+            f"{top_v[1]} check-ins, near-daily"
+        )
+    elif top_v[0] and top_v[1] >= 10:
+        s2_bits.append(
+            f"<strong>{_esc(top_v[0])}</strong> the recurring anchor ({top_v[1]}×)"
+        )
+
+    # Trips that started this month
+    if trips_starting:
+        trip_names = [t.get("name") or "trip" for t in trips_starting[:2]]
+        if len(trips_starting) == 1:
+            s2_bits.append(f"the <strong>{_esc(trip_names[0])}</strong> trip departed mid-month")
+        else:
+            s2_bits.append(
+                f"<strong>{len(trips_starting)}</strong> trips launching — "
+                + " and ".join(f"<em>{_esc(n)}</em>" for n in trip_names)
+            )
+    elif trips_ending:
+        # Only mention end if we didn't already mention a start
+        trip_names = [t.get("name") or "trip" for t in trips_ending[:2]]
+        s2_bits.append(
+            f"returning home from <strong>{_esc(trip_names[0])}</strong>"
+        )
+
+    # New countries this month
+    if new_countries_m:
+        if len(new_countries_m) == 1:
+            s2_bits.append(
+                f"a first stamp in <strong>{_esc(new_countries_m[0])}</strong>"
+            )
+        else:
+            s2_bits.append(
+                f"<strong>{len(new_countries_m)}</strong> first-time countries — "
+                + " and ".join(f"<strong>{_esc(c)}</strong>" for c in new_countries_m[:3])
+            )
+
+    # New venues discovered (only meaningful when ≥ 5)
+    new_v_list = new_venues_m or []
+    new_v_n = len(new_v_list)
+    if new_v_n >= 8:
+        s2_bits.append(f"<strong>{new_v_n}</strong> new places on the map")
+
+    sentence2 = ""
+    if s2_bits:
+        body = ", ".join(s2_bits[:3])
+        # Capitalize the first plain letter (skipping any HTML opener)
+        i = 0
+        while i < len(body) and body[i] == "<":
+            close = body.find(">", i)
+            if close < 0:
+                break
+            i = close + 1
+        if i < len(body):
+            body = body[:i] + body[i].upper() + body[i+1:]
+        sentence2 = " " + body + "."
+
+    # ── Sentence 3 — closing colour (companions / mood / volume) ─────
+    s3_bits: list[str] = []
+    top_comp = comp_m.most_common(1)[0] if comp_m else ("", 0)
+    if top_comp[0] and top_comp[1] >= 4:
+        s3_bits.append(
+            f"most often beside <strong>{_esc(top_comp[0])}</strong>"
+        )
+    elif top_comp[0] and top_comp[1] >= 2:
+        s3_bits.append(
+            f"with <strong>{_esc(top_comp[0])}</strong> in the frame"
+        )
+
+    if days_active >= 25:
+        s3_bits.append(f"<strong>{days_active}</strong> active days — barely a gap")
+    elif days_active and days_active <= 6:
+        s3_bits.append(f"only <strong>{days_active}</strong> active day{'s' if days_active != 1 else ''}")
+
+    if photos_count_m >= 20:
+        s3_bits.append(f"<strong>{photos_count_m}</strong> frames kept")
+
     mp = _mood_phrase(_mood_score(shouts_m), yr, mo)
     if mp:
-        bits.append(mp)
+        s3_bits.append(mp)
 
-    narr = ", ".join(bits) + "."
-    return narr[0].upper() + narr[1:]
+    sentence3 = ""
+    if s3_bits:
+        body = ", ".join(s3_bits[:3])
+        i = 0
+        while i < len(body) and body[i] == "<":
+            close = body.find(">", i)
+            if close < 0:
+                break
+            i = close + 1
+        if i < len(body):
+            body = body[:i] + body[i].upper() + body[i+1:]
+        sentence3 = " " + body + "."
+
+    return sentence1 + sentence2 + sentence3
 
 
-def _find_nearest_photo(yr: int, mo: int,
-                        photos_by_yr_mo: dict[tuple[int, int], list[dict]],
-                        months_full: list[str]) -> tuple[dict | None, str]:
-    """Walk outward from `mo` looking for the nearest month with a photo
-    in the same year. Returns (photo, label) — label is empty if photo
-    is from the requested month, else 'from {month}'."""
-    own = photos_by_yr_mo.get((yr, mo))
-    if own:
-        return own[0], ""
+def _pick_month_photo(yr: int, mo: int,
+                      photos_by_yr_mo: dict[tuple[int, int], list[dict]],
+                      used: set[str],
+                      months_full: list[str]) -> tuple[dict | None, str]:
+    """Pick a photo for month `mo`, avoiding ones already shown in this
+    year's timeline.  Falls back to the month's own first photo if all
+    are taken, then walks outward through neighbours.  Returns (photo,
+    label) — label is '' for own-month, 'from {month}' for borrowed."""
+    own = photos_by_yr_mo.get((yr, mo), [])
+    # 1) Prefer an unused own-month photo
+    for p in own:
+        if p["src"] not in used:
+            used.add(p["src"])
+            return p, ""
+    # 2) Borrow an unused photo from the nearest neighbour
     for delta in range(1, 12):
         for d in (-delta, delta):
             cm = mo + d
             if cm < 1 or cm > 12:
                 continue
-            ph = photos_by_yr_mo.get((yr, cm))
-            if ph:
-                return ph[0], f"from {months_full[cm - 1]}"
+            for p in photos_by_yr_mo.get((yr, cm), []):
+                if p["src"] not in used:
+                    used.add(p["src"])
+                    return p, f"from {months_full[cm - 1]}"
+    # 3) All photos used — fall through to first own/neighbour without
+    #    marking used (better duplicate than empty)
+    if own:
+        return own[0], ""
+    for delta in range(1, 12):
+        for d in (-delta, delta):
+            cm = mo + d
+            if 1 <= cm <= 12 and photos_by_yr_mo.get((yr, cm)):
+                return photos_by_yr_mo[(yr, cm)][0], f"from {months_full[cm - 1]}"
     return None, ""
+
+
+# Kept for back-compat; thin wrapper around _pick_month_photo without
+# de-duplication.  Year-page rendering uses _pick_month_photo directly.
+def _find_nearest_photo(yr: int, mo: int,
+                        photos_by_yr_mo: dict[tuple[int, int], list[dict]],
+                        months_full: list[str]) -> tuple[dict | None, str]:
+    return _pick_month_photo(yr, mo, photos_by_yr_mo, set(), months_full)
 
 
 PAGE_TEMPLATE = r"""<!DOCTYPE html>
@@ -919,6 +1049,26 @@ def build_page(
         shouts_by_year[d.year].append(rec)
         shouts_by_yr_mo[(d.year, d.month)].append(rec)
 
+    # First-seen month per venue across ENTIRE history — used to detect
+    # "new venues" within a given month for narrative flavour.
+    venue_first_seen_yr_mo: dict[str, tuple[int, int]] = {}
+    country_first_seen_yr_mo: dict[str, tuple[int, int]] = {}
+    for r in sorted(rows, key=lambda r: int(r.get("date") or 0)):
+        try:
+            ts_r = int(r.get("date") or 0)
+        except ValueError:
+            continue
+        if not ts_r:
+            continue
+        d_r = datetime.fromtimestamp(ts_r, tz=timezone.utc)
+        ym = (d_r.year, d_r.month)
+        vid = (r.get("venue_id") or r.get("venue") or "").strip()
+        if vid and vid not in venue_first_seen_yr_mo:
+            venue_first_seen_yr_mo[vid] = ym
+        country = (r.get("country") or "").strip()
+        if country and country not in country_first_seen_yr_mo:
+            country_first_seen_yr_mo[country] = ym
+
     # Trips and flights by year
     trips_by_year: dict[int, list[dict]] = defaultdict(list)
     for t in trips:
@@ -955,6 +1105,10 @@ def build_page(
         mon_venue: dict[int, Counter] = defaultdict(Counter)
         mon_city: dict[int, Counter] = defaultdict(Counter)
         mon_cat: dict[int, Counter] = defaultdict(Counter)
+        mon_comp: dict[int, Counter] = defaultdict(Counter)
+        mon_days: dict[int, set] = defaultdict(set)
+        mon_new_venues: dict[int, list[tuple[str, str]]] = defaultdict(list)
+        mon_new_countries: dict[int, list[str]] = defaultdict(list)
         try:
             from metrics import collect_companions as _cc
         except ImportError:
@@ -962,24 +1116,55 @@ def build_page(
         for r in rows_y:
             vid = (r.get("venue_id") or "").strip()
             vn = (r.get("venue") or "").strip()
+            vkey = vid or vn
             if vid and vn:
                 ven_y[(vid, vn)] += 1
             cy = (r.get("city") or "").strip()
             ct = (r.get("category") or "").strip()
+            country = (r.get("country") or "").strip()
             if cy: cty_y[cy] += 1
             if ct: cat_y[ct] += 1
-            for n in _cc(r): comp_y[n] += 1
+            comps = _cc(r)
+            for n in comps:
+                comp_y[n] += 1
             try:
                 ts_y = int(r.get("date", 0) or 0)
                 if ts_y:
                     d_y = datetime.fromtimestamp(ts_y, tz=timezone.utc)
                     mo_y = d_y.month
                     mon_y_counter[mo_y] += 1
+                    mon_days[mo_y].add(d_y.date())
                     if vn: mon_venue[mo_y][vn] += 1
                     if cy: mon_city[mo_y][cy] += 1
                     if ct: mon_cat[mo_y][ct] += 1
+                    for n in comps:
+                        mon_comp[mo_y][n] += 1
+                    # New venue / country first-seen?
+                    if vkey and venue_first_seen_yr_mo.get(vkey) == (yr, mo_y):
+                        # Only record once per venue per month
+                        if not any(v[0] == vkey for v in mon_new_venues[mo_y]):
+                            mon_new_venues[mo_y].append((vkey, vn))
+                    if country and country_first_seen_yr_mo.get(country) == (yr, mo_y):
+                        if country not in mon_new_countries[mo_y]:
+                            mon_new_countries[mo_y].append(country)
             except ValueError:
                 pass
+
+        # Trip start/end month indexes
+        trip_starts_by_mo: dict[int, list[dict]] = defaultdict(list)
+        trip_ends_by_mo:   dict[int, list[dict]] = defaultdict(list)
+        for t in trips_y:
+            try:
+                sdate = t.get("start_date") or ""
+                edate = t.get("end_date") or ""
+                if sdate:
+                    sm = int(sdate.split("-")[1])
+                    trip_starts_by_mo[sm].append(t)
+                if edate:
+                    em = int(edate.split("-")[1])
+                    trip_ends_by_mo[em].append(t)
+            except (ValueError, IndexError):
+                continue
 
         # HERO Ken-Burns photos (top 5 — most recent)
         hero_photos = photos_y[:5]
@@ -1049,6 +1234,10 @@ def build_page(
             except ValueError:
                 continue
 
+        # Track which photo URLs have been used for this year's timeline
+        # so no two months show the same image (incl. borrowed photos).
+        used_photos_this_year: set[str] = set()
+
         mo_rows_html: list[str] = []
         for mo in range(1, 13):
             n = mon_y_counter.get(mo, 0)
@@ -1057,8 +1246,10 @@ def build_page(
             mo_shouts = shouts_by_yr_mo.get((yr, mo), [])
 
             if n == 0:
-                # Empty month — try to borrow a photo from a nearby month
-                borrowed, tag = _find_nearest_photo(yr, mo, photos_by_yr_mo, months_full)
+                # Empty month — try to borrow an unused photo from a nearby month
+                borrowed, tag = _pick_month_photo(
+                    yr, mo, photos_by_yr_mo, used_photos_this_year, months_full,
+                )
                 if borrowed:
                     photo_html = (
                         f'<div class="mo-photo borrowed" style="background-image:url(\'{_esc(borrowed["src"])}\')">'
@@ -1079,26 +1270,32 @@ def build_page(
                 )
                 continue
 
-            mo_photos = photos_by_yr_mo.get((yr, mo), [])
-            if mo_photos:
+            picked, tag = _pick_month_photo(
+                yr, mo, photos_by_yr_mo, used_photos_this_year, months_full,
+            )
+            if picked and not tag:
                 photo_html = (
-                    f'<div class="mo-photo" style="background-image:url(\'{_esc(mo_photos[0]["src"])}\')"></div>'
+                    f'<div class="mo-photo" style="background-image:url(\'{_esc(picked["src"])}\')"></div>'
+                )
+            elif picked:
+                photo_html = (
+                    f'<div class="mo-photo borrowed" style="background-image:url(\'{_esc(picked["src"])}\')">'
+                    f'<div class="mo-photo-tag">↺ {_esc(tag)}</div>'
+                    f'</div>'
                 )
             else:
-                # Borrow from neighbour, fall back to empty card
-                borrowed, tag = _find_nearest_photo(yr, mo, photos_by_yr_mo, months_full)
-                if borrowed:
-                    photo_html = (
-                        f'<div class="mo-photo borrowed" style="background-image:url(\'{_esc(borrowed["src"])}\')">'
-                        f'<div class="mo-photo-tag">↺ {_esc(tag)}</div>'
-                        f'</div>'
-                    )
-                else:
-                    photo_html = f'<div class="mo-photo-empty">{mo_name}</div>'
+                photo_html = f'<div class="mo-photo-empty">{mo_name}</div>'
 
             mo_narr = _compose_month_narrative(
                 yr, mo, rows_by_mo[mo],
                 mon_venue[mo], mon_city[mo], mon_cat[mo], mo_shouts,
+                comp_m=mon_comp[mo],
+                days_active=len(mon_days[mo]),
+                new_venues_m=mon_new_venues[mo],
+                trips_starting=trip_starts_by_mo.get(mo, []),
+                trips_ending=trip_ends_by_mo.get(mo, []),
+                photos_count_m=len(photos_by_yr_mo.get((yr, mo), [])),
+                new_countries_m=mon_new_countries[mo],
             )
 
             # Mood badge

@@ -42,6 +42,24 @@ python scripts/fetch_tips.py --full --sweep --csv data/checkins.csv --out data/t
   --pix-dir C:/Users/toouur/Documents/GitHub/foursquare-data/pix/
 ```
 
+### Back-fill photos onto old check-ins
+Use to add a photo to a historical check-in (e.g. so the year-page month
+timeline shows its own picture instead of borrowing from a neighbour).
+```bash
+# Single
+python scripts/add_photo.py \
+  --token "$FOURSQUARE_TOKEN" \
+  --checkin-id 5f8a... \
+  --photo path/to/image.jpg \
+  --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json \
+  --pix-dir C:/Users/toouur/Documents/GitHub/foursquare-data/pix/
+
+# Batch (CSV with header: checkin_id,photo_path)
+python scripts/add_photo.py --token "$FOURSQUARE_TOKEN" --batch backfill.csv \
+  --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json \
+  --pix-dir C:/Users/toouur/Documents/GitHub/foursquare-data/pix/
+```
+
 ### D1 sync (manual / local)
 ```bash
 export CF_D1_TOKEN=your_token

@@ -34,22 +34,23 @@ def _hav_km(la1: float, lo1: float, la2: float, lo2: float) -> int:
 
 def _summarise(flights: list[dict], iata_coords: dict) -> dict:
     """Crunch a flights list into derived stats. Returns a dict that
-    drives the expanded KPI strip and the records section on flights.html.
-
-    Records are tuple-of-records so ties don't drop entries: we surface the
-    single longest leg, the shortest, the slowest cruise, the busiest year,
-    etc."""
+    drives the KPI strip, records, scrollable top lists, yearly
+    breakdown, tail-number list, busiest single-day records, etc."""
     n_total = len(flights)
     airlines: Counter = Counter()
     aircraft_types: Counter = Counter()
     airports: Counter = Counter()
     routes_dir: Counter = Counter()      # directed (A→B ≠ B→A)
     routes_pair: Counter = Counter()     # undirected
-    countries: set = set()
+    regs: Counter = Counter()            # tail numbers
     years: Counter = Counter()
     dow: Counter = Counter()
     durs: list[int] = []
     legs: list[tuple[int, dict]] = []    # (km, flight)
+    by_date: Counter = Counter()         # flights per date string
+    by_year_km: Counter = Counter()
+    by_year_min: Counter = Counter()
+    notes_count = 0
 
     for f in flights:
         if f.get("airline"):
@@ -57,16 +58,22 @@ def _summarise(flights: list[dict], iata_coords: dict) -> dict:
         ac = f.get("aircraft_code") or f.get("aircraft") or ""
         if ac:
             aircraft_types[ac] += 1
+        reg = (f.get("reg") or "").strip()
+        if reg:
+            regs[reg] += 1
+        if (f.get("note") or "").strip():
+            notes_count += 1
         fa, ta = f.get("from_iata", ""), f.get("to_iata", "")
         if fa: airports[fa] += 1
         if ta: airports[ta] += 1
+        leg_km = 0
         if fa and ta:
             routes_dir[(fa, ta)] += 1
             routes_pair[tuple(sorted([fa, ta]))] += 1
             ca, cb = iata_coords.get(fa), iata_coords.get(ta)
             if ca and cb and ca[0] and cb[0]:
-                km = _hav_km(ca[0], ca[1], cb[0], cb[1])
-                legs.append((km, f))
+                leg_km = _hav_km(ca[0], ca[1], cb[0], cb[1])
+                legs.append((leg_km, f))
         dur = f.get("dur_min") or 0
         if dur > 0:
             durs.append(dur)
@@ -74,8 +81,26 @@ def _summarise(flights: list[dict], iata_coords: dict) -> dict:
             d = datetime.strptime(f.get("date", "")[:10], "%Y-%m-%d")
             years[d.year] += 1
             dow[d.weekday()] += 1   # Monday = 0
+            by_date[f.get("date", "")[:10]] += 1
+            if leg_km:
+                by_year_km[d.year] += leg_km
+            if dur:
+                by_year_min[d.year] += dur
         except (ValueError, TypeError):
             pass
+
+    # Same-day connections — count flights that share a date and where the
+    # arrival of one is the departure of the next (loose definition).
+    by_date_flights: dict[str, list[dict]] = {}
+    for f in flights:
+        d = f.get("date", "")[:10]
+        if d:
+            by_date_flights.setdefault(d, []).append(f)
+    same_day_conn = 0
+    for d, fs in by_date_flights.items():
+        # If 2+ flights on the same date, count the connecting pairs
+        if len(fs) >= 2:
+            same_day_conn += len(fs) - 1
 
     legs.sort(key=lambda x: -x[0])
     longest = legs[0] if legs else None
@@ -83,6 +108,17 @@ def _summarise(flights: list[dict], iata_coords: dict) -> dict:
     busiest_yr = years.most_common(1)[0] if years else (None, 0)
     avg_dur = round(sum(durs) / len(durs)) if durs else 0
     longest_dur = max(durs) if durs else 0
+    busiest_day = by_date.most_common(1)[0] if by_date else (None, 0)
+
+    # First / latest flight (by date string)
+    flights_dated = [f for f in flights if f.get("date")]
+    flights_dated.sort(key=lambda f: f["date"])
+    first_flight = flights_dated[0] if flights_dated else None
+    latest_flight = flights_dated[-1] if flights_dated else None
+
+    # Approx CO2: passenger aviation ≈ 0.115 kg CO2e per km (economy)
+    total_km = sum(by_year_km.values())
+    co2_kg = round(total_km * 0.115)
 
     return {
         "n_total": n_total,
@@ -91,9 +127,16 @@ def _summarise(flights: list[dict], iata_coords: dict) -> dict:
         "n_airports": len(airports),
         "n_routes_dir": len(routes_dir),
         "n_routes_pair": len(routes_pair),
+        "n_regs": len(regs),
+        "n_notes": notes_count,
+        "n_same_day_conn": same_day_conn,
+        "co2_kg": co2_kg,
         "avg_dur_min": avg_dur,
         "longest_dur_min": longest_dur,
         "busiest_year": busiest_yr,
+        "busiest_day": busiest_day,
+        "first_flight": first_flight,
+        "latest_flight": latest_flight,
         "longest": {
             "km": longest[0],
             "from": longest[1].get("from_iata", ""),
@@ -110,12 +153,18 @@ def _summarise(flights: list[dict], iata_coords: dict) -> dict:
             "dur_min": shortest[1].get("dur_min", 0),
             "airline": shortest[1].get("airline", ""),
         } if shortest else None,
-        "top_airlines": airlines.most_common(5),
-        "top_aircraft": aircraft_types.most_common(5),
-        "top_routes": routes_pair.most_common(5),
-        "top_airports": airports.most_common(5),
+        # Full sorted lists for scrollable display
+        "all_airlines": airlines.most_common(),
+        "all_aircraft": aircraft_types.most_common(),
+        "all_routes": routes_pair.most_common(),
+        "all_airports": airports.most_common(),
+        "all_regs": regs.most_common(),
+        "busiest_days": by_date.most_common(10),
         "dow": [dow.get(i, 0) for i in range(7)],
-        "years": [(y, n) for y, n in sorted(years.items())],
+        "years": [
+            (y, n, by_year_km.get(y, 0), by_year_min.get(y, 0))
+            for y, n in sorted(years.items())
+        ],
     }
 
 
@@ -213,9 +262,41 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
             f'<div class="rec-val">{_fmt_dur(stats["longest_dur_min"])}</div>'
             f'<div class="rec-sub">single leg</div></div>'
         )
+    if stats["busiest_day"][0]:
+        d, n = stats["busiest_day"]
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">Busiest single day</div>'
+            f'<div class="rec-val">{n} flights</div>'
+            f'<div class="rec-sub">{_esc(d)}</div></div>'
+        )
+    if stats["first_flight"]:
+        ff = stats["first_flight"]
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">First flight on record</div>'
+            f'<div class="rec-val">{_esc(ff.get("from_iata",""))} → {_esc(ff.get("to_iata",""))}</div>'
+            f'<div class="rec-sub">{_esc(ff.get("date",""))} · {_esc(ff.get("airline",""))}</div></div>'
+        )
+    if stats["co2_kg"]:
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">CO₂ footprint</div>'
+            f'<div class="rec-val">~{stats["co2_kg"]:,} kg</div>'
+            f'<div class="rec-sub">at 0.115 kg / passenger-km</div></div>'
+        )
+    if stats["n_same_day_conn"]:
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">Same-day connections</div>'
+            f'<div class="rec-val">{stats["n_same_day_conn"]}</div>'
+            f'<div class="rec-sub">layover legs</div></div>'
+        )
+    if stats["n_regs"]:
+        records_html += (
+            f'<div class="rec"><div class="rec-lbl">Distinct airframes</div>'
+            f'<div class="rec-val">{stats["n_regs"]}</div>'
+            f'<div class="rec-sub">tail numbers seen</div></div>'
+        )
 
-    # Top lists rendered server-side
-    def _list_block(label, items, fmt=None):
+    # Full scrollable top lists rendered server-side
+    def _list_block(label, items, fmt=None, count_label="×"):
         if not items:
             return ""
         lines = []
@@ -225,19 +306,58 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
             lines.append(
                 f'<div class="ti-row"><span class="ti-rank">#{i}</span>'
                 f'<span class="ti-name">{_esc(name)}</span>'
-                f'<span class="ti-n">{n}×</span></div>'
+                f'<span class="ti-n">{n}{count_label}</span></div>'
             )
         return (
-            f'<div class="ti-block"><div class="ti-lbl">{label}</div>'
-            f'<div class="ti-list">{"".join(lines)}</div></div>'
+            f'<div class="ti-block">'
+            f'<div class="ti-lbl">{label} <span class="ti-total">· {len(items)}</span></div>'
+            f'<div class="ti-list ti-scroll">{"".join(lines)}</div>'
+            f'</div>'
         )
 
     top_block_html = (
-        _list_block("Top airlines", stats["top_airlines"])
-        + _list_block("Top routes", stats["top_routes"], fmt="route")
-        + _list_block("Top airports", stats["top_airports"])
-        + _list_block("Top aircraft", stats["top_aircraft"])
+        _list_block(f"All airlines", stats["all_airlines"])
+        + _list_block(f"All routes", stats["all_routes"], fmt="route")
+        + _list_block(f"All airports", stats["all_airports"])
+        + _list_block(f"All aircraft", stats["all_aircraft"])
     )
+
+    # Tail numbers (registrations) block
+    tail_block_html = _list_block("Tail numbers", stats["all_regs"]) if stats["all_regs"] else ""
+
+    # Busiest days list
+    busy_days_html = ""
+    if stats["busiest_days"]:
+        rows_html = "".join(
+            f'<div class="ti-row"><span class="ti-rank">#{i}</span>'
+            f'<span class="ti-name">{_esc(d)}</span>'
+            f'<span class="ti-n">{n} flights</span></div>'
+            for i, (d, n) in enumerate(stats["busiest_days"], 1)
+        )
+        busy_days_html = (
+            f'<div class="ti-block">'
+            f'<div class="ti-lbl">Busiest days <span class="ti-total">· top {len(stats["busiest_days"])}</span></div>'
+            f'<div class="ti-list ti-scroll">{rows_html}</div></div>'
+        )
+
+    # Yearly breakdown table
+    yearly_html = ""
+    if stats["years"]:
+        max_n = max(n for _, n, *_ in stats["years"]) or 1
+        rows_html = []
+        for y, n, km, mins in stats["years"]:
+            pct = round(100 * n / max_n)
+            hours = round(mins / 60, 1) if mins else 0
+            rows_html.append(
+                f'<div class="yr-row">'
+                f'<div class="yr-yr">{y}</div>'
+                f'<div class="yr-bar-wrap"><div class="yr-bar" style="width:{pct}%"></div></div>'
+                f'<div class="yr-n">{n}</div>'
+                f'<div class="yr-km">{km:,} km</div>'
+                f'<div class="yr-h">{hours} h</div>'
+                f'</div>'
+            )
+        yearly_html = "".join(rows_html)
 
     # DOW mini-bar chart (Mon..Sun)
     dow_labels = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
@@ -265,8 +385,14 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
         n_aircraft=stats["n_aircraft_types"],
         n_routes=stats["n_routes_pair"],
         n_airports=stats["n_airports"],
+        n_regs=stats["n_regs"],
+        co2_kg=f"{stats['co2_kg']:,}",
+        same_day_conn=stats["n_same_day_conn"],
         records_html=records_html,
         top_block_html=top_block_html,
+        tail_block_html=tail_block_html,
+        busy_days_html=busy_days_html,
+        yearly_html=yearly_html,
         dow_html=dow_html,
     )
     out_path.write_text(html, encoding="utf-8")
@@ -326,15 +452,36 @@ a{{color:var(--teal);}}
 .rec-tag{{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--teal);margin-top:4px;letter-spacing:.04em;}}
 
 /* ── Top blocks ── */
-.tops-section{{padding:30px 28px 0;max-width:1300px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;}}
+.tops-section{{padding:30px 28px 0;max-width:1300px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}}
 .ti-block{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}}
-.ti-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);margin-bottom:12px;}}
+.ti-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);margin-bottom:12px;display:flex;align-items:baseline;justify-content:space-between;gap:8px;}}
+.ti-total{{color:var(--muted);font-size:.92em;letter-spacing:.08em;}}
 .ti-list{{display:flex;flex-direction:column;gap:5px;}}
+/* Scrollable variant — caps height, custom scrollbar styling */
+.ti-scroll{{max-height:280px;overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:rgba(232,184,109,.4) transparent;}}
+.ti-scroll::-webkit-scrollbar{{width:6px;}}
+.ti-scroll::-webkit-scrollbar-track{{background:transparent;}}
+.ti-scroll::-webkit-scrollbar-thumb{{background:rgba(232,184,109,.35);border-radius:3px;}}
+.ti-scroll::-webkit-scrollbar-thumb:hover{{background:rgba(232,184,109,.55);}}
 .ti-row{{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);}}
 .ti-row:last-child{{border-bottom:none;}}
 .ti-rank{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);width:22px;text-align:right;flex-shrink:0;}}
 .ti-name{{flex:1;font-size:.76rem;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
 .ti-n{{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--teal);flex-shrink:0;}}
+
+/* ── Yearly breakdown ── */
+.yearly-section{{padding:30px 28px 0;max-width:1300px;margin:0 auto;}}
+.yearly-wrap{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;}}
+.yearly-head{{display:grid;grid-template-columns:60px 1fr 70px 110px 70px;gap:14px;align-items:baseline;font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:.18em;color:var(--muted);padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:6px;}}
+.yr-row{{display:grid;grid-template-columns:60px 1fr 70px 110px 70px;gap:14px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03);}}
+.yr-row:last-child{{border-bottom:none;}}
+.yr-yr{{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--gold);}}
+.yr-bar-wrap{{height:8px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden;}}
+.yr-bar{{height:100%;background:linear-gradient(90deg,#f5d48a,#e8b86d 60%,#b97c30);box-shadow:0 0 8px rgba(232,184,109,.25);border-radius:4px;transition:width .4s;}}
+.yr-n{{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--text);font-weight:600;text-align:right;}}
+.yr-km{{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--text);text-align:right;opacity:.85;}}
+.yr-h{{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--teal);text-align:right;}}
+@media(max-width:600px){{.yearly-head,.yr-row{{grid-template-columns:42px 1fr 50px 80px 50px;gap:8px;}}}}
 
 /* ── Day-of-week chart ── */
 .dow-section{{padding:30px 28px 16px;max-width:1300px;margin:0 auto;}}
@@ -407,6 +554,9 @@ a{{color:var(--teal);}}
     <div class="kpi"><div class="kpi-num">{n_airlines}</div><div class="kpi-lbl">Airlines</div></div>
     <div class="kpi"><div class="kpi-num">{n_aircraft}</div><div class="kpi-lbl">Aircraft types</div></div>
     <div class="kpi"><div class="kpi-num">{n_routes}</div><div class="kpi-lbl">Unique routes</div><div class="kpi-sub">undirected pairs</div></div>
+    <div class="kpi"><div class="kpi-num">{n_regs}</div><div class="kpi-lbl">Airframes</div><div class="kpi-sub">distinct tails</div></div>
+    <div class="kpi"><div class="kpi-num">{co2_kg}</div><div class="kpi-lbl">kg CO₂e</div><div class="kpi-sub">est. economy</div></div>
+    <div class="kpi"><div class="kpi-num">{same_day_conn}</div><div class="kpi-lbl">Connections</div><div class="kpi-sub">same-day layovers</div></div>
   </div>
 </div>
 
@@ -416,7 +566,16 @@ a{{color:var(--teal);}}
   <div class="records-grid">{records_html}</div>
 </div>
 
-<div class="tops-section">{top_block_html}</div>
+<div class="yearly-section">
+  <div class="records-h">Yearly breakdown</div>
+  <div class="records-title">Flights, distance &amp; hours by <em>year</em></div>
+  <div class="yearly-wrap">
+    <div class="yearly-head"><div>Year</div><div></div><div>Flights</div><div>Distance</div><div>Hours</div></div>
+    {yearly_html}
+  </div>
+</div>
+
+<div class="tops-section">{top_block_html}{tail_block_html}{busy_days_html}</div>
 
 <div class="dow-section">
   <div class="records-h">Cadence</div>
