@@ -1,27 +1,57 @@
 # Foursquare Check-in Dashboard
 
+A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check-ins** spanning **15 years and 63 countries** — interactive maps, automatic trip detection, live full-text search, and a 21,000-photo gallery. Built with Python and a serverless Cloudflare stack, it rebuilds itself every hour with zero manual steps.
+
 <div align="center">
+
+**[🔗 Live Demo](https://4sq.pages.dev/)**
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Cloudflare Pages](https://img.shields.io/badge/deployed%20on-Cloudflare%20Pages-orange?style=flat-square&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
+[![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%C2%B7%20D1%20%C2%B7%20R2-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
 [![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/features/actions)
 
 </div>
 
-<div align="center">
-
-### Support the project
-
-<a href="https://wise.com/pay/me/andreip1207"><img src="https://img.shields.io/badge/Donate%20via-Wise-9fe870?style=for-the-badge&logo=wise&logoColor=black" alt="Donate via Wise" height="36"></a><br><a href="https://boosty.to/toouur/donate"><img src="https://img.shields.io/badge/Donate%20on-Boosty-f15f2c?style=for-the-badge&logo=boosty&logoColor=white" alt="Donate on Boosty" height="36"></a>
-
-</div>
+![Check-in dashboard](assets/screenshot-dashboard.png)
 
 ---
 
-A self-updating personal dashboard for your Foursquare/Swarm check-in history.
+## Highlights
 
-**Features:** heatmap + dot map + country flag map · charts by year / month / hour / day of week ·
+- **66,754 check-ins · 32,858 unique venues · 63 countries · 574,332 km** (14× around Earth) of personal location history, visualised across 15+ pages.
+- **Live full-text search** over venues, cities, trips, tips, and companions — queried on demand from a **Cloudflare D1** (SQLite) database, no multi-MB static index.
+- **Bidirectional infinite-scroll feed** over all 66k check-ins: cursor-based D1 pagination, on-demand gap fill, and contiguous-array virtual scroll.
+- **Automatic trip detection** — an 8-stage heuristic reconstructs 160 trips from raw check-in sequences (transport-hub departure/arrival scans, home-return extensions, auto-generated names).
+- **21,000+ photos** served from **Cloudflare R2** (zero-egress object storage) with lazy loading, country/city filters, and a lightbox.
+- **Hourly self-updating pipeline** — GitHub Actions fetches new check-ins, rebuilds every HTML page, and incrementally syncs to D1; a Cloudflare Worker can trigger near-instant rebuilds within ~1 min of a new check-in.
+- **Canonical data-normalization layer** — multilingual city/country resolution (Cyrillic, transliteration, blank-city centroid inference) driven by version-controlled config, validated by a CI merge gate.
+- Deep analytics: activity heatmaps, Hour×Category / Day-of-Week×Category matrices in local time, country hour profiles, shout text-mining (per-year language mix), streaks, venue loyalty, and revisit intervals.
+
+## Screenshots
+
+| Trip journal | Statistics |
+|---|---|
+| [![Trips](assets/screenshot-trips.png)](assets/screenshot-trips.png) | [![Statistics](assets/screenshot-stats.png)](assets/screenshot-stats.png) |
+| **Check-in feed** | **Photo gallery** |
+| [![Feed](assets/screenshot-feed.png)](assets/screenshot-feed.png) | [![Photos](assets/screenshot-photos.png)](assets/screenshot-photos.png) |
+| **Live search (D1-backed)** | |
+| [![Search](assets/screenshot-search.png)](assets/screenshot-search.png) | |
+
+## Tech stack
+
+**Backend / data:** Python 3.9+ (pandas-free, stdlib `zoneinfo`), `requests`, `pyyaml`, `timezonefinder` · Foursquare API
+**Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed APIs), D1 (SQLite at the edge), R2 (photo storage), Workers (check-in poller)
+**Front-end (CDN):** Leaflet (maps), Chart.js, Twemoji
+**CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, plus ~18 on-demand maintenance workflows
+
+> The full feature list, architecture, and setup instructions are below.
+
+---
+
+## Features
+
+heatmap + dot map + country flag map · charts by year / month / hour / day of week ·
 GitHub-style activity heatmap · travel timeline (Gantt) · trip journal with per-trip maps ·
 trip analytics (duration distribution, countries per trip, longest trips leaderboard, furthest destination) ·
 distance travelled per year · activity streaks · category mix drift · new countries timeline ·
@@ -780,3 +810,19 @@ After the raw sequence is found, several extension passes run in order:
 8. **Bicycle departure extension** — for trips tagged `"bicycle"` in `trip_tags.json`, scans backward up to 4h for outdoor/road check-ins (parks, trails, roads, etc.) belonging to the departure ride.
 
 Trip names and tags are looked up by `_name_ts` — the timestamp of the first extended check-in, evaluated after steps 1–7 but before step 8.
+
+---
+
+## License
+
+Licensed under the [Apache 2.0](LICENSE) license.
+
+## Support the project
+
+If you find this project useful, you can support its development:
+
+<div align="center">
+
+<a href="https://wise.com/pay/me/andreip1207"><img src="https://img.shields.io/badge/Donate%20via-Wise-9fe870?style=for-the-badge&logo=wise&logoColor=black" alt="Donate via Wise" height="36"></a>&nbsp;&nbsp;<a href="https://boosty.to/toouur/donate"><img src="https://img.shields.io/badge/Donate%20on-Boosty-f15f2c?style=for-the-badge&logo=boosty&logoColor=white" alt="Donate on Boosty" height="36"></a>
+
+</div>
