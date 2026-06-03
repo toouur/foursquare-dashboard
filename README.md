@@ -45,7 +45,24 @@ A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check
 **Front-end (CDN):** Leaflet (maps), Chart.js, Twemoji
 **CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, plus ~18 on-demand maintenance workflows
 
-> The full feature list, architecture, and setup instructions are below.
+## Table of contents
+
+- [Features](#features)
+- [Project layout](#project-layout)
+- [Setup (~10 minutes)](#setup-10-minutes)
+- [Running locally](#running-locally)
+- [Configuration](#configuration)
+- [Canonical normalization layer](#canonical-normalization-layer)
+- [City normalization pipeline](#city-normalization-pipeline)
+- [Full re-fetch and data integrity](#full-re-fetch-and-data-integrity)
+- [Photos](#photos)
+- [Tips](#tips)
+- [Search (Cloudflare D1 + Pages Functions)](#search-cloudflare-d1--pages-functions)
+- [Maintenance operations](#maintenance-operations)
+- [Data flow](#data-flow)
+- [Dependencies](#dependencies)
+- [Changing the update schedule](#changing-the-update-schedule)
+- [How trip detection works](#how-trip-detection-works)
 
 ---
 
@@ -71,6 +88,9 @@ lazy loading, lightbox, and inline tip photos ·
 ---
 
 ## Project layout
+
+<details>
+<summary><strong>Click to expand the full file tree</strong> (~90 scripts, CI workflows, configs &amp; generated pages)</summary>
 
 ```
 .
@@ -196,6 +216,8 @@ lazy loading, lightbox, and inline tip photos ·
 ├── netlify.toml              # Netlify config (builds disabled — CI-only deploys)
 └── wrangler.toml             # Cloudflare Pages + D1 binding config
 ```
+
+</details>
 
 ---
 
@@ -729,7 +751,7 @@ For tips / ratings / lists / trips that drifted (e.g. after a Foursquare data ex
 
 ### Venue-metadata hygiene
 
-- `refresh-venue` — re-fetches one venue's metadata from Foursquare (when a venue gets renamed/moved and the hourly diff misses it)
+- `refresh-venue` — re-fetches one venue's metadata from Foursquare (when a venue gets renamed/moved and the hourly `update-dashboard.yml` incremental diff misses it)
 - `fix-overlaps` — runs `enrich_overlaps.py` / `fix_overlap_dupes.py` to backfill or clean `overlaps_*` fields on older rows
 - `add-venue-tip` / `add-venue-rating` — post a tip or set like/okay/dislike on a venue via the Foursquare API, then sync to D1
 
