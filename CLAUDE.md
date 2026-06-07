@@ -177,21 +177,58 @@ python -m http.server 8000
   - `config/country_aliases.json` — raw native country name → English canonical (was inline `CTRY_NORM` in gen_tips.py)
   - `config/country_flags.json` — English country → ISO 3166-1 alpha-2 (was inline CTRY_CODE/ISO2 dicts in 9 templates + gen_photos.py)
   - `config/category_icons.json` — Foursquare category → `[emoji, color]` (was inline CAT_ICON dicts in 6 templates)
-- Config (other): `config/city_merge.yaml`, `config/city_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
+- Config (other): `config/city_merge.yaml`, `config/city_fixes.json`, `config/venue_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
 
 ## City normalization pipeline (priority order)
 
+0. `venue_fixes.json` — per-venue_id `{city, country}` override (HIGHEST priority).
+   One entry pins a venue's city/country for **all past + future** check-ins.
 1. `country_fixes.json` — per-ts country override.
-2. `city_fixes.json` — per-ts (or per-venue 24-char hex id) city override.
+2. `city_fixes.json` — per-ts city override.
 3. `city_merge.yaml` — raw→canonical string map for non-blank rows.
 4. `fill_city_inferred.py` — centroid Haversine match for blank rows; sets `city_inferred=1` in D1.
+
+Note: `city_fixes.json` is applied **only by unix-ts** in `transform.py`. The
+~1.6k 24-char-hex keys in it are `checkin_id`s used **only** by
+`check_city_drift.py` to suppress already-reviewed rows — they are NOT applied as
+overrides at build. To override a single venue use `venue_fixes.json` (by
+venue_id); to override a single check-in use a ts key in `city_fixes.json`.
 
 `config/city_canonical.yaml` is the single source of truth for blank-row recovery:
 `canonical_map` (raw→canonical), `valid_canonical` (whitelist), `large_canonical`
 (km-bucket override), `thresholds`, `skip_set`, `skip_patterns`.
 `scripts/check_city_config.py` is a CI gate verifying canonical_map values and
-thresholds keys all exist in `valid_canonical`, and that city_fixes.json keys are
-numeric ts or 24-char hex ids.
+thresholds keys all exist in `valid_canonical`, city_fixes.json keys are
+numeric ts or 24-char hex ids, and venue_fixes.json keys are 24-char hex with a
+non-empty city/country.
+
+### Gateway check-in rule (border crossings, airports)
+
+Border/airport check-ins are "gateways" — Foursquare often tags them with a city
+or country from the *wrong* side (e.g. "Belarus-Poland Border Crossing" comes back
+`city=Terespol` (PL) but `country=Belarus`). Standard rule:
+
+- **Assign each gateway venue to the PHYSICAL side it sits on** (decide by its
+  coordinates), then let the trip's own sequence of distinct posts show the
+  direction. Do **not** try to attribute a crossing to "the side you enter": a
+  per-venue fix is one venue_id → one fixed city/country applied to *every*
+  check-in both ways, so it cannot know travel direction. Tagging by direction
+  would also double up (entering Belarus you'd get the crossing *and* the first
+  Belarusian post both as Brest) and would be wrong on the return trip.
+- Example (Terespol↔Brest on the Bug, three venues west→east): `Terespol Border
+  Crossing` (lng 23.644) → Terespol, Poland; `Belarus-Poland Border Crossing`
+  (lng 23.653, mid-river/on the line) → Terespol, Poland (tie on the line, pinned
+  to PL so PL↔BY reads as one clean transition in both directions and never
+  doubles the real Brest post); `Пункт пропуска «Брест»` (lng 23.660) → Brest,
+  Belarus.
+- Implement each gateway as a **single `venue_fixes.json` entry** (by venue_id), so
+  every historical and future check-in at that venue is consistent automatically —
+  do **not** add per-ts entries per trip.
+- Transit points *between* gateways (motorway/rest-area venues with blank city)
+  would otherwise snap to the nearest big-city centroid (≤90 km in
+  `transform.build_blank_city_resolver`). Pin them to the nearest real town with a
+  per-ts `city_fixes.json` entry (these venues span a whole road, so a venue_id
+  rule would be wrong).
 
 ### Blank-city recovery loop
 ```bash

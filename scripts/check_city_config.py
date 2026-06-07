@@ -21,6 +21,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 ROOT = Path(__file__).resolve().parent.parent
 CANONICAL = ROOT / 'config' / 'city_canonical.yaml'
 CITY_FIXES = ROOT / 'config' / 'city_fixes.json'
+VENUE_FIXES = ROOT / 'config' / 'venue_fixes.json'
 CITY_MERGE = ROOT / 'config' / 'city_merge.yaml'
 
 errors: list[str] = []
@@ -68,6 +69,28 @@ def check_city_fixes():
         errors.append(f'city_fixes.json: values with leading/trailing whitespace: {bad_vals[:5]}')
 
 
+def check_venue_fixes():
+    if not VENUE_FIXES.exists():
+        return
+    raw = json.loads(VENUE_FIXES.read_text(encoding='utf-8'))
+    hex_re = re.compile(r'^[0-9a-f]{24}$')
+    for k, v in raw.items():
+        if k.startswith('_'):
+            continue
+        if not hex_re.match(k):
+            errors.append(f'venue_fixes.json: key is not a 24-char hex venue_id: {k!r}')
+            continue
+        if not isinstance(v, dict):
+            errors.append(f'venue_fixes.json: value for {k!r} must be an object')
+            continue
+        if not v.get('city') and not v.get('country'):
+            errors.append(f'venue_fixes.json: {k!r} has neither city nor country')
+        for fld in ('city', 'country'):
+            val = v.get(fld)
+            if val is not None and (not isinstance(val, str) or val != val.strip() or not val):
+                errors.append(f'venue_fixes.json: {k!r} {fld} must be a non-empty trimmed string')
+
+
 def check_city_merge():
     cm = yaml.safe_load(CITY_MERGE.read_text(encoding='utf-8'))
     if not isinstance(cm, dict):
@@ -81,6 +104,7 @@ def check_city_merge():
 def main() -> int:
     check_canonical()
     check_city_fixes()
+    check_venue_fixes()
     check_city_merge()
 
     for w in warnings:

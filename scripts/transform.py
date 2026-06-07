@@ -169,12 +169,14 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
 
     country_fixes = _load_file("country_fixes.json")
     city_fixes    = _load_file("city_fixes.json")   # per-timestamp city overrides
+    venue_fixes   = _load_file("venue_fixes.json")  # per-venue_id city/country overrides
     city_merge    = _load_file("city_merge.yaml")
     cats_raw      = _load_file("categories.json")
 
     return {
         "country_fixes":   country_fixes,
         "city_fixes":      city_fixes,
+        "venue_fixes":     venue_fixes,
         "city_merge":      city_merge,
         "category_groups": cats_raw.get("category_groups", {}),
         "explorer_groups": cats_raw.get("explorer_groups", {}),
@@ -197,14 +199,29 @@ def apply_transforms(
     """
     country_fixes = mappings.get("country_fixes", {})
     city_fixes    = mappings.get("city_fixes", {})
+    venue_fixes   = mappings.get("venue_fixes", {})
     city_merge    = mappings.get("city_merge", {})
 
     blank_filled  = 0
     malformed_dates = 0
 
     for row in rows:
-        # Country fix (keyed on unix timestamp string)
         ts = row.get("date", "").strip()
+
+        # Per-venue override (venue_fixes.json) — HIGHEST priority. A single
+        # venue_id entry pins city/country for every check-in at that venue,
+        # past and future. Used for gateway venues (border crossings, airports)
+        # whose Foursquare city/country is wrong or internally inconsistent.
+        vfix = venue_fixes.get(row.get("venue_id", "").strip())
+        if isinstance(vfix, dict):
+            if vfix.get("country"):
+                row["country"] = vfix["country"]
+            if vfix.get("city"):
+                row["city"] = vfix["city"]
+                row["city_inferred"] = "0"
+                continue
+
+        # Country fix (keyed on unix timestamp string)
         if ts in country_fixes:
             row["country"] = country_fixes[ts]
 
