@@ -51,6 +51,7 @@
   # ══ BELARUS / HRODNA ══
   "Гродна": "Hrodna"  # ok — Belarusian Cyrillic name
   "гродно": "Hrodna"  # ok — Russian lowercase name
+  "Гродно": "Hrodna"  # ok — Russian Cyrillic proper case
   "Grodno": "Hrodna"  # ok — English/Russian proper-case name
   "Hrodzyenski Rayon": "Lida"  # ⚠️ DECISION NEEDED — 8 checkins at 53.89,25.31 = Lida city centre (Лидское Озеро, Площадь 600-летия Лиды). NOT near Hrodna (53.68,23.84). Change to Lida?
   "Grodno District": "Lida"  # ok — same as above, no direct checkins
@@ -147,6 +148,7 @@
   "Кальнiкавiчы": "Kalinkavichy"  # ok — mixed script variant
   "Калiнкавiчы": "Kalinkavichy"  # ok — variant
   "Калинковичи": "Kalinkavichy"  # ok — Russian Cyrillic
+  "Калинкавичы": "Kalinkavichy"  # ok — mixed Russian/Belarusian variant
   "Kalinkavičy": "Kalinkavichy"  # ok — Latin with háček
   "Лепель": "Lyepyel"  # ok — Cyrillic, same as Lyepyel'
   "Лесковка": "Leskovka"  # ok
