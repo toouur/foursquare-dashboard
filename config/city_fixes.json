@@ -79,47 +79,28 @@
   "1535808792": "Krevo",
   "1679245061": "Bergamo",
   "1676211100": "Lecce",
-
-  "_comment_terespol_to_brest": "Belarus-Poland Border Crossing → Brest now handled by venue_fixes.json (venue_id 569b97e2498e23154001cd1f), covering all past + future check-ins. The 19 per-ts entries that used to live here were migrated there.",
-
+  "_comment_terespol_to_brest": "Belarus-Poland Border Crossing now handled by venue_fixes.json (venue_id 569b97e2498e23154001cd1f → Terespol, Poland — physical-side rule), covering all past + future check-ins. The 19 per-ts entries that used to live here were migrated there.",
+  "_comment_by_ru_m1": "Граница Беларусь — Россия (M1/E30) now handled by venue_fixes.json (venue_id 4e2309a7ae6015b212b5d705 → Vitebsk Region, Belarus). The 18 per-ts 'Vitebsk Region' entries that used to live here were migrated there.",
   "_comment_a2_transit": "A2/E30 motorway transit points ~5km from Kałuszyn (would otherwise snap to Warsaw, ~48km, via blank-city nearest-centroid). Mop Jędrzejów also had FS city='Mazowieckie' (a voivodeship, not a city).",
   "1780785653": "Kałuszyn",
   "1780786118": "Kałuszyn",
-
+  "_comment_m1_mir": "Магистраль М1/E 30 Брест—Минск—Граница РФ — road venue (spans the whole motorway), so per-ts per the gateway rule, not venue_fixes. Venue pin sits 8 km east of Mir.",
+  "1566629094": "Mir",
+  "1693792891": "Mir",
+  "1712572868": "Mir",
   "_comment_grudki": "Поле Со Стогами → Belarus, Grudki",
   "1689527283": "Grudki",
-
   "_comment_krasnaje": "Костел Вознесения Девы Марии → Belarus, Krasnaje",
   "1689538059": "Krasnaje",
-
   "_comment_vitebsk_region": "23 Belarus-tagged M1 border check-ins → Vitebsk Region",
-  "1526658632": "Vitebsk Region",
-  "1526888058": "Vitebsk Region",
   "1573852607": "Vitebsk Region",
-  "1574640831": "Vitebsk Region",
-  "1627056127": "Vitebsk Region",
-  "1630374044": "Vitebsk Region",
   "1630377060": "Vitebsk Region",
-  "1642550664": "Vitebsk Region",
   "1642551716": "Vitebsk Region",
   "1659049027": "Vitebsk Region",
-  "1659049151": "Vitebsk Region",
-  "1659313667": "Vitebsk Region",
   "1659313842": "Vitebsk Region",
   "1682722467": "Vitebsk Region",
-  "1682722802": "Vitebsk Region",
-  "1682900778": "Vitebsk Region",
-  "1694394354": "Vitebsk Region",
-  "1715986285": "Vitebsk Region",
-  "1716166425": "Vitebsk Region",
-  "1765494629": "Vitebsk Region",
-  "1767057041": "Vitebsk Region",
-  "1772145633": "Vitebsk Region",
-  "1772496574": "Vitebsk Region",
-
   "_comment_muravnichi": "АЗС Белнефтехим (deep Belarus, misassigned to Smolensk Region) → Muravnichi",
   "1772141805": "Muravnichi",
-
   "_comment_lahoysk": "3 blank-city Lahoysk check-ins GPS-resolved to wrong centroid → Lahoysk",
   "1618746061": "Lahoysk",
   "1618746174": "Lahoysk",
@@ -128,7 +109,6 @@
   "1723973429": "Pryluky",
   "1723975796": "Pryluky",
   "1723977548": "Atolino",
-
   "_comment_urgench_khiva_2026": "2026-04-26/27 Urgench+Khiva trip: blank/corrupt city rows (shared + toouur-specific)",
   "1777159602": "Urgench",
   "1777162260": "Urgench",
@@ -149,7 +129,6 @@
   "1777370607": "Khiva",
   "1777384655": "Khiva",
   "1777386332": "Khiva",
-
   "_comment_samarkand_bukhara_2026": "2026-04-28/30 Samarkand/Bukhara trip: blank city rows GPS-resolved",
   "1777630966": "Bukhara",
   "1777644717": "Bukhara",
@@ -168,7 +147,6 @@
   "1777803598": "Samarkand",
   "1777819452": "Samarkand",
   "1777819724": "Samarkand",
-
   "_comment_dushanbe_2026": "2026-05 Dushanbe trip: blank/corrupt city rows GPS-resolved to Dushanbe",
   "1778044612": "Dushanbe",
   "1778047161": "Dushanbe",
@@ -188,14 +166,11 @@
   "1778386811": "Dushanbe",
   "1778395765": "Dushanbe",
   "1778399128": "Dushanbe",
-
   "_comment_hisor_2026": "2026-05 Hisor day trip: 2 blank-city check-ins GPS-resolved to Hisor",
   "1778219849": "Hisor",
   "1778220754": "Hisor",
-
   "_comment_vahdat_2026": "2026-05 Vahdat visit: blank-city check-in GPS-resolved to Vahdat",
   "1778233212": "Vahdat",
-
   "_comment_nurek_2026": "2026-05 Nurek trip: blank-city check-ins GPS-resolved to Nurek",
   "1778239148": "Nurek",
   "1778239484": "Nurek",
@@ -204,26 +179,21 @@
   "1778250000": "Nurek",
   "1778251751": "Nurek",
   "1778253045": "Nurek",
-
   "_comment_varzob_2026": "2026-05 Varzob gorge trips: blank-city check-ins GPS-resolved to Varzob",
   "1778300051": "Varzob",
   "1778335042": "Varzob",
   "1778400715": "Varzob",
-
   "_comment_iskanderkul_2026": "2026-05 Iskanderkul trip: blank-city check-ins GPS-resolved to Iskanderkul",
   "1778310408": "Iskanderkul",
   "1778314843": "Iskanderkul",
   "1778315069": "Iskanderkul",
   "1778322408": "Iskanderkul",
   "1778322563": "Iskanderkul",
-
   "_comment_anzob_2026": "2026-05 Anzob pass/tunnel: blank-city check-ins GPS-resolved to Anzob",
   "1778332488": "Anzob",
   "1778413967": "Anzob",
-
   "_comment_ayni_2026": "2026-05 Zarafshan valley transit: bridge check-in GPS-resolved to Ayni",
   "1778414160": "Ayni",
-
   "_comment_khujand_2026": "2026-05 Khujand + Sughd area: blank-city check-ins GPS-resolved (Buston = modern name of Chkalovsk)",
   "1778424546": "Khujand",
   "1778425047": "Khujand",
@@ -238,17 +208,13 @@
   "1778556712": "Gafurov",
   "1778563350": "Khujand",
   "1778565291": "Khujand",
-
   "_comment_tashkent_return_2026": "2026-05 return trip Khujand→Tashkent: blank-city check-ins GPS-resolved",
   "1778570022": "Tashkent",
   "1778574251": "Tashkent",
   "1778577047": "Tashkent",
   "1778580092": "Tashkent",
   "1778582652": "Tashkent",
-
   "_comment_trip158_m1_outbound_2026": "2026-04 Trip 158: M1 BY-side border checkpoint outbound to Moscow",
-  "1777071911": "Vitebsk Region",
-
   "_comment_istanbul_dec2020_jan2021": "120 Turkey blank-city check-ins → Istanbul (Dec 2020–Jan 2021 stay + Nov/Dec 2024 transit)",
   "1607764902": "Istanbul",
   "1607765005": "Istanbul",
@@ -369,14 +335,12 @@
   "1734315308": "Istanbul",
   "1734326351": "Istanbul",
   "1734327069": "Istanbul",
-
   "_comment_gulf_finland_spb": "5 Gulf of Finland check-ins (Suomenlahti) geocoded to Helsinki → corrected to Saint Petersburg",
   "1624113883": "Saint Petersburg",
   "1651420144": "Saint Petersburg",
   "1688924005": "Saint Petersburg",
   "1726323115": "Saint Petersburg",
   "1726402671": "Saint Petersburg",
-
   "_comment_krasnoyarsk_stolby": "6 Столбы nature reserve check-ins assigned to Krasnoyarsk Region → Krasnoyarsk",
   "1629020908": "Krasnoyarsk",
   "1629025993": "Krasnoyarsk",
@@ -384,33 +348,26 @@
   "1629109647": "Krasnoyarsk",
   "1629109807": "Krasnoyarsk",
   "1629109816": "Krasnoyarsk",
-
   "_comment_minsk_district_to_minsk": "5 Minsk city venues misassigned to Minsk District → Minsk",
   "1597772923": "Minsk",
   "1656840172": "Minsk",
   "1681658695": "Minsk",
   "1683475488": "Minsk",
   "1730025658": "Minsk",
-
   "_comment_uzbekistan_blank_khiva_qarshi": "Uzbekistan blank-city: Khiva station (Apr 29 2026) and Qarshi (May 5 2026)",
   "1777466218": "Khiva",
   "1777971450": "Qarshi",
   "1777981232": "Qarshi",
   "1777982377": "Qarshi",
-
   "_comment_macao_blank": "Macao baggage claim blank-city → Macau",
   "1704382306": "Macau",
-
   "_comment_bologna_gate12": "Gate 12 at Bologna airport assigned to Ravenna Province → Bologna",
   "1680401578": "Bologna",
-
   "_comment_vatican_city_fix": "Gallery of Maps (Galleria delle Carte Geografiche) assigned to Rome → Vatican City",
   "1581091375": "Vatican City",
-
   "_comment_macau_airport_fix": "Macau Immigration and Currency Exchange at MFM airport with blank/wrong city → Macau",
   "1704382240": "Macau",
   "1704384864": "Macau",
-
   "_comment_china_blank_beijing": "94 Beijing check-ins with blank city (blank-city resolver has no China centroid)",
   "1703266990": "Beijing",
   "1703272840": "Beijing",
@@ -506,7 +463,6 @@
   "1704077956": "Beijing",
   "1704078365": "Beijing",
   "1704078980": "Beijing",
-
   "_comment_china_blank_shanghai": "11 Shanghai check-ins with blank city",
   "1704150827": "Shanghai",
   "1704167894": "Shanghai",
@@ -519,21 +475,17 @@
   "1704343191": "Shanghai",
   "1704367961": "Shanghai",
   "1704370538": "Shanghai",
-
   "_comment_china_blank_xiamen": "3 Xiamen airport check-ins with blank city",
   "1703248700": "Xiamen",
   "1703249070": "Xiamen",
   "1703251303": "Xiamen",
-
   "_comment_china_blank_harbin": "3 Harbin check-ins with blank city",
   "1703544207": "Harbin",
   "1703573566": "Harbin",
   "1703599753": "Harbin",
-
   "_comment_china_blank_guangzhou": "2 Guangzhou check-ins with blank city",
   "1704591433": "Guangzhou",
   "1704614280": "Guangzhou",
-
   "_comment_macau_blank_city": "14 Macau check-ins with blank city and country=China → city=Macau",
   "1704389627": "Macau",
   "1704422169": "Macau",
@@ -549,19 +501,16 @@
   "1704446945": "Macau",
   "1704455316": "Macau",
   "1704457793": "Macau",
-
   "_comment_vatican_blank_fix": "3 Vatican City check-ins with blank city (blank-city resolver has no Vatican centroid)",
   "1581080157": "Vatican City",
   "1581093199": "Vatican City",
   "1675597375": "Vatican City",
-
   "_comment_vatican_rome_fix": "5 blank-city check-ins near Vatican that blank_city_resolver incorrectly resolved to Vatican City; venues are in Rome (Prati/Borgo/Flaminio) outside Vatican walls",
   "1581187893": "Rome",
   "1581284188": "Rome",
   "1581332703": "Rome",
   "1581337705": "Rome",
   "1581361292": "Rome",
-
   "_comment_hk_blank_city": "12 Hong Kong check-ins with blank city → all normalised to Hong Kong",
   "1704475282": "Hong Kong",
   "1704508746": "Hong Kong",
@@ -575,7 +524,6 @@
   "1704550448": "Hong Kong",
   "1704550797": "Hong Kong",
   "1704551126": "Hong Kong",
-
   "_comment_liechtenstein_2025": "Liechtenstein trip: 1 blank-city (country venue) + 3 city=Oberland (district, physically Vaduz) → Vaduz; 1 city=Liechtenstein (Schaan town venue) → Schaan",
   "1750672731": "Vaduz",
   "1750675836": "Vaduz",
@@ -2207,11 +2155,10 @@
   "_comment_blank_zyelyonoye": "Zyelyonoye: 2 blank-city check-ins",
   "519eec40498ec7646f4c9005": "Zyelyonoye",
   "5baf4e41772fbc002c4cd2f5": "Zyelyonoye",
-  "_comment_blank_": "Гонолес: 3 blank-city check-ins",
+  "_comment_blank_": "Чики: 1 blank-city check-ins",
   "5d8629b59399500008f34efc": "Гонолес",
   "64b44af3117e77353d39d91a": "Гонолес",
   "66b922352ab1d072cd824da4": "Гонолес",
-  "_comment_blank_": "Домошаны: 28 blank-city check-ins",
   "5b93d10bcb3fd2002c333cbb": "Домошаны",
   "679e36eae2a12b7b44842148": "Домошаны",
   "679e40228a70a057a6147f82": "Домошаны",
@@ -2262,11 +2209,9 @@
   "69e3a32323ed15763c245e2c": "Заречье-1",
   "69e3a40d9a5eb746da1ff4fe": "Заречье-1",
   "69e3ab9c9a5eb746da45a3fa": "Заречье-1",
-  "_comment_blank_": "Новая Боровая: 3 blank-city check-ins",
   "643c2ae860647c2fac5e014a": "Новая Боровая",
   "671e1f9bb7d0494f8e67a5bb": "Новая Боровая",
   "680e3d75fa4b750b7d9e052c": "Новая Боровая",
-  "_comment_blank_": "Новая Гута: 7 blank-city check-ins",
   "5117a358e4b0502d5fcd6adc": "Новая Гута",
   "5b303734c58ed7002c74fc18": "Новая Гута",
   "5b490c53a89b5a00246ad301": "Новая Гута",
@@ -2274,12 +2219,10 @@
   "5cba224bbb8d36002c28c738": "Новая Гута",
   "5d44ace6fd792e00085a84a3": "Новая Гута",
   "5d50aa0982c571000856eeb3": "Новая Гута",
-  "_comment_blank_": "Прилуки: 4 blank-city check-ins",
   "5ca8bd5eda5ede002c047413": "Прилуки",
   "5d3d7a26898a68000790ae73": "Прилуки",
   "66c1c874e869520b040aa861": "Прилуки",
   "66c1cf4c7b2a4e647c845257": "Прилуки",
-  "_comment_blank_": "Сеница: 23 blank-city check-ins",
   "5b0c48c2840fc200366b7dcb": "Сеница",
   "5bb89847be7078002c399c27": "Сеница",
   "5bb8a4a38496ca002c82c59f": "Сеница",
@@ -2303,23 +2246,17 @@
   "6919c4303243cc623a839495": "Сеница",
   "6919c60e6212de3ac9100784": "Сеница",
   "699b06b33784360361b5c028": "Сеница",
-  "_comment_blank_": "Старое село: 3 blank-city check-ins",
   "5ba6766735d3fc0039945f29": "Старое село",
   "5baf89a8deb4950025fd4214": "Старое село",
   "66c1dd999ea83a0a157f804d": "Старое село",
-  "_comment_blank_": "Хотислав: 2 blank-city check-ins",
   "5b2d55f683e380002c135c26": "Хотислав",
   "5d72c5133983e70008db89ac": "Хотислав",
-  "_comment_blank_": "Чики: 1 blank-city check-ins",
   "66b8b871cce74d1f1bf517d1": "Чики",
-
   "_comment_albania_lin": "Qafë Thanë border crossing (Albania) assigned Lin by FS — keep Lin (Albanian village on Lake Ohrid) to avoid city_merge Lin→Struga (North Macedonia) rule",
   "66ab8564755f01315459313c": "Lin",
-
   "_comment_argentina_ciudad": "2 Mendoza check-ins with city=Ciudad (generic Spanish word) — fix to Mendoza to avoid risky global city_merge rule",
   "674efa24b163bd0c06b877d3": "Mendoza",
   "674f748436ecb4416711f6ed": "Mendoza",
-
   "_comment_argentina_la_calera": "La Calera suburb of Córdoba — specific fix to avoid global rule clashing with Chilean city La Calera",
   "6752125ec42a4c7fff940f83": "Córdoba"
 }

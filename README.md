@@ -179,9 +179,10 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── category_icons.json        # Foursquare category → [emoji, hex color] (559 entries)
 │   │
 │   │  # ── City / country normalization ──
+│   ├── venue_fixes.json           # Per-venue_id {city, country} overrides — highest priority (gateway venues: border crossings, airports)
 │   ├── city_merge.yaml            # Raw Foursquare city names → canonical names
 │   ├── city_canonical.yaml        # Blank-city resolver vocabulary: canonical map, thresholds, skip rules
-│   ├── city_fixes.json            # Per-timestamp city overrides (accepts unix-ts OR 24-char hex id)
+│   ├── city_fixes.json            # Per-timestamp city overrides (hex-id keys are drift-review suppressions, not overrides)
 │   ├── country_fixes.json         # Per-timestamp country overrides
 │   │
 │   │  # ── Display / metrics ──
@@ -440,14 +441,26 @@ but not the other. After extraction, the only place to edit is the JSON.
 
 ## City normalization pipeline
 
-Four stages run in priority order — first match wins per check-in row:
+Five stages run in priority order — first match wins per check-in row:
 
 | Stage | File | Granularity | When |
 |-------|------|-------------|------|
+| 0. Venue override | `config/venue_fixes.json` | per-venue_id (all past + future check-ins) | gateway venues — border crossings, airports — with wrong/inconsistent Foursquare city or country |
 | 1. Country override | `config/country_fixes.json` | per-timestamp | Foursquare tagged wrong country |
-| 2. City override | `config/city_fixes.json` | per-timestamp (or per-venue 24-char hex id) | known-bad city on a specific check-in |
+| 2. City override | `config/city_fixes.json` | per-timestamp | known-bad city on a specific check-in |
 | 3. String merge | `config/city_merge.yaml` | per-raw-string | already-non-blank city needs renaming |
 | 4. Blank inference | `scripts/fill_city_inferred.py` | per-row centroid match | city was blank; nearest known cluster within threshold wins |
+
+Note: 24-char hex keys in `city_fixes.json` are *check-in ids* consumed only by
+`check_city_drift.py` to suppress already-reviewed rows — they are not applied
+as overrides at build time. To override one venue everywhere use
+`venue_fixes.json`; to override one check-in use a unix-ts key here.
+
+**Gateway rule** (border crossings, airports): a per-venue fix cannot know
+travel direction (one venue_id → one fixed value, applied both ways), so each
+gateway venue is assigned to the **physical side it sits on** — decided by its
+coordinates — and the trip's own sequence of posts shows the direction. Road /
+motorway venues spanning many towns get per-ts `city_fixes.json` entries instead.
 
 Rows filled by stage 4 get `city_inferred=1` in D1 so the provenance stays visible.
 `scripts/gen_city_review.py` writes `city_review.csv` for spot-checking recent
@@ -470,8 +483,9 @@ python scripts/check_city_config.py
 `check_city_config.py` runs in CI as a merge gate. It validates that every
 `canonical_map` value is in `valid_canonical`, every `large_canonical` /
 `thresholds` key is valid, that `city_fixes.json` keys are well-formed
-(numeric ts or 24-char hex Foursquare object id), and that `city_merge.yaml`
-has no empty canonicals.
+(numeric ts or 24-char hex Foursquare object id), that `venue_fixes.json`
+keys are 24-char hex venue ids with a non-empty city and/or country, and
+that `city_merge.yaml` has no empty canonicals.
 
 ---
 
@@ -761,7 +775,7 @@ For tips / ratings / lists / trips that drifted (e.g. after a Foursquare data ex
 
 ```
 data/checkins.csv
-  → transform.py (city_merge.yaml, city_fixes.json, country_fixes.json)
+  → transform.py (venue_fixes.json, country_fixes.json, city_fixes.json, city_merge.yaml)
   → metrics.py (categories.json, settings.yaml; collect_companions, shout_records,
                 shout_analysis, cross_dim_analysis)
   → build.py (templates/*.tmpl → *.html)

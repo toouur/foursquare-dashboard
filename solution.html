@@ -164,7 +164,7 @@ footer a:hover{text-decoration:underline;}
       <div class="stat-lbl">Generated HTML Pages</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">4-layer</div>
+      <div class="stat-num">5-layer</div>
       <div class="stat-lbl">City Normalisation</div>
     </div>
     <div class="stat-item">
@@ -449,25 +449,35 @@ footer a:hover{text-decoration:underline;}
         </div>
       </div>
       <div class="cs-solution">
-        <div class="cs-label sol">Solution — Three-Layer Normalisation Pipeline</div>
+        <div class="cs-label sol">Solution — Layered Normalisation Pipeline</div>
         <div class="cs-text">
-          A layered override system processes every check-in through three passes, each with higher
-          precedence than the last:
+          A layered override system processes every check-in through ordered passes, each layer
+          taking precedence over the ones below it:
         </div>
         <div class="code-block">
-<span class="cm"># Layer 1 — Bulk rename (city_merge.yaml)</span>
+<span class="cm"># Layer 0 — Per-venue override (venue_fixes.json), highest priority.</span>
+<span class="cm"># One entry pins a venue's city/country for ALL past + future check-ins.</span>
+<span class="cm"># Used for gateway venues (border crossings, airports), assigned to the</span>
+<span class="cm"># PHYSICAL side they sit on — decided by coordinates, never by direction.</span>
+<span class="hl">"569b97e2…"</span>    → <span class="hl2">{"city": "Terespol", "country": "Poland"}</span>
+
+<span class="cm"># Layer 1 — Per-timestamp country override (country_fixes.json)</span>
+<span class="hl">"1706738400"</span>   → <span class="hl2">"Belarus"</span>  <span class="cm"># Foursquare returned Poland</span>
+
+<span class="cm"># Layer 2 — Per-timestamp city override (city_fixes.json)</span>
+<span class="hl">"1780785653"</span>   → <span class="hl2">"Kałuszyn"</span> <span class="cm"># motorway stop snapped to Warsaw</span>
+
+<span class="cm"># Layer 3 — Bulk rename (city_merge.yaml)</span>
 <span class="hl">"Минск"</span>         → <span class="hl2">"Minsk"</span>
 <span class="hl">"Minski Rayon"</span>  → <span class="hl2">"Minsk"</span>
 
-<span class="cm"># Layer 2 — Per-timestamp city override (city_fixes.json)</span>
-<span class="hl">"1706738400"</span>   → <span class="hl2">"Brest"</span>   <span class="cm"># border crossing mis-tagged</span>
-
-<span class="cm"># Layer 3 — Per-timestamp country override (country_fixes.json)</span>
-<span class="hl">"1706738400"</span>   → <span class="hl2">"Belarus"</span>  <span class="cm"># Foursquare returned Poland</span>
+<span class="cm"># Layer 4 — Blank-city inference: nearest known centroid within</span>
+<span class="cm"># a per-city km threshold; rows get city_inferred=1 for provenance.</span>
         </div>
         <div class="cs-text">
           This gives operators surgical control: bulk rules handle the common case,
-          while per-timestamp overrides handle specific data anomalies without touching the raw API data.
+          per-timestamp overrides handle one-off anomalies, and per-venue rules fix
+          systematically mis-tagged places everywhere at once — without touching the raw API data.
         </div>
       </div>
     </div>
@@ -1298,7 +1308,7 @@ python scripts/build.py \
 
 <span class="cm">
 # Internal execution order:
-#  1. transform.py        — apply 4-layer city/country normalisation
+#  1. transform.py        — apply 5-layer city/country normalisation
 #  2. metrics.py          — compute aggregations, trip detection, centroids,
 #                            collect_companions, shout_records,
 #                            shout_analysis, cross_dim_analysis
