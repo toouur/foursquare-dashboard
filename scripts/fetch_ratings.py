@@ -127,6 +127,7 @@ def main() -> None:
     if not token:
         log.error("Missing token. Provide --token or set FOURSQUARE_TOKEN.")
         print("CHANGED=false")
+        print("LIKES_UNAVAILABLE=false")
         return
 
     # Auto-resolve output path
@@ -153,6 +154,7 @@ def main() -> None:
     existing_dislikes_by_id = {e["id"]: e for e in existing.get("venueDislikes", []) if e.get("id")}
 
     changed = False
+    likes_unavailable = False
     result: dict = {}
 
     # ── Likes: fetch from /v2/users/self/venuelikes ──────────────────────────
@@ -162,6 +164,19 @@ def main() -> None:
     except Exception as exc:
         log.error("Failed to fetch venuelikes: %s", exc)
         fresh_likes = None
+
+    # fetch_venue_list returns None on 402 / network failure. Distinguish that
+    # "could not fetch" state from a genuine "nothing new" so a lost-entitlement
+    # situation doesn't masquerade as CHANGED=false for weeks (see #ratings-402).
+    if fresh_likes is None:
+        likes_unavailable = True
+        log.error(
+            "LIKES UNAVAILABLE: /v2/users/self/venuelikes returned no data "
+            "(402 or network error). New likes CANNOT be auto-synced — preserving "
+            "%d existing likes. Use the data-export + --force-ratings path to "
+            "update likes/okays/dislikes.",
+            len(existing.get("venueLikes", [])),
+        )
 
     if fresh_likes is not None:
         # Merge: API items first (in exact API order = newest-liked first),
@@ -208,6 +223,7 @@ def main() -> None:
         log.info("No changes detected.")
 
     print(f"CHANGED={'true' if changed else 'false'}")
+    print(f"LIKES_UNAVAILABLE={'true' if likes_unavailable else 'false'}")
 
 
 if __name__ == "__main__":

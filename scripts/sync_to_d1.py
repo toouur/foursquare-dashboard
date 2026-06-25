@@ -523,13 +523,30 @@ def main() -> None:
         new_checkin_rows = []   # skip incremental path below
         new_venue_ids: set = set()
     else:
-        # Get current max checkin date from D1
-        result = d1.query("SELECT MAX(date) AS max_date FROM checkins")
+        # Get current count + max checkin date from D1
+        result = d1.query("SELECT COUNT(*) AS n, MAX(date) AS max_date FROM checkins")
+        d1_count = (result[0].get("n") or 0) if result else 0
         max_date = (result[0].get("max_date") or 0) if result else 0
-        print(f"D1 sync: last known checkin timestamp = {max_date}", flush=True)
+        print(f"D1 sync: {d1_count} existing check-ins, last known timestamp = {max_date}",
+              flush=True)
 
-        # Only rows newer than what D1 already has
+        # Fast path: rows strictly newer than D1's newest are always new.
         new_checkin_rows = [r for r in all_checkin_rows if r[1] > max_date]
+
+        # The watermark misses backdated / out-of-order check-ins (ts <= max_date)
+        # that D1 has never seen — e.g. a manually-added past visit, or a row
+        # surfaced by the --recheck-recent-hours sweep. If the CSV holds more rows
+        # than D1 will after the watermark pass, fall back to an authoritative
+        # checkin_id set-difference. (id is not unique in D1, but any id present
+        # in the CSV and absent from D1 is genuinely new.)
+        if len(all_checkin_rows) > d1_count + len(new_checkin_rows):
+            missing = len(all_checkin_rows) - d1_count - len(new_checkin_rows)
+            print(f"D1 sync: row-count mismatch ({missing} unaccounted) — "
+                  f"falling back to checkin_id set-difference", flush=True)
+            existing = d1.query("SELECT id FROM checkins")
+            existing_ids = {row["id"] for row in existing} if existing else set()
+            new_checkin_rows = [r for r in all_checkin_rows if r[0] not in existing_ids]
+
         new_venue_ids    = {r[2] for r in new_checkin_rows if r[2]}
 
         print(f"D1 sync: {len(new_checkin_rows)} new check-ins, "

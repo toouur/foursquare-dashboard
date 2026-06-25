@@ -151,6 +151,12 @@ jobs:
             python scripts/fetch_ratings.py --token "$FOURSQUARE_TOKEN" --out private-data/venueRatings.json >> "$GITHUB_OUTPUT"
           fi
 
+      # ── 4e. Surface a lost likes-endpoint entitlement loudly ─────────────────
+      - name: Warn if likes endpoint unavailable
+        if: steps.fetch_ratings.outputs.LIKES_UNAVAILABLE == 'true'
+        run: |
+          echo "::warning title=Likes unavailable::/v2/users/self/venuelikes returned no data (402 or network error). New likes are NOT being auto-synced — update via data export + --force-ratings."
+
       # ── 4f. Upload new photos to Cloudflare R2 ──────────────────────────────
       - name: Upload new photos to R2
         if: steps.fetch_photos.outputs.CHANGED == 'true'
