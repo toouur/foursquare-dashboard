@@ -272,8 +272,12 @@ jobs:
               $RATINGS_ARG $LISTS_ARG
           fi
 
-      # ── 8. Commit HTML files to public repo → Cloudflare Pages auto-deploys ──
-      - name: Commit updated HTML files
+      # ── 8. Assemble the static site into a clean deploy dir ──────────────────
+      #   The generated HTML is NO LONGER committed to git (it bloated history to
+      #   4GB+). We deploy it directly to Cloudflare Pages via wrangler instead.
+      #   IMPORTANT: copy only known site assets — never the working dir as a
+      #   whole, which contains private-data/ (private check-ins) and scripts/.
+      - name: Assemble deploy directory
         if: |
           github.event_name == 'workflow_dispatch' ||
           steps.fetch.outputs.CHANGED == 'true' ||
@@ -281,22 +285,36 @@ jobs:
           steps.fetch_photos.outputs.CHANGED == 'true' ||
           steps.fetch_ratings.outputs.CHANGED == 'true'
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          rm -rf _site && mkdir -p _site
+          # Root-level page + data assets (globs match files only, not subdirs,
+          # so private-data/ / scripts/ / config/ are never picked up).
+          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv _site/ 2>/dev/null || true
+          cp -r assets   _site/assets
+          cp -r functions _site/functions   # Cloudflare Pages Functions
+          # Defensive: ensure nothing sensitive or non-asset slipped in.
+          rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git
+          echo "Deploy dir contents:" && ls _site
 
-          git add index.html trips.html feed.html companions.html world_cities.html venues.html tips.html photos.html stats.html search.html trips_meta.json feed_meta.json guide.html
-          # Only update ratings.html if ratings data was available during the build
-          [ -f private-data/venueRatings.json ] && git add ratings.html || true
-          # Only update lists.html if lists data was available during the build
-          [ -f private-data/lists.json ] && git add lists.html || true
-
-          if git diff --cached --quiet; then
-            echo "Nothing to commit."
-          else
-            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-            git commit -m "chore: auto-update dashboard [${TIMESTAMP}]"
-            git push
+      # ── 8b. Deploy the static site to Cloudflare Pages (direct upload) ───────
+      - name: Deploy to Cloudflare Pages
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          steps.fetch.outputs.CHANGED == 'true' ||
+          steps.fetch_tips.outputs.CHANGED == 'true' ||
+          steps.fetch_photos.outputs.CHANGED == 'true' ||
+          steps.fetch_ratings.outputs.CHANGED == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_PAGES_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error title=Deploy skipped::CF_PAGES_TOKEN not set — cannot deploy to Pages."
+            exit 1
           fi
+          npx --yes wrangler@3 pages deploy _site \
+            --project-name 4sq \
+            --branch main \
+            --commit-dirty=true
 
   # ── Monthly job: deploy to Netlify on the last day of each month ────────────
   netlify-monthly:

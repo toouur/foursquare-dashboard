@@ -6,8 +6,11 @@
 #   Variable name: DB  |  D1 database: swarmdata (52210bd9-a019-415e-8f12-6a73b42278f9)
 
 name                    = "4sq"
-pages_build_output_dir  = "."
 compatibility_date      = "2025-01-01"
+# NOTE: pages_build_output_dir removed — the site is no longer built/served from
+# git. CI assembles a clean `_site/` and deploys it via direct upload:
+#   wrangler pages deploy _site --project-name 4sq
+# (Generated HTML is gitignored; see .github/workflows/update-dashboard.yml step 8.)
 
 [[d1_databases]]
 binding     = "DB"

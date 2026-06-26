@@ -1,6 +1,33 @@
 checkins.json
 data/checkins.csv
+
+# ── Generated site output — deployed to Cloudflare Pages via wrangler, not git ──
+# (these used to be committed hourly and bloated history to 4GB+)
+index.html
+trips.html
+feed.html
+companions.html
+world_cities.html
+venues.html
+tips.html
+photos.html
+stats.html
+search.html
+guide.html
+ratings.html
+lists.html
+flights.html
+shouts.html
+years.html
+year-*.html
 trip-*.html
+trips_meta.json
+feed_meta.json
+venues_filter.json
+city_review.csv
+# assembled deploy dir
+_site/
+
 __pycache__/
 *.pyc
 .env
