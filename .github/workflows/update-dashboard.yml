@@ -74,9 +74,12 @@ jobs:
 
     steps:
       # ── 1. Checkout public repo ───────────────────────────────────────────────
+      #   Shallow (depth 1): this job only builds → commits → pushes and never
+      #   reads git history. Full history is a 4GB+ clone (hourly HTML commits),
+      #   which made checkout take ~3.5 min. fetch-depth:1 keeps it to seconds.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       # ── 2. Checkout private data repo ────────────────────────────────────────
       - uses: actions/checkout@v4
