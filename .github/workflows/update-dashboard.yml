@@ -68,8 +68,13 @@ jobs:
             $RATINGS_ARG $LISTS_ARG
 
   # ── Update: fetch → skip if no new check-ins → rebuild → commit → deploy ──
+  #   Pause switch: set repo variable UPDATES_PAUSED=true (Settings → Secrets and
+  #   variables → Actions → Variables) to halt scheduled/dispatch runs — e.g.
+  #   while rewriting git history. Set it back to false (or delete it) to resume.
   update:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: |
+      vars.UPDATES_PAUSED != 'true' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
 
     steps:
@@ -304,11 +309,13 @@ jobs:
           steps.fetch_photos.outputs.CHANGED == 'true' ||
           steps.fetch_ratings.outputs.CHANGED == 'true'
         env:
-          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_PAGES_TOKEN }}
+          # Reuses CF_D1_TOKEN — add the "Account → Cloudflare Pages → Edit"
+          # permission to that existing token (no separate secret needed).
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_D1_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "::error title=Deploy skipped::CF_PAGES_TOKEN not set — cannot deploy to Pages."
+            echo "::error title=Deploy skipped::CF_D1_TOKEN not set — cannot deploy to Pages."
             exit 1
           fi
           npx --yes wrangler@3 pages deploy _site \
@@ -317,9 +324,12 @@ jobs:
             --commit-dirty=true
 
   # ── Monthly job: deploy to Netlify on the last day of each month ────────────
+  #   The site HTML is no longer committed to git, so this job rebuilds it from
+  #   the private data repo and deploys the assembled _site/ (same dir the Pages
+  #   deploy uses) rather than the repo root.
   netlify-monthly:
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' && vars.UPDATES_PAUSED != 'true'
     needs: update
 
     steps:
@@ -338,6 +348,47 @@ jobs:
       - uses: actions/checkout@v4
         if: steps.lastday.outputs.is_last_day == 'true'
 
+      - uses: actions/checkout@v4
+        if: steps.lastday.outputs.is_last_day == 'true'
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        if: steps.lastday.outputs.is_last_day == 'true'
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        if: steps.lastday.outputs.is_last_day == 'true'
+        run: pip install -r requirements.txt
+
+      - name: Rebuild dashboard
+        if: steps.lastday.outputs.is_last_day == 'true'
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          PIX_URL_ARG=""; [ -n "$R2_PUBLIC_URL" ] && PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"
+          PHOTOS_ARG="";  [ -f private-data/photos.json ]       && PHOTOS_ARG="--photos private-data/photos.json"
+          RATINGS_ARG=""; [ -f private-data/venueRatings.json ] && RATINGS_ARG="--ratings private-data/venueRatings.json"
+          LISTS_ARG="";   [ -f private-data/lists.json ]        && LISTS_ARG="--lists private-data/lists.json"
+          python scripts/build.py \
+            --input private-data/checkins.csv \
+            --config-dir config \
+            --output-dir . \
+            $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
+
+      - name: Assemble deploy directory
+        if: steps.lastday.outputs.is_last_day == 'true'
+        run: |
+          rm -rf _site && mkdir -p _site
+          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv _site/ 2>/dev/null || true
+          cp -r assets   _site/assets
+          cp -r functions _site/functions
+          rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git
+
       - name: Deploy to Netlify
         if: steps.lastday.outputs.is_last_day == 'true'
         env:
@@ -348,7 +399,7 @@ jobs:
           netlify deploy \
             --site  "$NETLIFY_SITE_ID" \
             --auth  "$NETLIFY_AUTH_TOKEN" \
-            --dir   "." \
+            --dir   "_site" \
             --prod \
             --message "Monthly deploy $(date -u +%Y-%m-%d)"
           echo "Netlify deploy complete."
