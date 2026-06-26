@@ -567,6 +567,24 @@ def main() -> None:
             ]
             d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
 
+        # The venues path is upsert-only, so it can never drop venues that went
+        # orphaned by a venue merge / venue_id reassignment / archive dedup
+        # (check-in deletion is handled separately by delete_checkin.py). If D1
+        # holds more venues than the CSV now aggregates to, delete the orphans
+        # so the venues table stays in sync with the check-in data.
+        venue_res = d1.query("SELECT COUNT(*) AS n FROM venues")
+        d1_venue_count = (venue_res[0].get("n") or 0) if venue_res else 0
+        if d1_venue_count > len(venue_meta):
+            existing_venues = d1.query("SELECT id FROM venues")
+            existing_venue_ids = {row["id"] for row in existing_venues} if existing_venues else set()
+            orphan_ids = sorted(existing_venue_ids - set(venue_meta.keys()))
+            if orphan_ids:
+                print(f"D1 sync: removing {len(orphan_ids)} orphaned venue(s) "
+                      f"absent from check-in data", flush=True)
+                ph = ",".join("?" * len(orphan_ids))
+                d1.query(f"DELETE FROM venues WHERE id IN ({ph})", orphan_ids)
+                changed = True
+
     # Tips
     if args.force_tips:
         print("  tips     : FORCE full resync — wiping and reinserting", flush=True)
