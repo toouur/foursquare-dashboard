@@ -88,12 +88,19 @@ git filter-repo --invert-paths \
   --path trips_meta.json --path feed_meta.json --path venues_filter.json \
   --path city_review.csv
 
-# 4. Force-push the rewritten history.
+# 4. Force-push the rewritten history. Push ONLY main — never --all, or stray
+#    local branches (old agent/PR branches) get pushed too.
 git remote add origin https://github.com/toouur/foursquare-dashboard.git
-git push --force --all  origin
-git push --force --tags origin
+git push --force origin main
+git push --force --tags origin     # only if you use release tags
 
 # 5. Resume CI: set UPDATES_PAUSED=false (or delete the variable).
+
+# NOTE: force-pushing main alone does NOT shrink GitHub's server-side storage if
+# stale branches/PRs still reference the old history. Delete obsolete remote
+# branches (old PR/agent branches) so the old objects become unreachable and
+# GitHub's GC can reclaim them. Local clones only keep objects reachable from
+# their refs, which is why this clone is already 21 MB.
 ```
 
 Expect `.git` to drop from ~4.2 GB to tens of MB. Re-clone locally afterward
