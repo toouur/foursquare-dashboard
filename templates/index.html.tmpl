@@ -316,6 +316,12 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 .rc-tip-foot .rc-location{margin-top:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
 .rc-tip-foot .rc-date{padding-top:0;white-space:nowrap;flex-shrink:0;}
 .rc-closed{font-family:'DM Mono',monospace;font-size:.50rem;color:#ef4444;border:1px solid rgba(239,68,68,.45);border-radius:3px;padding:1px 4px;margin-left:4px;vertical-align:middle;white-space:nowrap;line-height:1.4;}
+/* ── SHOUTS STRIP: venue-topped, compact (hug content instead of stretching to tallest card) ── */
+#shoutsScroll{align-items:flex-start;}
+#shoutsScroll .recent-card{padding:13px 15px 11px;gap:4px;}
+#shoutsScroll .rc-venue{min-height:0;}
+#shoutsScroll .rc-tip-text{flex:none;}
+#shoutsScroll .rc-tip-foot{margin-top:6px;}
 
 /* ── RECENT CARD: MINI MAP ── */
 .rc-map{margin:-18px -18px 12px;height:90px;position:relative;overflow:hidden;border-radius:12px 12px 0 0;background:var(--card2);}
@@ -1214,12 +1220,12 @@ function filterList(id,q){
     const rows=list.map(c=>{
       const mine=c.author_id&&String(c.author_id)===SHOUT_UID;
       const d=cDate(c.at);
-      return `<div style="padding:5px 8px;border-radius:7px;background:var(--card2,rgba(255,255,255,.04));border-left:2px solid ${mine?'var(--gold)':'var(--border,#333)'};">
+      return `<div style="padding:4px 8px;border-radius:7px;background:var(--card2,rgba(255,255,255,.04));border-left:2px solid ${mine?'var(--gold)':'var(--border,#333)'};">
         <div style="font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);"><span style="font-weight:600;color:${mine?'var(--gold)':'var(--teal,#4ec9b0)'};">${esc(c.author||'')}</span>${d?' · '+d:''}</div>
         <div style="font-size:.74rem;line-height:1.4;margin-top:2px;">${esc(c.text||'')}</div>
       </div>`;
     }).join('');
-    return `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border,#333);display:flex;flex-direction:column;gap:5px;">${rows}</div>`;
+    return `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border,#333);display:flex;flex-direction:column;gap:4px;">${rows}</div>`;
   };
   document.getElementById('shoutsFeedSection').style.display='';
   document.getElementById('shoutsSub').textContent=sh.total.toLocaleString()+' shouts total';
@@ -1233,10 +1239,10 @@ function filterList(id,q){
       : esc(s.venue||'Unknown venue');
     const f=s.country?flagHtml(s.country):'';
     const loc=[s.city,s.country].filter(Boolean).join(', ');
-    const textRow=(s.text||'').trim()?`<div class="rc-tip-text" style="font-style:italic;">${esc(s.text)}</div>`:'';
+    const textRow=(s.text||'').trim()?`<div class="rc-tip-text" style="font-style:italic;margin-top:2px;">${esc(s.text)}</div>`:'';
     return `<div${cardClick} class="recent-card tip-card" style="${swarmUrl?'cursor:pointer;':''}">
+      <div class="rc-venue-row"><div class="rc-venue">${venueLink}</div>${catIcon(s.category||'')}</div>
       ${textRow}
-      <div class="rc-venue-row" style="margin-top:8px;"><div class="rc-venue">${venueLink}</div>${catIcon(s.category||'')}</div>
       <div class="rc-tip-foot">
         <span class="rc-location">${f} ${esc(loc)}</span>
         <span class="rc-date">${s.date}</span>
