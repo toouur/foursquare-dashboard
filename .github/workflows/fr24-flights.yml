@@ -1,42 +1,35 @@
 # .github/workflows/fr24-flights.yml
 #
-# FlightRadar24 flight-diary monitor + fetcher.
+# FlightRadar24 flight-diary fetcher (weekly, fully automated).
 #
-# FR24 has no personal-diary API. The diary CSV is a normal authenticated web
-# download; an unattended job authenticates with a stored browser session
-# cookie (secret FR24_COOKIE) and hits the real download endpoint
-# https://my.flightradar24.com/public-scripts/export (the "DOWNLOAD CSV" button
-# behind /settings/export). See scripts/fetch_flights.py for the how/why.
+# FR24 has no personal-diary API. This job logs in with your account
+# credentials (secret FR24_LOGIN = "email:password"), which mints a fresh
+# session in-script — there is NO stored cookie to expire, so no manual
+# refresh is ever needed. It then downloads the diary CSV from the real
+# endpoint https://my.flightradar24.com/public-scripts/export and commits it
+# to the private data repo as flights.csv when it changed, so build.py picks
+# up new flights on the next dashboard rebuild.
 #
-# TWO PURPOSES:
-#   1. EXPIRY MONITOR (default, daily --check): probe whether the cookie is
-#      still valid. When it expires the job FAILS on purpose (exit 2) so GitHub
-#      emails the repo owner — that failed run's date is the cookie lifetime.
-#   2. FETCH + COMMIT (workflow_dispatch with commit_csv=true, or the weekly
-#      run): download the CSV and commit it to the private data repo as
-#      flights.csv when it changed, so build.py picks up new flights.
+# Login is a plain JSON API (no CAPTCHA); posting to www.flightradar24.com
+# sets shared cookies and a GET to my.flightradar24.com completes the SSO
+# handshake the diary export needs. See scripts/fetch_flights.py for details.
 #
-# A transient network/error (exit 1) is treated as neutral — it does NOT fail
-# the run, so a blip can't raise a false "cookie expired" alarm.
+# Exit contract from the fetcher:
+#   0  auth OK, CSV fetched (committed if changed)
+#   2  credentials rejected  -> job FAILS on purpose so GitHub emails the owner
+#   1  transient error       -> neutral, does NOT fail the run
 #
 # Required secrets:
-#   FR24_COOKIE     — full browser Cookie header from a logged-in my.flightradar24.com
-#                     session (grab from DevTools → Network → the export request).
-#   DATA_REPO_PAT   — fine-grained PAT with Contents read/write on toouur/foursquare-data
-#                     (only needed when committing the CSV).
+#   FR24_LOGIN     — "email:password" for the FR24 account.
+#   DATA_REPO_PAT  — fine-grained PAT with Contents read/write on
+#                    toouur/foursquare-data.
 
-name: FR24 flights monitor
+name: FR24 flights (weekly)
 
 on:
   schedule:
-    # Daily 05:00 UTC probe (expiry monitor). Sunday's run also commits the CSV.
-    - cron: '0 5 * * *'
+    - cron: '0 5 * * 0'   # Sunday 05:00 UTC
   workflow_dispatch:
-    inputs:
-      commit_csv:
-        description: 'Fetch the CSV and commit it to the data repo if changed'
-        type: boolean
-        default: false
 
 jobs:
   fr24:
@@ -47,20 +40,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      # Commit the CSV on manual runs that ask for it, or on the weekly Sunday run.
-      - name: Decide mode
-        id: mode
-        run: |
-          if [ "${{ github.event.inputs.commit_csv }}" = "true" ] || \
-             [ "$(date -u +%u)" = "7" ]; then
-            echo "commit=true"  >> "$GITHUB_OUTPUT"
-          else
-            echo "commit=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Only needed when we intend to write/commit the CSV.
       - name: Checkout private data repo
-        if: steps.mode.outputs.commit == 'true'
         uses: actions/checkout@v4
         with:
           repository: toouur/foursquare-data
@@ -75,17 +55,13 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Probe / fetch FR24 export
+      - name: Fetch FR24 diary export
         id: fetch
         env:
-          FR24_COOKIE: ${{ secrets.FR24_COOKIE }}
+          FR24_LOGIN: ${{ secrets.FR24_LOGIN }}
         run: |
           set +e
-          if [ "${{ steps.mode.outputs.commit }}" = "true" ]; then
-            python scripts/fetch_flights.py --out private-data/flights.csv | tee out.txt
-          else
-            python scripts/fetch_flights.py --check | tee out.txt
-          fi
+          python scripts/fetch_flights.py --out private-data/flights.csv | tee out.txt
           CODE=${PIPESTATUS[0]}
           set -e
           VALID=$(grep -m1 '^COOKIE_VALID=' out.txt | cut -d= -f2)
@@ -94,16 +70,15 @@ jobs:
           echo "changed=${CHANGED:-false}" >> "$GITHUB_OUTPUT"
           echo "code=${CODE}"              >> "$GITHUB_OUTPUT"
           {
-            echo "### FR24 cookie probe — $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo "### FR24 flights fetch — $(date -u +'%Y-%m-%d %H:%M UTC')"
             echo ""
-            echo "- **COOKIE_VALID**: \`${VALID:-unknown}\`"
-            echo "- **exit code**: \`${CODE}\` (0 ok · 1 transient · 2 expired)"
-            echo "- **mode**: \`${{ steps.mode.outputs.commit == 'true' && 'fetch+commit' || 'check-only' }}\`"
+            echo "- **auth valid**: \`${VALID:-unknown}\`"
+            echo "- **exit code**: \`${CODE}\` (0 ok · 1 transient · 2 bad credentials)"
             echo "- **CSV changed**: \`${CHANGED:-false}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit updated flights.csv
-        if: steps.mode.outputs.commit == 'true' && steps.fetch.outputs.changed == 'true'
+        if: steps.fetch.outputs.changed == 'true'
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
@@ -116,10 +91,10 @@ jobs:
             git push
           fi
 
-      # Fail ONLY on a confirmed expiry (exit 2) so a scheduled-run failure
-      # email marks the day the cookie died. Transient errors (exit 1) pass.
-      - name: Alarm if cookie expired
+      # Fail ONLY on rejected credentials (exit 2) so the failure email prompts
+      # a password/secret fix. Transient errors (exit 1) pass quietly.
+      - name: Alarm if credentials rejected
         if: steps.fetch.outputs.code == '2'
         run: |
-          echo "::error::FR24_COOKIE is no longer valid (expired/unauthorized). Re-capture the Cookie header from a logged-in my.flightradar24.com session and update the FR24_COOKIE secret."
+          echo "::error::FR24_LOGIN was rejected (bad credentials or blocked login). Verify the email:password in the FR24_LOGIN secret."
           exit 1

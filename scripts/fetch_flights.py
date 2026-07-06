@@ -2,42 +2,43 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-fetch_flights.py  –  Fetch the FlightRadar24 flight-diary CSV export using a
-stored browser session cookie, and write it where build.py expects it
-(flights.csv next to checkins.csv).
+fetch_flights.py  –  Fetch the FlightRadar24 flight-diary CSV export and write
+it where build.py expects it (flights.csv next to checkins.csv).
 
-WHY A COOKIE (not username/password):
-  FR24 has no public API for the personal flight diary. The diary export at
-  https://my.flightradar24.com/settings/export is a normal authenticated web
-  download: your logged-in browser presents a session cookie and receives a
-  CSV. An unattended machine (CI, or this script) has no browser session, so it
-  must present that same cookie. A scripted username/password login would only
-  produce the same cookie anyway, while being far more likely to hit
-  Cloudflare/CAPTCHA/2FA and exposing a much larger secret. See the "flights"
-  discussion in CLAUDE.md / project memory.
+FR24 has no public API for the personal flight diary. The diary export at
+https://my.flightradar24.com/public-scripts/export is a normal authenticated
+web download. Two auth modes are supported, login preferred:
 
-HOW TO GRAB THE COOKIE (once):
-  1. Log in at https://my.flightradar24.com in your browser.
-  2. Open DevTools → Network tab → reload the page.
-  3. Click the document request → Request Headers → copy the ENTIRE value of
-     the `Cookie:` header (it's a long "a=1; b=2; ..." string).
-  4. Store it as env var FR24_COOKIE (locally) or GitHub Actions secret
-     FR24_COOKIE (CI). Never commit it.
+  1. LOGIN (preferred, fully automated) — secret FR24_LOGIN = "email:password".
+     The script POSTs the plain JSON login API (no CAPTCHA), then does the
+     cross-subdomain SSO handshake, minting a FRESH session every run. Nothing
+     to expire, zero manual upkeep. This is what the weekly CI job uses.
+  2. COOKIE (fallback) — secret/env FR24_COOKIE, a full browser `Cookie:`
+     header. Only used when no FR24_LOGIN is present. The login session behind
+     such a cookie expires within hours, so this is not viable unattended.
+
+Login wins whenever FR24_LOGIN is set; cookie is the fallback.
 
 USAGE:
-    # Local (bash):
-    export FR24_COOKIE='<the whole Cookie header string>'
+    # Login mode (bash):
+    export FR24_LOGIN='email@example.com:password'
     python scripts/fetch_flights.py --out C:/Users/.../foursquare-data/flights.csv
 
-    # Just probe whether the cookie is still valid (no write):
+    # Just probe whether auth works (no write):
     python scripts/fetch_flights.py --check
 
-EXIT / OUTPUT CONTRACT (for CI + expiry monitoring):
-  - Prints `COOKIE_VALID=true|false` and `CHANGED=true|false` to stdout.
-  - Exit 0  : cookie valid, CSV fetched (written unless --check).
-  - Exit 2  : cookie missing/expired/unauthorized (login page or 401/403).
+    # Cookie fallback:
+    export FR24_COOKIE='<the whole Cookie header string>'
+    python scripts/fetch_flights.py --check
+
+EXIT / OUTPUT CONTRACT (for CI):
+  - Prints `COOKIE_VALID=true|false` and `CHANGED=true|false` to stdout
+    (the COOKIE_VALID token name is kept for workflow back-compat; it means
+    "auth valid" regardless of mode).
+  - Exit 0  : auth valid, CSV fetched (written unless --check).
+  - Exit 2  : auth invalid — bad credentials, or cookie missing/expired (401/403).
   - Exit 1  : other/unexpected error (network, unreadable response).
-  The distinct exit-2 lets a monitor pinpoint the day the cookie expired.
+  The distinct exit-2 lets the CI alarm fire only on a real credential problem.
 """
 from __future__ import annotations
 
@@ -58,6 +59,15 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 # (Content-Disposition: attachment; filename="flightdiary_*.csv"). Hitting
 # /settings/export directly only returns the settings *page* (HTML).
 EXPORT_URL = "https://my.flightradar24.com/public-scripts/export"
+
+# Credential-login endpoints. Preferred over a stored cookie: the script logs
+# in with email+password (secret FR24_LOGIN = "email:password"), which mints a
+# fresh session every run — no cookie to expire. Login is a plain JSON API
+# (no CAPTCHA); posting to LOGIN_URL sets shared *.flightradar24.com cookies,
+# then a GET to HOME_URL performs the SSO handshake that authenticates the
+# my.flightradar24.com PHPSESSID the diary export needs.
+LOGIN_URL = "https://www.flightradar24.com/user/login"
+HOME_URL = "https://my.flightradar24.com/"
 
 # A logged-in export starts with the FR24 diary header (order/case per FR24).
 # We only require the first two columns so a schema tweak on their side does
@@ -82,6 +92,13 @@ def resolve_cookie(cli_cookie: str | None) -> str:
     if cli:
         return cli
     return os.environ.get("FR24_COOKIE", "").strip()
+
+
+def resolve_login(cli_login: str | None) -> str:
+    cli = (cli_login or "").strip()
+    if cli:
+        return cli
+    return os.environ.get("FR24_LOGIN", "").strip()
 
 
 def _looks_like_csv(text: str) -> bool:
@@ -128,24 +145,106 @@ def fetch_export(cookie: str, timeout: int = 30) -> tuple[str, str]:
     return ("expired", "")
 
 
+def login_and_fetch(login: str, timeout: int = 30) -> tuple[str, str]:
+    """Log in with email:password, then fetch the diary export.
+
+    Same (status, body) contract as fetch_export:
+      "ok"       — body is the CSV text
+      "expired"  — bad/missing credentials or the export came back un-authed
+      "error"    — transient (network / unexpected HTTP)
+    """
+    if not login or ":" not in login:
+        log.warning("FR24_LOGIN missing or malformed (want 'email:password').")
+        return ("expired", "")
+    email, password = login.split(":", 1)
+    email = email.strip()
+
+    sess = requests.Session()
+    sess.headers.update({
+        "User-Agent": _BASE_HEADERS["User-Agent"],
+        "Accept-Language": "en-US,en;q=0.9",
+    })
+    try:
+        # Prime cookies (_cfuvid / XSRF), then authenticate via the JSON API.
+        sess.get(LOGIN_URL, timeout=timeout)
+        resp = sess.post(
+            LOGIN_URL,
+            data={"email": email, "password": password,
+                  "remember": "true", "type": "web"},
+            headers={"Origin": "https://www.flightradar24.com",
+                     "Referer": LOGIN_URL,
+                     "X-Requested-With": "XMLHttpRequest"},
+            timeout=timeout,
+        )
+    except requests.RequestException as exc:
+        log.error("Login request failed: %s", exc)
+        return ("error", "")
+
+    try:
+        ok = bool(resp.json().get("success"))
+    except ValueError:
+        ok = False
+    if not ok:
+        log.warning("FR24 login did not succeed (HTTP %s) — bad credentials "
+                    "or blocked.", resp.status_code)
+        return ("expired", "")
+
+    try:
+        # SSO handshake: visiting my.* upgrades its PHPSESSID to authenticated,
+        # then the same jar downloads the diary export.
+        sess.get(HOME_URL, timeout=timeout)
+        ex = sess.get(
+            EXPORT_URL,
+            headers={"Accept": "text/csv,application/csv,text/plain,*/*",
+                     "Referer": "https://my.flightradar24.com/settings/export"},
+            timeout=timeout,
+        )
+    except requests.RequestException as exc:
+        log.error("Export request failed: %s", exc)
+        return ("error", "")
+
+    if ex.status_code in (401, 403):
+        log.warning("HTTP %s on export after login — session not accepted.",
+                    ex.status_code)
+        return ("expired", "")
+    if ex.status_code != 200:
+        log.error("HTTP %s from export endpoint.", ex.status_code)
+        return ("error", "")
+    if _looks_like_csv(ex.text):
+        return ("ok", ex.text)
+    log.warning("Logged in but export body is not the diary CSV.")
+    return ("expired", "")
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Fetch FR24 flight-diary CSV via session cookie.")
-    ap.add_argument("--cookie", help="FR24 Cookie header (else env FR24_COOKIE).")
+    ap = argparse.ArgumentParser(description="Fetch FR24 flight-diary CSV via login or session cookie.")
+    ap.add_argument("--login", help="FR24 'email:password' (else env FR24_LOGIN). "
+                                     "Preferred: mints a fresh session each run.")
+    ap.add_argument("--cookie", help="FR24 Cookie header (else env FR24_COOKIE). "
+                                     "Fallback when no login is provided.")
     ap.add_argument("--out", help="Destination flights.csv path (omit with --check).")
     ap.add_argument("--check", action="store_true",
-                    help="Only probe cookie validity; do not write a file.")
+                    help="Only probe auth validity; do not write a file.")
     ap.add_argument("--timeout", type=int, default=30)
     args = ap.parse_args()
 
+    login = resolve_login(args.login)
     cookie = resolve_cookie(args.cookie)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    status, body = fetch_export(cookie, timeout=args.timeout)
+    # Credential login is preferred (no expiring cookie); cookie is the fallback.
+    if login:
+        mode = "login"
+        status, body = login_and_fetch(login, timeout=args.timeout)
+    else:
+        mode = "cookie"
+        status, body = fetch_export(cookie, timeout=args.timeout)
 
     if status == "expired":
         print("COOKIE_VALID=false")
         print("CHANGED=false")
-        log.warning("[%s] FR24 cookie is NOT valid (missing or expired).", now)
+        log.warning("[%s] FR24 auth (%s) is NOT valid (bad credentials or expired).",
+                    now, mode)
         return 2
     if status == "error":
         print("COOKIE_VALID=unknown")
@@ -156,7 +255,7 @@ def main() -> int:
     # status == "ok"
     n_legs = max(0, len([ln for ln in body.lstrip().splitlines() if ln.strip()]) - 1)
     print("COOKIE_VALID=true")
-    log.info("[%s] FR24 cookie VALID — export has %d flight rows.", now, n_legs)
+    log.info("[%s] FR24 auth VALID (%s) — export has %d flight rows.", now, mode, n_legs)
 
     if args.check or not args.out:
         print("CHANGED=false")
