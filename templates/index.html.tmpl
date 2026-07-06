@@ -1247,8 +1247,10 @@ function filterList(id,q){
     const f=s.country?flagHtml(s.country):'';
     const loc=[s.city,s.country].filter(Boolean).join(', ');
     const textRow=(s.text||'').trim()?`<div class="rc-tip-text" style="font-style:italic;margin-top:2px;">${esc(s.text)}</div>`:'';
+    const withLine=(s.companions&&s.companions.length)?`<div class="rc-with">with ${esc(s.companions.join(', '))}</div>`:'';
     return `<div${cardClick} class="recent-card tip-card" style="${swarmUrl?'cursor:pointer;':''}">
       <div class="rc-venue-row"><div class="rc-venue">${venueLink}</div>${catIcon(s.category||'')}</div>
+      ${withLine}
       ${textRow}
       <div class="rc-tip-foot">
         <span class="rc-location">${f} ${esc(loc)}</span>
