@@ -675,7 +675,7 @@ Search is powered by a **Cloudflare Pages Function** (`functions/api/search.js`)
 | `checkins` | All check-ins (all source columns) | Append-only — only new rows inserted |
 | `venues` | Venue metadata + visit counts | Updated only for venues touched by new check-ins |
 | `tips` | All tips with counts | Full upsert only when tips changed (`--tips-changed`) |
-| `ratings` | Venue likes (okays/dislikes return 402) | Full upsert only when ratings changed (`--ratings-changed`) |
+| `ratings` | Venue likes (likes fetched every ~3 days; okays/dislikes return 402) | Full upsert only when ratings changed (`--ratings-changed`) |
 | `lists` / `list_venues` | Foursquare lists + visited status | Full upsert only when checkins changed (`--lists-changed`) |
 | `trips` | Trip metadata (name, dates, countries, cities) | Full upsert only when checkins changed (`--trips-changed`) |
 
@@ -823,6 +823,14 @@ Edit `.github/workflows/update-dashboard.yml`, the `cron` line:
 - cron: '0 8 1 * *'    # 1st of every month
 - cron: '0 8 * * *'    # Daily
 ```
+
+Not every step runs every hour. The **venue-ratings fetch** is deliberately
+throttled *inside* the hourly job: `/users/self/venuelikes` has a monthly
+premium-call quota (~220 calls, empirical) that resets on the 1st and returns
+HTTP 402 once spent, so the step only fires at **04:00 UTC on days where the
+day-of-year is divisible by 3** (≈ every 3 days, ~10 fetches/month ≈ ~36 % of
+budget). A manual `workflow_dispatch` bypasses the gate. See the `Fetch venue
+ratings` step in `update-dashboard.yml`.
 
 ---
 

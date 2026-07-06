@@ -966,6 +966,15 @@ python scripts/build.py \
           indefinitely, blocking the CI run.
         </div>
         <div class="cs-text">
+          The likes endpoint (<code>/users/self/venuelikes</code>) is subtler: it is
+          <em>not</em> permanently paywalled but metered by a <strong>monthly premium-call
+          quota</strong> (~220 calls, measured) that resets on the 1st and starts returning
+          402 for the rest of the month once spent. Because each fetch paginates the full
+          likes list (~1.4 k items ≈ 7–8 calls), the original <strong>hourly</strong> refetch
+          burned ~8.6 k calls/month and exhausted the allowance within ~3 days — after which
+          <em>no</em> rating data came back until the next month.
+        </div>
+        <div class="cs-text">
           A secondary issue: many <em>Like</em> records in the API response were missing a
           <code>createdAt</code> timestamp field entirely — the field the ratings page uses
           to assign check-ins to years. Without it, those venues sort to the bottom with no
@@ -973,18 +982,30 @@ python scripts/build.py \
         </div>
       </div>
       <div class="cs-solution">
-        <div class="cs-label sol">Solution — Probe-and-Skip 402 Endpoints; Backfill Timestamps from Check-in History</div>
+        <div class="cs-label sol">Solution — Probe-and-Skip 402 Endpoints; Throttle Likes to the Monthly Budget; Backfill Timestamps</div>
         <div class="cs-text">
-          <code>fetch_ratings.py</code> was updated to treat <strong>402 as a permanent
-          skip</strong>, not a retry-able error. The script logs a one-time warning and moves
-          on — no hang, no false failure. Only the likes endpoint (<code>/users/self/venuelikes</code>)
-          reliably returns data and is actively fetched.
+          <code>fetch_ratings.py</code> treats <strong>402 as a hard skip</strong>, not a
+          retry-able error — the script logs a one-time warning and moves on, so the
+          permanently-402 okays/dislikes endpoints never hang the run.
         </div>
         <div class="code-block">
 <span class="cm"># fetch_ratings.py — 402 is a hard skip, not a transient error</span>
 <span class="kw">if</span> resp.status_code == <span class="hl2">402</span>:
-    print(<span class="hl">f"⚠  {endpoint} → 402 (feature requires paid plan) — skipping"</span>)
+    print(<span class="hl">f"⚠  {endpoint} → 402 (over monthly quota / no entitlement) — skipping"</span>)
     <span class="kw">return</span> []   <span class="cm"># no retry, no exception</span>
+        </div>
+        <div class="cs-text">
+          For likes, the fix is <strong>rate-budgeting</strong> rather than skipping. The CI
+          step is gated to fire only at 04:00 UTC on days whose day-of-year is divisible by 3
+          (≈ every 3 days, ~10 fetches/month ≈ ~80 calls ≈ ~36 % of the ~220 monthly budget),
+          which keeps the endpoint alive all month with headroom instead of starving it after
+          three days. A manual dispatch bypasses the gate.
+        </div>
+        <div class="code-block">
+<span class="cm"># update-dashboard.yml — throttle likes fetch to ~every 3 days</span>
+DOY=$(date -u +%j)   <span class="cm"># day-of-year, 001…366 (zero-padded)</span>
+<span class="kw">if</span> [ <span class="hl">"$((10#$DOY % 3))"</span> = <span class="hl">"0"</span> ] &amp;&amp; [ <span class="hl">"$HOUR"</span> = <span class="hl">"04"</span> ]; <span class="kw">then</span>
+    python scripts/fetch_ratings.py --token <span class="hl">"$FOURSQUARE_TOKEN"</span> ...
         </div>
         <div class="cs-text">
           For the missing <code>createdAt</code> timestamps on likes: a backfill pass reads
