@@ -956,6 +956,83 @@ def shout_records(rows: list[dict]) -> list[dict]:
     return out
 
 
+def merge_comments_into_shouts(
+    shouts: list[dict], rows: list[dict], comments_map: dict
+) -> list[dict]:
+    """Return a shouts-page list enriched with per-check-in comment threads.
+
+    `comments_map` is the `comments` object from comments.json: {checkin_id:
+    {venue, venue_id, ts, items:[{text, at, author, author_id}], …}}. Comments
+    are the reply thread posted *under* a check-in — distinct from its `shout`.
+
+    Behaviour:
+      1. Every shout entry gets a `comments` list (its thread, or []).
+      2. Check-ins that have comments but NO shout are added as new entries
+         (text=""), so the archive surfaces every comment thread, not just the
+         ones that happen to sit under a shout.
+    Original `shouts` dicts are not mutated. Result is sorted newest-first.
+    """
+    comments_map = comments_map or {}
+
+    def _thread(cid: str) -> list[dict]:
+        return list((comments_map.get(cid) or {}).get("items") or [])
+
+    out: list[dict] = []
+    shout_ids: set[str] = set()
+    for s in shouts:
+        cid = (s.get("checkin_id") or "").strip()
+        shout_ids.add(cid)
+        entry = dict(s)
+        entry["comments"] = _thread(cid)
+        out.append(entry)
+
+    # Comment-only check-ins (have a thread but no qualifying shout). Pull venue/
+    # city/country/category/companions from the check-in row when we have it,
+    # else fall back to the venue/ts stored alongside the comments.
+    row_by_id = {(r.get("checkin_id") or "").strip(): r for r in rows}
+    for cid, meta in comments_map.items():
+        cid = (cid or "").strip()
+        if not cid or cid in shout_ids:
+            continue
+        items = _thread(cid)
+        if not items:
+            continue
+        r = row_by_id.get(cid)
+        if r is not None:
+            try:
+                ts = int(r["date"])
+            except (ValueError, KeyError, TypeError):
+                ts = int(meta.get("ts") or 0)
+            out.append({
+                "ts":         ts,
+                "text":       "",
+                "venue":      (r.get("venue") or "").strip(),
+                "venue_id":   (r.get("venue_id") or "").strip(),
+                "city":       (r.get("city") or "").strip(),
+                "country":    (r.get("country") or "").strip(),
+                "category":   (r.get("category") or "").strip(),
+                "companions": collect_companions(r),
+                "checkin_id": cid,
+                "comments":   items,
+            })
+        else:
+            out.append({
+                "ts":         int(meta.get("ts") or 0),
+                "text":       "",
+                "venue":      (meta.get("venue") or "").strip(),
+                "venue_id":   (meta.get("venue_id") or "").strip(),
+                "city":       "",
+                "country":    "",
+                "category":   "",
+                "companions": [],
+                "checkin_id": cid,
+                "comments":   items,
+            })
+
+    out.sort(key=lambda x: -x["ts"])
+    return out
+
+
 # ── Cross-dimensional analytics ────────────────────────────────────────────────
 
 def cross_dim_analysis(rows: list[dict], categorize) -> dict:

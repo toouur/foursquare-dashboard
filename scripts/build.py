@@ -694,11 +694,33 @@ if __name__ == "__main__":
         except Exception as _ae:
             log.warning("Failed to load anomalies: %s", _ae)
 
-    # ── Extract shouts (all + recent strip for index) ───────────────────────────
+    # ── Extract shouts, then merge per-check-in comment threads ─────────────────
+    # comments.json (reply threads under check-ins, distinct from shouts) lives
+    # next to checkins.csv. The merged list (shouts + comment-only check-ins,
+    # sorted newest-first, threads attached) feeds BOTH the shouts page and the
+    # index recent-strip so comments interleave with shouts by date.
     from metrics import shout_records as _shout_records
+    from metrics import merge_comments_into_shouts as _merge_comments
     all_shouts = _shout_records(rows)
+
+    _comments_path = Path(args.input).resolve().parent / "comments.json"
+    _comments_map: dict = {}
+    if _comments_path.exists():
+        try:
+            _comments_map = json.loads(
+                _comments_path.read_text(encoding="utf-8")
+            ).get("comments", {}) or {}
+        except Exception as _ce:  # noqa: BLE001
+            log.warning("Could not read %s (%s) — comments won't render", _comments_path, _ce)
+    shouts_for_page = _merge_comments(all_shouts, rows, _comments_map)
+    _n_threads = sum(1 for s in shouts_for_page if s.get("comments"))
+    log.info("Shouts page: %d entr(y/ies), %d with comment threads (%d comment-only)",
+             len(shouts_for_page), _n_threads, len(shouts_for_page) - len(all_shouts))
+
+    # Recent strip for index: newest 30 across the merged list (shouts +
+    # comment-only), each carrying its comment thread.
     _recent_shouts = []
-    for s in all_shouts[:30]:
+    for s in shouts_for_page[:30]:
         from datetime import datetime as _dt, timezone as _tz
         try:
             _d = _dt.fromtimestamp(s["ts"], tz=_tz.utc)
@@ -716,6 +738,7 @@ if __name__ == "__main__":
             "category":   s.get("category", ""),
             "checkin_id": s.get("checkin_id", ""),
             "companions": s.get("companions", []),
+            "comments":   s.get("comments", []),
         })
     shouts_recent_json = json.dumps(
         {"total": len(all_shouts), "items": _recent_shouts},
@@ -782,7 +805,7 @@ if __name__ == "__main__":
         (_here / "gen_ratings.py",    "ratings.html",      "ratings.html.tmpl",      {"likes": _likes, "neutral": _neutral, "dislikes": _dislikes, "country_count": len(data['countries'])}),
         (_here / "gen_lists.py",      "lists.html",        "lists.html.tmpl",        {"lists_data_json": _lists_data_json}),
         (_here / "gen_guide.py",      "guide.html",        "guide.html.tmpl",        {"rows": rows, "mappings": mappings}),
-        (_here / "gen_shouts.py",     "shouts.html",       "shouts.html.tmpl",       {"shouts": all_shouts, "country_count": len(data['countries']), "swarm_user_id": fs_user_id}),
+        (_here / "gen_shouts.py",     "shouts.html",       "shouts.html.tmpl",       {"shouts": shouts_for_page, "country_count": len(data['countries']), "swarm_user_id": fs_user_id}),
     ]:
         if gen_script.exists():
             import importlib.util as _ilu, importlib as _il

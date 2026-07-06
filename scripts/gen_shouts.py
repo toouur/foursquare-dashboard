@@ -41,6 +41,7 @@ def build_page(
             "category":   s.get("category", ""),
             "companions": s.get("companions", []),
             "checkin_id": s.get("checkin_id", ""),
+            "comments":   s.get("comments", []),
         })
 
     data_json = json.dumps(out, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")

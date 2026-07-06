@@ -92,6 +92,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .sc-loc{display:inline-flex;align-items:center;gap:3px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sc-date{white-space:nowrap;}
 .sc-with{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--teal);margin-left:30px;margin-top:2px;}
+/* ── Comment thread ── */
+.sc-comments{margin-top:9px;padding-top:9px;border-top:1px dashed var(--border);display:flex;flex-direction:column;gap:7px;}
+.sc-cmt{display:flex;flex-direction:column;gap:2px;padding:6px 9px;background:var(--card2);border-radius:8px;border-left:2px solid var(--border);}
+.sc-cmt.mine{border-left-color:var(--gold);}
+.sc-cmt-meta{display:flex;align-items:baseline;gap:6px;font-family:'DM Mono',monospace;font-size:.54rem;color:var(--muted);}
+.sc-cmt-auth{font-weight:600;color:var(--teal);}
+.sc-cmt.mine .sc-cmt-auth{color:var(--gold);}
+.sc-cmt-txt{font-size:.78rem;line-height:1.45;color:var(--text);white-space:pre-wrap;overflow-wrap:break-word;}
+.sc-cmt-txt mark{background:rgba(232,184,109,.25);color:var(--gold);padding:0 1px;border-radius:2px;}
 .empty{text-align:center;padding:60px 16px;color:var(--muted);font-size:.85rem;}
 .empty-hint{font-size:.72rem;margin-top:8px;opacity:.7;}
 
@@ -175,9 +184,13 @@ let lastFilteredCount = 0;
   const ctrSet = new Set(ALL.map(s=>s.country).filter(Boolean));
   const yrs=[...new Set(ALL.map(s=>new Date(s.ts*1000).getFullYear()))].sort();
   const span = yrs.length ? (yrs[yrs.length-1]-yrs[0]+1) : 0;
-  const avgChars = ALL.length ? Math.round(ALL.reduce((a,s)=>a+(s.text||'').length,0)/ALL.length) : 0;
+  const withText = ALL.filter(s=>(s.text||'').trim());
+  const avgChars = withText.length ? Math.round(withText.reduce((a,s)=>a+s.text.length,0)/withText.length) : 0;
+  const threads = ALL.reduce((a,s)=>a+((s.comments&&s.comments.length)?1:0),0);
+  const cmts = ALL.reduce((a,s)=>a+((s.comments&&s.comments.length)||0),0);
+  const cmtNote = threads ? ' · ' + cmts.toLocaleString() + ' comment' + (cmts===1?'':'s') + ' on ' + threads.toLocaleString() + ' check-in' + (threads===1?'':'s') : '';
   document.getElementById('page-insight').textContent =
-    ALL.length.toLocaleString() + ' shouts across ' + ctrSet.size + ' countries, ' + span + ' years — average length ' + avgChars + ' characters.';
+    withText.length.toLocaleString() + ' shouts across ' + ctrSet.size + ' countries, ' + span + ' years — average length ' + avgChars + ' characters' + cmtNote + '.';
 })();
 
 function highlight(text, q){
@@ -197,11 +210,31 @@ function getFiltered(){
         || (s.venue||'').toLowerCase().includes(q)
         || (s.city||'').toLowerCase().includes(q)
         || (s.country||'').toLowerCase().includes(q)
-        || (s.companions||[]).some(n => n.toLowerCase().includes(q));
+        || (s.companions||[]).some(n => n.toLowerCase().includes(q))
+        || (s.comments||[]).some(c => (c.text||'').toLowerCase().includes(q)
+                                   || (c.author||'').toLowerCase().includes(q));
   });
 }
 
 const SWARM_USER_ID = "{{SWARM_USER_ID}}";
+
+const CMT_FMT = new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+function cmtDate(at){
+  if(!at) return '';
+  try{ return CMT_FMT.format(new Date(at*1000)); }catch(e){ return ''; }
+}
+function renderComments(list){
+  if(!list || !list.length) return '';
+  const rows = list.map(c=>{
+    const mine = c.author_id && String(c.author_id) === SWARM_USER_ID;
+    const d = cmtDate(c.at);
+    return `<div class="sc-cmt${mine?' mine':''}">
+      <div class="sc-cmt-meta"><span class="sc-cmt-auth">${esc(c.author||'')}</span>${d?`<span>${d}</span>`:''}</div>
+      <div class="sc-cmt-txt">${highlight(c.text||'', query)}</div>
+    </div>`;
+  }).join('');
+  return `<div class="sc-comments">${rows}</div>`;
+}
 
 function renderCard(s){
   const {em,bg} = catIcon(s.category||'');
@@ -218,8 +251,10 @@ function renderCard(s){
   const cardAttr = swarmUrl
     ? ` onclick="window.open('${swarmUrl}','_blank')" style="cursor:pointer;"`
     : '';
+  const textRow = (s.text||'').trim()
+    ? `<div class="sc-text">${highlight(s.text, query)}</div>` : '';
   return `<div class="scard"${cardAttr}>
-    <div class="sc-text">${highlight(s.text||'', query)}</div>
+    ${textRow}
     <div class="sc-head">
       <div class="sc-cat-icon" style="background:${bg}22;border:1px solid ${bg}55">${em}</div>
       <div class="sc-venue">${venueLabel}</div>
@@ -229,6 +264,7 @@ function renderCard(s){
       <span class="sc-loc">${f}${esc(loc)}</span>
       <span class="sc-date">${s.date||''}</span>
     </div>
+    ${renderComments(s.comments)}
   </div>`;
 }
 
