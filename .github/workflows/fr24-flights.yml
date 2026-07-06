@@ -1,0 +1,125 @@
+# .github/workflows/fr24-flights.yml
+#
+# FlightRadar24 flight-diary monitor + fetcher.
+#
+# FR24 has no personal-diary API. The diary CSV is a normal authenticated web
+# download; an unattended job authenticates with a stored browser session
+# cookie (secret FR24_COOKIE) and hits the real download endpoint
+# https://my.flightradar24.com/public-scripts/export (the "DOWNLOAD CSV" button
+# behind /settings/export). See scripts/fetch_flights.py for the how/why.
+#
+# TWO PURPOSES:
+#   1. EXPIRY MONITOR (default, daily --check): probe whether the cookie is
+#      still valid. When it expires the job FAILS on purpose (exit 2) so GitHub
+#      emails the repo owner — that failed run's date is the cookie lifetime.
+#   2. FETCH + COMMIT (workflow_dispatch with commit_csv=true, or the weekly
+#      run): download the CSV and commit it to the private data repo as
+#      flights.csv when it changed, so build.py picks up new flights.
+#
+# A transient network/error (exit 1) is treated as neutral — it does NOT fail
+# the run, so a blip can't raise a false "cookie expired" alarm.
+#
+# Required secrets:
+#   FR24_COOKIE     — full browser Cookie header from a logged-in my.flightradar24.com
+#                     session (grab from DevTools → Network → the export request).
+#   DATA_REPO_PAT   — fine-grained PAT with Contents read/write on toouur/foursquare-data
+#                     (only needed when committing the CSV).
+
+name: FR24 flights monitor
+
+on:
+  schedule:
+    # Daily 05:00 UTC probe (expiry monitor). Sunday's run also commits the CSV.
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      commit_csv:
+        description: 'Fetch the CSV and commit it to the data repo if changed'
+        type: boolean
+        default: false
+
+jobs:
+  fr24:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Commit the CSV on manual runs that ask for it, or on the weekly Sunday run.
+      - name: Decide mode
+        id: mode
+        run: |
+          if [ "${{ github.event.inputs.commit_csv }}" = "true" ] || \
+             [ "$(date -u +%u)" = "7" ]; then
+            echo "commit=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "commit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Only needed when we intend to write/commit the CSV.
+      - name: Checkout private data repo
+        if: steps.mode.outputs.commit == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Probe / fetch FR24 export
+        id: fetch
+        env:
+          FR24_COOKIE: ${{ secrets.FR24_COOKIE }}
+        run: |
+          set +e
+          if [ "${{ steps.mode.outputs.commit }}" = "true" ]; then
+            python scripts/fetch_flights.py --out private-data/flights.csv | tee out.txt
+          else
+            python scripts/fetch_flights.py --check | tee out.txt
+          fi
+          CODE=${PIPESTATUS[0]}
+          set -e
+          VALID=$(grep -m1 '^COOKIE_VALID=' out.txt | cut -d= -f2)
+          CHANGED=$(grep -m1 '^CHANGED=' out.txt | cut -d= -f2)
+          echo "valid=${VALID:-unknown}"   >> "$GITHUB_OUTPUT"
+          echo "changed=${CHANGED:-false}" >> "$GITHUB_OUTPUT"
+          echo "code=${CODE}"              >> "$GITHUB_OUTPUT"
+          {
+            echo "### FR24 cookie probe — $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "- **COOKIE_VALID**: \`${VALID:-unknown}\`"
+            echo "- **exit code**: \`${CODE}\` (0 ok · 1 transient · 2 expired)"
+            echo "- **mode**: \`${{ steps.mode.outputs.commit == 'true' && 'fetch+commit' || 'check-only' }}\`"
+            echo "- **CSV changed**: \`${CHANGED:-false}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit updated flights.csv
+        if: steps.mode.outputs.commit == 'true' && steps.fetch.outputs.changed == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add flights.csv
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore: update flights.csv from FR24 [$(date -u +'%Y-%m-%d %H:%M UTC')]"
+            git push
+          fi
+
+      # Fail ONLY on a confirmed expiry (exit 2) so a scheduled-run failure
+      # email marks the day the cookie died. Transient errors (exit 1) pass.
+      - name: Alarm if cookie expired
+        if: steps.fetch.outputs.code == '2'
+        run: |
+          echo "::error::FR24_COOKIE is no longer valid (expired/unauthorized). Re-capture the Cookie header from a logged-in my.flightradar24.com session and update the FR24_COOKIE secret."
+          exit 1
