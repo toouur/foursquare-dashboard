@@ -118,7 +118,11 @@ def fetch_venue_list(token: str, list_id: str) -> list[dict] | None:
     return items
 
 
-def fetch_likes_via_lists(token: str, user_id: str | None = None) -> list[dict] | None:
+def fetch_likes_via_lists(
+    token: str,
+    user_id: str | None = None,
+    known_ids: set[str] | None = None,
+) -> list[dict] | None:
     """
     Fallback path: fetch the canonical "venuelikes" list via the /v2/lists/{id}
     endpoint family instead of /v2/users/self/venuelikes.
@@ -131,7 +135,17 @@ def fetch_likes_via_lists(token: str, user_id: str | None = None) -> list[dict] 
     given. Returns a list of {id,name,url,createdAt} dicts (same shape the merge
     in main() expects, plus a real createdAt the users endpoint never provides),
     or None if every form is also inaccessible.
+
+    Incremental early-stop: this list endpoint has no server-side "since" filter,
+    so a naive fetch re-downloads all ~2k likes every run (~11 pages). Likes are
+    returned newest-first, so when `known_ids` (the ids already in the local
+    file) is supplied we stop paginating as soon as a full page yields ZERO
+    new-to-us ids — everything past that point is older and already synced.
+    main()'s merge then re-appends the untouched historical tail, so the output
+    is identical to a full fetch while making steady-state runs cost ~1 page
+    instead of ~11. A first run (empty `known_ids`) still fetches everything.
     """
+    known_ids = known_ids or set()
     forms = ["self/venuelikes"]
     if user_id:
         forms.append(f"{user_id}/venuelikes")
@@ -173,19 +187,29 @@ def fetch_likes_via_lists(token: str, user_id: str | None = None) -> list[dict] 
             raw = data.get("response", {}).get("list", {}).get("listItems", {}).get("items", [])
             if not raw:
                 break
+            page_new = 0
             for it in raw:
                 venue = it.get("venue") or {}
                 vid = str(venue.get("id") or "").strip()
                 if not vid:
                     continue
+                if vid not in known_ids:
+                    page_new += 1
                 items.append({
                     "id":        vid,
                     "name":      (venue.get("name") or "").strip(),
                     "url":       (venue.get("canonicalUrl") or "").strip(),
                     "createdAt": int(it.get("createdAt") or 0),
                 })
-            log.info("lists fallback /v2/lists/%s: %d / %d items", list_id, len(items), total)
+            log.info("lists fallback /v2/lists/%s: %d / %d items (%d new this page)",
+                     list_id, len(items), total, page_new)
             if (total and len(items) >= total) or len(raw) < LIMIT:
+                break
+            # Incremental early-stop: a full page with no new-to-us ids means we
+            # have reached already-synced (older) territory — stop here and let
+            # main()'s merge preserve the untouched tail.
+            if known_ids and page_new == 0:
+                log.info("lists fallback: reached already-synced likes (page all known) — stopping early.")
                 break
             offset += LIMIT
             time.sleep(SLEEP)
@@ -252,7 +276,11 @@ def main() -> None:
     # endpoint is now paywalled, so try the (free) lists endpoint before giving up.
     if fresh_likes is None:
         log.warning("venuelikes (users endpoint) unavailable — trying free /v2/lists fallback …")
-        fresh_likes = fetch_likes_via_lists(token, user_id=(args.user_id or None))
+        fresh_likes = fetch_likes_via_lists(
+            token,
+            user_id=(args.user_id or None),
+            known_ids=set(existing_likes_by_id),
+        )
 
     # Distinguish a "could not fetch" state from a genuine "nothing new" so a
     # lost-entitlement situation doesn't masquerade as CHANGED=false for weeks.
