@@ -130,6 +130,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   </div>
   <div class="topbar">
     <h1>Shouts</h1>
+    <select class="sbtn" id="fType" onchange="setType(this.value)" style="padding:4px 7px;cursor:pointer;">
+      <option value="">All entries</option>
+      <option value="shouts">Shouts only</option>
+      <option value="comments">With comments</option>
+    </select>
     <select class="sbtn" id="fYear" onchange="setYear(this.value)" style="padding:4px 7px;cursor:pointer;"></select>
     <select class="sbtn" id="fCountry" onchange="setCountry(this.value)" style="padding:4px 7px;cursor:pointer;"></select>
     <div class="tb-right">
@@ -155,8 +160,12 @@ function flagHtml(c){const code=(CTRY_CODE[c]||'').toLowerCase();return code?`<s
 const CAT_ICON = {{CAT_ICON_JSON}};
 function catIcon(cat){const e=CAT_ICON[cat||''];return e?{em:e[0],bg:e[1]}:{em:'📍',bg:'#4a5270'};}
 
+// Foursquare user id — used to tell my own comments from friends' replies.
+const SWARM_USER_ID = "{{SWARM_USER_ID}}";
+const isMineCmt=c=>c.author_id && String(c.author_id) === SWARM_USER_ID;
+
 // ── Filter state ─────────────────────────────────────────────────────────────
-let query='', yearFilter=0, countryFilter='';
+let query='', yearFilter=0, countryFilter='', typeFilter='';
 const PAGE_SIZE = 80;
 let renderedCount = 0;
 let lastFilteredCount = 0;
@@ -188,7 +197,9 @@ let lastFilteredCount = 0;
   const avgChars = withText.length ? Math.round(withText.reduce((a,s)=>a+s.text.length,0)/withText.length) : 0;
   const threads = ALL.reduce((a,s)=>a+((s.comments&&s.comments.length)?1:0),0);
   const cmts = ALL.reduce((a,s)=>a+((s.comments&&s.comments.length)||0),0);
-  const cmtNote = threads ? ' · ' + cmts.toLocaleString() + ' comment' + (cmts===1?'':'s') + ' on ' + threads.toLocaleString() + ' check-in' + (threads===1?'':'s') : '';
+  const cmtMine = ALL.reduce((a,s)=>a+((s.comments||[]).filter(isMineCmt).length),0);
+  const cmtOthers = cmts - cmtMine;
+  const cmtNote = threads ? ' · ' + cmts.toLocaleString() + ' comment' + (cmts===1?'':'s') + ' (' + cmtMine.toLocaleString() + ' mine · ' + cmtOthers.toLocaleString() + ' others) on ' + threads.toLocaleString() + ' check-in' + (threads===1?'':'s') : '';
   document.getElementById('page-insight').textContent =
     withText.length.toLocaleString() + ' shouts across ' + ctrSet.size + ' countries, ' + span + ' years — average length ' + avgChars + ' characters' + cmtNote + '.';
 })();
@@ -203,6 +214,8 @@ function highlight(text, q){
 function getFiltered(){
   const q = query.toLowerCase();
   return ALL.filter(s=>{
+    if(typeFilter==='shouts' && !(s.text||'').trim()) return false;
+    if(typeFilter==='comments' && !(s.comments && s.comments.length)) return false;
     if(yearFilter && new Date(s.ts*1000).getFullYear() !== yearFilter) return false;
     if(countryFilter && s.country !== countryFilter) return false;
     if(!q) return true;
@@ -216,8 +229,6 @@ function getFiltered(){
   });
 }
 
-const SWARM_USER_ID = "{{SWARM_USER_ID}}";
-
 const CMT_FMT = new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric'});
 function cmtDate(at){
   if(!at) return '';
@@ -226,7 +237,7 @@ function cmtDate(at){
 function renderComments(list){
   if(!list || !list.length) return '';
   const rows = list.map(c=>{
-    const mine = c.author_id && String(c.author_id) === SWARM_USER_ID;
+    const mine = isMineCmt(c);
     const d = cmtDate(c.at);
     return `<div class="sc-cmt${mine?' mine':''}">
       <div class="sc-cmt-meta"><span class="sc-cmt-auth">${esc(c.author||'')}</span>${d?`<span>${d}</span>`:''}</div>
@@ -273,7 +284,8 @@ function render(reset){
   if(reset) renderedCount = 0;
   _filteredCache = getFiltered();
   lastFilteredCount = _filteredCache.length;
-  document.getElementById('badge').textContent = lastFilteredCount.toLocaleString() + ' / ' + ALL.length.toLocaleString() + ' shouts';
+  const _noun = typeFilter==='comments' ? 'with comments' : typeFilter==='shouts' ? 'shouts' : 'entries';
+  document.getElementById('badge').textContent = lastFilteredCount.toLocaleString() + ' / ' + ALL.length.toLocaleString() + ' ' + _noun;
 
   const grid = document.getElementById('feedGrid');
   if(reset) grid.innerHTML='';
@@ -308,11 +320,13 @@ function render(reset){
 function syncURL(){
   const p=new URLSearchParams();
   if(query) p.set('q',query);
+  if(typeFilter) p.set('type',typeFilter);
   if(yearFilter) p.set('year',String(yearFilter));
   if(countryFilter) p.set('country',countryFilter);
   const qs=p.toString();
   history.replaceState(null,'',qs?'?'+qs:location.pathname);
 }
+function setType(v){typeFilter=v||'';render(true);syncURL();}
 function setYear(v){yearFilter=parseInt(v)||0;render(true);syncURL();}
 function setCountry(v){countryFilter=v||'';render(true);syncURL();}
 function onSearch(v){query=v;render(true);syncURL();}
@@ -331,11 +345,12 @@ render(true);
 // Deep-link via ?q= / ?year= / ?country=
 (function(){
   const sp=new URLSearchParams(location.search);
-  const _q=sp.get('q'); const _yr=sp.get('year'); const _co=sp.get('country');
+  const _q=sp.get('q'); const _yr=sp.get('year'); const _co=sp.get('country'); const _ty=sp.get('type');
   if(_q){const i=document.getElementById('srch');if(i){i.value=_q;query=_q;}}
+  if(_ty){typeFilter=_ty;const s=document.getElementById('fType');if(s)s.value=_ty;}
   if(_yr){yearFilter=parseInt(_yr)||0;const s=document.getElementById('fYear');if(s)s.value=String(yearFilter);}
   if(_co){countryFilter=_co;const s=document.getElementById('fCountry');if(s)s.value=_co;}
-  if(_q||_yr||_co) render(true);
+  if(_q||_yr||_co||_ty) render(true);
 })();
 
 function gsOpen(){document.getElementById('gsOverlay').classList.add('open');document.getElementById('gsInput').focus();}

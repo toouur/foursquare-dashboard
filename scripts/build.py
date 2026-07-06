@@ -717,6 +717,23 @@ if __name__ == "__main__":
     log.info("Shouts page: %d entr(y/ies), %d with comment threads (%d comment-only)",
              len(shouts_for_page), _n_threads, len(shouts_for_page) - len(all_shouts))
 
+    # Comment tallies (mine vs others) across every thread — surfaced in the index
+    # strip subtitle and the shouts-page insight. "Mine" = comment author matches
+    # our Foursquare user id; everything else is a friend's reply.
+    _cmt_total = _cmt_mine = _cmt_threads = 0
+    for _s in shouts_for_page:
+        _cl = _s.get("comments") or []
+        if not _cl:
+            continue
+        _cmt_threads += 1
+        for _c in _cl:
+            _cmt_total += 1
+            if str(_c.get("author_id") or "") == str(fs_user_id or ""):
+                _cmt_mine += 1
+    _cmt_others = _cmt_total - _cmt_mine
+    log.info("Comments: %d total (%d mine, %d others) on %d check-ins",
+             _cmt_total, _cmt_mine, _cmt_others, _cmt_threads)
+
     # Recent strip for index: newest 30 across the merged list (shouts +
     # comment-only), each carrying its comment thread.
     _recent_shouts = []
@@ -741,7 +758,10 @@ if __name__ == "__main__":
             "comments":   s.get("comments", []),
         })
     shouts_recent_json = json.dumps(
-        {"total": len(all_shouts), "items": _recent_shouts},
+        {"total": len(all_shouts),
+         "cmt_total": _cmt_total, "cmt_mine": _cmt_mine,
+         "cmt_others": _cmt_others, "cmt_threads": _cmt_threads,
+         "items": _recent_shouts},
         ensure_ascii=False,
     ).replace("</", "<\\/")
     log.info("Loaded %d shouts (recent %d)", len(all_shouts), len(_recent_shouts))

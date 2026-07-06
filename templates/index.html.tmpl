@@ -1228,7 +1228,14 @@ function filterList(id,q){
     return `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border,#333);display:flex;flex-direction:column;gap:4px;">${rows}</div>`;
   };
   document.getElementById('shoutsFeedSection').style.display='';
-  document.getElementById('shoutsSub').textContent=sh.total.toLocaleString()+' shouts total';
+  (function(){
+    let t=sh.total.toLocaleString()+' shouts';
+    if(sh.cmt_total){
+      t+=' · '+sh.cmt_total.toLocaleString()+' comment'+(sh.cmt_total===1?'':'s')
+        +' ('+(sh.cmt_mine||0).toLocaleString()+' mine · '+(sh.cmt_others||0).toLocaleString()+' others)';
+    }
+    document.getElementById('shoutsSub').textContent=t;
+  })();
   const scroll=document.getElementById('shoutsScroll');
   scroll.innerHTML=sh.items.map(s=>{
     const vUrl=s.venue_id?`https://foursquare.com/v/${s.venue_id}`:'';
