@@ -47,6 +47,17 @@ USAGE:
     python scripts/fetch_comments.py --token "$FOURSQUARE_TOKEN" \
         --out .../comments.json --all
 
+    # 4) Targeted back-fill of specific threads a Foursquare data export proves
+    #    exist but comments.json is missing (e.g. friends' comments on old
+    #    check-ins). Reads the id list, skips the feed scan, and tries the
+    #    dedicated /checkins/{id}/comments endpoint first, then the /checkins/{id}
+    #    detail endpoint. Writes a per-id outcome report so you can see which old
+    #    ids are still age-gated (HTTP 403) versus recovered.
+    python scripts/fetch_comments.py --token "$FOURSQUARE_TOKEN" \
+        --out    .../comments.json \
+        --targets .../comments_backfill_targets.json \
+        --report  .../comments_backfill_report.json
+
 Outputs:
   - Prints CHANGED=true/false to stdout (for GitHub Actions >> $GITHUB_OUTPUT).
   - Exit 0 normal (incl. graceful rate-limit stop); 1 on fatal error.
@@ -67,11 +78,12 @@ import requests
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 
-FEED_API    = "https://api.foursquare.com/v2/users/self/checkins"
-CHECKIN_API = "https://api.foursquare.com/v2/checkins/{cid}"
-API_V       = "20231201"
-LIMIT       = 250
-SLEEP       = 0.35   # between detail calls; ≈ existing overlaps-enrichment cadence
+FEED_API             = "https://api.foursquare.com/v2/users/self/checkins"
+CHECKIN_API          = "https://api.foursquare.com/v2/checkins/{cid}"
+CHECKIN_COMMENTS_API = "https://api.foursquare.com/v2/checkins/{cid}/comments"
+API_V                = "20231201"
+LIMIT                = 250
+SLEEP                = 0.35   # between detail calls; ≈ existing overlaps-enrichment cadence
 
 
 def resolve_token(cli_token: str | None) -> str:
@@ -256,6 +268,234 @@ def fetch_checkin_detail(token: str, cid: str, timeout: int = 30) -> dict:
     return resp.json().get("response", {}).get("checkin", {})
 
 
+# ── targeted back-fill (recover the 441 threads the export proves exist) ─────────
+def _comments_items_to_store(raw_items: list[dict]) -> list[dict]:
+    """Map /checkins/{id}/comments response items[] into our stored shape.
+
+    The dedicated comments endpoint returns the same comment objects the detail
+    endpoint inlines under checkin.comments.items[] — user{} + text + createdAt.
+    """
+    out: list[dict] = []
+    for c in raw_items or []:
+        u = c.get("user", {})
+        author = (u.get("firstName", "") + " " + u.get("lastName", "")).strip()
+        out.append({
+            "text": c.get("text", ""),
+            "at": c.get("createdAt"),
+            "author": author,
+            "author_id": str(u.get("id", "") or ""),
+        })
+    return out
+
+
+def fetch_checkin_comments(token: str, cid: str, timeout: int = 30) -> tuple[list[dict], int]:
+    """Try the DEDICATED /checkins/{id}/comments listing endpoint.
+
+    This is a different route than the /checkins/{id} detail endpoint that
+    403s on pre-2024 check-ins; some age-gated check-ins still expose their
+    comment thread here. Returns (items, http_status). Raises RateLimited on 429.
+    On any non-200 (incl. 403) returns ([], status) so the caller can fall back.
+    """
+    resp = requests.get(
+        CHECKIN_COMMENTS_API.format(cid=cid),
+        params={"oauth_token": token, "v": API_V, "limit": 200},
+        timeout=timeout,
+    )
+    if _is_rate_limit(resp):
+        raise RateLimited(cid)
+    if resp.status_code != 200:
+        return [], resp.status_code
+    try:
+        body = resp.json()
+    except ValueError:
+        return [], resp.status_code
+    if body.get("meta", {}).get("code") != 200:
+        return [], resp.status_code
+    raw = body.get("response", {}).get("comments", {}).get("items", [])
+    return _comments_items_to_store(raw), 200
+
+
+def load_targets(path: Path) -> list[dict]:
+    """Read the back-fill target list. Accepts either:
+      - the .json produced alongside it: {"_meta":{…}, "targets":[{checkin_id,…}]}
+        (or a bare list of such dicts), or
+      - a .txt with one checkin_id per line (# comments allowed).
+    Returns [{"checkin_id", "expected_count", "venue", "venue_id", "ts"}].
+    """
+    text = path.read_text(encoding="utf-8")
+    if path.suffix.lower() == ".json":
+        data = json.loads(text)
+        rows = data.get("targets", data) if isinstance(data, dict) else data
+        out = []
+        for r in rows:
+            cid = str(r.get("checkin_id", "") or "").strip()
+            if cid:
+                out.append({
+                    "checkin_id": cid,
+                    "expected_count": r.get("expected_count", 0),
+                    "venue": r.get("venue", ""),
+                    "venue_id": str(r.get("venue_id", "") or ""),
+                    "ts": r.get("ts"),
+                })
+        return out
+    # plain-text: one id per line
+    out = []
+    for line in text.splitlines():
+        cid = line.split("#", 1)[0].strip()
+        if cid:
+            out.append({"checkin_id": cid, "expected_count": 0,
+                        "venue": "", "venue_id": "", "ts": None})
+    return out
+
+
+def run_targets(token: str, targets_path: Path, out_path: Path,
+                report_path: Path | None, max_calls: int, sleep: float,
+                now: str) -> int:
+    """--targets mode: recover specific comment threads by checkin_id.
+
+    For each target, try the dedicated /comments endpoint first, then fall back
+    to the /checkins/{id} detail endpoint. Per-id outcome (which endpoint won,
+    or the status that blocked it) is logged to a report so we can see exactly
+    which old ids remain age-gated (403) after this pass.
+    """
+    targets = load_targets(targets_path)
+    if not targets:
+        log.error("No targets loaded from %s", targets_path)
+        print("CHANGED=false")
+        return 1
+    log.info("--targets: %d checkin id(s) loaded from %s", len(targets), targets_path.name)
+
+    store = load_store(out_path)
+    stored = store["comments"]
+
+    # Skip ids we already have a complete thread for (idempotent re-runs).
+    worklist = []
+    for t in targets:
+        cid = t["checkin_id"]
+        cur = stored.get(cid, {})
+        exp = t.get("expected_count") or 0
+        if cur.get("items") and (exp == 0 or len(cur["items"]) >= exp):
+            continue
+        worklist.append(t)
+    already = len(targets) - len(worklist)
+    if already:
+        log.info("  %d already complete in comments.json — skipping.", already)
+    if max_calls and max_calls > 0:
+        worklist = worklist[:max_calls]
+
+    report: dict[str, dict] = {}
+    changed = False
+    recovered = fresh_403 = empty = errors = 0
+
+    for i, t in enumerate(worklist, 1):
+        cid = t["checkin_id"]
+        items: list[dict] = []
+        won = None
+        status_comments = status_detail = None
+
+        # 1) dedicated comments-listing endpoint
+        try:
+            items, status_comments = fetch_checkin_comments(token, cid)
+            if items:
+                won = "comments"
+        except RateLimited:
+            log.warning("Rate-limited after %d call(s) — saving progress, resume next run.", i - 1)
+            break
+        except requests.RequestException as exc:
+            status_comments = "net"
+            log.debug("comments endpoint net error %s: %s", cid, _scrub(str(exc), token))
+
+        # 2) fall back to the full detail endpoint
+        if not items:
+            try:
+                ci = fetch_checkin_detail(token, cid)
+                items = extract_comments(ci)
+                status_detail = 200
+                if items:
+                    won = "detail"
+                # detail carries venue/ts — enrich the target if it was blank
+                v = ci.get("venue", {})
+                if not t.get("venue"):
+                    t["venue"] = v.get("name", "")
+                if not t.get("venue_id"):
+                    t["venue_id"] = str(v.get("id", "") or "")
+                if not t.get("ts"):
+                    t["ts"] = ci.get("createdAt")
+            except RateLimited:
+                log.warning("Rate-limited after %d call(s) — saving progress, resume next run.", i - 1)
+                break
+            except requests.HTTPError as exc:
+                status_detail = exc.response.status_code if exc.response is not None else "?"
+            except requests.RequestException as exc:
+                status_detail = "net"
+                log.debug("detail endpoint net error %s: %s", cid, _scrub(str(exc), token))
+
+        if items:
+            entry = {
+                "count": t.get("expected_count") or len(items),
+                "venue": t.get("venue", "") or stored.get(cid, {}).get("venue", ""),
+                "venue_id": t.get("venue_id", "") or stored.get(cid, {}).get("venue_id", ""),
+                "ts": t.get("ts") or stored.get(cid, {}).get("ts"),
+                "items": items,
+                "fetched_at": int(time.time()),
+                "source": f"targets:{won}",
+            }
+            if stored.get(cid) != entry:
+                stored[cid] = entry
+                changed = True
+            recovered += 1
+            outcome = "recovered"
+        else:
+            outcome = "empty" if 200 in (status_comments, status_detail) else "blocked"
+            if outcome == "empty":
+                empty += 1
+            elif 403 in (status_comments, status_detail):
+                fresh_403 += 1
+            else:
+                errors += 1
+
+        report[cid] = {
+            "outcome": outcome,
+            "won": won,
+            "items": len(items),
+            "expected": t.get("expected_count") or 0,
+            "status_comments": status_comments,
+            "status_detail": status_detail,
+            "venue": t.get("venue", ""),
+        }
+
+        if i % 25 == 0:
+            save_store(out_path, store)
+            log.info("  %d/%d — recovered %d, 403 %d, empty %d, err %d",
+                     i, len(worklist), recovered, fresh_403, empty, errors)
+        time.sleep(sleep)
+
+    store["_meta"]["targets_run"] = {
+        "updated": now,
+        "targets_file": targets_path.name,
+        "attempted": len(worklist),
+        "recovered": recovered,
+        "still_403": fresh_403,
+        "empty": empty,
+        "errors": errors,
+    }
+    save_store(out_path, store)
+
+    if report_path is not None:
+        report_path.write_text(
+            json.dumps({"_meta": store["_meta"]["targets_run"], "results": report},
+                       ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        log.info("Per-id outcomes written to %s", report_path)
+
+    log.info("[%s] --targets done: attempted %d, recovered %d thread(s), "
+             "still-403 %d, empty %d, errors %d.",
+             now, len(worklist), recovered, fresh_403, empty, errors)
+    print(f"CHANGED={'true' if changed else 'false'}")
+    return 0
+
+
 # ── main ────────────────────────────────────────────────────────────────────────
 def main() -> int:
     ap = argparse.ArgumentParser(description="Back-fill per-check-in comments into comments.json")
@@ -269,6 +509,13 @@ def main() -> int:
     ap.add_argument("--max-calls", type=int, default=0,
                     help="Cap Phase-2 detail calls this run (0 = unlimited). Resume next run.")
     ap.add_argument("--sleep", type=float, default=SLEEP, help="Seconds between detail calls.")
+    ap.add_argument("--targets", default="",
+                    help="Targeted back-fill: path to a list of checkin_ids to recover "
+                         "(the comments_backfill_targets .json or .txt). Skips the feed "
+                         "scan; tries /checkins/{id}/comments first, then /checkins/{id}.")
+    ap.add_argument("--report", default="",
+                    help="With --targets: write a per-id outcome JSON here (which endpoint "
+                         "won, or the status — e.g. 403 — that blocked each id).")
     args = ap.parse_args()
 
     token = resolve_token(args.token)
@@ -278,6 +525,22 @@ def main() -> int:
         return 1
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    # ── targeted back-fill short-circuit (no feed scan) ──────────────────────
+    if args.targets:
+        if not args.out:
+            log.error("--out is required with --targets.")
+            print("CHANGED=false")
+            return 1
+        return run_targets(
+            token,
+            Path(args.targets),
+            Path(args.out),
+            Path(args.report) if args.report else None,
+            args.max_calls,
+            args.sleep,
+            now,
+        )
 
     # ── Phase 1: scan the feed for comment counts ────────────────────────────
     try:
