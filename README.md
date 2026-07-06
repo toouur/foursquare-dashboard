@@ -812,6 +812,26 @@ data/checkins.csv + tips.json + ...    (CI sync, incremental)
                                created_by_name + overlaps_name)
 ```
 
+## Deployment
+
+> **Design change (June 2026).** Originally the hourly job **committed the generated HTML into
+> git** and let Cloudflare Pages auto-deploy on push. That re-committed tens of MB of near-identical
+> markup every run and bloated `.git` past **4 GB**. The model was rethought: the build output is now
+> **gitignored — never committed**, the historical bloat was excised with `git-filter-repo` (so every
+> pre-cutover commit SHA changed), and deployment moved to **direct upload**.
+
+Each CI run (or a `workflow_dispatch`) does:
+
+1. **Build** the HTML into the runner's working tree (`build.py` + `gen_*.py`).
+2. **Assemble a clean `_site/`** — root asset globs + `assets/` + `functions/`, with `scripts/`,
+   `config/`, `templates/`, and all private data deliberately excluded.
+3. **Direct-upload** to the CDN: `npx wrangler@3 pages deploy _site --project-name 4sq`.
+
+Only real sources stay tracked in git (scripts, config, templates, plus a few genuinely static
+pages: `solution.html`, `sitemap.xml`, `robots.txt`, `favicon.svg`). **Cloudflare Pages git
+auto-deploy is deliberately disabled** — with no HTML in git, a git-triggered build would publish a
+broken, empty site. Full runbook: `ops/deploy.md`.
+
 ## Dependencies
 
 - **Python 3.9+** (uses `zoneinfo` from stdlib)
