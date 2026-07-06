@@ -62,6 +62,7 @@ A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check
 - [Data flow](#data-flow)
 - [Dependencies](#dependencies)
 - [Changing the update schedule](#changing-the-update-schedule)
+- [Flight diary (FlightRadar24)](#flight-diary-flightradar24)
 - [How trip detection works](#how-trip-detection-works)
 
 ---
@@ -860,6 +861,52 @@ HTTP 402 once spent, so the step only fires at **04:00 UTC on days where the
 day-of-year is divisible by 3** (≈ every 3 days, ~10 fetches/month ≈ ~36 % of
 budget). A manual `workflow_dispatch` bypasses the gate. See the `Fetch venue
 ratings` step in `update-dashboard.yml`.
+
+---
+
+## Flight diary (FlightRadar24)
+
+The `flights.html` page is built from your **FlightRadar24 flight diary**, but
+FR24 exposes **no API** for it — the diary export is an ordinary authenticated
+web download behind a login. Getting that into unattended CI without any manual
+babysitting took a bit of reverse-engineering, and the result is the part of
+this project I'm most happy with.
+
+**The naïve approach — and why it fails.** The obvious move is to grab your
+browser's session `Cookie:` header once and store it as a secret. It works…
+for a few hours. FR24's login session (`PHPSESSID`) expires in **under ~9
+hours**, so a stored cookie is dead almost immediately and you'd be re-pasting
+it by hand forever. (Cookie mode is still supported as a fallback via
+`FR24_COOKIE`, but it's not viable for automation.)
+
+**What actually works — self-minting sessions.** `scripts/fetch_flights.py`
+authenticates itself from scratch on every run, so there is **nothing to
+expire and nothing to maintain**:
+
+1. **Log in** by POSTing FR24's plain-JSON login endpoint
+   (`www.flightradar24.com/user/login`) with `email` + `password` from a single
+   secret `FR24_LOGIN` (`"email:password"`). It's a normal JSON API — **no
+   CAPTCHA, no 2FA prompt** — returning `{ "success": true, ... }` and setting
+   the shared `*.flightradar24.com` cookies.
+2. **Cross-subdomain SSO handshake** — the diary lives on the `my.` subdomain,
+   whose `PHPSESSID` isn't authenticated by the login POST alone. A single GET
+   to `my.flightradar24.com/` upgrades that session to logged-in (the same
+   handshake a browser does invisibly).
+3. **Download the real endpoint** — the "DOWNLOAD CSV" button actually points at
+   `my.flightradar24.com/public-scripts/export`, **not** the `/settings/export`
+   page (which only returns HTML). The authenticated session jar streams the
+   diary CSV straight to disk.
+
+Everything runs in one `requests.Session()` so the cookie jar carries through
+all three steps. The script has a clean **exit contract** for CI —
+`0` = auth valid + CSV fetched, `2` = credentials rejected, `1` = transient —
+and only rewrites `flights.csv` when the content changed.
+
+`.github/workflows/fr24-flights.yml` runs it **weekly (Sunday 05:00 UTC)**,
+commits an updated `flights.csv` to the private data repo, and **fails only on
+exit 2** so a failure email means "fix the password," nothing else. New flights
+then ride along with the next dashboard rebuild. Zero manual steps after the
+one-time secret setup.
 
 ---
 

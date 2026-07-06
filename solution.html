@@ -1334,6 +1334,52 @@ npx wrangler@3 pages deploy _site --project-name 4sq
       </div>
     </div>
 
+    <!-- C17 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 17 — Automating a FlightRadar24 Diary Export That Has No API</div>
+        <div class="cs-text">
+          The <code>flights.html</code> page is driven by the FlightRadar24 flight diary, but FR24
+          exposes <strong>no API</strong> for it — the export is an ordinary authenticated web
+          download behind a login. The obvious automation shortcut is to copy the browser's session
+          <code>Cookie:</code> header once and store it as a secret, but FR24's login session
+          (<code>PHPSESSID</code>) expires in <strong>under ~9 hours</strong>. A stored cookie is
+          dead almost immediately, turning "automation" into a chore of re-pasting a cookie by hand
+          several times a day.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — A Self-Minting Session: Log In Fresh Every Run</div>
+        <div class="cs-text">
+          <code>fetch_flights.py</code> authenticates itself from scratch on every run, so there is
+          <strong>nothing to expire and nothing to maintain</strong>. Three steps, all sharing one
+          <code>requests.Session()</code> cookie jar:
+        </div>
+        <div class="code-block">
+<span class="cm"># 1. Log in — plain JSON API, no CAPTCHA, no 2FA. One secret FR24_LOGIN="email:password".</span>
+POST <span class="hl">www.flightradar24.com/user/login</span>  → <span class="hl2">{ "success": true, ... }</span>
+
+<span class="cm"># 2. Cross-subdomain SSO handshake — the diary lives on my.*, whose session</span>
+<span class="cm">#    isn't authenticated by the login POST alone. One GET upgrades it.</span>
+GET  <span class="hl">my.flightradar24.com/</span>            → <span class="hl2">PHPSESSID now logged-in</span>
+
+<span class="cm"># 3. Download the REAL endpoint — the "DOWNLOAD CSV" button, not /settings/export</span>
+<span class="cm">#    (which only returns an HTML page). The session jar streams the diary CSV.</span>
+GET  <span class="hl">my.flightradar24.com/public-scripts/export</span> → <span class="hl2">flightdiary.csv</span>
+        </div>
+        <div class="cs-text">
+          The script exposes a clean CI exit contract — <code>0</code> = auth valid and CSV fetched,
+          <code>2</code> = credentials rejected, <code>1</code> = transient — and only rewrites
+          <code>flights.csv</code> when the content actually changed. A <strong>weekly</strong>
+          GitHub Actions job (<code>fr24-flights.yml</code>, Sunday 05:00&nbsp;UTC) runs it, commits
+          any change to the private data repo, and <strong>fails only on exit 2</strong>, so the one
+          alert that can ever fire means exactly one thing: "the password changed." After a
+          one-time secret setup, the pipeline is fully hands-off. (Cookie auth remains as a fallback
+          via <code>FR24_COOKIE</code>, but login mode is what makes unattended operation viable.)
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>
