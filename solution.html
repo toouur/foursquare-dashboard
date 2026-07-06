@@ -132,7 +132,8 @@ footer a:hover{text-decoration:underline;}
         <strong>Hour&nbsp;×&nbsp;Category</strong> and <strong>DOW&nbsp;×&nbsp;Category</strong> heatmaps
         plus shout text mining, a live travel guide that reads your last 48&nbsp;hours and suggests
         nearby venues based on your historical preferences, and this engineering write-up — all
-        committed to git and served via Cloudflare Pages CDN.
+        assembled into a clean <code>_site/</code> bundle by CI and pushed to the Cloudflare Pages
+        CDN via <strong>direct upload</strong> (the generated HTML is gitignored, not committed).
       </p>
       <p>
         Beyond rendering, the system maintains a <strong>data integrity pipeline</strong>: a manual archive
@@ -212,7 +213,7 @@ footer a:hover{text-decoration:underline;}
       <div class="pipe-arrow">→</div>
       <div class="pipe-step">
         <div class="ps-label">GitHub Actions</div>
-        <div class="ps-name">Fetch → Build → Push</div>
+        <div class="ps-name">Fetch → Build → Deploy</div>
         <div class="ps-time">T+1–3 min</div>
       </div>
       <div class="pipe-arrow">→</div>
@@ -239,9 +240,15 @@ footer a:hover{text-decoration:underline;}
       </p>
       <p>
         GitHub Actions then fetches the updated check-in data from the private data repository,
-        rebuilds all fourteen HTML pages, commits and pushes to <code>main</code>. Cloudflare Pages
-        detects the push and deploys automatically — no build command needed, since the HTML is
-        already pre-built.
+        commits the raw data there, and rebuilds all fourteen HTML pages locally in the runner.
+        The generated HTML is <strong>gitignored</strong> — committing it hourly had bloated the
+        repository's <code>.git</code> to 4&nbsp;GB+, so it is no longer tracked. Instead CI
+        assembles a clean <code>_site/</code> bundle (asset globs + <code>assets/</code> +
+        <code>functions/</code>, with <code>scripts/</code> / <code>config/</code> / private data
+        stripped) and publishes it straight to the CDN via <strong>direct upload</strong>:
+        <code>wrangler pages deploy _site --project-name 4sq</code>. Cloudflare Pages'
+        git auto-deploy is deliberately <strong>disabled</strong> — a git-triggered build of the
+        HTML-less repository tip would publish a broken site.
       </p>
     </div>
   </div>
@@ -428,8 +435,9 @@ footer a:hover{text-decoration:underline;}
       <div class="cs-solution">
         <div class="cs-label sol">Solution — Pre-built Static with Event-Driven Rebuild</div>
         <div class="cs-text">
-          All HTML is generated at build time and committed directly to the git repository.
-          Cloudflare Pages serves these files from a global CDN with zero cold-start latency.
+          All HTML is generated at build time and published to the global Cloudflare Pages CDN
+          via direct upload of a clean <code>_site/</code> bundle — served with zero cold-start
+          latency. (The generated HTML is gitignored, not committed; see Challenge&nbsp;16.)
           The "backend" is replaced by a <strong>63-line Cloudflare Worker</strong> that only
           activates when a new check-in is detected — consuming microseconds of CPU per minute
           versus a server running continuously.
@@ -552,8 +560,9 @@ const url = <span class="hl">`...&start_date=${utcDate}...&timezone=auto`</span>
           The CSV lives in a <strong>separate private GitHub repository</strong>
           (<code>foursquare-data</code>). A fine-grained Personal Access Token scoped
           exclusively to that repository allows GitHub Actions to check it out at build time.
-          The public repository never sees the raw CSV — only the generated HTML output, which
-          contains only the aggregated, display-ready data already visible on the site.
+          The public repository never sees the raw CSV. The generated HTML — which contains only
+          aggregated, display-ready data already visible on the site — isn't committed anywhere
+          either; CI builds it in memory and uploads it straight to the CDN (see Challenge&nbsp;16).
           The PAT has <em>Contents: read/write</em> and nothing else.
         </div>
       </div>
@@ -1277,6 +1286,54 @@ totalH = <span class="hl2">0</span>; buildPos(DATA);       <span class="cm">// f
       </div>
     </div>
 
+    <!-- C16 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 16 — Committing Generated HTML Bloated the Repo to Multi-GB</div>
+        <div class="cs-text">
+          The original deployment model committed every generated artifact
+          (<code>index.html</code>, <code>trips.html</code>, all <code>year-*.html</code> and
+          <code>trip-*.html</code> pages, plus the JSON sidecars) straight into git, then let
+          Cloudflare Pages auto-deploy on push. It was simple — and it quietly destroyed the
+          repository. The hourly update job rewrote and re-committed the full HTML output every
+          run, so each build added a fresh copy of tens of megabytes of near-identical markup to
+          history. Within months the <code>.git</code> directory had swollen past
+          <strong>4&nbsp;GB</strong>, cloning took minutes, and every <code>git</code> operation
+          dragged. The committed HTML also coupled the site artifact to git history: a bad build
+          could publish itself, and there was no clean separation between "source" and "output".
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Gitignore the Output; Deploy a Clean Bundle via Direct Upload</div>
+        <div class="cs-text">
+          Generated HTML and JSON were removed from version control entirely — the build output is
+          now <strong>gitignored, never committed</strong>. Only real sources stay tracked
+          (scripts, config, templates, and a handful of genuinely static pages:
+          <code>solution.html</code>, <code>sitemap.xml</code>, <code>robots.txt</code>,
+          <code>favicon.svg</code>). The historical bloat was excised from every commit with
+          <code>git-filter-repo</code> and a force-push, shrinking <code>.git</code> back to a
+          normal size. (One consequence worth noting: every pre-cutover commit SHA changed, so any
+          stale clone must re-fetch and hard-reset to the rewritten <code>main</code>.)
+        </div>
+        <div class="cs-text">
+          Deployment switched from git auto-deploy to <strong>direct upload</strong>. Each CI run
+          rebuilds the HTML into the working tree, then assembles a clean <code>_site/</code>
+          bundle — root asset globs plus <code>assets/</code> and <code>functions/</code>, with
+          <code>scripts/</code>, <code>config/</code>, and private data deliberately excluded — and
+          ships it straight to the CDN:
+        </div>
+        <div class="code-block">
+<span class="cm"># Assemble a clean bundle (no sources, no private data) and push it</span>
+npx wrangler@3 pages deploy _site --project-name 4sq
+        </div>
+        <div class="cs-text">
+          Cloudflare Pages git auto-deploy is now <strong>deliberately disabled</strong> — with the
+          HTML no longer in git, a git-triggered build would publish an empty, broken site. The
+          artifact is fully decoupled from history: git holds the recipe, the CDN holds the meal.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>
@@ -1386,7 +1443,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Hosting &amp; CDN</div>
         <div class="si-tech">Cloudflare Pages</div>
-        <div class="si-role">Auto-deploy on push · global CDN · free tier</div>
+        <div class="si-role">Direct-upload deploy (wrangler) · global CDN · free tier</div>
       </div>
       <div class="stack-item">
         <div class="si-layer">Maps</div>

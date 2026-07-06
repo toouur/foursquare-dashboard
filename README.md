@@ -135,7 +135,7 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── fix_overlap_dupes.py     # Cleans duplicate entries in overlaps_* fields
 │   └── find_closed_venue_tips.py  # One-time utility: find tips on closed venues via browser cookies
 ├── .github/workflows/
-│   ├── update-dashboard.yml       # Hourly incremental: fetch + build + push + D1 sync
+│   ├── update-dashboard.yml       # Hourly incremental: fetch + build + deploy (direct upload) + D1 sync
 │   ├── archive-checkins.yml       # Manual: full re-fetch + venue-change sync (see below)
 │   ├── delete-checkin.yml         # Manual: delete check-in by ID from CSV + D1 + rebuild
 │   ├── resync-checkins-d1.yml     # Manual: wipe + reinsert checkins/venues via wrangler SQL dump
@@ -200,8 +200,8 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── tips.html.tmpl        # Template for tips.html
 │   ├── search.html.tmpl      # Template for search.html (queries /api/search)
 │   └── ...                   # One template per generated page
-├── index.html                # Main dashboard (built by CI, committed)
-├── trips.html                # Trip journal (built by CI, committed)
+├── index.html                # Main dashboard (built by CI — gitignored, not committed)
+├── trips.html                # Trip journal (built by CI — gitignored, not committed)
 ├── companions.html           # Companions page (built by CI)
 ├── feed.html                 # Check-in feed (built by CI)
 ├── tips.html                 # Tips page (built by CI)
@@ -251,17 +251,26 @@ The dashboard repo can be **public** — check-in data is stored separately in a
 
 ### 4. Choose a deploy target
 
-**Option A — GitHub Pages (simplest)**
-1. Repo → **Settings** → **Pages**
-2. Source: **Deploy from a branch** · Branch: `main` / `(root)`
-3. Your site will be at `https://YOUR_USERNAME.github.io/REPO_NAME/`
+> **Important:** the generated HTML is **gitignored — it is never committed** (committing it
+> hourly bloated `.git` past 4 GB). So git-connected "deploy from a branch" / "connect to Git"
+> auto-deploy does **not** work on its own — the tracked repo has no HTML to serve. The site is
+> built in the CI runner and uploaded directly to the CDN. Pick a target that supports a build +
+> direct-upload step.
 
-**Option B — Cloudflare Pages** (recommended — includes live search via D1)
-1. Connect the repo in the Cloudflare dashboard (Workers & Pages → Create → Pages → Connect to Git)
-2. Build command: *(leave empty — HTML is pre-built by CI)*
-3. Build output directory: `/` (repo root)
-4. After first deploy: Settings → Functions → D1 database bindings → add `DB` → `swarmdata`
-5. The `wrangler.toml` is already configured with the D1 binding for local dev
+**Option A — Cloudflare Pages** (recommended — includes live search via D1)
+1. CI builds the HTML, assembles a clean `_site/` bundle, and publishes it via **direct upload**:
+   `npx wrangler@3 pages deploy _site --project-name <your-project>` (see the `deploy` step in
+   `.github/workflows/update-dashboard.yml` and the runbook in `ops/deploy.md`).
+2. In the Cloudflare dashboard, create a Pages project but leave **git auto-deploy disabled** —
+   a git-triggered build of the HTML-less repo would publish a broken site.
+3. Settings → Functions → D1 database bindings → add `DB` → `swarmdata` (needed for live search).
+4. The `wrangler.toml` is already configured with the D1 binding for local dev.
+
+**Option B — GitHub Pages**
+1. Add a build step to the workflow (run `scripts/build.py`) and use an upload/deploy-pages
+   action to publish the built output — do **not** use "Deploy from a branch", since the branch
+   contains no generated HTML.
+2. Your site will be at `https://YOUR_USERNAME.github.io/REPO_NAME/` (no live D1 search).
 
 **Option C — Netlify**
 1. Connect the repo in the Netlify dashboard
