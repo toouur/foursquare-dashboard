@@ -32,6 +32,20 @@ python scripts/fetch_tips.py --token "$FOURSQUARE_TOKEN" --out data/tips.json
 python scripts/fetch_tips.py --full --sweep --csv data/checkins.csv --out data/tips.json
 ```
 
+### Fetch flights (FlightRadar24 diary)
+No FR24 API. `fetch_flights.py` logs in with `FR24_LOGIN=email:password` (plain
+JSON login, no CAPTCHA), does the `my.flightradar24.com` SSO handshake, and
+downloads the diary CSV from `/public-scripts/export`. Login mints a fresh
+session each run — nothing to expire. `FR24_COOKIE` (full `Cookie:` header) is a
+fallback used only when `FR24_LOGIN` is unset. Exit 0 valid / 2 auth-invalid /
+1 transient; prints `COOKIE_VALID=` / `CHANGED=`. Runs weekly in CI
+(`fr24-flights.yml`, Sun 05:00 UTC) and commits `flights.csv` to the data repo.
+```bash
+export FR24_LOGIN='email@example.com:password'
+python scripts/fetch_flights.py --out C:/Users/toouur/Documents/GitHub/foursquare-data/flights.csv
+python scripts/fetch_flights.py --check   # probe auth, no write
+```
+
 ### Fetch photos from export
 ```bash
 /c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/fetch_photos.py \
@@ -173,6 +187,7 @@ python -m http.server 8000
 - D1 SQL dump: `scripts/gen_d1_dump.py` (bulk resync path)
 - Tips fetch: `scripts/fetch_tips.py`
 - Check-ins fetch: `scripts/fetch_checkins.py`
+- Flights fetch: `scripts/fetch_flights.py` (FR24 login → diary CSV; weekly `fr24-flights.yml`)
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
 - Search API (Cloudflare Pages Function): `functions/api/search.js`
 - Other Pages Functions: `functions/api/{feed,search-venues,venue-tips,custom-list}.js` (feed.js also has `collectCompanions()` mirroring metrics.collect_companions)
