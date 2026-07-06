@@ -146,13 +146,26 @@ jobs:
               --sleep 0.3 >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 4d. Fetch updated venue ratings ─────────────────────────────────────
+      # ── 4d. Fetch updated venue ratings (throttled to weekly) ────────────────
+      #   Likes come from the FREE /v2/lists/self/venuelikes fallback (the
+      #   /v2/users/self/venuelikes endpoint is paywalled → 402). That fallback
+      #   has no incremental mode: every run re-downloads the whole likes list
+      #   (~2k items ≈ 11 pages + 1 probe ≈ 12 calls). At the hourly cadence that
+      #   was ~8.6k calls/month to catch the handful of new likes that actually
+      #   appear — enough to exhaust a free monthly budget mid-month. So only hit
+      #   it once a week (Mon 04:00 UTC), or on demand via manual dispatch.
       - name: Fetch venue ratings
         id: fetch_ratings
         env:
           FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
         run: |
-          if [ -z "$FOURSQUARE_TOKEN" ]; then
+          DOW=$(date -u +%u)   # 1=Mon … 7=Sun
+          HOUR=$(date -u +%H)  # 00 … 23 (hourly cron fires at minute 0)
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! { [ "$DOW" = "1" ] && [ "$HOUR" = "04" ]; }; then
+            echo "⏭  Ratings fetch is throttled to weekly (Mon 04:00 UTC) — skipping (DOW=$DOW HOUR=$HOUR)."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+            echo "LIKES_UNAVAILABLE=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$FOURSQUARE_TOKEN" ]; then
             echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping ratings fetch."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
