@@ -3,7 +3,7 @@
 
 #!/usr/bin/env python3
 """Generate world_cities.html on every build."""
-import csv, json, re, sys
+import json, re, sys
 from pathlib import Path
 
 

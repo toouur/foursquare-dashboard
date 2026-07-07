@@ -10,7 +10,6 @@ Hero photo is picked from the latest year that has photos. Cards are
 sorted newest-first with the vivid narrative front and centre.
 """
 
-import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path

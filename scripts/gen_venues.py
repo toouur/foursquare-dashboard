@@ -4,7 +4,7 @@
 #!/usr/bin/env python3
 """Generate venues.html - all unique venues page."""
 import csv, json, sys
-from collections import defaultdict, Counter
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 

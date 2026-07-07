@@ -288,7 +288,7 @@ def apply_schema(schema_path: str) -> None:
     
     sql = open(schema_path, encoding="utf-8").read()
     # Strip comment lines before splitting on ;
-    clean_lines = [l for l in sql.splitlines() if not l.strip().startswith("--")]
+    clean_lines = [ln for ln in sql.splitlines() if not ln.strip().startswith("--")]
     clean_sql = "\n".join(clean_lines)
     statements = [s.strip() for s in clean_sql.split(";") if s.strip()]
     

@@ -2,7 +2,7 @@
 Read extract_blank_fixes.py output, parse the city groups, and append them
 to config/city_fixes.json in the existing format.
 """
-import json, re, sys, io
+import re, sys, io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 

@@ -10,7 +10,6 @@ A Unicode-fold fallback lookup catches diacritic/transliteration variants
 spellings don't need to be enumerated one-by-one.
 """
 import re, json, sys, io, unicodedata
-from pathlib import Path
 import yaml
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')

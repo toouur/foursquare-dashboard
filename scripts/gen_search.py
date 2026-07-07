@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """gen_search.py — Generate search-index.json and search.html."""
-import json
 from collections import defaultdict
 from pathlib import Path
 

@@ -281,7 +281,6 @@ def main() -> None:
 
         # Remove from all lists first (venue may have moved)
         for key in ("venueLikes", "venueOkays", "venueDislikes"):
-            before = len(ratings[key])
             ratings[key] = [e for e in ratings[key] if e.get("id") != venue_id]
 
         # Preserve existing entry fields (e.g. createdAt)

@@ -29,7 +29,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -137,7 +136,7 @@ def main() -> int:
     for name, n in flagged:
         ex = drift_examples.get(name, ["", "", ""])
         print(f"  {n:5} × {name!r}   (e.g. ts={ex[0]}, '{ex[1]}', country={ex[2]!r})")
-    print(f"\nTo fix: add the canonical mapping to config/city_merge.yaml, e.g.")
+    print("\nTo fix: add the canonical mapping to config/city_merge.yaml, e.g.")
     print(f'    "{flagged[0][0]}": "Canonical English"')
     return 1
 

@@ -44,7 +44,6 @@ import argparse
 import csv
 import json
 import mimetypes
-import os
 import shutil
 import sys
 import time

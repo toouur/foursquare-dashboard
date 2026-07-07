@@ -828,7 +828,7 @@ if __name__ == "__main__":
         (_here / "gen_shouts.py",     "shouts.html",       "shouts.html.tmpl",       {"shouts": shouts_for_page, "country_count": len(data['countries']), "swarm_user_id": fs_user_id}),
     ]:
         if gen_script.exists():
-            import importlib.util as _ilu, importlib as _il
+            import importlib.util as _ilu
             _spec = _ilu.spec_from_file_location(f"_gen_{gen_script.stem}", gen_script)
             _mod  = _ilu.module_from_spec(_spec)
             try:

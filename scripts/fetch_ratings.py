@@ -257,8 +257,6 @@ def main() -> None:
 
     # Build lookups for existing entries (to preserve createdAt + extra fields)
     existing_likes_by_id   = {e["id"]: e for e in existing.get("venueLikes",    []) if e.get("id")}
-    existing_okays_by_id   = {e["id"]: e for e in existing.get("venueOkays",    []) if e.get("id")}
-    existing_dislikes_by_id = {e["id"]: e for e in existing.get("venueDislikes", []) if e.get("id")}
 
     changed = False
     likes_unavailable = False

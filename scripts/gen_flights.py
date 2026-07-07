@@ -316,10 +316,10 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
         )
 
     top_block_html = (
-        _list_block(f"All airlines", stats["all_airlines"])
-        + _list_block(f"All routes", stats["all_routes"], fmt="route")
-        + _list_block(f"All airports", stats["all_airports"])
-        + _list_block(f"All aircraft", stats["all_aircraft"])
+        _list_block("All airlines", stats["all_airlines"])
+        + _list_block("All routes", stats["all_routes"], fmt="route")
+        + _list_block("All airports", stats["all_airports"])
+        + _list_block("All aircraft", stats["all_aircraft"])
     )
 
     # Tail numbers (registrations) block

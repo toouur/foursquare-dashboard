@@ -1,0 +1,11 @@
+# Ruff lint config — checked in CI (tests.yml) and runnable locally:
+#   python -m ruff check scripts/ tests/
+# Default rule set (E4/E7/E9 + F) minus rules that conflict with the
+# codebase's deliberate compact style.
+[lint]
+ignore = [
+    "E401",  # multiple imports on one line — used intentionally in scripts
+    "E701",  # one-line `if x: y` — aligned flag blocks are house style
+    "E702",  # statements joined by `;` — same compact style
+    "E731",  # lambda assignment — used for fallback stubs
+]

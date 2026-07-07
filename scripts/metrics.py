@@ -649,8 +649,7 @@ def detect_trips(
 
 # ── Shout text mining ──────────────────────────────────────────────────────────
 
-import re as _re
-import unicodedata as _ud
+import re as _re  # noqa: E402 — section-local import for the shout-mining block
 
 # Stopwords across the languages that appear in shouts (en, ru, be).  Kept
 # minimal and additive — false-positives just leak a stopword into the
@@ -1604,7 +1603,7 @@ def process(
     total_km = round(sum(_dist_yr.values()))
 
     # ── Streak tracker ────────────────────────────────────────────────────────
-    from datetime import date as _date, timedelta as _td
+    from datetime import timedelta as _td
     _all_dates = sorted({d.date() for d in dates})
     longest_streak = 0
     current_streak = 0

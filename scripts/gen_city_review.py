@@ -256,7 +256,7 @@ def main() -> None:
             })
 
     print(f"Written: {out_path}", flush=True)
-    print(f"\nFlag breakdown:", flush=True)
+    print("\nFlag breakdown:", flush=True)
     from collections import Counter
     counts: Counter = Counter()
     for _, rs in flagged:

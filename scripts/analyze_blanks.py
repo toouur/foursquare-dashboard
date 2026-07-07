@@ -76,13 +76,13 @@ for row in rows:
                 if city not in known_cities[country]:
                     known_cities[country][city] = []
                 known_cities[country][city].append((lat, lng))
-            except:
+            except ValueError:
                 pass
     else:
         try:
             lat, lng = float(lat_s), float(lng_s)
             country_blanks[country].append((ts, lat, lng))
-        except:
+        except ValueError:
             country_blanks[country].append((ts, None, None))
 
 results = []

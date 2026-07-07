@@ -401,7 +401,6 @@ def update_anomalies(
 
     import datetime as _dt
     today = _dt.date.today().isoformat()
-    new_dup_pairs = len({k.split("|")[0] + "|" + k.split("|")[1] for k in dup_index}) // 1
     out = {
         "_meta": {
             "description": "Tracked CSV anomalies: duplicate rows and check-ins missing from API responses.",

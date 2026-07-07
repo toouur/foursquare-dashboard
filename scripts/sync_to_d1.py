@@ -477,7 +477,7 @@ def main() -> None:
                     raw_rows_by_id[cid] = (_str(_r.get("city")), _str(_r.get("country")), _int(_r.get("city_inferred"), 0))
         stmts = []
         for row in all_checkin_rows:
-            cid, ts, _vid = row[0], row[1], row[2]
+            cid, _ts, _vid = row[0], row[1], row[2]
             t_city, t_country, t_inferred = row[5], row[7], row[22]
             r_city, r_country, r_inferred = raw_rows_by_id.get(cid, (None, None, 0))
             if t_city != r_city or t_country != r_country or t_inferred != r_inferred:
