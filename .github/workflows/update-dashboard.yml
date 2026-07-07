@@ -67,6 +67,9 @@ jobs:
             --output-dir . \
             $RATINGS_ARG $LISTS_ARG
 
+      - name: Validate generated HTML
+        run: python scripts/validate_html.py --dir . --quiet
+
   # ── Update: fetch → skip if no new check-ins → rebuild → commit → deploy ──
   #   Pause switch: set repo variable UPDATES_PAUSED=true (Settings → Secrets and
   #   variables → Actions → Variables) to halt scheduled/dispatch runs — e.g.
@@ -261,6 +264,18 @@ jobs:
             --output-dir . \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
+      # ── 7a. Validate generated HTML before anything ships ────────────────────
+      #   Fails the job (so nothing deploys) on unreplaced {{PLACEHOLDER}}s,
+      #   truncated pages, or embedded JSON that doesn't parse.
+      - name: Validate generated HTML
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          steps.fetch.outputs.CHANGED == 'true' ||
+          steps.fetch_tips.outputs.CHANGED == 'true' ||
+          steps.fetch_photos.outputs.CHANGED == 'true' ||
+          steps.fetch_ratings.outputs.CHANGED == 'true'
+        run: python scripts/validate_html.py --dir . --quiet
+
       # ── 7b. Sync data to Cloudflare D1 ──────────────────────────────────────
       - name: Sync data to D1
         if: |
@@ -393,6 +408,10 @@ jobs:
             --config-dir config \
             --output-dir . \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
+
+      - name: Validate generated HTML
+        if: steps.lastday.outputs.is_last_day == 'true'
+        run: python scripts/validate_html.py --dir . --quiet
 
       - name: Assemble deploy directory
         if: steps.lastday.outputs.is_last_day == 'true'
