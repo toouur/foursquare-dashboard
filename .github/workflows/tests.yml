@@ -1,0 +1,74 @@
+# .github/workflows/tests.yml
+#
+# Test + lint gate for the dashboard code itself (the hourly data pipeline
+# lives in update-dashboard.yml and has its own verify job).
+#
+#   lint  — ruff over scripts/ and tests/ (config: ruff.toml)
+#   unit  — pytest offline suite: metrics/transform/companions unit tests
+#           (everything NOT marked `live`). No secrets, no network.
+#   live  — API contract + Playwright E2E smoke tests against the deployed
+#           site (marked `live`). Runs weekly + on demand only, so a site
+#           outage never blocks a code push.
+#
+# The README badge tracks this workflow.
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "tests/**"
+      - "functions/**"
+      - "config/**"
+      - "requirements.txt"
+      - "ruff.toml"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'   # Monday 06:00 UTC — weekly live E2E sweep
+  workflow_dispatch:
+
+jobs:
+  lint:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff check
+        run: python -m ruff check scripts/ tests/
+
+  unit:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+      - name: Run offline test suite
+        run: python -m pytest tests/ -m "not live" -q
+
+  live:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-playwright
+      - name: Install chromium
+        run: python -m playwright install chromium --with-deps
+      - name: Run live suite (API contract + E2E smoke)
+        run: python -m pytest tests/ -m live -q

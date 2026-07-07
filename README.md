@@ -9,7 +9,7 @@ A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Cloudflare](https://img.shields.io/badge/Cloudflare-Pages%20%C2%B7%20D1%20%C2%B7%20R2-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
-[![GitHub Actions](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?style=flat-square&logo=github-actions&logoColor=white)](https://github.com/features/actions)
+[![Tests](https://github.com/toouur/foursquare-dashboard/actions/workflows/tests.yml/badge.svg)](https://github.com/toouur/foursquare-dashboard/actions/workflows/tests.yml)
 
 </div>
 
