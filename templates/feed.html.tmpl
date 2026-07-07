@@ -192,6 +192,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 .gap-lbl{font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;}
 
+.gap-mode{font-size:.78rem;vertical-align:-1px;letter-spacing:0;}
+
 .g-sm .gap-line{background:rgba(255,255,255,.055);}
 
 .g-sm .gap-lbl{font-size:.50rem;color:rgba(255,255,255,.18);}
@@ -415,6 +417,7 @@ let ALL=[];
 let YM_IDX={};
 let META_TOTAL=0;
 let FIRST_TS=null;
+let FLIGHT_DAYS=[];   // sorted "YYYY-MM-DD" UTC days with an FR24 diary flight
 let _loadGen=0; // generation counter — incremented on state reset to discard stale fetches
 
 
@@ -539,7 +542,7 @@ const G={sm:14,md:22,lg:32};
 
 
 
-function haversine(lat1,lng1,lat2,lng2){
+function havNum(lat1,lng1,lat2,lng2){
 
   if(!lat1||!lng1||!lat2||!lng2) return null;
 
@@ -547,10 +550,61 @@ function haversine(lat1,lng1,lat2,lng2){
 
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
 
-  const d=R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+
+}
+
+function haversine(lat1,lng1,lat2,lng2){
+
+  const d=havNum(lat1,lng1,lat2,lng2);
+
+  if(d==null) return null;
 
   return d<1?`${Math.round(d*1000)}m`:d<10?`${d.toFixed(1)}km`:`${Math.round(d)}km`;
 
+}
+
+// ── Transport-mode icon between consecutive check-ins ──
+// Client-side mirror of the rule core in scripts/transport_mode.py:
+// FR24 flight days → category anchors (exact names, sanity-checked) → speed/
+// distance bands.  v = d/Δt is a LOWER bound (Δt includes dwell time).
+const M_VEH={'Plane':'P','Train':'T','Bus Line':'U','Boat or Ferry':'F'};
+const M_STA={'Airport':'P','International Airport':'P','Airport Terminal':'P','Airport Gate':'P','Airport Lounge':'P',
+  'Rail Station':'T','Train Station':'T','Metro Station':'T','Tram Station':'T','Light Rail Station':'T','Platform':'T',
+  'Airport Tram Station':'T','Monorail':'T','Bus Station':'U','Bus Stop':'U','Bus Terminal':'U',
+  'Ferry Terminal':'F','Pier':'F','Harbor or Marina':'F','Port':'F'};
+const M_SANE={W:[10,20],B:[32,120],C:[160,900],T:[280,1500],U:[130,1200],F:[80,600]}; // [vmax,dmax]
+const M_ICON={W:'🚶',B:'🚴',C:'🚗',T:'🚆',U:'🚌',F:'⛴️',P:'✈️'};
+
+function saneM(m,d,v){
+  if(m==='P') return d>=100;
+  const s=M_SANE[m];
+  return !s||(v<=s[0]&&d<=s[1]);
+}
+
+function flightBetween(t0,t1){ // any FR24 flight day in [t0,t1] ± 3h slack
+  if(!FLIGHT_DAYS.length) return false;
+  const d0=new Date((t0-10800)*1000).toISOString().slice(0,10);
+  const d1=new Date((t1+10800)*1000).toISOString().slice(0,10);
+  let lo=0,hi=FLIGHT_DAYS.length-1,f=-1;
+  while(lo<=hi){const m=(lo+hi)>>1;FLIGHT_DAYS[m]>=d0?(f=m,hi=m-1):lo=m+1;}
+  return f>=0&&FLIGHT_DAYS[f]<=d1;
+}
+
+function moveMode(o,n){ // o = older tuple, n = newer tuple → mode char or ''
+  const d=havNum(o[8],o[9],n[8],n[9]);
+  if(d==null||d<0.05) return '';
+  const dtH=Math.max((n[0]-o[0])/3600,1/60), v=d/dtH;
+  if(d>=100&&flightBetween(o[0],n[0])) return 'P';
+  for(const map of [M_VEH,M_STA])
+    for(const c of [o[6],n[6]]){
+      const m=map[c];
+      if(m&&saneM(m,d,v)) return m;
+    }
+  if(dtH>18) return '';                 // too long a gap to guess
+  if(v>=150||d>=500) return 'P';
+  if(v>=25||v>=7) return 'C';
+  return d<8?'W':'C';
 }
 
 function gapFor(sec){
@@ -641,7 +695,11 @@ function renderVis(){
 
         const distStr=dist?` · ↔ ${dist}`:'';
 
-        html+=`<div class="gap-row g-${gp.g}" style="top:${pos[i]-gp.h+1}px;height:${gp.h-2}px;"><div class="gap-line"></div><span class="gap-lbl">${gp.t}${distStr}</span><div class="gap-line"></div></div>`;
+        const mi=(ci0&&ci1)?M_ICON[moveMode(ci1,ci0)]||'':'';
+
+        const miStr=mi?`<span class="gap-mode">${mi}</span> `:'';
+
+        html+=`<div class="gap-row g-${gp.g}" style="top:${pos[i]-gp.h+1}px;height:${gp.h-2}px;"><div class="gap-line"></div><span class="gap-lbl">${miStr}${gp.t}${distStr}</span><div class="gap-line"></div></div>`;
 
       }
 
@@ -1374,6 +1432,7 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
     YM_IDX=meta.ym_index||{};
     META_TOTAL=meta.total||0;
     FIRST_TS=meta.first_ts||null;
+    FLIGHT_DAYS=meta.flight_days||[];
     document.getElementById('badge').textContent=META_TOTAL.toLocaleString()+' check-ins';
     renderCal();
     // ── Page insight ─────────────────────────────────────────────────────────

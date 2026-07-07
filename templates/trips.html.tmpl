@@ -135,6 +135,9 @@ a{color:inherit;}
 .tl-checkin-sub{font-size:.65rem;color:var(--muted);}
 .tl-route-tip.leaflet-tooltip{background:rgba(11,13,19,.92);border:1px solid var(--gold);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:.68rem;padding:3px 8px;border-radius:6px;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;}
 .tl-route-tip.leaflet-tooltip::before{border-top-color:var(--gold);}
+.mode-legend{background:rgba(11,13,19,.88);border:1px solid rgba(232,184,109,.25);border-radius:8px;padding:5px 9px;font-family:'DM Sans',sans-serif;font-size:.66rem;color:var(--text2);display:flex;gap:9px;flex-wrap:wrap;max-width:230px;}
+.mode-legend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+.mode-legend i{display:inline-block;width:14px;height:3px;border-radius:2px;}
 .map-dot-popup .leaflet-popup-content-wrapper{background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.55);color:var(--text);}
 .map-dot-popup .leaflet-popup-tip{background:var(--card);}
 .map-dot-popup .leaflet-popup-content{margin:8px 12px;}
@@ -494,13 +497,69 @@ function showTrip(id){
       });
       uGroup.addTo(activeMap);
     }
-    // ── Scroll-driven route polyline ─────────────────────────────────────────
-    const routePts = t.checkins.filter(c=>c.lat&&c.lng).map(c=>({ts:c.ts,ll:[c.lat,c.lng],venue:c.venue||''}));
+    // ── Per-segment transport-mode route ─────────────────────────────────────
+    // checkin.m = arrival-mode char inferred at build time by
+    // scripts/transport_mode.py (W walk · B bike · C car · T train · U bus ·
+    // F ferry · P plane · G gap).  Styles mirror transport_mode.MODE_META.
+    const MODE_STYLE={
+      W:{c:'#7dc87d',d:'2 6', w:2,  l:'walked',i:'🚶'},
+      B:{c:'#5abf9e',d:'7 5', w:2,  l:'cycled',i:'🚴'},
+      C:{c:'#e8b86d',d:null,  w:1.6,l:'drove', i:'🚗'},
+      T:{c:'#6da8e8',d:null,  w:2.2,l:'train', i:'🚆'},
+      U:{c:'#c9a0e8',d:'10 5',w:1.8,l:'bus',   i:'🚌'},
+      F:{c:'#5bc8d8',d:'4 8', w:2,  l:'ferry', i:'⛴️'},
+      P:{c:'#e87a7a',d:'2 7', w:1.6,l:'flew',  i:'✈️'},
+      G:{c:'#666666',d:'1 7', w:1,  l:'gap',   i:''}
+    };
+    function gcArc(a,b){ // great-circle arc for flight segments
+      const r=Math.PI/180,la1=a[0]*r,lo1=a[1]*r,la2=b[0]*r,lo2=b[1]*r;
+      const d=2*Math.asin(Math.sqrt(Math.sin((la2-la1)/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin((lo2-lo1)/2)**2));
+      if(d<1e-6) return [a,b];
+      const pts=[],N=32;
+      for(let k=0;k<=N;k++){
+        const f=k/N,A=Math.sin((1-f)*d)/Math.sin(d),B=Math.sin(f*d)/Math.sin(d);
+        const x=A*Math.cos(la1)*Math.cos(lo1)+B*Math.cos(la2)*Math.cos(lo2);
+        const y=A*Math.cos(la1)*Math.sin(lo1)+B*Math.cos(la2)*Math.sin(lo2);
+        const z=A*Math.sin(la1)+B*Math.sin(la2);
+        pts.push([Math.atan2(z,Math.sqrt(x*x+y*y))/r,Math.atan2(y,x)/r]);
+      }
+      return pts;
+    }
+    function havKm(a,b){
+      const r=Math.PI/180,dla=(b[0]-a[0])*r,dlo=(b[1]-a[1])*r;
+      const h=Math.sin(dla/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dlo/2)**2;
+      return 6371*2*Math.asin(Math.sqrt(h));
+    }
+    const routePts = t.checkins.filter(c=>c.lat&&c.lng).map(c=>({ts:c.ts,ll:[c.lat,c.lng],venue:c.venue||'',m:c.m||''}));
     const tsToIdx = {};
     routePts.forEach((p,i)=>{ tsToIdx[p.ts]=i; });
-    let routeFull=null, routeActive=null, routeMarker=null, maxRouteIdx=-1;
+    let routeActive=null, routeMarker=null, maxRouteIdx=-1;
     if(routePts.length>1){
-      routeFull  = L.polyline(routePts.map(p=>p.ll),{color:'#e8b86d',weight:1.5,opacity:0.18}).addTo(activeMap);
+      const segGroup=L.layerGroup().addTo(activeMap);
+      const modesPresent=new Set();
+      for(let i=1;i<routePts.length;i++){
+        const a=routePts[i-1].ll, b=routePts[i].ll, m=routePts[i].m;
+        if(!m) continue;                       // same place — no line
+        const st=MODE_STYLE[m]||MODE_STYLE.C;
+        const seg=L.polyline(m==='P'?gcArc(a,b):[a,b],
+          {color:st.c,weight:st.w,opacity:m==='G'?0.15:0.55,dashArray:st.d,interactive:m!=='G'});
+        if(m!=='G'){
+          const km=havKm(a,b);
+          seg.bindTooltip(`${st.i} ${st.l} · ${km<10?km.toFixed(1):Math.round(km)} km`,{sticky:true,className:'tl-route-tip'});
+        }
+        seg.addTo(segGroup);
+        modesPresent.add(m);
+      }
+      const lgModes=[...modesPresent].filter(m=>m!=='G');
+      if(lgModes.length){
+        const lg=L.control({position:'bottomright'});
+        lg.onAdd=function(){
+          const div=L.DomUtil.create('div','mode-legend');
+          div.innerHTML=lgModes.map(m=>{const s=MODE_STYLE[m];return `<span><i style="background:${s.c}"></i>${s.i} ${s.l}</span>`;}).join('');
+          return div;
+        };
+        lg.addTo(activeMap);
+      }
       routeActive= L.polyline([],{color:'#e8b86d',weight:2.5,opacity:0.9}).addTo(activeMap);
       routeMarker= L.circleMarker(routePts[0].ll,{radius:5,fillColor:'#e8b86d',color:'#fff',weight:1.5,fillOpacity:1})
         .bindTooltip(routePts[0].venue,{permanent:true,direction:'top',className:'tl-route-tip',offset:[0,-6]})

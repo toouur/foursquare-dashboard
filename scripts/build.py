@@ -48,9 +48,11 @@ def save_category_list(rows: list[dict], out_path: str) -> None:
     log.info("Category list → %s  (%d categories)", out_path, len(cats))
 
 
-def generate_feed_meta(rows: list[dict], output_dir: str):
-    """Create feed_meta.json with ym_index, total, first_ts.
-    Replaces expensive D1 query for month index.
+def generate_feed_meta(rows: list[dict], output_dir: str, flight_days: list[str] | None = None):
+    """Create feed_meta.json with ym_index, total, first_ts, flight_days.
+    Replaces expensive D1 query for month index.  flight_days (sorted
+    "YYYY-MM-DD" strings from the FR24 diary) feeds the feed's client-side
+    transport-mode classifier.
     """
     if not rows:
         log.warning("No rows to generate feed_meta.json")
@@ -75,6 +77,7 @@ def generate_feed_meta(rows: list[dict], output_dir: str):
         "ym_index": ym_index,
         "total": total,
         "first_ts": first_ts,
+        "flight_days": flight_days or [],
     }
     out_path = os.path.join(output_dir, "feed_meta.json")
     with open(out_path, "w", encoding="utf-8") as f:
@@ -186,7 +189,17 @@ if __name__ == "__main__":
     rows = apply_transforms(rows, mappings, blank_city_resolver=blank_resolver)
 
     # ── Generate static feed_meta.json (replaces expensive D1 query) ─────────
-    generate_feed_meta(rows, args.output_dir)
+    # FR24 flight calendar days ride along for the feed's client-side
+    # transport-mode classifier (flights.csv lives next to checkins.csv).
+    _flights_csv = Path(args.input).resolve().parent / "flights.csv"
+    _flight_days: list[str] = []
+    if _flights_csv.exists():
+        try:
+            from flights import load_flights as _lf_days
+            _flight_days = sorted({f["date"] for f in _lf_days(_flights_csv) if f.get("date")})
+        except Exception as _fde:
+            log.warning("flight days for feed_meta failed: %s", _fde)
+    generate_feed_meta(rows, args.output_dir, _flight_days)
 
     # ── Generate venues_filter.json (year + catgrp heatmap layers, loaded lazily) ─
     # Extracted from S to keep index.html lean; fetched on first map filter use.
@@ -407,6 +420,35 @@ if __name__ == "__main__":
                 cid = c.get("checkin_id", "")
                 c["photos"] = _photos_by_checkin.get(cid, [])
             t["photo_count"] = sum(len(c.get("photos", [])) for c in t.get("checkins", []))
+
+    # ── Per-segment transport modes (trips map + feed) ───────────────────────
+    # Attach checkin["m"] (arrival-mode char) to every trip check-in before
+    # the TRIPS_JSON dump.  Rule cascade + a Naive Bayes layer re-trained on
+    # this build's own rule-anchored segments (see scripts/transport_mode.py).
+    try:
+        import transport_mode as _tm
+        _fl_modes = []
+        if flights_path.exists():
+            from flights import load_flights as _lf_modes
+            _fl_modes = _lf_modes(flights_path)
+        _tm_windows = _tm.flight_windows(_fl_modes)
+        _tm_bikes = ["bicycle" in t.get("tags", []) for t in trips]
+        _tm_model = _tm.train_model(
+            [t.get("checkins", []) for t in trips], _tm_windows, _tm_bikes)
+        from collections import Counter as _Counter
+        _tm_counts = _Counter()
+        for t, _bike in zip(trips, _tm_bikes):
+            _modes = _tm.classify_segments(
+                t.get("checkins", []), _tm_windows, bike=_bike, model=_tm_model)
+            for c, m in zip(t.get("checkins", []), _modes):
+                if m:
+                    c["m"] = m
+                    _tm_counts[m] += 1
+        log.info("Transport modes tagged: %s (NB layer: %s)",
+                 dict(_tm_counts.most_common()),
+                 "self-trained" if _tm_model else "fallback to bands")
+    except Exception as _tme:
+        log.warning("transport-mode classification failed: %s", _tme)
 
     # ── Load tips for recent section ─────────────────────────────────────────
     # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
