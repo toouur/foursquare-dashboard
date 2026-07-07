@@ -1461,6 +1461,52 @@ python scripts/build.py \
 
   <div class="divider"></div>
 
+  <!-- ── QUALITY ASSURANCE ── -->
+  <div class="section">
+    <div class="section-label">Quality Assurance</div>
+    <div class="section-title">Testing &amp; CI Gates</div>
+    <div class="section-body">
+      <p>
+        The pipeline is protected by a <strong>120-test pytest suite</strong> organised into
+        three rings by what they need to run. The offline ring (84 tests, no network, no
+        secrets, finishes in seconds) covers the highest-risk pure logic: the 5-layer
+        city/country normalisation priority order, trip detection (synthetic timelines
+        anchored at noon UTC so timezone localisation can never flake a test across a date
+        boundary), companion collection with all its Foursquare quirks (the <code>"-"</code>
+        sentinel, the <code>"Name ,Name"</code> spacing bug, case-insensitive dedup), and the
+        shout text-mining filters.
+      </p>
+      <p>
+        A dedicated <strong>parity test</strong> guards the one place logic deliberately exists
+        twice: companion collection is implemented in Python (build-time pages) and mirrored in
+        JavaScript inside the <code>/api/feed</code> Pages Function. The test extracts the JS
+        function <em>verbatim</em> from the source by brace-matching, executes it under Node
+        with shared fixture rows, and compares field-for-field against the Python side — plus a
+        hand-written ground-truth set so the test still fails if both implementations drift
+        together.
+      </p>
+      <p>
+        The live ring runs against the deployed site: <strong>22 API contract tests</strong>
+        (stdlib urllib) pin the exact 12-element feed tuple, date/time formats, pagination
+        semantics, and the precise <code>Cache-Control</code> header — because responses are
+        edge-cached, a silent shape change would break pages an hour <em>after</em> a deploy.
+        <strong>14 Playwright E2E smoke tests</strong> (headless Chromium) then load eight core
+        pages asserting zero console errors and no unsubstituted template placeholders, and
+        exercise the search overlay and the feed's virtual scroll end-to-end.
+      </p>
+      <p>
+        CI splits the rings deliberately: lint (ruff) and the offline suite gate every push and
+        pull request, while the live suite runs weekly and on demand — so a temporary site
+        outage can never block a code change. Independently, a post-build HTML validator runs
+        before <em>every</em> deploy, checking that all required pages exist, every
+        <code>{{PLACEHOLDER}}</code> was substituted, and every embedded JSON blob parses — a
+        broken build fails CI instead of going live.
+      </p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
   <!-- ── TECH STACK ── -->
   <div class="section">
     <div class="section-label">Stack</div>
@@ -1525,6 +1571,11 @@ python scripts/build.py \
         <div class="si-layer">Search &amp; Feed API</div>
         <div class="si-tech">Cloudflare D1 + Pages Functions</div>
         <div class="si-role">SQLite at the edge · live search · paginated feed · free tier</div>
+      </div>
+      <div class="stack-item">
+        <div class="si-layer">Testing &amp; QA</div>
+        <div class="si-tech">pytest + Playwright + ruff</div>
+        <div class="si-role">120 tests · unit / API contract / E2E rings · HTML deploy gate</div>
       </div>
     </div>
   </div>

@@ -51,6 +51,7 @@ A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check
 - [Project layout](#project-layout)
 - [Setup (~10 minutes)](#setup-10-minutes)
 - [Running locally](#running-locally)
+- [Tests](#tests)
 - [Configuration](#configuration)
 - [Canonical normalization layer](#canonical-normalization-layer)
 - [City normalization pipeline](#city-normalization-pipeline)
@@ -367,6 +368,168 @@ python scripts/build.py \
 # Dump a full list of raw Foursquare categories seen in your data
 python scripts/build.py --cat-list
 ```
+
+---
+
+## Tests
+
+The repo ships a **120-test pytest suite** in [`tests/`](tests/), split into three rings by
+what they need to run:
+
+| Ring | Marker | Tests | Needs |
+|------|--------|-------|-------|
+| Offline unit + parity | *(none / `not live`)* | 84 | nothing — no network, no secrets |
+| API contract | `live` | 22 | internet (hits the deployed site) |
+| Browser E2E smoke | `live` + `e2e` | 14 | internet + Playwright chromium |
+
+```bash
+pip install pytest
+
+# Offline suite — run this before every commit (finishes in seconds)
+python -m pytest tests/ -m "not live" -q
+
+# Live suite — API contract + browser E2E against the production site
+pip install pytest-playwright
+python -m playwright install chromium
+python -m pytest tests/ -m live -q
+
+# Everything
+python -m pytest tests/ -q
+```
+
+**CI:** [`.github/workflows/tests.yml`](.github/workflows/tests.yml) (the badge at the top of
+this README tracks it) runs `lint` (ruff) + `unit` (offline suite) on every push/PR that
+touches `scripts/`, `tests/`, `functions/`, or `config/`. The `live` job runs weekly
+(Monday 06:00 UTC) and on manual dispatch only — a temporary site outage can never block a
+code push.
+
+### Test files
+
+#### `tests/test_transform.py` — city/country normalization (28 tests)
+
+- **Why:** the normalization pipeline is the most-edited part of the repo (one-line config
+  additions land constantly), and a regression here silently mislabels thousands of
+  historical check-ins with the wrong city or country.
+- **What it verifies:** the 5-layer priority order (`venue_fixes` > `country_fixes` >
+  `city_fixes` > `city_merge` > blank-city inference) with a test per override beating the
+  layer below it; Türkiye→Turkey aliasing; curly-vs-straight apostrophe matching; blank-city
+  rows getting filled *and* flagged `city_inferred`; non-blank rows never touching the
+  resolver; haversine sanity (zero distance, 1° of longitude at the equator, symmetry,
+  a plausible Minsk–Warsaw distance); `photos.json` round-trip parsing including venue names
+  containing `::`; and config loading — including a test that the **real repo config**
+  still parses.
+- **How to run:** `python -m pytest tests/test_transform.py -q`
+- **Tech stack:** pure pytest against `scripts/transform.py` functions; synthetic rows from
+  the shared `make_row()` factory in `conftest.py`. No I/O except the real-config test.
+
+#### `tests/test_trip_detection.py` — trip detection (15 tests)
+
+- **Why:** `metrics.detect_trips` drives `trips.html`, ~160 per-trip pages, and all trip
+  analytics. Its classic failure mode is a timezone/DST shift moving a check-in across a
+  date boundary and splitting or merging trips.
+- **What it verifies:** a run of away-city check-ins becomes exactly one trip with correct
+  check-in count, country set, and auto-generated name; runs shorter than `min_checkins`
+  are dropped; home check-ins in the middle split one trip into two; hub-extension
+  behaviour; naming/metadata; and config overrides.
+- **How to run:** `python -m pytest tests/test_trip_detection.py -q`
+- **Tech stack:** pytest with synthetic timelines built from `home()`/`away()` row
+  factories, all anchored at **noon UTC** — so country-based localisation (Minsk UTC+3 vs
+  Warsaw UTC+1/+2) can never shift a check-in across a date boundary and make the test
+  flaky depending on the season.
+
+#### `tests/test_companions.py` — companion collection (15 tests)
+
+- **Why:** companion names come from three messy Foursquare columns (`with_name`,
+  `created_by_name`, `overlaps_name`) and the merge rules are full of traps — this file is
+  the executable spec for `metrics.collect_companions` and `_build_companion_denylist`.
+- **What it verifies:** comma splitting including the `"Name ,Name"` spacing quirk; the
+  Foursquare `-` sentinel ("no overlaps") excluded alone and mid-list; case-insensitive
+  dedup where **first-seen casing wins**; the fixed source order
+  with → created_by → overlaps; `None`/whitespace tolerance; and the shout-mining denylist
+  (full + first names, short tokens skipped).
+- **How to run:** `python -m pytest tests/test_companions.py -q`
+- **Tech stack:** pure pytest, no fixtures beyond inline dicts.
+
+#### `tests/test_companions_parity.py` — Python ↔ JavaScript parity (2 tests)
+
+- **Why:** the companion logic exists **twice** — `metrics.collect_companions` (build-time
+  static pages) and `collectCompanions()` in [`functions/api/feed.js`](functions/api/feed.js)
+  (live feed API). If they drift, the static pages and the live feed disagree about who was
+  at a check-in.
+- **What it verifies:** both implementations produce identical output for 14 shared fixture
+  rows covering every branch (comma lists, spacing quirk, `-` sentinel, cross-field
+  case-dedup, unicode names, empty/None inputs). A hand-written `EXPECTED` ground-truth
+  dict also pins 8 rows, so the test still fails if *both* sides drift together.
+- **How to run:** `python -m pytest tests/test_companions_parity.py -q` (skips if Node.js
+  is not installed)
+- **Tech stack:** pytest + `subprocess` + **Node.js**. The JS function is extracted
+  **verbatim** from `feed.js` by brace-matching — zero logic duplicated in the test — and
+  executed with the fixture rows piped in as JSON on stdin.
+
+#### `tests/test_shouts.py` — shout text pipeline (24 tests)
+
+- **Why:** the shouts archive (~3.5 k free-text comments) depends on subtle filtering —
+  e.g. a shout that is *only* a companion's name is attribution leakage, not content — and
+  on the comment-thread merge that backs the page.
+- **What it verifies:** `— with X` suffix stripping; with-only shouts dropped; bare
+  companion names dropped (but the same word kept when nobody has that name);
+  punctuation-only/blank/bad-timestamp rows dropped; newest-first ordering; comment threads
+  attached without mutating inputs; comment-only check-ins synthesized from row or metadata
+  fallback; Cyrillic/Latin/mixed language detection (including Belarusian Ўў Іі Ёё); emoji
+  extraction.
+- **How to run:** `python -m pytest tests/test_shouts.py -q`
+- **Tech stack:** pure pytest against `metrics.shout_records`,
+  `merge_comments_into_shouts`, `_detect_lang`, `_extract_emojis`.
+
+#### `tests/test_api_contract.py` — live API contract (22 tests, marker `live`)
+
+- **Why:** the front-end destructures **fixed positional tuples** from `/api/feed` and
+  fixed group shapes from `/api/search`. Because responses are edge-cached for up to an
+  hour, a silent shape change breaks pages long after the deploy — these tests pin the
+  contract, not the data.
+- **What it verifies:** every feed item is a 12-element tuple
+  `[ts, date, time, venue, city, country, category, venue_id, lat, lng, id, companions]`
+  with `DD Mon YYYY` / `HH:MM` formats; the exact `Cache-Control` header
+  (`public, max-age=60, s-maxage=3600, stale-while-revalidate=600`); `?cursor=` /
+  `?after=` pagination semantics; search response grouping; and the HTTP error codes the
+  UI relies on.
+- **How to run:** `python -m pytest tests/test_api_contract.py -q` (requires internet;
+  network failures **skip** rather than fail)
+- **Tech stack:** stdlib `urllib` only — no requests dependency — with a module-level
+  response cache so the suite hits each endpoint once.
+
+#### `tests/test_e2e_smoke.py` — browser E2E smoke (14 tests, markers `live` + `e2e`)
+
+- **Why:** unit tests can't catch a page that builds fine but dies in the browser — a JS
+  console error, an unsubstituted `{{PLACEHOLDER}}`, or a broken search overlay.
+- **What it verifies:** 8 core pages (`/`, feed, trips, tips, shouts, companions, stats,
+  venues) return 200, render with **zero** console page errors, and contain no leftover
+  template placeholders; the index KPI counters are populated; the search overlay works
+  end-to-end (real query → grouped results, gibberish query → "No results", Escape
+  closes); and the feed's virtual scroll both renders initial cards and swaps content when
+  scrolled.
+- **How to run:** `pip install pytest-playwright && python -m playwright install chromium`,
+  then `python -m pytest tests/test_e2e_smoke.py -q`
+- **Tech stack:** **Playwright** (headless Chromium) via `pytest-playwright`, run against
+  the production site.
+
+#### `tests/conftest.py` — shared plumbing
+
+Registers the `live` and `e2e` markers, puts `scripts/` on `sys.path` so tests import
+`metrics`/`transform` directly, and provides the `make_row()` check-in row factory used
+across the unit suites.
+
+### Related quality gates
+
+- **`scripts/validate_html.py`** — post-build deploy gate wired into
+  `update-dashboard.yml`: before every deploy it checks that all 8 required pages exist,
+  no `{{PLACEHOLDER}}` survived substitution, every embedded JSON blob (country codes,
+  category icons, photos) actually parses, and no page is suspiciously small. A broken
+  build fails CI instead of going live. Run locally:
+  `python scripts/validate_html.py --dir _site`
+- **ruff** — lint gate over `scripts/` and `tests/` (config: [`ruff.toml`](ruff.toml);
+  default E4/E7/E9 + F rules, with the repo's deliberate one-line style exemptions
+  documented inline). Run locally: `python -m ruff check scripts/ tests/`
 
 ---
 
