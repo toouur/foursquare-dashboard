@@ -247,7 +247,7 @@ def detect_trips(
     # extension may legitimately push them over (e.g. 4 non-home + 1 hub = 5).
     raw_trips = [t for t in raw_trips if len(t) >= max(1, min_checkins - 1)]
 
-    extended: list[list[dict]] = []
+    extended: list[tuple] = []   # (ext_rows, resolved_tags, name_ts)
     for trip_rows in raw_trips:
         ext = list(trip_rows)
         fp = pos[id(trip_rows[0])]
@@ -522,10 +522,9 @@ def detect_trips(
             ext = ext + valid[cur_end_idx + 1 : home_idx + 1]
 
         extended.append((ext, current_tags, current_start_ts))
-    raw_trips = extended
 
     result: list[dict] = []
-    for trip_rows, _resolved_tags, _name_ts in raw_trips:
+    for trip_rows, _resolved_tags, _name_ts in extended:
         if len(trip_rows) < min_checkins:
             continue
 
@@ -1313,13 +1312,14 @@ def process(
             country_vids[c].add(vid)
         if cy and vid:
             city_vids[cy].add(vid)
-    countries_by_venues = sorted(
-        [[c, len(v)] for c, v in country_vids.items()], key=lambda x: -x[1]
-    )
-    cities_by_venues = sorted(
-        [[cy, len(v), city_primary_country.get(cy, "")] for cy, v in city_vids.items()],
-        key=lambda x: -x[1]
-    )
+    countries_by_venues = [
+        [c, len(v)]
+        for c, v in sorted(country_vids.items(), key=lambda kv: -len(kv[1]))
+    ]
+    cities_by_venues = [
+        [cy, len(v), city_primary_country.get(cy, "")]
+        for cy, v in sorted(city_vids.items(), key=lambda kv: -len(kv[1]))
+    ]
 
     # ── All coords (kept for dot map) ────────────────────────────────────────
     all_coords: list = []
@@ -1599,7 +1599,7 @@ def process(
                 _dist_yr[yr] += d
         except Exception:
             pass
-    dist_by_year = sorted([[str(yr), round(v)] for yr, v in _dist_yr.items()])
+    dist_by_year: list[list] = sorted([[str(yr), round(v)] for yr, v in _dist_yr.items()])
     total_km = round(sum(_dist_yr.values()))
 
     # ── Streak tracker ────────────────────────────────────────────────────────
@@ -1626,13 +1626,19 @@ def process(
 
     # ── New countries by year (first visit per country) ───────────────────────
     _first_country: dict[str, int] = {}
+    _first_city: dict[str, int] = {}
     for r in sorted(rows, key=lambda r: int(r.get("date", "0") or "0")):
         co = r.get("country", "").strip()
-        if co and co not in _first_country:
+        ci = r.get("city", "").strip()
+        if (co and co not in _first_country) or (ci and ci not in _first_city):
             try:
-                _first_country[co] = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+                _seen_yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
             except (ValueError, OSError):
-                pass
+                continue
+            if co and co not in _first_country:
+                _first_country[co] = _seen_yr
+            if ci and ci not in _first_city:
+                _first_city[ci] = _seen_yr
     if new_country_year_overrides:
         for co, yr in new_country_year_overrides.items():
             if co in _first_country:
@@ -1905,14 +1911,14 @@ def process(
     for cohort_yr in _all_years:
         cohort_vids = [v for v, y in _venue_first.items() if y == cohort_yr]
         size = len(cohort_vids)
-        row = {"cohort": cohort_yr, "size": size, "by_year": []}
+        _ret_by_year: list[int | None] = []
         for yr in _all_years:
             if yr < cohort_yr:
-                row["by_year"].append(None)
+                _ret_by_year.append(None)
             else:
                 hits = sum(1 for v in cohort_vids if yr in _venue_years[v])
-                row["by_year"].append(round(hits * 100 / size) if size else 0)
-        cohort_retention.append(row)
+                _ret_by_year.append(round(hits * 100 / size) if size else 0)
+        cohort_retention.append({"cohort": cohort_yr, "size": size, "by_year": _ret_by_year})
 
     # ── Tier 1.3 — Distance from home + nomad score ──────────────────────────
     # Per-day mean distance from home centroid + rolling 30-day mean for chart.
@@ -1933,7 +1939,7 @@ def process(
         except (ValueError, KeyError, TypeError, OSError):
             pass
     # Sample: one mean per day, sorted
-    distance_from_home = []
+    distance_from_home: list[list] = []
     for k in sorted(_daily_dist.keys()):
         m = sum(_daily_dist[k]) / len(_daily_dist[k])
         distance_from_home.append([k, round(m)])
@@ -2247,22 +2253,75 @@ def process(
         "you set foot in <strong>{c}</strong> for the first time",
         "<strong>{c}</strong> opened up as a first-time country",
     ]
+    _JOURNEY_ONE = [
+        "One journey broke the routine — <strong>{name}</strong>, setting out in {mon}",
+        "A single expedition left town: <strong>{name}</strong>, in {mon}",
+        "The one real departure was <strong>{name}</strong>, come {mon}",
+    ]
+    _JOURNEY_FEW = [
+        "{n} journeys shaped it — {list}",
+        "{n} trips punctuated the calendar: {list}",
+        "The road called {n} times — {list}",
+    ]
+    _JOURNEY_MANY = [
+        "{n} journeys threaded the year, opening with <strong>{first}</strong> in {fm} and closing with <strong>{last}</strong> in {lm}",
+        "{n} trips in all, from <strong>{first}</strong> in {fm} to <strong>{last}</strong> in {lm}",
+        "The suitcase barely rested — {n} departures, bookended by <strong>{first}</strong> ({fm}) and <strong>{last}</strong> ({lm})",
+    ]
+    _FAR_PHRASES = [
+        "reaching as far as <strong>{city}</strong>, {km} km from home",
+        "at its farthest touching <strong>{city}</strong> — {km} km out",
+        "stretching all the way to <strong>{city}</strong>, {km} km from home",
+    ]
+    _DIST_PHRASES = [
+        "Some <strong>{km} km</strong> passed under you between check-ins",
+        "<strong>{km} km</strong> logged on the move",
+        "It added up to <strong>{km} km</strong> of ground covered",
+    ]
+    _NEW_CITY_PHRASES = [
+        "<strong>{n}</strong> cities seen for the first time — {sample} among them",
+        "<strong>{n}</strong> first-time cities joined the map, {sample} included",
+        "the album gained <strong>{n}</strong> new cities, {sample} among them",
+    ]
+    _OPEN_CLOSE = [
+        "The year opened at <strong>{fv}</strong>{fc} and signed off in {lm} at <strong>{lv}</strong>{lc}",
+        "It began at <strong>{fv}</strong>{fc} in {fm} and ended at <strong>{lv}</strong>{lc}",
+        "First entry: <strong>{fv}</strong>{fc}, {fm}; the last word went to <strong>{lv}</strong>{lc}",
+    ]
 
     def _pick(pool: list[str], yr: int, salt: int = 0) -> str:
         """Deterministic pick — same year reads the same on every build."""
         return pool[(yr + salt) % len(pool)]
 
+    def _cap_html(s: str) -> str:
+        """Capitalize the first plain letter, skipping any HTML opener."""
+        i = 0
+        while i < len(s) and s[i] == "<":
+            close = s.find(">", i)
+            if close < 0:
+                break
+            i = close + 1
+        return s[:i] + s[i].upper() + s[i + 1:] if i < len(s) else s
+
     def _vivid(yr: int, total: int, peak_mon_name: str, peak_mon_n: int,
                top_city: str, top_city_n: int, top_cat: str, top_cat_n: int,
                top_venue: str, top_venue_n: int, n_new_countries: int,
                n_cities: int, n_countries: int, top_companion: str = "",
-               first_new_country: str = "") -> str:
-        """Compose a magazine-style 2-sentence year description.
+               first_new_country: str = "", trips_y: list | None = None,
+               distance_km: int = 0, n_new_cities: int = 0,
+               new_city_sample: list[str] | None = None,
+               first_stop: tuple[str, str, str] = ("", "", ""),
+               last_stop: tuple[str, str, str] = ("", "", ""),
+               farthest_city: str = "", farthest_km: int = 0) -> str:
+        """Compose a magazine-style year storyline (3-5 short sentences).
 
-        Sentence 1 weaves the year's character + place anchor + temporal peak
-        into one flowing line.  Sentence 2 is a flourish (new countries,
-        anchor venue, or companion).  Reads like the opener of a small
-        magazine feature, not a numeric bullet list.
+        S1 — the year's character + place anchor + temporal peak.
+        S2 — the journeys: trips taken, farthest reach, distance covered.
+        S3 — discovery: first-time countries and cities.
+        S4 — the end-to-end arc (first and last check-in of the year) plus
+             a flourish (anchor venue or companion).
+        Every phrase is picked deterministically by year so each rebuild
+        reads the same, but adjacent years read differently.
         """
         # Pick the intro by year character
         if total >= 0.95 * _max_yr_total:
@@ -2278,7 +2337,7 @@ def process(
         else:
             intro = _pick(_DEFAULT_INTROS, yr)
 
-        # Build sentence-1 with anchor + peak woven in
+        # ── S1 — character + anchor + peak ─────────────────────────────
         s1_parts: list[str] = [intro]
         if top_city and top_city_n and top_city_n > max(40, total * 0.10):
             s1_parts.append(_pick(_ANCHOR_PHRASES, yr, 1).format(city=top_city))
@@ -2288,23 +2347,70 @@ def process(
             s1_parts.append(_pick(_PEAK_PHRASES, yr, 2).format(vibe=vibe_str, mon=peak_mon_name))
         sentence1 = ", ".join(s1_parts).rstrip(",") + "."
 
-        # Sentence 2 — flourish
-        flourishes: list[str] = []
+        def _trip_mon(t: dict) -> str:
+            try:
+                return _months_full[int(str(t.get("start_date", ""))[5:7]) - 1]
+            except (ValueError, IndexError):
+                return ""
+
+        # ── S2 — the journeys ──────────────────────────────────────────
+        s2_bits: list[str] = []
+        tl = trips_y or []
+        if len(tl) == 1:
+            s2_bits.append(_pick(_JOURNEY_ONE, yr, 6).format(
+                name=tl[0].get("name") or "a trip", mon=_trip_mon(tl[0])))
+        elif 2 <= len(tl) <= 3:
+            listed = ", ".join(
+                f"<strong>{t.get('name') or 'a trip'}</strong> in {_trip_mon(t)}"
+                for t in tl)
+            s2_bits.append(_pick(_JOURNEY_FEW, yr, 6).format(n=len(tl), list=listed))
+        elif len(tl) >= 4:
+            s2_bits.append(_pick(_JOURNEY_MANY, yr, 6).format(
+                n=len(tl),
+                first=tl[0].get("name") or "a trip", fm=_trip_mon(tl[0]),
+                last=tl[-1].get("name") or "a trip", lm=_trip_mon(tl[-1])))
+        if farthest_city and farthest_km >= 500 and farthest_city != top_city:
+            s2_bits.append(_pick(_FAR_PHRASES, yr, 7).format(
+                city=farthest_city, km=f"{farthest_km:,}"))
+        sentence2 = ""
+        if s2_bits:
+            sentence2 = _cap_html(", ".join(s2_bits)) + "."
+        elif distance_km >= 2000:
+            sentence2 = _pick(_DIST_PHRASES, yr, 7).format(km=f"{distance_km:,}") + "."
+
+        # ── S3 — discovery (first-time countries and cities) ───────────
+        s3_bits: list[str] = []
         if n_new_countries:
             if n_new_countries <= 2 and first_new_country:
-                flourishes.append(_pick(_FIRST_COUNTRY_PHRASES, yr, 3).format(c=first_new_country))
+                s3_bits.append(_pick(_FIRST_COUNTRY_PHRASES, yr, 3).format(c=first_new_country))
             else:
-                flourishes.append(_pick(_NEW_PHRASES, yr, 3).format(n=n_new_countries))
-        if top_venue and top_venue_n >= 35:
-            flourishes.append(_pick(_ANCHOR_VENUE, yr, 4).format(v=top_venue))
-        elif top_companion and not flourishes:
-            flourishes.append(_pick(_COMPANION_PHRASES, yr, 5).format(c=top_companion))
-        sentence2 = ""
-        if flourishes:
-            joined = ", ".join(flourishes[:2])
-            sentence2 = joined[0].upper() + joined[1:] + "."
+                s3_bits.append(_pick(_NEW_PHRASES, yr, 3).format(n=n_new_countries))
+        if n_new_cities >= 4 and new_city_sample:
+            sample = " and ".join(f"<strong>{c}</strong>" for c in new_city_sample[:2])
+            s3_bits.append(_pick(_NEW_CITY_PHRASES, yr, 8).format(n=n_new_cities, sample=sample))
+        sentence3 = _cap_html(", ".join(s3_bits[:2])) + "." if s3_bits else ""
 
-        return " ".join(s for s in [sentence1, sentence2] if s).strip()
+        # ── S4 — end-to-end arc + flourish ─────────────────────────────
+        s4_bits: list[str] = []
+        fv, fc, fm = first_stop
+        lv, lc, lm = last_stop
+        if fv and lv and fv != lv:
+            fc_str = f" in {fc}" if fc and fc != top_city else ""
+            lc_str = f" in {lc}" if lc and lc != top_city else ""
+            s4_bits.append(_pick(_OPEN_CLOSE, yr, 9).format(
+                fv=fv, fc=fc_str, fm=fm, lv=lv, lc=lc_str, lm=lm))
+        if top_venue and top_venue_n >= 35 and top_venue not in (fv, lv):
+            s4_bits.append(_pick(_ANCHOR_VENUE, yr, 4).format(v=top_venue))
+        if top_companion:
+            s4_bits.append(_pick(_COMPANION_PHRASES, yr, 5).format(c=top_companion))
+        joined4 = ", ".join(s4_bits[:2])
+        if joined4.startswith("and "):
+            joined4 = joined4[4:]
+        sentence4 = _cap_html(joined4) + "." if joined4 else ""
+
+        return " ".join(
+            s for s in [sentence1, sentence2, sentence3, sentence4] if s
+        ).strip()
 
     year_summaries = []
     for yr in sorted({d.year for d in dates}):
@@ -2340,8 +2446,36 @@ def process(
         peak_month_name = _months_full[peak_mon[0] - 1] if peak_mon[0] else ""
         n_new_countries = len([c for c, y in _first_country.items() if y == yr])
         n_distance_y = next((int(v) for k, v in dist_by_year if k == str(yr)), 0)
-        n_trips_y = sum(1 for t in trips if t.get("start_year") == yr)
+        trips_y = [t for t in trips if t.get("start_year") == yr]
+        n_trips_y = len(trips_y)
         new_countries_list = sorted([c for c, y in _first_country.items() if y == yr])
+        # First-time cities this year, sampled by how much they mattered
+        new_cities_set = {c for c, y in _first_city.items() if y == yr}
+        new_city_sample = [c for c, _ in cty_y.most_common()
+                           if c in new_cities_set and c != top_city[0]][:2]
+        # Farthest reach from home + the year's opening/closing check-ins
+        far_city, far_km = "", 0.0
+        for r in rows_y:
+            try:
+                la, ln = float(r["lat"]), float(r["lng"])
+            except (ValueError, KeyError, TypeError):
+                continue
+            if la == 0.0 and ln == 0.0:
+                continue
+            d_km = _haversine(_HOME_LAT, _HOME_LNG, la, ln)
+            if d_km > far_km:
+                far_km = d_km
+                far_city = r.get("city", "").strip() or r.get("country", "").strip()
+
+        def _stop(r: dict) -> tuple[str, str, str]:
+            try:
+                mon = _months_full[datetime.fromtimestamp(
+                    int(r["date"]), tz=timezone.utc).month - 1]
+            except (ValueError, OSError):
+                mon = ""
+            return (r.get("venue", "").strip(), r.get("city", "").strip(), mon)
+
+        rows_y_sorted = sorted(rows_y, key=lambda r: int(r.get("date", "0") or "0"))
         vivid = _vivid(
             yr=yr, total=len(rows_y),
             peak_mon_name=peak_month_name, peak_mon_n=peak_mon[1],
@@ -2352,6 +2486,13 @@ def process(
             n_cities=len(cty_y), n_countries=len(cou_y),
             top_companion=comp_y.most_common(1)[0][0] if comp_y else "",
             first_new_country=new_countries_list[0] if new_countries_list else "",
+            trips_y=trips_y,
+            distance_km=n_distance_y,
+            n_new_cities=len(new_cities_set),
+            new_city_sample=new_city_sample,
+            first_stop=_stop(rows_y_sorted[0]) if rows_y_sorted else ("", "", ""),
+            last_stop=_stop(rows_y_sorted[-1]) if rows_y_sorted else ("", "", ""),
+            farthest_city=far_city, farthest_km=round(far_km),
         )
         year_summaries.append({
             "year":              yr,
@@ -2374,6 +2515,9 @@ def process(
             "distance_km":       n_distance_y,
             "trip_count":        n_trips_y,
             "top_companion":     comp_y.most_common(1)[0][0] if comp_y else "",
+            "new_cities":        len(new_cities_set),
+            "farthest_city":     far_city,
+            "farthest_km":       round(far_km),
         })
 
     # ── Tier 3.1 — city_inferred KPI ─────────────────────────────────────────

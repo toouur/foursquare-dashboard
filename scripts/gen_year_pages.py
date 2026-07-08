@@ -1112,7 +1112,8 @@ def build_page(
         try:
             from metrics import collect_companions as _cc
         except ImportError:
-            _cc = lambda r: []
+            def _cc(row: dict) -> list[str]:
+                return []
         for r in rows_y:
             vid = (r.get("venue_id") or "").strip()
             vn = (r.get("venue") or "").strip()
@@ -1246,26 +1247,28 @@ def build_page(
             mo_shouts = shouts_by_yr_mo.get((yr, mo), [])
 
             if n == 0:
-                # Empty month — try to borrow an unused photo from a nearby month
-                borrowed, tag = _pick_month_photo(
-                    yr, mo, photos_by_yr_mo, used_photos_this_year, months_full,
-                )
-                if borrowed:
-                    photo_html = (
-                        f'<div class="mo-photo borrowed" style="background-image:url(\'{_esc(borrowed["src"])}\')">'
-                        f'<div class="mo-photo-tag">↺ {_esc(tag)}</div>'
-                        f'</div>'
-                    )
+                # Empty month — never borrow a photo from a neighbouring
+                # month (a borrowed picture reads as if something happened).
+                # Future months get a "to be updated" card; past empty
+                # months an honest quiet card.
+                now_utc = datetime.now(timezone.utc)
+                is_future = (yr, mo) > (now_utc.year, now_utc.month)
+                if is_future:
+                    photo_html = '<div class="mo-photo-empty">To be updated</div>'
+                    count_txt = "Not yet"
+                    narr_txt = "This month hasn't happened yet — the page will fill in as check-ins land."
                 else:
                     photo_html = f'<div class="mo-photo-empty">Quiet · {mo_name}</div>'
+                    count_txt = "No check-ins logged"
+                    narr_txt = "A month off the map — the calendar quietly empty."
                 mo_rows_html.append(
                     f'<div class="mo empty" id="mo-{mo_num}">'
                     f'{photo_html}'
                     f'<div class="mo-text-box">'
                     f'<div class="mo-num">{mo_num}</div>'
                     f'<div class="mo-name">{mo_name}</div>'
-                    f'<div class="mo-count">No check-ins logged</div>'
-                    f'<div class="mo-narrative">A month off the map — the calendar quietly empty.</div>'
+                    f'<div class="mo-count">{count_txt}</div>'
+                    f'<div class="mo-narrative">{narr_txt}</div>'
                     f'</div></div>'
                 )
                 continue
