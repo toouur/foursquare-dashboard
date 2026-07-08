@@ -74,6 +74,30 @@ STATION = {
 CAR_HINT = {"Fuel Station", "Gas Station", "Parking", "Rest Area", "Toll Booth"}
 BIKE_HINT = {"Bike Trail", "Bike Rental / Bike Share"}
 
+# Pedestrian-context categories: large open-air / pedestrian "area" venues whose
+# Foursquare pin is an area CENTROID, not a doorway. A check-in at a river and
+# then at a park is a stroll, but the two centroids can sit 1-3 km apart and the
+# coarse check-in timestamps make the straight-line hop look like a 20-40 km/h
+# ride. When BOTH endpoints of a short segment are such venues we call it a walk
+# outright — the apparent speed is pin/timestamp noise, not travel. Exact names
+# only (no substring test): "Park" must not catch "Parking"/"Shopping Plaza"/
+# "Trailer Park", and paid drive-to attractions (Amusement/Water Park) and
+# ferry-anchored piers/harbours are deliberately excluded.
+PED_CONTEXT = {
+    "Park", "Urban Park", "National Park", "Natural Park",
+    "State or Provincial Park", "Dog Park", "Skate Park",
+    "Garden", "Botanical Garden", "Sculpture Garden",
+    "Beach", "Waterfront", "River", "Lake", "Canal", "Canal Lock",
+    "Reservoir", "Waterfall", "Island",
+    "Plaza", "Pedestrian Plaza",
+    "Hiking Trail", "Bike Trail", "Ski Trail",
+    "Hill", "Mountain", "Forest", "Field", "Nature Preserve",
+    "Scenic Lookout", "Fountain", "Monument", "Outdoor Sculpture",
+    "Memorial Site", "Street Art", "Playground", "Bridge",
+    "Cemetery", "Zoo", "Zoo Exhibit",
+    "Landmarks and Outdoors", "Other Great Outdoors", "Outdoor Event Space",
+}
+
 # Physical plausibility per mode: (max speed km/h, max distance km).
 # The NB layer may only pick a mode the segment's (v, d) can support;
 # v is a lower bound so only the UPPER limits are trustworthy.
@@ -81,6 +105,15 @@ _PLAUSIBLE = {
     "W": (10, 20), "B": (32, 120), "C": (160, 900),
     "T": (280, 1500), "U": (130, 1200), "F": (80, 600),
 }
+
+# Minimum plausible distance (km) for a NON-anchored inference — the one
+# floor that IS trustworthy for rail/water. A train the rules didn't anchor
+# to a station category can't be a sub-few-km hop between two ordinary city
+# venues (a river and a park): that is a walk / tram / road segment whose
+# apparent speed was inflated by burst check-in timestamps. Anchored rail
+# check-ins bypass this (they go through _sane, not _plausible), so genuine
+# short metro/tram rides still classify from their station categories.
+_MIN_DIST = {"T": 3.5}
 
 # Band thresholds (km/h, km)
 SAME_PLACE_KM = 0.05
@@ -90,6 +123,8 @@ FLIGHT_DIST = 500.0
 DRIVE_SPEED = 25.0
 WALK_SPEED = 7.0
 WALK_MAX_KM = 8.0
+NEAR_WALK_KM = 0.4  # below this a sub-drive-speed hop is a walk, not a ride
+PED_WALK_MAX_KM = 3.0  # two open-air area centroids this close apart → a stroll
 GAP_HOURS = 18.0
 
 MODE_META = {  # char → (emoji, css colour, label) — mirrored in the templates
@@ -210,8 +245,10 @@ def _segment(a: dict, b: dict):
 
 def _plausible(v: float, d: float) -> set[str]:
     # v is a lower bound of true speed → only prune modes whose MAX the
-    # observed v already exceeds, or whose range d exceeds.
-    return {m for m, (vmax, dmax) in _PLAUSIBLE.items() if v <= vmax and d <= dmax}
+    # observed v already exceeds, or whose range d exceeds. The one trustworthy
+    # LOWER bound is _MIN_DIST: a non-anchored rail hop can't be sub-few-km.
+    return {m for m, (vmax, dmax) in _PLAUSIBLE.items()
+            if v <= vmax and d <= dmax and d >= _MIN_DIST.get(m, 0.0)}
 
 
 # ── Rule cascade ──────────────────────────────────────────────────────────────
@@ -232,6 +269,12 @@ def _anchor_mode(a: dict, b: dict, d: float, v: float) -> str | None:
     return None
 
 
+def _pedestrian(ck: dict) -> bool:
+    """True if the check-in sits at an open-air / pedestrian area venue whose
+    pin is a coarse centroid (see PED_CONTEXT)."""
+    return (ck.get("category") or "").strip() in PED_CONTEXT
+
+
 def _sane(mode: str, d: float, v: float) -> bool:
     """Sanity-check an anchor against geometry (a metro check-in followed by
     a 900 km hop is not a metro ride)."""
@@ -242,6 +285,9 @@ def _sane(mode: str, d: float, v: float) -> bool:
 
 
 def _band_mode(v: float, d: float, bike: bool) -> str:
+    if d < NEAR_WALK_KM and v < DRIVE_SPEED:
+        return "W"  # sub-few-hundred-metre hop between adjacent venues: the
+        #             apparent speed is check-in-timestamp rounding, not a ride
     if v >= FLIGHT_SPEED or d >= FLIGHT_DIST:
         return "P"
     if v >= DRIVE_SPEED:
@@ -289,6 +335,9 @@ def classify_segments(checkins: list[dict], windows: list[tuple[int, int]],
         if dt > GAP_HOURS:
             modes[i] = "G"
             continue
+        if d <= PED_WALK_MAX_KM and _pedestrian(a) and _pedestrian(b):
+            modes[i] = "W"  # river→park &c.: centroid-to-centroid distance and
+            continue        # burst timestamps faked the speed; it's a stroll
         band = _band_mode(v, d, bike)
         # Ambiguous middle band → let the self-trained layer adjudicate. Only the
         # generic "C" bucket: bike-trip "B" is already trip-tag evidence, and the

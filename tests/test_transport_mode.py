@@ -188,6 +188,34 @@ def test_car_hint_is_not_a_rule_anchor():
     assert classify(pair(2, 1, cat_a="Fuel Station"))[1] == "W"
 
 
+# ── Pedestrian-context (outdoor "area" centroids) ────────────────────────────
+
+def test_river_to_park_short_hop_is_walk():
+    # The trip-162 complaint: River → Park, ~1.7 km apart in ~5 min. Centroid
+    # distance + coarse timestamps fake ~20 km/h, but strolling from a river to
+    # a park is a walk, never a bus/drive.
+    assert classify(pair(1.7, 0.083, cat_a="River", cat_b="Park"))[1] == "W"
+
+
+def test_ped_context_needs_both_endpoints():
+    # Only ONE outdoor endpoint (Park → Café): the arrival is an ordinary point
+    # venue, so the centroid argument doesn't apply — bands/NB decide as before.
+    assert classify(pair(2.0, 0.083, cat_a="Park", cat_b="Café"))[1] != "W"
+
+
+def test_ped_context_bounded_by_distance():
+    # Two parks 6 km apart is beyond a plausible stroll → not force-walked.
+    assert classify(pair(6.0, 0.2, cat_a="Park", cat_b="Urban Park"))[1] != "W"
+
+
+def test_parking_is_not_pedestrian_context():
+    # "Parking" contains "Park" but is a driving-context venue: a 2 km hop
+    # between two lots must not be force-walked by the outdoor rule.
+    assert not tm._pedestrian({"category": "Parking"})
+    assert not tm._pedestrian({"category": "Shopping Plaza"})
+    assert tm._pedestrian({"category": "Park"})
+
+
 # ── Naive Bayes layer ─────────────────────────────────────────────────────────
 
 def _synthetic_trainset():
@@ -239,6 +267,31 @@ def test_plausible_prunes_by_upper_limits_only():
     allowed = tm._plausible(20, 5)  # 20 km/h over 5 km
     assert "W" not in allowed       # vmax 10 exceeded
     assert {"B", "C", "T", "U", "F"} <= allowed
+
+
+def test_plausible_prunes_short_rail():
+    # A non-anchored 'train' can't be a sub-few-km hop between city venues —
+    # burst check-in timestamps inflate the apparent speed. Real distance → ok.
+    assert "T" not in tm._plausible(20, 2)   # 2 km: below the rail floor
+    assert "T" in tm._plausible(20, 5)       # 5 km: real distance, rail allowed
+
+
+def test_nb_wont_label_short_urban_hop_train():
+    # The trip-162 bug: a 1.7 km moderate-speed hop between two ordinary city
+    # venues must never come back 'T' from the NB layer (it would then route via
+    # the rail profile and draw a straight chord). Train the model with a rail
+    # cluster so 'T' is a live option the floor has to veto.
+    seqs = _synthetic_trainset()
+    for _ in range(10):
+        seqs.append(pair(120, 1, cat_a="Train Station"))  # v=120 → 'T' harvest
+    model = tm.train_model(seqs, [])
+    assert classify(pair(1.7, 0.083), model=model)[1] != "T"  # ~20 km/h, 1.7 km
+
+
+def test_sub_400m_hop_is_walk():
+    # A 0.2 km venue-to-venue hop at apparent 15 km/h is timestamp rounding,
+    # not a ride — it must classify as walk, never drive/train.
+    assert classify(pair(0.2, 0.0133))[1] == "W"  # 0.2 km in ~48 s
 
 
 # ── Harvest labels ────────────────────────────────────────────────────────────
