@@ -40,6 +40,18 @@ REQUIRED_PAGES = [
 # syntax as documentation, so the placeholder check would false-positive.
 SKIP_FILES = {"solution.html"}
 
+# Google Search Console verification stubs are named google<token>.html and
+# hold a single `google-site-verification:` line — valid, but not real HTML,
+# so the structural checks below would false-positive on them.
+GOOGLE_VERIFY_RE = re.compile(r"^google[0-9a-f]+\.html$")
+
+
+def is_google_verification(path: Path) -> bool:
+    if not GOOGLE_VERIFY_RE.match(path.name):
+        return False
+    return path.read_text(encoding="utf-8", errors="replace") \
+        .lstrip().startswith("google-site-verification:")
+
 MIN_PAGE_BYTES = 1024
 
 
@@ -106,7 +118,7 @@ def main() -> int:
         return 1
 
     for p in html_files:
-        if p.name in SKIP_FILES:
+        if p.name in SKIP_FILES or is_google_verification(p):
             continue
         probs = check_html(p)
         if probs:
