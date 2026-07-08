@@ -30,6 +30,7 @@ import logging
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -389,10 +390,10 @@ def build_page(
     for s in same_day:
         if len(by_year[s["year"]]) < 5:
             by_year[s["year"]].append(s)
-    same_day_grouped = sorted(
-        [{"year": y, "items": items} for y, items in by_year.items()],
-        key=lambda x: -x["year"],
-    )
+    same_day_grouped = [
+        {"year": y, "items": items}
+        for y, items in sorted(by_year.items(), reverse=True)
+    ]
 
     # ── Visited venue names in the current city (for "✓ visited" badge) ────
     visited_names: list = []
@@ -428,7 +429,7 @@ def build_page(
     visited_cats = [[c, n] for c, n in cat_counter.most_common() if c not in SKIP_CATS]
 
     # ── Payload ────────────────────────────────────────────────────────────
-    data = {
+    data: dict[str, Any] = {
         "anchor": anchor,
         "session": {
             "now":                  now_ts,

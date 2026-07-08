@@ -154,6 +154,11 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── fetch-venue-rating.yml     # Manual: resync venueRatings.json
 │   ├── fetch-lists.yml            # Manual: resync lists.json
 │   ├── fix-overlaps.yml           # Manual: run enrich_overlaps.py / fix_overlap_dupes.py
+│   ├── fr24-flights.yml           # Weekly: FR24 diary CSV → flights.csv in the data repo
+│   ├── tests.yml                  # Push/PR: ruff + mypy + offline pytest; weekly live suite
+│   ├── lighthouse.yml             # Weekly: Lighthouse audit of 4 live pages w/ score floors
+│   ├── k6-load.yml                # Manual: k6 load test against /api/search
+│   ├── mutation.yml               # Manual: mutmut mutation testing over transform.py
 │   └── release.yml                # Release tagging
 ├── functions/
 │   └── api/
@@ -161,7 +166,8 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── search-venues.js     # /api/search-venues — venue autocomplete
 │       ├── feed.js              # /api/feed — cursor-paginated check-in feed
 │       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
-│       └── custom-list.js       # /api/custom-list — custom curated lists
+│       ├── custom-list.js       # /api/custom-list — custom curated lists
+│       └── health.js            # /api/health — D1 + data-freshness health check (200/503)
 ├── data/
 │   ├── checkins.csv          # Your check-in data — gitignored, lives in private repo
 │   ├── tips.json             # Your tips data — gitignored, lives in private repo
@@ -373,14 +379,14 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **120-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **162-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 84 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 118 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
-| Browser E2E smoke | `live` + `e2e` | 14 | internet + Playwright chromium |
+| Browser E2E smoke + accessibility | `live` + `e2e` | 22 | internet + Playwright chromium |
 
 ```bash
 pip install pytest
@@ -398,10 +404,10 @@ python -m pytest tests/ -q
 ```
 
 **CI:** [`.github/workflows/tests.yml`](.github/workflows/tests.yml) (the badge at the top of
-this README tracks it) runs `lint` (ruff) + `unit` (offline suite) on every push/PR that
-touches `scripts/`, `tests/`, `functions/`, or `config/`. The `live` job runs weekly
-(Monday 06:00 UTC) and on manual dispatch only — a temporary site outage can never block a
-code push.
+this README tracks it) runs `lint` (ruff + mypy) + `unit` (offline suite) on every push/PR
+that touches `scripts/`, `tests/`, `functions/`, `config/`, or `setup.cfg`. The `live` job
+runs weekly (Monday 06:00 UTC) and on manual dispatch only — a temporary site outage can
+never block a code push.
 
 ### Test files
 
@@ -436,6 +442,21 @@ code push.
   factories, all anchored at **noon UTC** — so country-based localisation (Minsk UTC+3 vs
   Warsaw UTC+1/+2) can never shift a check-in across a date boundary and make the test
   flaky depending on the season.
+
+#### `tests/test_transport_mode.py` — transport-mode classifier (34 tests)
+
+- **Why:** the per-segment transport-mode inference (`scripts/transport_mode.py`) drives
+  the mode icons on the trips map and in the feed. It is a rule cascade (FR24 flight
+  windows, exact-name category anchors, speed/dwell bands) topped by a self-training
+  Naive Bayes layer — plenty of boundary conditions to regress silently.
+- **What it verifies:** band thresholds (walk/car/plane by speed, plane by ≥500 km range,
+  bike only on bike-tagged trips); dwell handling for long slow segments; FR24 window
+  matching; category anchors beating speed bands; the NB layer adjudicating only band-C
+  segments (bike-B protected); and degenerate inputs (empty, single check-in, missing
+  coordinates) never crashing.
+- **How to run:** `python -m pytest tests/test_transport_mode.py -q`
+- **Tech stack:** pure pytest with synthetic coordinates (1° latitude ≈ 111.19 km, so
+  distances are controlled by latitude deltas alone).
 
 #### `tests/test_companions.py` — companion collection (15 tests)
 
@@ -513,6 +534,22 @@ code push.
 - **Tech stack:** **Playwright** (headless Chromium) via `pytest-playwright`, run against
   the production site.
 
+#### `tests/test_a11y.py` — accessibility audit (8 tests, markers `live` + `e2e`)
+
+- **Why:** none of the other tests notice an unreadable page — a button with no
+  accessible name, a keyboard trap, missing alt text. This ring runs
+  [axe-core](https://github.com/dequelabs/axe-core) (WCAG 2.0/2.1 A + AA rules) against
+  every core page in a real browser.
+- **What it verifies:** each of the 8 core pages is audited; **critical/serious**
+  violations of rules *not* in the known-issues baseline fail the test. Baselined rules
+  and moderate/minor findings are printed as advisories — the gate catches *regressions*,
+  not the pre-existing debt (which is tracked in the baseline constant at the top of the
+  file, to be burned down over time).
+- **How to run:** `pip install pytest-playwright && python -m playwright install chromium`,
+  then `python -m pytest tests/test_a11y.py -q` (skips if the axe-core CDN is unreachable)
+- **Tech stack:** Playwright (headless Chromium) + axe-core 4.10 injected from CDN;
+  reuses `PAGES`/`goto` from the E2E smoke suite.
+
 #### `tests/conftest.py` — shared plumbing
 
 Registers the `live` and `e2e` markers, puts `scripts/` on `sys.path` so tests import
@@ -530,6 +567,32 @@ across the unit suites.
 - **ruff** — lint gate over `scripts/` and `tests/` (config: [`ruff.toml`](ruff.toml);
   default E4/E7/E9 + F rules, with the repo's deliberate one-line style exemptions
   documented inline). Run locally: `python -m ruff check scripts/ tests/`
+- **mypy** — type-check gate over `scripts/` (config: `[mypy]` in [`setup.cfg`](setup.cfg);
+  pragmatic settings for a gradually-typed codebase — `ignore_missing_imports`,
+  `allow_redefinition`, `var-annotated` disabled — but annotated code is checked for
+  real, and the tree is currently clean across all 55 files). Runs in the same CI `lint`
+  job as ruff. Run locally: `python -m mypy`
+- **Lighthouse audit** — [`.github/workflows/lighthouse.yml`](.github/workflows/lighthouse.yml)
+  runs weekly (Monday 07:00 UTC) + on dispatch: headless-Chrome Lighthouse against 4 live
+  pages, failing if any category drops below the floors (performance ≥ 60, accessibility /
+  best-practices / SEO ≥ 85). Full HTML reports are kept as workflow artifacts for 30 days.
+- **k6 load test** — [`tests/load/search.js`](tests/load/search.js) +
+  [`.github/workflows/k6-load.yml`](.github/workflows/k6-load.yml) (manual dispatch only —
+  it deliberately generates load): ramps 0→5→20 virtual users against `/api/search`,
+  failing on >1 % request errors or p95 > 1 s / p99 > 2 s.
+- **Mutation testing** — [`.github/workflows/mutation.yml`](.github/workflows/mutation.yml)
+  (manual dispatch only — slow by nature): runs [mutmut](https://mutmut.readthedocs.io/)
+  over `scripts/transform.py` with the offline suite as the killer, reporting how many
+  injected bugs the tests actually catch. Config: `[mutmut]` in [`setup.cfg`](setup.cfg).
+- **`/api/health`** — [`functions/api/health.js`](functions/api/health.js), a Pages
+  Function returning JSON with the D1 check-in count, hours since the latest check-in,
+  and the static `feed_meta.json` total. Returns 200 `ok` / 503 `degraded` (`no-store`,
+  so always fresh) — an external uptime monitor can watch one URL and catch both a dead
+  D1 binding and a stalled hourly pipeline.
+- **Telegram failure alert** — the hourly `update-dashboard.yml` pings a Telegram chat
+  when **two consecutive scheduled runs** fail (single failures are usually transient
+  API hiccups). Needs the `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets; the step
+  no-ops silently if they are unset.
 
 ---
 

@@ -297,7 +297,7 @@ def main() -> None:
     _PRESERVE = {"photo", "deleted"}
 
     # Merge with existing
-    by_id: dict[str, dict] = {t["id"]: t for t in existing if t.get("id")}
+    by_id = {t["id"]: t for t in existing if t.get("id")}
     for t in fetched:
         if t.get("id"):
             prev = by_id.get(t["id"])

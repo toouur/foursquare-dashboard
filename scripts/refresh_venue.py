@@ -292,19 +292,19 @@ def main() -> None:
         for entry in ratings.get(bucket) or []:
             if str(entry.get("id", "")) != old_venue_id:
                 continue
-            diffs = {}
+            rdiffs: dict[str, tuple] = {}
             if entry.get("name") != new_name:
-                diffs["name"] = (entry.get("name"), new_name)
+                rdiffs["name"] = (entry.get("name"), new_name)
                 entry["name"] = new_name
             if entry.get("url") != new_url:
-                diffs["url"] = (entry.get("url"), new_url)
+                rdiffs["url"] = (entry.get("url"), new_url)
                 entry["url"] = new_url
             if new_venue_id and str(entry.get("id", "")) != new_vid:
-                diffs["id"] = (entry.get("id"), new_vid)
+                rdiffs["id"] = (entry.get("id"), new_vid)
                 entry["id"] = new_vid
-            if diffs:
+            if rdiffs:
                 ratings_changed += 1
-                for field, (old_val, new_val) in diffs.items():
+                for field, (old_val, new_val) in rdiffs.items():
                     log.info("  rating [%s]  %s: %r → %r", bucket, field, old_val, new_val)
     if ratings_changed:
         if not args.dry_run:

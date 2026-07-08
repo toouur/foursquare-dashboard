@@ -3,7 +3,8 @@
 # Test + lint gate for the dashboard code itself (the hourly data pipeline
 # lives in update-dashboard.yml and has its own verify job).
 #
-#   lint  — ruff over scripts/ and tests/ (config: ruff.toml)
+#   lint  — ruff over scripts/ and tests/ (config: ruff.toml) + mypy over
+#           scripts/ (pragmatic config: setup.cfg [mypy], not strict)
 #   unit  — pytest offline suite: metrics/transform/companions unit tests
 #           (everything NOT marked `live`). No secrets, no network.
 #   live  — API contract + Playwright E2E smoke tests against the deployed
@@ -24,6 +25,7 @@ on:
       - "config/**"
       - "requirements.txt"
       - "ruff.toml"
+      - "setup.cfg"
       - ".github/workflows/tests.yml"
   pull_request:
     branches: [main]
@@ -40,10 +42,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install ruff
-        run: pip install ruff
+      - name: Install ruff + mypy
+        run: pip install ruff mypy
       - name: Ruff check
         run: python -m ruff check scripts/ tests/
+      - name: Mypy check
+        run: python -m mypy
 
   unit:
     if: github.event_name != 'schedule'

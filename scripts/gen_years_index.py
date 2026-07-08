@@ -44,7 +44,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
         if cid and ts:
             cid_year[cid] = datetime.fromtimestamp(ts, tz=timezone.utc).year
             cid_row[cid] = r
-    photo_by_year: dict[int, str] = {}
+    photo_by_year: dict[int, tuple[str, int]] = {}
     photo_count_by_year: defaultdict = defaultdict(int)
     for cid, fnames in photos_by_checkin.items():
         yr = cid_year.get(cid)

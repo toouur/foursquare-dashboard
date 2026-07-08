@@ -1,0 +1,61 @@
+# .github/workflows/mutation.yml
+#
+# Manual-dispatch mutation testing of scripts/transform.py with mutmut.
+# Mutates the normalization core and re-runs tests/test_transform.py per
+# mutant — surviving mutants mark logic the tests don't actually pin down.
+# Config lives in setup.cfg [mutmut]. Deliberately not scheduled: it takes
+# tens of minutes and its output is a test-gap review artefact, not a gate.
+
+name: Mutation testing (transform.py)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutmut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest "mutmut<3"
+
+      - name: Run mutmut
+        # mutmut exits non-zero when mutants survive — that's the interesting
+        # output, not a broken job, so the report steps below always run.
+        run: mutmut run --no-progress || true
+
+      - name: Report results
+        run: |
+          {
+            echo "## Mutation testing — scripts/transform.py"
+            echo '```'
+            mutmut results
+            echo '```'
+            echo ""
+            echo "Surviving mutant diffs (first 20):"
+            echo '```diff'
+            mutmut result-ids survived 2>/dev/null | tr ' ' '\n' | head -20 | \
+              while read -r id; do [ -n "$id" ] && mutmut show "$id"; done
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          mutmut junitxml > mutmut-junit.xml || true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutmut-report
+          path: mutmut-junit.xml
+          retention-days: 30

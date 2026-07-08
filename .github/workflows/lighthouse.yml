@@ -1,0 +1,78 @@
+# .github/workflows/lighthouse.yml
+#
+# Weekly Lighthouse audit of the deployed site (performance, accessibility,
+# best-practices, SEO). Runs an hour after the weekly live test suite so both
+# reports land together on Monday mornings. Report HTML is uploaded as a
+# workflow artifact; category scores go to the job summary and the job fails
+# if any score drops below its floor.
+
+name: Lighthouse audit
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"    # Mon 07:00 UTC (live suite runs 06:00)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BASE_URL: https://4sq.pages.dev
+  # Score floors (0–100). Regression gate, not perfection: tune upward as the
+  # site improves, never silently downward.
+  MIN_PERFORMANCE: 60
+  MIN_ACCESSIBILITY: 85
+  MIN_BEST_PRACTICES: 85
+  MIN_SEO: 85
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Lighthouse
+        run: |
+          mkdir -p reports
+          for path in "/" "/feed.html" "/trips.html" "/tips.html"; do
+            name=$(echo "$path" | sed 's|^/$|index|; s|^/||; s|\.html$||')
+            echo "── Auditing ${BASE_URL}${path}"
+            npx --yes lighthouse@12 "${BASE_URL}${path}" \
+              --preset=desktop \
+              --output=json --output=html \
+              --output-path="reports/${name}" \
+              --chrome-flags="--headless=new --no-sandbox" \
+              --quiet
+          done
+
+      - name: Summarise scores and enforce floors
+        run: |
+          fail=0
+          {
+            echo "## Lighthouse scores (${BASE_URL})"
+            echo ""
+            echo "| Page | Performance | Accessibility | Best practices | SEO |"
+            echo "|------|------------:|--------------:|---------------:|----:|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for f in reports/*.report.json; do
+            page=$(basename "$f" .report.json)
+            read -r perf a11y bp seo <<< "$(jq -r '[.categories.performance.score,
+              .categories.accessibility.score, .categories["best-practices"].score,
+              .categories.seo.score] | map(.*100 | round) | @tsv' "$f")"
+            echo "| $page | $perf | $a11y | $bp | $seo |" >> "$GITHUB_STEP_SUMMARY"
+            [ "$perf" -lt "$MIN_PERFORMANCE" ]    && { echo "::error title=Lighthouse::$page performance $perf < $MIN_PERFORMANCE"; fail=1; }
+            [ "$a11y" -lt "$MIN_ACCESSIBILITY" ]  && { echo "::error title=Lighthouse::$page accessibility $a11y < $MIN_ACCESSIBILITY"; fail=1; }
+            [ "$bp"   -lt "$MIN_BEST_PRACTICES" ] && { echo "::error title=Lighthouse::$page best-practices $bp < $MIN_BEST_PRACTICES"; fail=1; }
+            [ "$seo"  -lt "$MIN_SEO" ]            && { echo "::error title=Lighthouse::$page seo $seo < $MIN_SEO"; fail=1; }
+          done
+          exit $fail
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: reports/
+          retention-days: 30

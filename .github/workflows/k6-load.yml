@@ -1,0 +1,49 @@
+# .github/workflows/k6-load.yml
+#
+# Manual-dispatch load test of /api/search with k6 (tests/load/search.js).
+# Deliberately NOT scheduled: it generates ~2 minutes of synthetic production
+# traffic, so it runs only when a human asks for a fresh latency baseline
+# (e.g. after changing search.js or the D1 schema).
+
+name: k6 load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Target base URL"
+        default: "https://4sq.pages.dev"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 against /api/search
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          k6 run tests/load/search.js --summary-export k6-summary.json | tee k6-output.txt
+          {
+            echo "## k6 — /api/search (${BASE_URL})"
+            echo '```'
+            grep -E 'http_req_duration|http_req_failed|http_reqs|checks|vus_max' k6-output.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-summary
+          path: |
+            k6-summary.json
+            k6-output.txt
+          retention-days: 30

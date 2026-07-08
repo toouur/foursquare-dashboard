@@ -38,8 +38,9 @@ _SIZE = "original"   # photo size: original | 1920x1440 | 960x720 | 800x600 | 30
 _SLEEP = 0.5         # seconds between API calls
 
 
-def _get(url: str) -> dict | None:
-    """Make a Foursquare API GET request. Returns parsed JSON or None on error."""
+def _get(url: str) -> dict | str | None:
+    """Make a Foursquare API GET request.
+    Returns parsed JSON, "QUOTA" on 403, or None on error."""
     try:
         req = urllib.request.Request(url, headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=20) as r:
@@ -73,7 +74,7 @@ def _fetch_checkin_photos(checkin_id: str, token: str) -> list[tuple[str, str]] 
     data = _get(url)
     if data == "QUOTA":
         return "QUOTA"
-    if not data:
+    if not isinstance(data, dict):
         return []   # 404 or error — treat as no photos
 
     try:
@@ -211,7 +212,7 @@ def main() -> None:
             quota_hit = True
             break
 
-        photos: list[tuple[str, str]] = result or []
+        photos = result if isinstance(result, list) else []
         filenames: list[str] = []
 
         for dl_url, fname in photos:

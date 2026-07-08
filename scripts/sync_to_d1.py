@@ -683,7 +683,7 @@ def main() -> None:
                 raw_stmts.append(f"UPDATE tips SET venue_id={new_lit} WHERE venue_id={old_lit}")
             # Send in ~90 KB chunks via /raw
             _CHUNK = 90_000
-            chunk: list[str] = []
+            chunk = []
             chunk_bytes = 0
             total_stmts = len(raw_stmts)
             sent_stmts = 0

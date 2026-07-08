@@ -77,7 +77,7 @@ def fetch_venue_details(token: str, venue_id: str) -> dict:
 
 def fetch_dislike_ids(token: str) -> set[str]:
     """Fetch all venue IDs from the venuedislikes list (usually small)."""
-    ids: set[str] = []
+    ids: list[str] = []
     offset = 0
     # Probe total
     probe = _get(
