@@ -23,6 +23,7 @@ year-*.html
 trip-*.html
 trips_meta.json
 feed_meta.json
+routes.json
 venues_filter.json
 city_review.csv
 # assembled deploy dir

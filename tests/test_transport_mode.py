@@ -49,6 +49,26 @@ def test_empty_and_single_input():
     assert classify([ci(1590926400)]) == [""]
 
 
+def test_carry_forward_across_coordless_checkin():
+    # A coordless check-in between two plotted ones must not blank the segment:
+    # the second plotted point pairs against the FIRST one (as the map draws it).
+    t0 = 1591012800
+    rows = [ci(t0, lat=50.0),
+            {"ts": t0 + 1800, "lat": "", "lng": "", "category": ""},
+            ci(t0 + 3600, lat=50.0 + 60 / KM_PER_DEG)]
+    assert classify(rows) == ["", "", "C"]  # 60 km in 1 h, paired across the gap
+
+
+def test_zero_zero_coords_treated_as_missing():
+    # (0,0) is what unparsed rows carry; the template drops them (c.lat&&c.lng),
+    # so the classifier must carry forward across them too.
+    t0 = 1591012800
+    rows = [ci(t0, lat=50.0),
+            ci(t0 + 1800, lat=0.0, lng=0.0),
+            ci(t0 + 3600, lat=50.0 + 1.5 / KM_PER_DEG)]
+    assert classify(rows) == ["", "", "W"]  # 1.5 km in 1 h → walk
+
+
 # ── Speed/distance bands ──────────────────────────────────────────────────────
 
 def test_band_walk():

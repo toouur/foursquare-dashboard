@@ -159,6 +159,15 @@ if __name__ == "__main__":
                         help="Write slim trips metadata JSON to this path "
                              "(used by sync_to_d1.py; excludes checkins/coords arrays). "
                              "Defaults to trips_meta.json in the current directory.")
+    parser.add_argument("--routes-cache", default=None,
+                        help="Path to routes_cache.json (persistent OSRM/BRouter "
+                             "route-geometry cache, lives in the private data repo). "
+                             "When set, trip-map segments get real street/rail paths; "
+                             "omitted → routes.json is empty and the map draws "
+                             "straight lines.")
+    parser.add_argument("--routes-max-fetch", type=int, default=250,
+                        help="Max missing routes to fetch per build (default 250); "
+                             "the cache warms up over successive CI builds.")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -449,6 +458,27 @@ if __name__ == "__main__":
                  "self-trained" if _tm_model else "fallback to bands")
     except Exception as _tme:
         log.warning("transport-mode classification failed: %s", _tme)
+
+    # ── GPS-like route geometry for trip-map segments (routes.json) ──────────
+    # Fetch real street/rail paths (FOSSGIS OSRM + BRouter) for mode-tagged
+    # segments, served from a persistent cache in the private data repo.
+    # routes.json is ALWAYS written (empty when --routes-cache is unset) so the
+    # template's fetch never 404s.
+    _routes: dict = {}
+    if args.routes_cache:
+        try:
+            import route_paths as _rp
+            _rc = _rp.RouteCache(args.routes_cache)
+            _routes = _rp.attach_routes(trips, _rc, max_fetch=args.routes_max_fetch)
+            _rc.save()
+            log.info("Route geometry: %d segments routed (cache %s: %d entries)",
+                     len(_routes), args.routes_cache, len(_rc.data))
+        except Exception as _rpe:
+            log.warning("route-geometry attachment failed: %s", _rpe)
+    os.makedirs(args.output_dir, exist_ok=True)
+    Path(os.path.join(args.output_dir, "routes.json")).write_text(
+        json.dumps(_routes, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8")
 
     # ── Load tips for recent section ─────────────────────────────────────────
     # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
@@ -872,6 +902,7 @@ if __name__ == "__main__":
         if gen_script.exists():
             import importlib.util as _ilu
             _spec = _ilu.spec_from_file_location(f"_gen_{gen_script.stem}", gen_script)
+            assert _spec and _spec.loader
             _mod  = _ilu.module_from_spec(_spec)
             try:
                 _spec.loader.exec_module(_mod)
@@ -894,6 +925,7 @@ if __name__ == "__main__":
         try:
             import importlib.util as _ilu_f
             _spec_f = _ilu_f.spec_from_file_location("gen_flights", _gen_flights)
+            assert _spec_f and _spec_f.loader
             _mod_f  = _ilu_f.module_from_spec(_spec_f)
             _spec_f.loader.exec_module(_mod_f)
             from flights import (
@@ -920,6 +952,7 @@ if __name__ == "__main__":
         try:
             import importlib.util as _ilu_yi
             _spec_yi = _ilu_yi.spec_from_file_location("gen_years_index", _gen_yix)
+            assert _spec_yi and _spec_yi.loader
             _mod_yi  = _ilu_yi.module_from_spec(_spec_yi)
             _spec_yi.loader.exec_module(_mod_yi)
             _mod_yi.build_page(
@@ -938,6 +971,7 @@ if __name__ == "__main__":
         try:
             import importlib.util as _ilu_y
             _spec_y = _ilu_y.spec_from_file_location("gen_year_pages", _gen_year)
+            assert _spec_y and _spec_y.loader
             _mod_y  = _ilu_y.module_from_spec(_spec_y)
             _spec_y.loader.exec_module(_mod_y)
             # Load flights once for the year pages (re-parses if available)
@@ -994,6 +1028,7 @@ if __name__ == "__main__":
         if gen_photos_script.exists():
             import importlib.util as _ilu
             _spec = _ilu.spec_from_file_location("gen_photos", gen_photos_script)
+            assert _spec and _spec.loader
             _mod  = _ilu.module_from_spec(_spec)
             try:
                 _spec.loader.exec_module(_mod)

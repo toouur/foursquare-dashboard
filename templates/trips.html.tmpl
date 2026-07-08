@@ -534,57 +534,98 @@ function showTrip(id){
     const tsToIdx = {};
     routePts.forEach((p,i)=>{ tsToIdx[p.ts]=i; });
     let routeActive=null, routeMarker=null, maxRouteIdx=-1;
-    if(routePts.length>1){
-      const segGroup=L.layerGroup().addTo(activeMap);
-      const modesPresent=new Set();
-      for(let i=1;i<routePts.length;i++){
-        const a=routePts[i-1].ll, b=routePts[i].ll, m=routePts[i].m;
-        if(!m) continue;                       // same place — no line
-        const st=MODE_STYLE[m]||MODE_STYLE.C;
-        const seg=L.polyline(m==='P'?gcArc(a,b):[a,b],
-          {color:st.c,weight:st.w,opacity:m==='G'?0.15:0.55,dashArray:st.d,interactive:m!=='G'});
-        if(m!=='G'){
-          const km=havKm(a,b);
-          seg.bindTooltip(`${st.i} ${st.l} · ${km<10?km.toFixed(1):Math.round(km)} km`,{sticky:true,className:'tl-route-tip'});
+    const segGeom=[null];   // segGeom[i] = drawn geometry of segment arriving at routePts[i]
+    let activePts=[];
+    const thisMap=activeMap;
+    // Segment drawing waits for routes.json so mode lines, tooltips and the
+    // progress line all share the same (routed when available) geometry.
+    ROUTES_P.then(()=>{
+      if(activeMap!==thisMap) return;          // trip closed / switched meanwhile
+      if(routePts.length>1){
+        const segGroup=L.layerGroup().addTo(activeMap);
+        const modesPresent=new Set();
+        for(let i=1;i<routePts.length;i++){
+          const A=routePts[i-1], B=routePts[i], m=B.m;
+          const rt=ROUTES[A.ts+'-'+B.ts];
+          let geom, km=havKm(A.ll,B.ll);
+          if(m==='P') geom=gcArc(A.ll,B.ll);
+          else if(rt&&m&&m!=='G'&&m!=='F'){
+            geom=decPoly(rt[0]); km=rt[1];
+            geom.unshift(A.ll); geom.push(B.ll);  // snap route ends to the dots
+          }
+          else geom=[A.ll,B.ll];
+          segGeom.push(geom);
+          if(!m) continue;                       // same place — no line
+          const st=MODE_STYLE[m]||MODE_STYLE.C;
+          const seg=L.polyline(geom,
+            {color:st.c,weight:st.w,opacity:m==='G'?0.15:0.55,dashArray:st.d,interactive:m!=='G'});
+          if(m!=='G'){
+            seg.bindTooltip(`${st.i} ${st.l} · ${km<10?km.toFixed(1):Math.round(km)} km`,{sticky:true,className:'tl-route-tip'});
+          }
+          seg.addTo(segGroup);
+          modesPresent.add(m);
         }
-        seg.addTo(segGroup);
-        modesPresent.add(m);
+        const lgModes=[...modesPresent].filter(m=>m!=='G');
+        if(lgModes.length){
+          const lg=L.control({position:'bottomright'});
+          lg.onAdd=function(){
+            const div=L.DomUtil.create('div','mode-legend');
+            div.innerHTML=lgModes.map(m=>{const s=MODE_STYLE[m];return `<span><i style="background:${s.c}"></i>${s.i} ${s.l}</span>`;}).join('');
+            return div;
+          };
+          lg.addTo(activeMap);
+        }
+        routeActive= L.polyline([],{color:'#e8b86d',weight:2.5,opacity:0.9}).addTo(activeMap);
+        routeMarker= L.circleMarker(routePts[0].ll,{radius:5,fillColor:'#e8b86d',color:'#fff',weight:1.5,fillOpacity:1})
+          .bindTooltip(routePts[0].venue,{permanent:true,direction:'top',className:'tl-route-tip',offset:[0,-6]})
+          .addTo(activeMap);
       }
-      const lgModes=[...modesPresent].filter(m=>m!=='G');
-      if(lgModes.length){
-        const lg=L.control({position:'bottomright'});
-        lg.onAdd=function(){
-          const div=L.DomUtil.create('div','mode-legend');
-          div.innerHTML=lgModes.map(m=>{const s=MODE_STYLE[m];return `<span><i style="background:${s.c}"></i>${s.i} ${s.l}</span>`;}).join('');
-          return div;
-        };
-        lg.addTo(activeMap);
-      }
-      routeActive= L.polyline([],{color:'#e8b86d',weight:2.5,opacity:0.9}).addTo(activeMap);
-      routeMarker= L.circleMarker(routePts[0].ll,{radius:5,fillColor:'#e8b86d',color:'#fff',weight:1.5,fillOpacity:1})
-        .bindTooltip(routePts[0].venue,{permanent:true,direction:'top',className:'tl-route-tip',offset:[0,-6]})
-        .addTo(activeMap);
-    }
+      if(activeObserver){activeObserver.disconnect();activeObserver=null;}
+      const tlEl=document.getElementById('detailTimeline');
+      activeObserver=new IntersectionObserver(entries=>{
+        entries.forEach(e=>{
+          if(!e.isIntersecting) return;
+          const ts=parseInt(e.target.dataset.ts);
+          if(ts in tsToIdx) advanceRoute(tsToIdx[ts]);
+        });
+      },{root:tlEl,threshold:0.1});
+      tlEl.querySelectorAll('.tl-checkin[data-ts]').forEach(el=>activeObserver.observe(el));
+    });
     function advanceRoute(idx){
       if(!routeActive||idx<=maxRouteIdx) return;
+      if(!activePts.length) activePts.push(routePts[0].ll);
+      // follow each segment's drawn geometry (routed path / flight arc),
+      // not point-to-point chords
+      for(let i=Math.max(1,maxRouteIdx+1);i<=idx;i++){
+        const g=segGeom[i];
+        for(let k=1;k<g.length;k++) activePts.push(g[k]);
+      }
       maxRouteIdx=idx;
-      const pts=routePts.slice(0,idx+1).map(p=>p.ll);
-      routeActive.setLatLngs(pts);
-      routeMarker.setLatLng(pts[pts.length-1]);
+      routeActive.setLatLngs(activePts);
+      routeMarker.setLatLng(routePts[idx].ll);
       const ven=routePts[idx].venue; if(ven) routeMarker.setTooltipContent(ven);
     }
-    if(activeObserver){activeObserver.disconnect();activeObserver=null;}
-    const tlEl=document.getElementById('detailTimeline');
-    activeObserver=new IntersectionObserver(entries=>{
-      entries.forEach(e=>{
-        if(!e.isIntersecting) return;
-        const ts=parseInt(e.target.dataset.ts);
-        if(ts in tsToIdx) advanceRoute(tsToIdx[ts]);
-      });
-    },{root:tlEl,threshold:0.1});
-    tlEl.querySelectorAll('.tl-checkin[data-ts]').forEach(el=>activeObserver.observe(el));
   },50);
   window.scrollTo(0,0);
+}
+
+// ── Routed segment geometry ──────────────────────────────────────────────────
+// routes.json (built by scripts/route_paths.py): "tsA-tsB" → [polyline5, km].
+// Fetched once; segments without an entry fall back to straight lines.
+let ROUTES={};
+const ROUTES_P=fetch('routes.json').then(r=>r.ok?r.json():{}).then(j=>{ROUTES=j||{};}).catch(()=>{});
+function decPoly(s){ // polyline5 → [[lat,lng],…]
+  const pts=[];let i=0,lat=0,lng=0;
+  while(i<s.length){
+    for(let k=0;k<2;k++){
+      let sh=0,res=0,b;
+      do{b=s.charCodeAt(i++)-63;res|=(b&0x1f)<<sh;sh+=5;}while(b>=0x20);
+      const d=(res&1)?~(res>>1):(res>>1);
+      if(k)lng+=d;else lat+=d;
+    }
+    pts.push([lat/1e5,lng/1e5]);
+  }
+  return pts;
 }
 
 function showList(){

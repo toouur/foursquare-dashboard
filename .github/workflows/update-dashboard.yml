@@ -29,6 +29,7 @@ on:
 
 permissions:
   contents: write
+  actions: read     # alert step reads previous run conclusions via gh api
 
 jobs:
 
@@ -262,7 +263,34 @@ jobs:
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
+            --routes-cache private-data/routes_cache.json \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
+
+      # ── 7c. Persist warmed route-geometry cache to the data repo ─────────────
+      #   The build fetches up to --routes-max-fetch missing OSRM/BRouter routes
+      #   per run and appends them to routes_cache.json; committing it back means
+      #   the cache warms over hourly runs instead of refetching forever. Runs
+      #   right after the build so a later validate/deploy failure doesn't lose
+      #   the fetched routes.
+      - name: Commit route cache to data repo
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          steps.fetch.outputs.CHANGED == 'true' ||
+          steps.fetch_tips.outputs.CHANGED == 'true' ||
+          steps.fetch_photos.outputs.CHANGED == 'true' ||
+          steps.fetch_ratings.outputs.CHANGED == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          [ -f routes_cache.json ] && git add routes_cache.json || true
+          if git diff --cached --quiet; then
+            echo "Route cache unchanged."
+          else
+            git commit -m "chore: warm route-geometry cache"
+            git push || { git pull --rebase && git push; }
+          fi
+          cd ..
 
       # ── 7a. Validate generated HTML before anything ships ────────────────────
       #   Fails the job (so nothing deploys) on unreplaced {{PLACEHOLDER}}s,
@@ -352,6 +380,39 @@ jobs:
             --branch main \
             --commit-dirty=true
 
+      # ── 9. Alert on REPEATED failure (Telegram) ──────────────────────────────
+      #   GitHub already emails on the first failure; the risk worth paging for
+      #   is silent data-staleness — the hourly job failing over and over. Only
+      #   pings when the previous scheduled/dispatched run of this workflow ALSO
+      #   failed (≥2 consecutive), so a one-off network blip stays quiet.
+      #   Needs secrets TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID; skips gracefully
+      #   when unset.
+      - name: Alert on repeated failure
+        if: failure()
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT:  ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
+            echo "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set — skipping alert."
+            exit 0
+          fi
+          # Conclusion of the most recent COMPLETED scheduled run before this one
+          # (push-triggered verify runs are a different job — excluded by event).
+          PREV=$(gh api "repos/${{ github.repository }}/actions/workflows/update-dashboard.yml/runs?event=schedule&status=completed&per_page=5" \
+                 --jq "[.workflow_runs[] | select(.id != ${{ github.run_id }})][0].conclusion")
+          echo "Previous scheduled run conclusion: ${PREV:-none}"
+          if [ "$PREV" != "failure" ]; then
+            echo "First failure in a row — GitHub's own email is enough, not paging."
+            exit 0
+          fi
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -fsS "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode chat_id="${TG_CHAT}" \
+            --data-urlencode text="🔴 4sq dashboard: hourly update failed ≥2 times in a row — data may be going stale. ${RUN_URL}" \
+            > /dev/null && echo "Telegram alert sent."
+
   # ── Monthly job: deploy to Netlify on the last day of each month ────────────
   #   The site HTML is no longer committed to git, so this job rebuilds it from
   #   the private data repo and deploys the assembled _site/ (same dir the Pages
@@ -407,6 +468,8 @@ jobs:
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
+            --routes-cache private-data/routes_cache.json \
+            --routes-max-fetch 0 \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
       - name: Validate generated HTML

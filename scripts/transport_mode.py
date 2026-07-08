@@ -183,14 +183,25 @@ def _nb_predict(model, f1: float, f2: float, allowed: set[str]) -> str | None:
 
 # ── Segment geometry ──────────────────────────────────────────────────────────
 
-def _segment(a: dict, b: dict):
-    """→ (d_km, dt_h, v_kmh) or None when coords/order make it meaningless."""
+def _coords(c: dict) -> tuple[float, float] | None:
+    """Parsed (lat, lng), or None when missing/unparseable.  (0, 0) counts as
+    missing too: the map template filters points with `c.lat && c.lng`, so a
+    zero coordinate is never plotted and must not anchor a segment either."""
     try:
-        la1, lo1 = float(a["lat"]), float(a["lng"])
-        la2, lo2 = float(b["lat"]), float(b["lng"])
+        la, lo = float(c["lat"]), float(c["lng"])
     except (KeyError, TypeError, ValueError):
         return None
-    d = _haversine_km(la1, lo1, la2, lo2)
+    if la == 0 and lo == 0:
+        return None
+    return la, lo
+
+
+def _segment(a: dict, b: dict):
+    """→ (d_km, dt_h, v_kmh) or None when coords/order make it meaningless."""
+    ca, cb = _coords(a), _coords(b)
+    if ca is None or cb is None:
+        return None
+    d = _haversine_km(ca[0], ca[1], cb[0], cb[1])
     dt = (int(b["ts"]) - int(a["ts"])) / 3600.0
     if dt <= 0:
         dt = 1 / 60.0  # same-minute double check-in
@@ -247,10 +258,21 @@ def classify_segments(checkins: list[dict], windows: list[tuple[int, int]],
     """One arrival-mode char per check-in (element 0 is always "").
 
     checkins must be time-ascending dicts with ts/lat/lng/category.
+
+    Pairing carries forward across coordless check-ins: each coord-bearing
+    check-in is classified against the PREVIOUS coord-bearing one, so
+    modes[i] always labels the line the map actually draws between two
+    plotted dots (the template drops coordless points from routePts).
     """
     modes = [""] * len(checkins)
-    for i in range(1, len(checkins)):
-        a, b = checkins[i - 1], checkins[i]
+    prev: dict | None = None  # last coord-bearing check-in
+    for i in range(len(checkins)):
+        b = checkins[i]
+        if _coords(b) is None:
+            continue
+        a, prev = prev, b
+        if a is None:
+            continue
         seg = _segment(a, b)
         if seg is None:
             continue
@@ -287,8 +309,13 @@ def classify_segments(checkins: list[dict], windows: list[tuple[int, int]],
 
 def _harvest(checkins: list[dict], windows: list[tuple[int, int]],
              bike: bool, out: list[tuple[float, float, str]]) -> None:
-    for i in range(1, len(checkins)):
-        a, b = checkins[i - 1], checkins[i]
+    prev: dict | None = None  # same carry-forward pairing as classify_segments
+    for b in checkins:
+        if _coords(b) is None:
+            continue
+        a, prev = prev, b
+        if a is None:
+            continue
         seg = _segment(a, b)
         if seg is None:
             continue
