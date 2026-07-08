@@ -8,14 +8,17 @@ Repository guidance for Claude Code.
 ```bash
 /c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/build.py \
   --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
-  --config-dir config --output-dir .
+  --config-dir config --output-dir _site
 ```
+> Local builds write generated HTML + JSON into `_site/` (gitignored) to keep the
+> repo root clean. CI builds into its own clean runner and assembles/deploys `_site/`
+> separately — the local folder is only for preview.
 
 ### Build with photos
 ```bash
 /c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/build.py \
   --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
-  --config-dir config --output-dir . \
+  --config-dir config --output-dir _site \
   --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json \
   --pix-url "https://pub-5514667a5da04a75986022e39efc7118.r2.dev/pix"
 ```
@@ -156,7 +159,7 @@ npx wrangler pages dev . --d1 DB=52210bd9-a019-415e-8f12-6a73b42278f9
 
 ### Local preview
 ```bash
-python -m http.server 8000
+python -m http.server 8000 --directory _site
 ```
 
 ### Run tests / lint
@@ -174,7 +177,7 @@ python -m http.server 8000
 /c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -m mypy
 
 # Validate generated HTML (same gate CI runs before every deploy)
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/validate_html.py --dir .
+/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/validate_html.py --dir _site
 ```
 
 ## Data and Build Model
