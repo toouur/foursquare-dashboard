@@ -277,6 +277,8 @@
   "Dōngchéng": "Beijing"  # ok — pinyin with tones
   "Xicheng Qu": "Beijing"  # ok — district of Beijing
   "北京市朝陽區": "Beijing"  # ok — Chinese characters, Chaoyang district
+  "北京市海淀區": "Beijing"  # ok — Chinese characters (traditional 區), Haidian district
+  "北京市海淀区": "Beijing"  # ok — Chinese characters (simplified 区), Haidian district
   "Haidian": "Beijing"  # ok — district of Beijing
   "Jingshan": "Beijing"  # ok — park/area in Beijing
   "Chē gōngzhuāng": "Beijing"  # ok — subway station area

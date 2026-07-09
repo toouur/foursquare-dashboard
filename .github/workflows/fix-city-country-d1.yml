@@ -4,9 +4,16 @@
 # (city_fixes.json, country_fixes.json, city_merge.yaml, blank-city resolver)
 # produces a different city or country than the raw CSV value.
 #
+# Runs automatically on any push to main that touches a normalization input
+# (city_merge.yaml, city_fixes.json, country_fixes.json, venue_fixes.json,
+# city_canonical.yaml, city_review.csv, or scripts/transform.py) — so a mapping
+# or logic change propagates to historical D1 rows without a manual step. Still
+# dispatchable by hand.
+#
 # Use after:
-#   • Adding entries to city_fixes.json or country_fixes.json
+#   • Adding entries to city_fixes.json / country_fixes.json / venue_fixes.json
 #   • city_merge.yaml canonical name changes
+#   • transform.py normalization-logic changes (e.g. the NFC pass)
 #   • Any time blank-city resolver coverage is extended (new city_review.csv)
 #
 # Required repository secrets:
@@ -28,8 +35,15 @@ on:
       - "config/city_merge.yaml"
       - "config/city_fixes.json"
       - "config/country_fixes.json"
+      - "config/venue_fixes.json"
       - "config/city_canonical.yaml"
       - "city_review.csv"
+      # Normalization LOGIC, not just config: a change to the transform pipeline
+      # (e.g. the NFC pass) can re-map historical rows with no config edit at all.
+      # --fix-city-country is idempotent (UPDATEs only rows whose computed value
+      # differs), so an over-trigger on an unrelated transform.py edit is a cheap
+      # no-op rather than a hazard.
+      - "scripts/transform.py"
 
 jobs:
   fix-city-country:

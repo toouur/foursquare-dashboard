@@ -12,6 +12,7 @@ import json
 import math
 import yaml
 import logging
+import unicodedata
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -238,7 +239,14 @@ def apply_transforms(
             continue
 
         # City normalisation
-        city = row.get("city", "").strip()
+        # Unicode-normalise to NFC first: Foursquare sometimes returns diacritic
+        # city names in NFD (decomposed, e.g. "Ha Noi" as a+U+0300, o+U+0323),
+        # while city_merge keys are NFC (precomposed). Without this, NFD rows bypass
+        # EVERY string-keyed rule (city_merge, city_fixes values, venue_fixes) and
+        # resurface as phantom single-count cities (a duplicate "Soc Son" alongside
+        # the correctly-merged Hanoi rows). Store the NFC value back so metrics/D1 agree.
+        city = unicodedata.normalize("NFC", row.get("city", "").strip())
+        row["city"] = city
         # Foursquare encodes apostrophes as U+2019 (RIGHT SINGLE QUOTATION MARK)
         # but city_merge keys use U+0027 (ASCII apostrophe).  Normalise first so
         # entries like "Kazan'" (167 rows), "Smarhon'" (7), "Nevel'" (8), etc. match.
@@ -250,6 +258,7 @@ def apply_transforms(
             # Infer city for blank-city rows from coordinates / timestamp
             inferred = blank_city_resolver(row)
             if inferred:
+                inferred = unicodedata.normalize("NFC", inferred)
                 # Also run city_merge on the inferred name — the review CSV may
                 # store raw Foursquare values (Cyrillic, RSQM apostrophes, variants)
                 # that still need normalising, e.g. "Мачулищи" → "Machulishchy".

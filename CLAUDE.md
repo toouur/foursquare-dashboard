@@ -248,6 +248,27 @@ thresholds keys all exist in `valid_canonical`, city_fixes.json keys are
 numeric ts or 24-char hex ids, and venue_fixes.json keys are 24-char hex with a
 non-empty city/country.
 
+### City NFC normalization + count-drift gate
+
+- `transform.py` NFC-normalizes every `city` value (and writes it back to the row)
+  **before** any string-keyed rule runs. Foursquare sometimes returns diacritic
+  city names in NFD (decomposed base char + combining mark, e.g. "Sóc Sơn" as
+  `o`+U+0323); NFD strings byte-mismatch the NFC keys in `city_merge.yaml`, so
+  without this they bypass EVERY rule and resurface as phantom single-count cities.
+  CJK has no NFC/NFD variance — a missing CJK mapping is a plain `city_merge` gap
+  (e.g. traditional `北京市海淀區` needed its own entry alongside simplified `区`).
+- `scripts/check_city_count.py` runs the real transform pipeline and compares the
+  distinct normalized {city:count} set to `config/city_count_baseline.json`.
+  HARD-fails (exit 1) only on invariant bugs — a displayed city that is non-NFC or
+  a fold-collision (two spellings/encodings of one place). SOFT findings (exit 0,
+  reported): an added city that count-pairs with a removed one (`RENAME?`, likely a
+  Foursquare city rename that now needs a mapping) or a non-ASCII non-canonical
+  addition (`REVIEW`). `--strict` makes SOFT block too; `--warn-only` never blocks.
+  Wired into `update-dashboard.yml` (step 7a-bis) after HTML validate, before D1
+  sync. **Refresh the baseline after an intentional city-set change** and commit it:
+  `python scripts/check_city_count.py --csv private-data/checkins.csv --baseline
+  config/city_count_baseline.json --update-baseline`.
+
 ### Gateway check-in rule (border crossings, airports)
 
 Border/airport check-ins are "gateways" — Foursquare often tags them with a city

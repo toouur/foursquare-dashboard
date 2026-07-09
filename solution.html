@@ -1380,6 +1380,55 @@ GET  <span class="hl">my.flightradar24.com/public-scripts/export</span> → <spa
       </div>
     </div>
 
+    <!-- C18 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 18 — Year Cover Photos That Reshuffled on Every Build</div>
+        <div class="cs-text">
+          The <code>years.html</code> index and each per-year "Year in Review" album need one
+          representative photo per year — the card thumbnail, the hero lead frame, and the
+          <code>og:image</code> for link previews. The original rule was simply "the latest photo in
+          that year wins." That drifts on <strong>every single build</strong>: each new photographed
+          check-in silently displaced the current year's cover, and back-filling a photo onto an old
+          check-in could reshuffle a year that finished long ago. A social-media preview image that
+          changes hourly is worse than none — it can never be cached or trusted.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — A Deterministic "Signature" Score, Stable by Construction</div>
+        <div class="cs-text">
+          A single shared module (<code>year_covers.py</code>, used by both the index and the album
+          generator so all three surfaces always agree) scores every candidate on an intrinsic
+          <strong>signature</strong> and picks the winner with a total ordering — no clock, no
+          "most recent," nothing that changes when unrelated rows arrive:
+        </div>
+        <div class="code-block">
+<span class="cm"># Bigger-is-better signature: a check-in that carries a shout, has more</span>
+<span class="cm"># companions, and more photos is the more memorable moment. Ties break by</span>
+<span class="cm"># EARLIEST timestamp, then checkin_id, then filename — all deterministic.</span>
+key = (<span class="hl2">-has_shout, -companion_count, -num_photos, ts, checkin_id, filename</span>)
+cover = <span class="hl">min</span>(candidates, key=key)   <span class="cm"># same input → same cover, forever</span>
+        </div>
+        <div class="cs-text">
+          Because every component is a property of rows that <em>already exist</em>, appending newer
+          photos can never reshuffle a completed year, and only ever displaces the current year's
+          cover when a strictly more significant moment appears. A tiny
+          <code>config/year_covers.json</code> map (<code>{"2024": "&lt;filename or checkin_id&gt;"}</code>)
+          pins any year's cover by hand when the automatic pick isn't the one you'd have chosen. The
+          guarantee is locked down by unit tests that assert byte-identical output across repeated
+          builds and that a later, lower-signature photo leaves an earlier cover untouched.
+        </div>
+        <div class="cs-text">
+          The same page opens with a cross-year <strong>memoir lede</strong> — a short first-person
+          paragraph composed from the aggregate record (years spanned, lifetime check-ins, distinct
+          countries and cities, total distance, the city that recurs most, a companion who turns up
+          across the most years, the farthest point reached). It is generated, not written: each
+          clause is guarded on data availability and every number is pulled from the yearly summaries,
+          so the paragraph rewrites itself as new years accrue and never goes stale.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>

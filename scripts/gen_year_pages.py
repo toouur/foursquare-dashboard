@@ -35,6 +35,8 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from year_covers import select_year_covers
+
 CTRY_CODE: dict[str, str] = {}
 
 # ── Activity buckets ────────────────────────────────────────────────────
@@ -586,6 +588,7 @@ PAGE_TEMPLATE = r"""<!DOCTYPE html>
 <meta property="og:type" content="article">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{description}">
+{og_image}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
@@ -1084,6 +1087,11 @@ def build_page(
                 continue
             flights_by_year[yr].append(f)
 
+    # Stable per-year cover photo (shared with the years index; deterministic
+    # signature score + config/year_covers.json override). Used as the lead
+    # frame of the hero Ken-Burns cycle and the og:image.
+    covers = select_year_covers(rows, photos_by_checkin, config_dir, pix_url=pix_url)
+
     # All year list (for prev/next nav)
     all_years_sorted = sorted({ys["year"] for ys in year_summaries})
 
@@ -1167,8 +1175,16 @@ def build_page(
             except (ValueError, IndexError):
                 continue
 
-        # HERO Ken-Burns photos (top 5 — most recent)
-        hero_photos = photos_y[:5]
+        # HERO Ken-Burns photos: the STABLE cover leads, then up to 4 more
+        # recent shots. Leading with the cover keeps the first frame (and the
+        # og:image) fixed build-to-build instead of chasing the newest photo.
+        cover = covers.get(yr)
+        cover_src = cover["src"] if cover else ""
+        hero_photos = list(photos_y[:5])
+        if cover_src:
+            hero_photos = [p for p in hero_photos if p["src"] != cover_src]
+            hero_photos.insert(0, {"src": cover_src})
+            hero_photos = hero_photos[:5]
         hero_bg_html = "".join(
             f'<div class="ph" style="background-image:url(\'{_esc(p["src"])}\')"></div>'
             for p in hero_photos
@@ -1531,10 +1547,17 @@ def build_page(
             f"{ys.get('cities', 0)} cities and "
             f"{ys.get('countries', 0)} countries in {yr}."
         )
+        # og:image only when the cover resolves to an absolute URL (i.e. a real
+        # build with --pix-url); a bare local filename wouldn't resolve for crawlers.
+        og_image = (
+            f'<meta property="og:image" content="{_esc(cover_src)}">'
+            if cover_src.startswith("http") else ""
+        )
         html = PAGE_TEMPLATE.format(
             year=yr,
             title=f"{yr} — Year in Review",
             description=description,
+            og_image=og_image,
             vivid=ys.get("vivid", description),
             hero_bg_html=hero_bg_html,
             scroll_bg_imgs=scroll_bg_imgs,

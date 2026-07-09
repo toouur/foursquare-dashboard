@@ -10,9 +10,108 @@ Hero photo is picked from the latest year that has photos. Cards are
 sorted newest-first with the vivid narrative front and centre.
 """
 
-from collections import defaultdict
-from datetime import datetime, timezone
+from collections import Counter
 from pathlib import Path
+
+from year_covers import select_year_covers
+
+
+def _plural(n: int, singular: str, plural: str | None = None) -> str:
+    word = singular if n == 1 else (plural or singular + "s")
+    return f"{n:,} {word}"
+
+
+def life_narrative(year_summaries: list[dict]) -> str:
+    """Compose the cross-year "summary of my life" lede for the /years hero.
+
+    Warm-memoir voice: first-person, reflective, understated. Every clause is
+    a pure function of the aggregated year summaries, so it is deterministic
+    across builds and grows on its own as new years are appended. Clauses that
+    lack data drop out silently, so early/sparse datasets still read cleanly.
+    Gold <strong> spans (matching the year cards) carry the few real numbers.
+    """
+    ys = [y for y in year_summaries if y.get("total")]
+    if not ys:
+        return ""
+    ys.sort(key=lambda y: y["year"])
+    first_year, last_year = ys[0]["year"], ys[-1]["year"]
+    n_years = len(ys)
+    grand_total = sum(y.get("total", 0) for y in ys)
+    # new_* count first-time places per year, so their sum is the lifetime distinct total.
+    n_countries = sum(y.get("new_countries", 0) for y in ys)
+    n_cities = sum(y.get("new_cities", 0) for y in ys)
+    total_km = sum(y.get("distance_km", 0) for y in ys)
+
+    # The place whose name headlines the most years — "where I kept coming back".
+    city_years: Counter = Counter()
+    city_weight: dict[str, int] = {}
+    for y in ys:
+        c = (y.get("top_city") or "").strip()
+        if c:
+            city_years[c] += 1
+            city_weight[c] = city_weight.get(c, 0) + y.get("top_city_n", 0)
+    recurring_city, recurring_n = "", 0
+    if city_years:
+        recurring_city, recurring_n = max(
+            city_years.items(), key=lambda kv: (kv[1], city_weight.get(kv[0], 0), kv[0])
+        )
+
+    # A companion who threads through several years.
+    comp_years: Counter = Counter()
+    for y in ys:
+        who = (y.get("top_companion") or "").strip()
+        if who:
+            comp_years[who] += 1
+    companion, companion_n = "", 0
+    if comp_years:
+        companion, companion_n = max(comp_years.items(), key=lambda kv: (kv[1], kv[0]))
+
+    # Farthest single reach across all years.
+    far_city, far_km = "", 0
+    for y in ys:
+        if y.get("farthest_km", 0) > far_km:
+            far_km, far_city = y["farthest_km"], (y.get("farthest_city") or "").strip()
+
+    def g(text: str) -> str:
+        return f'<strong>{text}</strong>'
+
+    parts: list[str] = []
+    # S1 — span + scale.
+    if n_years == 1:
+        parts.append(
+            f"It's just {g(str(first_year))} so far — {g(_plural(grand_total, 'check-in'))} "
+            f"and the start of a habit I never quite meant to keep.")
+    else:
+        parts.append(
+            f"{g(f'{first_year}–{last_year}')} — {n_years} years of checking in, "
+            f"{g(f'{grand_total:,}')} times over, a habit I never quite meant to keep "
+            f"and never managed to break.")
+    # S2 — reach.
+    reach = []
+    if n_countries:
+        reach.append(g(_plural(n_countries, "country", "countries")))
+    if n_cities:
+        reach.append(g(_plural(n_cities, "city", "cities")))
+    if reach:
+        tail = (f", and something like {g(f'{total_km:,} km')} of getting there"
+                if total_km >= 1000 else "")
+        parts.append("They add up to " + " and ".join(reach) + tail + ".")
+    # S3 — the recurring anchor.
+    if recurring_city and (recurring_n >= 2 or n_years == 1):
+        parts.append(
+            f"{g(recurring_city)} is the name that keeps recurring — the place I kept "
+            f"coming back to between everywhere else.")
+    # S4 — the people.
+    if companion and companion_n >= 2:
+        parts.append(
+            f"{g(companion)} turns up across a lot of these years; the best of them usually did.")
+    # S5 — farthest reach.
+    if far_city and far_km >= 1000:
+        parts.append(
+            f"The farthest I ever got was {g(far_city)}, about {far_km:,} km from home.")
+    # S6 — the invitation.
+    parts.append("Each card below is one year of it. Start wherever you like.")
+    return " ".join(parts)
 
 
 def build_page(csv_path, config_dir, out_path, tmpl_path=None,
@@ -32,41 +131,11 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
         )
         return
 
-    # Pick one photo per year for the card thumbnail (most recent in that year)
-    cid_year: dict[str, int] = {}
-    cid_row: dict[str, dict] = {}
-    for r in rows:
-        cid = (r.get("checkin_id") or "").strip()
-        try:
-            ts = int(r.get("date", 0) or 0)
-        except ValueError:
-            continue
-        if cid and ts:
-            cid_year[cid] = datetime.fromtimestamp(ts, tz=timezone.utc).year
-            cid_row[cid] = r
-    photo_by_year: dict[int, tuple[str, int]] = {}
-    photo_count_by_year: defaultdict = defaultdict(int)
-    for cid, fnames in photos_by_checkin.items():
-        yr = cid_year.get(cid)
-        if not yr or not fnames:
-            continue
-        photo_count_by_year[yr] += len(fnames)
-        # Latest one wins
-        r = cid_row.get(cid)
-        if not r:
-            continue
-        ts = int(r.get("date", 0) or 0)
-        prev = photo_by_year.get(yr, ("", 0))
-        if isinstance(prev, tuple):
-            if ts > prev[1]:
-                photo_by_year[yr] = (fnames[0], ts)
-        else:
-            photo_by_year[yr] = (fnames[0], ts)
-    # Flatten
-    photo_by_year_flat: dict[int, str] = {
-        yr: (f"{pix_url.rstrip('/')}/{v[0]}" if pix_url else v[0])
-        for yr, v in photo_by_year.items() if isinstance(v, tuple)
-    }
+    # One STABLE cover photo per year (deterministic signature score, config
+    # override via config/year_covers.json) — shared with the per-year album
+    # pages so the same image fronts both. See scripts/year_covers.py.
+    covers = select_year_covers(rows, photos_by_checkin, config_dir, pix_url=pix_url)
+    photo_by_year_flat: dict[int, str] = {yr: c["src"] for yr, c in covers.items()}
 
     # Hero: most recent year's photo
     sorted_ys = sorted(year_summaries, key=lambda y: -y["year"])
@@ -102,9 +171,13 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
             f'</div></a>'
         )
 
+    # Cross-year "summary of my life" lede — grows on its own as years accrue.
+    life_html = life_narrative(year_summaries)
+
     html = HTML.format(
         hero_photo=hero_photo,
         total_years=len(year_summaries),
+        life_html=life_html,
         cards_html="".join(card_html_parts),
     )
     Path(out_path).write_text(html, encoding="utf-8")
@@ -170,6 +243,13 @@ a{{color:var(--teal);}}
 .side-nav .sn-lbl{{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;}}
 @media(max-width:900px){{.side-nav{{display:none;}}}}
 @media(max-width:600px){{.hero{{height:46vh;}}.grid{{padding:30px 14px 50px;grid-template-columns:1fr;gap:14px;}}.yc-year{{font-size:2.4rem;}}}}
+
+/* Life lede — the cross-year opening paragraph */
+.life{{max-width:760px;margin:0 auto;padding:52px 28px 6px;text-align:center;}}
+.life-lede{{font-family:'Playfair Display',serif;font-size:clamp(1.05rem,2.1vw,1.4rem);line-height:1.75;color:var(--text);letter-spacing:-.005em;}}
+.life-lede strong{{color:var(--gold);font-weight:700;}}
+.life-lede::first-letter{{font-size:2.4em;font-weight:900;float:left;line-height:.8;padding:6px 10px 0 0;color:var(--gold);font-family:'Playfair Display',serif;}}
+@media(max-width:600px){{.life{{padding:34px 18px 2px;}}.life-lede::first-letter{{font-size:2em;}}}}
 </style>
 </head>
 <body>
@@ -184,6 +264,8 @@ a{{color:var(--teal);}}
     <p class="hero-sub">Pick a year. Open the album. Let the photos do most of the talking.</p>
   </div>
 </section>
+
+<section class="life"><p class="life-lede">{life_html}</p></section>
 
 <div class="grid" id="grid">
 {cards_html}

@@ -8,6 +8,7 @@ Depends on: transform.py
 """
 from __future__ import annotations
 
+import json
 import logging
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -1110,6 +1111,7 @@ def process(
     trip_start_overrides: dict[int, int] | None = None,
     trip_tags: dict[int, list[str]] | None = None,
     new_country_year_overrides: dict[str, int] | None = None,
+    flights: list[dict] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
     Compute all dashboard metrics from pre-transformed rows.
@@ -1832,6 +1834,35 @@ def process(
     # Boundaries below are conservative (drop 15-min gaps to avoid stop noise).
     _MODES = ["walking", "ground", "rail_likely", "flight"]
     _CO2 = {"walking": 0, "ground": 75, "rail_likely": 41, "flight": 285}
+    # Reconcile the speed classifier against the real FlightRadar24 diary: a fast
+    # hop only counts as a flight if it falls inside a real flight's day-window.
+    # Everything unmatched (airport farewells, overnight trains checked in the
+    # next morning, GPS jumps) is NOT a flight — demote it to ground.
+    _flight_windows: list[tuple[int, int]] = []
+    _real_flights_by_year: Counter = Counter()
+    for _f in (flights or []):
+        _fd = (_f.get("date") or "").strip()
+        if not _fd:
+            continue
+        try:
+            _fy = int(_fd[:4])
+            _fd0 = datetime.strptime(_fd, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except (ValueError, IndexError):
+            continue
+        _real_flights_by_year[_fy] += 1
+        _fts0 = int(_fd0.timestamp())
+        _slack = 3 * 3600
+        _flight_windows.append((_fts0 - _slack, _fts0 + 86400 + _slack))
+    _flight_windows.sort()
+
+    def _in_flight_window(ts_a: int, ts_b: int) -> bool:
+        for _w0, _w1 in _flight_windows:
+            if _w0 > ts_b:
+                break
+            if ts_a <= _w1 and ts_b >= _w0:
+                return True
+        return False
+
     _seg_rows = []
     for r in sorted(rows, key=lambda r: int(r.get("date", "0") or "0")):
         try:
@@ -1868,6 +1899,12 @@ def process(
             mode = "walking"
         else:
             mode = "ground"
+        # A "flight" that matches no real FR24 flight window is a false positive
+        # (GPS jump, transit hub farewell, overnight train). Only demote when we
+        # actually have a diary to reconcile against — otherwise keep legacy
+        # behaviour so a missing flights.csv doesn't erase the flight layer.
+        if mode == "flight" and _flight_windows and not _in_flight_window(t0, t1):
+            mode = "rail_likely" if d_km > 200 else "ground"
         yr = datetime.fromtimestamp(t1, tz=timezone.utc).year
         _mode_km_by_year[yr][mode] += d_km
         _co2_by_year[yr] += d_km * _CO2[mode]
@@ -2179,114 +2216,162 @@ def process(
     _max_yr_total = max(_yr_totals.values()) if _yr_totals else 0
     _mean_yr_total = sum(_yr_totals.values()) / len(_yr_totals) if _yr_totals else 0
 
-    # ── Magazine-prose phrasing pools ──────────────────────────────────────
+    # ── First-person memoir phrasing pools ─────────────────────────────────
     # Each pool is picked deterministically by year so adjacent years feel
-    # different but every rebuild reads the same.  Goal: literary, atmospheric
-    # sentences that name places and patterns rather than dump counts.
+    # different but every rebuild reads the same.  Voice: a warm travel diary
+    # in the first person — reflective, grounded, emotion through understatement.
+    # The sentences name places, people and habits rather than dump counts.
     _BUSY_INTROS = [
-        "A year that <strong>widened its arc</strong> beyond all the others",
-        "Your <strong>widest-open year</strong> on record",
-        "Twelve months that moved <strong>almost without pause</strong>",
-        "The busiest stretch you've ever logged",
+        "This was the year I lived widest, further than any before it",
+        "I have never filled a year quite this full",
+        "The year I barely paused for breath",
+        "My busiest year on record — and I felt every mile of it",
     ]
     _TRAVEL_INTROS = [
-        "A year of <strong>long horizons</strong>",
-        "Borders bent often, and somewhere new came into focus",
-        "A heavy-travelling year, threaded with departures",
-        "Twelve months that kept turning the map",
+        "A year of long horizons, and I followed most of them",
+        "I spent this one chasing the far edge of the map",
+        "The year the departures outnumbered the quiet weeks",
+        "I kept turning the map over, month after month",
     ]
     _ROAM_INTROS = [
-        "A year of <strong>far reach</strong> — many flags, many time-zones",
-        "The map stretched wide this year",
-        "A passport-stamped year, full of new horizons",
-        "A wandering year, country after country",
+        "I scattered myself across the map this year, flag after flag",
+        "A wandering year — I woke up in a different country more often than not",
+        "The year my passport did most of the talking",
+        "I drifted country to country and rarely looked back",
     ]
     _HOME_INTROS = [
-        "A year <strong>closer to home</strong> than usual",
-        "The year you stayed put — and noticed more",
-        "A grounded year, the kind familiar places deepen",
-        "Less distance, more familiarity",
+        "I stayed closer to home this year, and I noticed more for it",
+        "The year I let familiar streets deepen instead of chasing new ones",
+        "A grounded year — I planted myself and paid attention",
+        "Less distance this time, but more of what was already around me",
     ]
     _QUIET_INTROS = [
-        "A <strong>softer</strong> year by the count",
-        "Fewer stops, more between them",
-        "A year of restraint — pauses, second visits, slow streets",
-        "A quieter chapter than the years around it",
+        "A quieter year, and I didn't mind the stillness",
+        "I moved less this year and lingered more",
+        "The year of second visits and slow streets",
+        "A softer chapter — fewer stops, longer pauses between them",
     ]
     _DEFAULT_INTROS = [
-        "A steady year through the world",
-        "Twelve months of measured going and returning",
-        "A balanced year — familiar grounds and a few new ones",
-        "A year that found its own rhythm",
+        "A steady year, and I walked it at my own pace",
+        "The year found its rhythm and I kept to it",
+        "A balance of familiar ground and a few new turnings",
+        "I moved through this year without hurry",
     ]
     _ANCHOR_PHRASES = [
-        "with <strong>{city}</strong> as the gravitational centre",
-        "anchored deep in <strong>{city}</strong>",
-        "always returning to <strong>{city}</strong>",
-        "with <strong>{city}</strong> pulling the thread back home",
+        "always circling back to <strong>{city}</strong>",
+        "with <strong>{city}</strong> the place I kept returning to",
+        "anchored, as ever, in <strong>{city}</strong>",
+        "with <strong>{city}</strong> holding the centre of it",
         "orbiting <strong>{city}</strong> between everything else",
     ]
     _PEAK_PHRASES = [
-        "and {vibe}<strong>{mon}</strong> burning the brightest stretch",
-        "with {vibe}<strong>{mon}</strong> as the loudest weeks",
-        "peaking in the {vibe}weeks of <strong>{mon}</strong>",
-        "with {vibe}<strong>{mon}</strong> running fastest of all",
+        "and it was {vibe}<strong>{mon}</strong> that burned brightest",
+        "with {vibe}<strong>{mon}</strong> the fullest weeks of all",
+        "peaking somewhere in {vibe}<strong>{mon}</strong>",
+        "and {vibe}<strong>{mon}</strong> ran fastest of the twelve",
     ]
     _NEW_PHRASES = [
-        "<strong>{n} fresh flags</strong> appeared on the map",
-        "you added <strong>{n}</strong> first-time countries to the rotation",
-        "<strong>{n}</strong> new horizons opened",
+        "I added <strong>{n}</strong> first-time countries",
+        "<strong>{n}</strong> new countries opened up to me",
+        "<strong>{n}</strong> fresh flags went onto the map",
         "<strong>{n}</strong> new countries entered the album",
     ]
     _ANCHOR_VENUE = [
         "and <strong>{v}</strong> quietly became a daily ritual",
-        "and <strong>{v}</strong> turned into your steady fixture",
-        "while you orbited <strong>{v}</strong> again and again",
+        "and <strong>{v}</strong> turned into my steady fixture",
+        "and I found myself at <strong>{v}</strong> again and again",
     ]
     _COMPANION_PHRASES = [
-        "and much of it travelled with <strong>{c}</strong>",
-        "with <strong>{c}</strong> as the steady companion through it",
-        "more often than not, in the company of <strong>{c}</strong>",
+        "and I shared most of it with <strong>{c}</strong>",
+        "with <strong>{c}</strong> beside me through much of it",
+        "more often than not, <strong>{c}</strong> was there too",
     ]
     _FIRST_COUNTRY_PHRASES = [
-        "<strong>{c}</strong> entered the album for the first time",
-        "you set foot in <strong>{c}</strong> for the first time",
-        "<strong>{c}</strong> opened up as a first-time country",
+        "I set foot in <strong>{c}</strong> for the first time",
+        "<strong>{c}</strong> was new ground for me",
+        "<strong>{c}</strong> joined the map for the first time",
     ]
     _JOURNEY_ONE = [
-        "One journey broke the routine — <strong>{name}</strong>, setting out in {mon}",
-        "A single expedition left town: <strong>{name}</strong>, in {mon}",
-        "The one real departure was <strong>{name}</strong>, come {mon}",
+        "One trip broke the pattern — <strong>{name}</strong>, setting out that {mon}",
+        "I made one real escape: <strong>{name}</strong>, come {mon}",
+        "The single departure was <strong>{name}</strong>, back in {mon}",
     ]
     _JOURNEY_FEW = [
-        "{n} journeys shaped it — {list}",
-        "{n} trips punctuated the calendar: {list}",
-        "The road called {n} times — {list}",
+        "{n} journeys shaped the year — {list}",
+        "I took to the road {n} times: {list}",
+        "{n} trips marked the calendar — {list}",
     ]
     _JOURNEY_MANY = [
-        "{n} journeys threaded the year, opening with <strong>{first}</strong> in {fm} and closing with <strong>{last}</strong> in {lm}",
-        "{n} trips in all, from <strong>{first}</strong> in {fm} to <strong>{last}</strong> in {lm}",
-        "The suitcase barely rested — {n} departures, bookended by <strong>{first}</strong> ({fm}) and <strong>{last}</strong> ({lm})",
+        "I travelled {n} times over, opening with <strong>{first}</strong> in {fm} and closing with <strong>{last}</strong> in {lm}",
+        "{n} journeys in all, from <strong>{first}</strong> in {fm} to <strong>{last}</strong> in {lm}",
+        "the suitcase barely rested — {n} departures, from <strong>{first}</strong> ({fm}) to <strong>{last}</strong> ({lm})",
+    ]
+    _FLIGHT_PHRASES = [
+        "I took to the air <strong>{n}</strong> times",
+        "<strong>{n}</strong> flights stitched the distances together",
+        "<strong>{n}</strong> times the ground fell away from a window",
+    ]
+    _TRANSPORT_FOOT = [
+        "though most of it I covered on foot",
+        "though I walked far more of it than I rode",
+        "much of it measured out step by step",
+    ]
+    _TRANSPORT_RAIL = [
+        "a good part of it spent watching countries pass from a train window",
+        "with much of the moving done by rail",
+        "the long hauls mostly by train",
+    ]
+    _TRANSPORT_BIKE = [
+        "a good stretch of it done from the saddle",
+        "with the bicycle doing more of the work than usual",
+        "much of the distance pedalled",
     ]
     _FAR_PHRASES = [
         "reaching as far as <strong>{city}</strong>, {km} km from home",
-        "at its farthest touching <strong>{city}</strong> — {km} km out",
-        "stretching all the way to <strong>{city}</strong>, {km} km from home",
+        "at the farthest I stood <strong>{km} km</strong> out, in <strong>{city}</strong>",
+        "the furthest I got was <strong>{city}</strong>, {km} km from home",
     ]
     _DIST_PHRASES = [
-        "Some <strong>{km} km</strong> passed under you between check-ins",
-        "<strong>{km} km</strong> logged on the move",
-        "It added up to <strong>{km} km</strong> of ground covered",
+        "Some <strong>{km} km</strong> passed under me between check-ins",
+        "I covered <strong>{km} km</strong> of ground that year",
+        "It came to <strong>{km} km</strong> on the move",
     ]
     _NEW_CITY_PHRASES = [
-        "<strong>{n}</strong> cities seen for the first time — {sample} among them",
-        "<strong>{n}</strong> first-time cities joined the map, {sample} included",
-        "the album gained <strong>{n}</strong> new cities, {sample} among them",
+        "<strong>{n}</strong> cities I'd never seen before — {sample} among them",
+        "<strong>{n}</strong> first-time cities, {sample} included",
+        "I met <strong>{n}</strong> new cities, {sample} among them",
+    ]
+    _ACTIVITY_PHRASES = [
+        (("coffee", "café", "cafe", "tea"),
+         ["the coffee-shop habit held firm", "I kept the café ritual going", "most mornings started over coffee"]),
+        (("trail", "hiking", "mountain", "park", "scenic", "forest", "lake", "national park"),
+         ["a lot of it spent outdoors, on trails and lookouts", "I went looking for the green edges of things",
+          "the outdoors pulled me out more than usual"]),
+        (("bar", "pub", "brewery", "cocktail", "wine", "beer", "nightclub"),
+         ["with more than a few evenings out", "the evenings ran late more than once",
+          "a fair share of nights out folded in"]),
+        (("restaurant", "diner", "bistro", "food", "bbq", "steak", "pizza", "sushi", "ramen"),
+         ["so much of it happened over a table", "I did a lot of my living at the dinner table",
+          "a good deal of it measured in shared meals"]),
+        (("gym", "fitness", "yoga", "climbing", "pool", "stadium", "sports"),
+         ["and I kept showing up to train", "with the gym a steady part of the week",
+          "I kept the body moving through it"]),
+        (("museum", "gallery", "art", "history", "theater", "theatre", "concert", "music"),
+         ["I wandered a lot of museums and galleries", "the culture pulled me in — galleries, stages, quiet rooms",
+          "much of it spent in front of art"]),
+        (("beach", "resort", "island", "harbor", "harbour", "pier"),
+         ["with sand underfoot more than once", "the coast kept calling me back",
+          "a season of it spent near the water"]),
+    ]
+    _SHOUT_FRAME = [
+        "Somewhere in it I wrote: <em>“{q}”</em>",
+        "A line I left on a check-in that year: <em>“{q}”</em>",
+        "One note I left behind: <em>“{q}”</em>",
     ]
     _OPEN_CLOSE = [
-        "The year opened at <strong>{fv}</strong>{fc} and signed off in {lm} at <strong>{lv}</strong>{lc}",
+        "I opened the year at <strong>{fv}</strong>{fc} and signed it off in {lm} at <strong>{lv}</strong>{lc}",
         "It began at <strong>{fv}</strong>{fc} in {fm} and ended at <strong>{lv}</strong>{lc}",
-        "First entry: <strong>{fv}</strong>{fc}, {fm}; the last word went to <strong>{lv}</strong>{lc}",
+        "First stop <strong>{fv}</strong>{fc} in {fm}; the last was <strong>{lv}</strong>{lc}",
     ]
 
     def _pick(pool: list[str], yr: int, salt: int = 0) -> str:
@@ -2303,6 +2388,32 @@ def process(
             i = close + 1
         return s[:i] + s[i].upper() + s[i + 1:] if i < len(s) else s
 
+    def _activity_clause(top_cat: str, yr: int) -> str:
+        """Map the year's dominant category to a first-person activity line."""
+        low = (top_cat or "").lower()
+        for keys, pool in _ACTIVITY_PHRASES:
+            if any(k in low for k in keys):
+                return _pick(pool, yr, 10)
+        return ""
+
+    def _transport_clause(yr: int, mode_km: dict | None, bicycle: bool) -> str:
+        """Pick a transport-texture clause from the year's per-mode km."""
+        if bicycle:
+            return _pick(_TRANSPORT_BIKE, yr, 11)
+        if not mode_km:
+            return ""
+        walk = mode_km.get("walking", 0.0)
+        ground = mode_km.get("ground", 0.0)
+        rail = mode_km.get("rail_likely", 0.0)
+        land = walk + ground + rail
+        if land <= 0:
+            return ""
+        if rail > 0.25 * land and rail > 300:
+            return _pick(_TRANSPORT_RAIL, yr, 11)
+        if walk > 0.55 * (walk + ground) and walk > 80:
+            return _pick(_TRANSPORT_FOOT, yr, 11)
+        return ""
+
     def _vivid(yr: int, total: int, peak_mon_name: str, peak_mon_n: int,
                top_city: str, top_city_n: int, top_cat: str, top_cat_n: int,
                top_venue: str, top_venue_n: int, n_new_countries: int,
@@ -2312,14 +2423,17 @@ def process(
                new_city_sample: list[str] | None = None,
                first_stop: tuple[str, str, str] = ("", "", ""),
                last_stop: tuple[str, str, str] = ("", "", ""),
-               farthest_city: str = "", farthest_km: int = 0) -> str:
-        """Compose a magazine-style year storyline (3-5 short sentences).
+               farthest_city: str = "", farthest_km: int = 0,
+               n_flights: int = 0, mode_km: dict | None = None,
+               bicycle: bool = False, shout_quote: str = "") -> str:
+        """Compose a first-person "warm memoir" year storyline (3-6 sentences).
 
         S1 — the year's character + place anchor + temporal peak.
-        S2 — the journeys: trips taken, farthest reach, distance covered.
+        S2 — movement: trips, flights, transport texture, farthest reach.
         S3 — discovery: first-time countries and cities.
-        S4 — the end-to-end arc (first and last check-in of the year) plus
-             a flourish (anchor venue or companion).
+        S4 — the people I shared it with + the hobby/activity texture.
+        S5 — the end-to-end arc (first and last check-in of the year).
+        S6 — a line I actually left on a check-in that year (my own voice).
         Every phrase is picked deterministically by year so each rebuild
         reads the same, but adjacent years read differently.
         """
@@ -2353,7 +2467,7 @@ def process(
             except (ValueError, IndexError):
                 return ""
 
-        # ── S2 — the journeys ──────────────────────────────────────────
+        # ── S2 — movement: journeys, flights, farthest, transport ──────
         s2_bits: list[str] = []
         tl = trips_y or []
         if len(tl) == 1:
@@ -2369,14 +2483,17 @@ def process(
                 n=len(tl),
                 first=tl[0].get("name") or "a trip", fm=_trip_mon(tl[0]),
                 last=tl[-1].get("name") or "a trip", lm=_trip_mon(tl[-1])))
+        if n_flights >= 3:
+            s2_bits.append(_pick(_FLIGHT_PHRASES, yr, 12).format(n=n_flights))
         if farthest_city and farthest_km >= 500 and farthest_city != top_city:
             s2_bits.append(_pick(_FAR_PHRASES, yr, 7).format(
                 city=farthest_city, km=f"{farthest_km:,}"))
-        sentence2 = ""
-        if s2_bits:
-            sentence2 = _cap_html(", ".join(s2_bits)) + "."
-        elif distance_km >= 2000:
-            sentence2 = _pick(_DIST_PHRASES, yr, 7).format(km=f"{distance_km:,}") + "."
+        elif not s2_bits and distance_km >= 2000:
+            s2_bits.append(_pick(_DIST_PHRASES, yr, 7).format(km=f"{distance_km:,}"))
+        transport = _transport_clause(yr, mode_km, bicycle)
+        if transport and s2_bits:
+            s2_bits.append(transport)
+        sentence2 = _cap_html(", ".join(s2_bits[:3])) + "." if s2_bits else ""
 
         # ── S3 — discovery (first-time countries and cities) ───────────
         s3_bits: list[str] = []
@@ -2390,27 +2507,68 @@ def process(
             s3_bits.append(_pick(_NEW_CITY_PHRASES, yr, 8).format(n=n_new_cities, sample=sample))
         sentence3 = _cap_html(", ".join(s3_bits[:2])) + "." if s3_bits else ""
 
-        # ── S4 — end-to-end arc + flourish ─────────────────────────────
+        # ── S4 — the people + the hobby/activity texture ───────────────
         s4_bits: list[str] = []
-        fv, fc, fm = first_stop
-        lv, lc, lm = last_stop
-        if fv and lv and fv != lv:
-            fc_str = f" in {fc}" if fc and fc != top_city else ""
-            lc_str = f" in {lc}" if lc and lc != top_city else ""
-            s4_bits.append(_pick(_OPEN_CLOSE, yr, 9).format(
-                fv=fv, fc=fc_str, fm=fm, lv=lv, lc=lc_str, lm=lm))
-        if top_venue and top_venue_n >= 35 and top_venue not in (fv, lv):
-            s4_bits.append(_pick(_ANCHOR_VENUE, yr, 4).format(v=top_venue))
         if top_companion:
             s4_bits.append(_pick(_COMPANION_PHRASES, yr, 5).format(c=top_companion))
+        activity = _activity_clause(top_cat, yr)
+        if activity:
+            s4_bits.append(activity)
         joined4 = ", ".join(s4_bits[:2])
         if joined4.startswith("and "):
             joined4 = joined4[4:]
         sentence4 = _cap_html(joined4) + "." if joined4 else ""
 
+        # ── S5 — end-to-end arc (first + last check-in of the year) ────
+        fv, fc, fm = first_stop
+        lv, lc, lm = last_stop
+        sentence5 = ""
+        if fv and lv and fv != lv:
+            fc_str = f" in {fc}" if fc and fc != top_city else ""
+            lc_str = f" in {lc}" if lc and lc != top_city else ""
+            sentence5 = _pick(_OPEN_CLOSE, yr, 9).format(
+                fv=fv, fc=fc_str, fm=fm, lv=lv, lc=lc_str, lm=lm) + "."
+
+        # ── S6 — a line in my own words (a real shout that year) ───────
+        sentence6 = ""
+        if shout_quote:
+            sentence6 = _pick(_SHOUT_FRAME, yr, 13).format(q=shout_quote)
+
         return " ".join(
-            s for s in [sentence1, sentence2, sentence3, sentence4] if s
+            s for s in [sentence1, sentence2, sentence3,
+                        sentence4, sentence5, sentence6] if s
         ).strip()
+
+    # Per-year flight counts for the narrative. Prefer the real FlightRadar24
+    # diary (authoritative); fall back to the reconciled classifier legs only
+    # when no flights.csv is present.
+    _flights_by_year: Counter = (
+        _real_flights_by_year if _flight_windows
+        else Counter(int(leg[0]) for leg in _flight_legs)
+    )
+
+    # A short, evocative line I actually wrote that year — pulled from the real
+    # shout archive, escaped for HTML, and picked deterministically so it stays
+    # stable across rebuilds.  Prefer the shortest substantive one-liner.
+    def _esc_shout(s: str) -> str:
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    _shout_by_year: dict[int, str] = {}
+    _shout_pool: dict[int, list[str]] = defaultdict(list)
+    for _rec in shout_records(rows):
+        _txt = (_rec.get("text") or "").strip()
+        if not (12 <= len(_txt) <= 80) or len(_txt.split()) < 3:
+            continue
+        if "http" in _txt.lower():
+            continue
+        try:
+            _sy = datetime.fromtimestamp(int(_rec["ts"]), tz=timezone.utc).year
+        except (ValueError, OSError, KeyError):
+            continue
+        _shout_pool[_sy].append(_txt)
+    for _sy, _cands in _shout_pool.items():
+        # Shortest first, then alphabetical — deterministic and clean.
+        _shout_by_year[_sy] = _esc_shout(sorted(_cands, key=lambda s: (len(s), s))[0])
 
     year_summaries = []
     for yr in sorted({d.year for d in dates}):
@@ -2476,6 +2634,22 @@ def process(
             return (r.get("venue", "").strip(), r.get("city", "").strip(), mon)
 
         rows_y_sorted = sorted(rows_y, key=lambda r: int(r.get("date", "0") or "0"))
+        flights_y = _flights_by_year.get(yr, 0)
+        mode_km_y = _mode_km_by_year.get(yr)
+        # Was any of this year's travel done by bike?  Trip tags may arrive as a
+        # list or as a JSON-encoded string depending on the source.
+        bicycle_y = False
+        for _t in trips_y:
+            _tags = _t.get("tags")
+            if isinstance(_tags, str):
+                try:
+                    _tags = json.loads(_tags)
+                except (ValueError, TypeError):
+                    _tags = []
+            if any("bicycle" in str(tg).lower() or "bike" in str(tg).lower()
+                   for tg in (_tags or [])):
+                bicycle_y = True
+                break
         vivid = _vivid(
             yr=yr, total=len(rows_y),
             peak_mon_name=peak_month_name, peak_mon_n=peak_mon[1],
@@ -2493,6 +2667,8 @@ def process(
             first_stop=_stop(rows_y_sorted[0]) if rows_y_sorted else ("", "", ""),
             last_stop=_stop(rows_y_sorted[-1]) if rows_y_sorted else ("", "", ""),
             farthest_city=far_city, farthest_km=round(far_km),
+            n_flights=flights_y, mode_km=mode_km_y, bicycle=bicycle_y,
+            shout_quote=_shout_by_year.get(yr, ""),
         )
         year_summaries.append({
             "year":              yr,

@@ -81,6 +81,12 @@ venue loyalty · regular haunts · revisit intervals · venue visit frequency ·
 **Shouts page** — searchable archive of all real free-text comments (~3.5 k, infinite scroll, year / country filters) ·
 **live full-text search** (venues, cities, tips, companions — powered by Cloudflare D1, no static index file) ·
 **bidirectional infinite-scroll feed** (65 k+ check-ins, cursor-based D1 pagination, on-demand gap fill, virtual scroll) — each card shows companions from all three Foursquare sources (`with_name` / `created_by_name` / `overlaps_name`, deduped union) ·
+**Year in Review pages** (`years.html` + per-year albums) — each year gets a stable cover photo
+(deterministic signature score, never drifts build-to-build, overridable via `config/year_covers.json`)
+shared across the index thumbnail, the hero lead frame, and the `og:image`; the index opens with an
+auto-composed first-person **memoir lede** that aggregates the whole record (years spanned, lifetime
+check-ins, countries/cities, distance, recurring city, most-frequent companion, farthest point) and
+rewrites itself as new years accrue ·
 category explorer · companions · recent check-ins with historical weather ·
 tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons ·
 **photo gallery** with 21 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
@@ -124,6 +130,9 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── gen_trip_pages.py        # Generates per-trip HTML pages (trip-N.html)
 │   ├── gen_venues.py            # Generates venues.html (top 500 venues)
 │   ├── gen_worldcities.py       # Generates world_cities.html
+│   ├── gen_years_index.py       # Generates years.html (year cards + cross-year memoir lede)
+│   ├── gen_year_pages.py        # Generates per-year "Year in Review" album pages
+│   ├── year_covers.py           # Stable per-year cover-photo selector (shared by both year generators)
 │   ├── sync_to_d1.py            # Incremental CI sync of all data to Cloudflare D1
 │   ├── d1_client.py             # Low-level D1 HTTP client (batch upsert, schema apply)
 │   ├── gen_d1_dump.py           # Generates SQL dump for bulk D1 resync via wrangler

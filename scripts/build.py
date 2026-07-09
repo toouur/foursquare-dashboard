@@ -263,8 +263,20 @@ if __name__ == "__main__":
         for k, v in settings.get("new_country_year_overrides", {}).items()
     }
 
+    # Real FR24 flight diary, threaded into metrics so the per-year narrative
+    # flight counts + transport-mode classifier reconcile against actual flights
+    # (unmatched fast hops are demoted from "flight").
+    _metrics_flights: list[dict] = []
+    _metrics_flights_csv = Path(args.input).resolve().parent / "flights.csv"
+    if _metrics_flights_csv.exists():
+        try:
+            from flights import load_flights as _lf_metrics
+            _metrics_flights = _lf_metrics(_metrics_flights_csv)
+        except Exception as _mfe:
+            log.warning("flights.csv load for metrics failed: %s", _mfe)
+
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
-    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides)
+    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides, flights=_metrics_flights)
 
     # ── Flights: parse FR24 flight-diary CSV if present ─────────────────────
     # data/flights.csv lives next to checkins.csv in the private data repo.
