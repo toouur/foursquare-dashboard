@@ -165,6 +165,19 @@ def test_anchor_arrival_endpoint_counts():
     assert classify(pair(30, 0.7, cat_b="Metro Station"))[1] == "T"
 
 
+def test_short_slow_walkup_to_metro_is_not_train():
+    # The feed complaint: home → Metro Station «Уручье», 0.7 km in ~112 min.
+    # You WALK to the station entrance; you only ride the metro AFTER checking
+    # in there. A short slow approach on foot must not read as a metro trip.
+    assert classify(pair(0.7, 112 / 60, cat_b="Metro Station"))[1] == "W"
+
+
+def test_crosscity_hop_to_metro_still_train():
+    # But the other pattern — checking in only at the FINAL station after a ride
+    # across town from a different neighbourhood — is a genuine metro trip.
+    assert classify(pair(9, 0.4, cat_b="Metro Station"))[1] == "T"
+
+
 def test_airport_anchor_needs_real_distance():
     # Airport at A but only 5 km moved → not a flight, band decides (walk-ish)
     modes = classify(pair(5, 2, cat_a="Airport"))

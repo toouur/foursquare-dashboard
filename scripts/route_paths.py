@@ -13,9 +13,10 @@ template so the map draws roads and railways instead of straight chords:
 
 Everything is cached in a JSON file committed to the private data repo
 (like flights.csv), keyed by profile + endpoint coords rounded to 4 dp.
-Each build fetches at most `max_fetch` missing routes (politely, one at a
-time, with a small sleep), so the cache warms over hourly CI runs and the
-map degrades gracefully to straight lines meanwhile.  Logical no-routes
+Each build fetches at most `max_fetch` missing routes, using a small
+concurrent pool to stay polite to the free community servers, so the cache
+warms over hourly CI runs and the map degrades gracefully to straight lines
+meanwhile.  Logical no-routes
 (off-network endpoints, absurd detours) are cached as failures so they are
 never re-asked; transient network errors are NOT cached.
 
@@ -30,6 +31,7 @@ import math
 import os
 import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 from flights import _haversine_km
 from transport_mode import _coords
@@ -45,6 +47,9 @@ MODE_PROFILE = {"W": "foot", "B": "bike", "C": "car", "U": "car", "T": "rail"}
 MAX_ROUTE_KM = {"foot": 40.0, "bike": 200.0, "car": 800.0, "rail": 1200.0}
 MIN_ROUTE_KM = 0.05
 FETCH_SLEEP_S = 0.2
+FETCH_WORKERS = 8       # concurrent requests to the free OSM/BRouter servers
+OSRM_TIMEOUT_S = 10.0
+RAIL_TIMEOUT_S = 20.0
 _RAIL_SIMPLIFY_DEG = 2e-4  # ≈ 20 m Douglas-Peucker tolerance
 
 
@@ -148,7 +153,7 @@ def _fetch_osrm(profile: str, a: tuple[float, float], b: tuple[float, float]):
            f"{a[1]:.6f},{a[0]:.6f};{b[1]:.6f},{b[0]:.6f}"
            "?overview=simplified&geometries=polyline")
     try:
-        js = _http_json(url, 15)
+        js = _http_json(url, OSRM_TIMEOUT_S)
     except json.JSONDecodeError:
         return "noroute", None
     except Exception:
@@ -163,7 +168,7 @@ def _fetch_rail(a: tuple[float, float], b: tuple[float, float]):
     url = (f"{BROUTER_BASE}?lonlats={a[1]:.6f},{a[0]:.6f}|{b[1]:.6f},{b[0]:.6f}"
            "&profile=rail&alternativeidx=0&format=geojson")
     try:
-        js = _http_json(url, 30)
+        js = _http_json(url, RAIL_TIMEOUT_S)
     except json.JSONDecodeError:
         return "noroute", None  # BRouter reports no-route as plain text
     except Exception:
@@ -228,17 +233,34 @@ class RouteCache:
 # ── Main entry (called from build.py after mode tagging) ──────────────────────
 
 def attach_routes(trips: list[dict], cache: RouteCache, max_fetch: int = 250,
-                  fetcher=None, sleep_s: float = FETCH_SLEEP_S) -> dict[str, list]:
+                  fetcher=None, sleep_s: float = FETCH_SLEEP_S,
+                  workers: int = FETCH_WORKERS) -> dict[str, list]:
     """→ {"<ts_a>-<ts_b>": [polyline5, routed_km]} for every routable segment.
 
     Walks each trip's coord-bearing check-in pairs with the same
     carry-forward pairing as transport_mode.classify_segments, so the keys
     line up 1:1 with the segments the map draws.  Serves from `cache`,
     fetching at most `max_fetch` missing routes per call.
+
+    Missing routes are fetched concurrently (a small pool, to stay polite to
+    the free community servers) rather than one at a time, so a build that
+    invalidates a wave of cache entries — e.g. after a mode reclassification
+    changes segments' routing profiles — no longer stalls CI serially.
     """
     fetch = fetcher or _fetch
-    out: dict[str, list] = {}
-    budget = max_fetch
+
+    # Pass 1 — enumerate routable segments and collect the unique cache-missing
+    # keys (dedup so a repeated endpoint pair costs one fetch, and a later
+    # occurrence of a just-fetched key is a free hit).  The whole backlog is far
+    # larger than one build's budget, so DON'T take them in enumeration order:
+    # that is oldest-trip-first and would starve the newest trips — the ones
+    # actually being viewed — for weeks.  Instead record each missing segment's
+    # recency (arrival ts) and let Pass 1b spend the budget newest-first, so a
+    # fresh trip gets its geometry on the very next build and old segments drain
+    # over subsequent runs.
+    segs: list[tuple[str, str]] = []                 # (out_key, cache_key)
+    # cache_key -> (profile, a_ll, b_ll, recency_ts) for keys not yet cached
+    cand: dict[str, tuple[str, tuple, tuple, int]] = {}
     for t in trips:
         prev: tuple[dict, tuple[float, float]] | None = None
         for c in t.get("checkins", []):
@@ -255,28 +277,53 @@ def attach_routes(trips: list[dict], cache: RouteCache, max_fetch: int = 250,
             if straight < MIN_ROUTE_KM or straight > MAX_ROUTE_KM[profile]:
                 continue
             key = _key(profile, a[1], ll)
-            hit = cache.get(key)
-            if hit is None:
-                if budget <= 0:
-                    continue
-                budget -= 1
-                status, val = fetch(profile, a[1], ll)
+            segs.append((f"{int(a[0]['ts'])}-{int(c['ts'])}", key))
+            if cache.get(key) is None:
+                ts = int(c.get("ts") or 0)
+                cur = cand.get(key)
+                if cur is None or ts > cur[3]:   # newest occurrence wins the tie
+                    cand[key] = (profile, a[1], ll, ts)
+
+    # Pass 1b — spend the fetch budget on the newest missing segments first.
+    need: dict[str, tuple[str, tuple, tuple]] = {}   # cache_key -> (profile, a_ll, b_ll)
+    for key, (profile, a_ll, b_ll, _ts) in sorted(
+            cand.items(), key=lambda kv: kv[1][3], reverse=True)[:max_fetch]:
+        need[key] = (profile, a_ll, b_ll)
+
+    # Pass 2 — fetch the missing routes concurrently.  Results are consumed and
+    # written to the cache from THIS thread (the pool only runs `fetch`), so the
+    # cache stays single-writer.  Error/no-route semantics match the old serial
+    # path: "error" is left uncached (retried next build), everything else is
+    # cached (real geometry, or {"x":1} for a genuine or absurd no-route).
+    if need:
+        def _do(item):
+            key, (profile, a, b) = item
+            return key, profile, a, b, fetch(profile, a, b)
+
+        n_workers = max(1, min(workers, len(need)))
+        with ThreadPoolExecutor(max_workers=n_workers) as ex:
+            for key, profile, a, b, (status, val) in ex.map(_do, list(need.items())):
                 if status == "error":
                     continue  # transient — retry on a future build
                 if status == "ok":
                     poly, km = val
+                    straight = _haversine_km(a[0], a[1], b[0], b[1])
                     # A routed path wildly longer than the crow flies means the
                     # router snapped an endpoint to the wrong network — worse
                     # than a straight line.  Cache as no-route.
                     if km > max(straight * 4, straight + 3):
-                        hit = {"x": 1}
+                        cache.put(key, {"x": 1})
                     else:
-                        hit = {"p": poly, "km": round(km, 2)}
+                        cache.put(key, {"p": poly, "km": round(km, 2)})
                 else:
-                    hit = {"x": 1}
-                cache.put(key, hit)
-                if sleep_s:
-                    time.sleep(sleep_s)
-            if "p" in hit:
-                out[f"{int(a[0]['ts'])}-{int(c['ts'])}"] = [hit["p"], hit["km"]]
+                    cache.put(key, {"x": 1})
+        if sleep_s:
+            time.sleep(sleep_s)
+
+    # Pass 3 — build the segment→geometry map from the now-warmed cache.
+    out: dict[str, list] = {}
+    for out_key, key in segs:
+        hit = cache.get(key)
+        if hit and "p" in hit:
+            out[out_key] = [hit["p"], hit["km"]]
     return out

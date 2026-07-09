@@ -171,6 +171,21 @@ def test_attach_routes_budget_limits_fetches():
     assert len(calls) == 2 and len(out) == 2
 
 
+def test_attach_routes_budget_spends_newest_first():
+    # Two trips enumerated oldest-first (as build.py passes them), but the fetch
+    # budget is smaller than the backlog.  The NEWEST segments must win the
+    # budget — otherwise a fresh trip is starved behind years of old ones.
+    old_t = 1_400_000_000
+    new_t = 1_700_000_000
+    old_trip = {"checkins": [ci(old_t, lat=40.0),
+                             ci(old_t + 3600, lat=40.0 + 5 / KM_PER_DEG, m="C")]}
+    new_trip = {"checkins": [ci(new_t, lat=52.0),
+                             ci(new_t + 3600, lat=52.0 + 5 / KM_PER_DEG, m="C")]}
+    out = rp.attach_routes([old_trip, new_trip], rp.RouteCache(None),
+                           max_fetch=1, fetcher=_fetch_ok, sleep_s=0)
+    assert list(out) == [f"{new_t}-{new_t + 3600}"]  # newest fetched, oldest deferred
+
+
 def test_attach_routes_skips_unroutable_modes_and_distances():
     t0 = 1591012800
     cks = [

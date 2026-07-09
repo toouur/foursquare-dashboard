@@ -125,6 +125,8 @@ WALK_SPEED = 7.0
 WALK_MAX_KM = 8.0
 NEAR_WALK_KM = 0.4  # below this a sub-drive-speed hop is a walk, not a ride
 PED_WALK_MAX_KM = 3.0  # two open-air area centroids this close apart → a stroll
+STATION_APPROACH_KM = 2.0  # arriving AT a station within this and below walk
+#                            speed is a walk-up to the entrance, not the ride
 GAP_HOURS = 18.0
 
 MODE_META = {  # char → (emoji, css colour, label) — mirrored in the templates
@@ -257,15 +259,24 @@ def _anchor_mode(a: dict, b: dict, d: float, v: float) -> str | None:
     """Category-anchored mode for segment a→b, or None."""
     cat_a = (a.get("category") or "").strip()
     cat_b = (b.get("category") or "").strip()
-    # In-vehicle beats stations; departure beats arrival.
+    # In-vehicle beats stations, on either endpoint.
     for cat in (cat_a, cat_b):
         m = IN_VEHICLE.get(cat)
         if m and _sane(m, d, v):
             return m
-    for cat in (cat_a, cat_b):
-        m = STATION.get(cat)
-        if m and _sane(m, d, v):
-            return m
+    # Departure station: a check-in HERE means you board here → strong anchor.
+    m = STATION.get(cat_a)
+    if m and _sane(m, d, v):
+        return m
+    # Arrival station: a check-in HERE can mean you got off a ride OR that you
+    # just walked up to the station entrance (home → metro station, same
+    # neighbourhood). Only anchor when the geometry looks like the ride itself —
+    # genuinely far OR moving faster than a walk — so a short slow approach on
+    # foot falls through to the bands and reads as a walk, while a cross-city
+    # hop to the one station you bothered to check in at still reads as the ride.
+    m = STATION.get(cat_b)
+    if m and (d > STATION_APPROACH_KM or v >= WALK_SPEED) and _sane(m, d, v):
+        return m
     return None
 
 
