@@ -790,12 +790,40 @@ def main() -> None:
                     f"{VENUE_TABLE_FIELD[r['field']]}={d1._sql_val(r['new_value'])}" for r in recs
                 )
                 raw_stmts.append(f"UPDATE venues SET {set_venues} WHERE id={vid_lit}")
-            # Venue merges: reassign checkins + tips to new venue_id
+            # Venue merges: reassign checkins + tips to the new venue_id AND copy
+            # the destination venue's denormalized display columns onto the moved
+            # rows. Reassigning venue_id alone left the feed — which reads venue /
+            # category / city / country / lat / lng straight off each checkins row,
+            # not via a join — still showing the old venue's name, so a merged
+            # venue rendered as a separate card.
+            merge_dest_vids: set = set()
             for r in merge_diffs:
                 old_lit = d1._sql_val(r["venue_id"])
-                new_lit = d1._sql_val(r["new_value"])
-                raw_stmts.append(f"UPDATE checkins SET venue_id={new_lit} WHERE venue_id={old_lit}")
-                raw_stmts.append(f"UPDATE tips SET venue_id={new_lit} WHERE venue_id={old_lit}")
+                new_vid = r["new_value"]
+                new_lit = d1._sql_val(new_vid)
+                nm = venue_meta.get(new_vid)
+                if nm:
+                    merge_dest_vids.add(new_vid)
+                    # Denormalized columns shared by checkins + tips. Skip lat/lng
+                    # when the destination lacks coords so we never NULL good data.
+                    cols = [
+                        ("venue", nm["name"]), ("category", nm["category"]),
+                        ("city", nm["city"]), ("country", nm["country"]),
+                    ]
+                    if nm["lat"] is not None:
+                        cols.append(("lat", nm["lat"]))
+                    if nm["lng"] is not None:
+                        cols.append(("lng", nm["lng"]))
+                    set_meta = ", ".join(f"{c}={d1._sql_val(v)}" for c, v in cols)
+                    raw_stmts.append(
+                        f"UPDATE checkins SET {set_meta}, venue_id={new_lit} WHERE venue_id={old_lit}")
+                    raw_stmts.append(
+                        f"UPDATE tips SET {set_meta}, venue_id={new_lit} WHERE venue_id={old_lit}")
+                else:
+                    # Destination venue absent from the current CSV aggregation —
+                    # fall back to a bare venue_id reassignment (old behaviour).
+                    raw_stmts.append(f"UPDATE checkins SET venue_id={new_lit} WHERE venue_id={old_lit}")
+                    raw_stmts.append(f"UPDATE tips SET venue_id={new_lit} WHERE venue_id={old_lit}")
             # Send in ~90 KB chunks via /raw
             _CHUNK = 90_000
             chunk = []
@@ -816,6 +844,21 @@ def main() -> None:
                 d1._raw_with_retry("; ".join(chunk))
                 sent_stmts += len(chunk)
             print(f"\r  venue_updates: {total_stmts}/{total_stmts} done    ")
+            # Refresh merge-destination venue rows so venues.checkin_count reflects
+            # the post-merge total. The main venues reconciliation skips them — the
+            # id already exists in D1 and none of its check-ins are "new" — so
+            # /api/search would otherwise keep showing the pre-merge count. The
+            # orphaned source venue_id is pruned by that same reconciliation pass.
+            if merge_dest_vids:
+                dest_rows = [
+                    [vid, venue_meta[vid]["name"] or None, venue_meta[vid]["category"] or None,
+                     venue_meta[vid]["lat"], venue_meta[vid]["lng"],
+                     venue_meta[vid]["city"] or None, venue_meta[vid]["country"] or None,
+                     venue_meta[vid]["count"], venue_meta[vid]["first_ts"] or None,
+                     venue_meta[vid]["last_ts"] or None]
+                    for vid in merge_dest_vids
+                ]
+                d1.batch_upsert(SQL_VENUES, dest_rows, label="venues(merge)")
             # Audit log
             def _derive_action(field: str) -> str:
                 if field == "venue":
