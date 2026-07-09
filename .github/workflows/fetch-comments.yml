@@ -1,0 +1,104 @@
+# .github/workflows/fetch-comments.yml
+#
+# Daily windowed refresh of comments.json in the private data repo.
+#
+# Comments are reply threads posted UNDER a check-in (checkin.comments.items[]),
+# a different object from the `shout` caption stored in checkins.csv. The shouts
+# page renders both (metrics.merge_comments_into_shouts surfaces comment-only
+# check-ins too), but only from comments.json — which the hourly build reads but
+# never refreshes. Without this job, new comments only appeared after a manual
+# data export. Here we scan just the last 7 days of feed (fetch_comments.py
+# --since-days 7 — cheap, ~1 feed call per 250 recent check-ins), harvest inline
+# threads, and commit comments.json back to the data repo. The next hourly
+# update-dashboard run then bakes it into shouts.html.
+#
+# Late comments on OLD check-ins fall outside the 7-day window; recover those
+# with a manual targeted run (fetch_comments.py --targets …) or a data export.
+#
+# Required repository secrets:
+#   FOURSQUARE_TOKEN   — Foursquare OAuth token
+#   DATA_REPO_PAT      — Fine-grained PAT with Contents read/write on toouur/foursquare-data
+
+name: Fetch check-in comments
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    - cron: "30 3 * * *"   # daily, 03:30 UTC (off the hourly update's :00 slot)
+  workflow_dispatch:
+    inputs:
+      since_days:
+        description: "Feed window in days (0 = full scan)"
+        required: false
+        default: "7"
+
+permissions:
+  contents: read   # code repo; data repo writes use DATA_REPO_PAT
+
+jobs:
+  fetch-comments:
+    # Honour the same global pause switch as the hourly job.
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch recent comments (windowed scan)
+        id: fetch
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          if [ -z "$FOURSQUARE_TOKEN" ]; then
+            echo "FOURSQUARE_TOKEN not set — cannot run."
+            exit 1
+          fi
+          SINCE="${{ github.event.inputs.since_days }}"
+          SINCE="${SINCE:-7}"
+          python scripts/fetch_comments.py \
+            --token "$FOURSQUARE_TOKEN" \
+            --out private-data/comments.json \
+            --since-days "$SINCE" \
+            | tee /tmp/fetch_comments.log
+          # Surface the fetcher's CHANGED=… line as a step output.
+          CHANGED=$(grep -oE 'CHANGED=(true|false)' /tmp/fetch_comments.log | tail -1 | cut -d= -f2)
+          echo "CHANGED=${CHANGED:-false}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit comments.json to data repo
+        if: steps.fetch.outputs.CHANGED == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add comments.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit in data repo."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "chore: update comments [${TIMESTAMP}]"
+            # The hourly update job may push to this repo concurrently; rebase-retry.
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Pushed on attempt ${attempt}."
+                break
+              fi
+              echo "Push rejected — rebasing and retrying (${attempt}/3) …"
+              git pull --rebase --autostash
+            done
+          fi

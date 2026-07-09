@@ -42,6 +42,13 @@ USAGE:
     python scripts/fetch_comments.py --token "$FOURSQUARE_TOKEN" \
         --out .../comments.json --max-calls 400
 
+    # 3b) Daily windowed refresh — scan only the last 7 days of feed (cheap; the
+    #     fetch-comments.yml scheduled job). Catches new comments on recent
+    #     check-ins without re-walking the whole ~65K feed. Late comments on OLD
+    #     check-ins fall outside the window — recover those with --targets (#4).
+    python scripts/fetch_comments.py --token "$FOURSQUARE_TOKEN" \
+        --out .../comments.json --since-days 7
+
     # Fallback: some feeds omit comments.count — sweep EVERY check-in's detail
     # (expensive; only if --check reports the count field is missing).
     python scripts/fetch_comments.py --token "$FOURSQUARE_TOKEN" \
@@ -177,8 +184,8 @@ def request_feed(token: str, params: dict, retries: int = 120) -> dict:
     raise RuntimeError("Too many API retries while scanning the feed")
 
 
-def scan_feed(token: str) -> tuple[dict[str, dict], int, bool]:
-    """Phase 1. Walk the whole feed newest→oldest.
+def scan_feed(token: str, since_ts: int | None = None) -> tuple[dict[str, dict], int, bool]:
+    """Phase 1. Walk the feed newest→oldest.
 
     Returns (targets, scanned, count_field_seen):
       targets          — {cid: {"count", "venue", "venue_id", "ts"}} for
@@ -186,6 +193,11 @@ def scan_feed(token: str) -> tuple[dict[str, dict], int, bool]:
       scanned          — total check-ins seen
       count_field_seen — True if ANY compact check-in carried a `comments` field
                          (False ⇒ feed omits counts, caller should use --all)
+
+    If `since_ts` is given (unix seconds), pagination stops once the feed reaches
+    check-ins older than that cutoff — a windowed scan for the daily job that only
+    needs recently-created check-ins, not the whole ~65K feed. Late comments on OLD
+    check-ins fall outside the window; recover those with an explicit --targets run.
     """
     targets: dict[str, dict] = {}
     scanned = 0
@@ -194,7 +206,11 @@ def scan_feed(token: str) -> tuple[dict[str, dict], int, bool]:
 
     first = request_feed(token, {"limit": 1})
     total = first.get("count", 0)
-    log.info("Phase 1 scan: server reports %s check-ins.", total)
+    if since_ts is not None:
+        log.info("Phase 1 scan: server reports %s check-ins; windowed to createdAt >= %d.",
+                 total, since_ts)
+    else:
+        log.info("Phase 1 scan: server reports %s check-ins.", total)
 
     while True:
         params: dict[str, int] = {"limit": LIMIT}
@@ -234,7 +250,12 @@ def scan_feed(token: str) -> tuple[dict[str, dict], int, bool]:
                  scanned, total, len(targets))
         if scanned >= total:
             break
-        before_ts = int(items[-1]["createdAt"]) - 1
+        oldest = int(items[-1]["createdAt"])
+        if since_ts is not None and oldest <= since_ts:
+            log.info("  reached %d-window cutoff after %d check-ins — stopping scan.",
+                     since_ts, scanned)
+            break
+        before_ts = oldest - 1
         time.sleep(SLEEP)
 
     return targets, scanned, count_field_seen
@@ -506,6 +527,11 @@ def main() -> int:
     ap.add_argument("--all", action="store_true",
                     help="Fallback: call detail for EVERY check-in, ignoring feed counts "
                          "(use only if --check shows the count field is missing).")
+    ap.add_argument("--since-days", type=int, default=0,
+                    help="Windowed Phase-1 scan: only walk check-ins created in the last "
+                         "N days (0 = full feed). Cheap daily refresh — catches new comments "
+                         "on recent check-ins without re-scanning ~65K. Late comments on OLD "
+                         "check-ins fall outside the window; use --targets to recover those.")
     ap.add_argument("--max-calls", type=int, default=0,
                     help="Cap Phase-2 detail calls this run (0 = unlimited). Resume next run.")
     ap.add_argument("--sleep", type=float, default=SLEEP, help="Seconds between detail calls.")
@@ -543,8 +569,11 @@ def main() -> int:
         )
 
     # ── Phase 1: scan the feed for comment counts ────────────────────────────
+    since_ts = None
+    if args.since_days and args.since_days > 0:
+        since_ts = int(time.time()) - args.since_days * 86400
     try:
-        targets, scanned, count_field_seen = scan_feed(token)
+        targets, scanned, count_field_seen = scan_feed(token, since_ts)
     except RateLimited:
         log.error("Rate-limited during Phase-1 feed scan — try again later.")
         print("CHANGED=false")
