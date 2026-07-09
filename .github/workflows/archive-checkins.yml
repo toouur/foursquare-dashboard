@@ -1,11 +1,19 @@
 # .github/workflows/archive-checkins.yml
 #
-# Manual-only workflow: full re-fetch of all check-ins from Foursquare,
-# archive the previous checkins.csv (timestamped), store the fresh one,
-# then automatically diff old vs new to detect venue renames/moves and
-# sync any changes into tips.json.
+# Full re-fetch of all check-ins from Foursquare, archive the previous
+# checkins.csv (timestamped), store the fresh one, then automatically diff
+# old vs new to detect venue renames/moves and sync any changes into tips.json.
 #
-# Trigger: Actions tab → "Archive check-in snapshot" → Run workflow
+# Triggers:
+#   • Monthly — 02:30 UTC on the 1st (schedule below).
+#   • Manual  — Actions tab → "Archive check-in snapshot" → Run workflow.
+#
+# SAFETY: the full re-fetch runs with continue-on-error, so a quota/network
+# failure can leave a TRUNCATED checkins.csv. Because D1 venue reconciliation
+# deletes venues absent from the CSV, an unattended run on a truncated snapshot
+# would mass-delete venues. The "Guard against truncated re-fetch" step aborts
+# the job (before any commit or D1 sync) if the new snapshot is < 95% of the
+# archived one by rows OR unique venues.
 #
 # Required secrets (same as update-dashboard):
 #   FOURSQUARE_TOKEN  — Foursquare OAuth token
@@ -15,6 +23,8 @@ name: Archive check-in snapshot
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "30 2 1 * *"   # 02:30 UTC on the 1st of each month
 
 permissions:
   contents: read   # public repo read-only; private repo access via PAT
@@ -69,7 +79,53 @@ jobs:
             --csv private-data/checkins.csv \
             --full
 
-      # ── 6. Diff old vs new — detect venue renames/moves, sync tips.json ────
+      # ── 6. Guard against a truncated re-fetch ─────────────────────────────
+      # Full re-fetch runs continue-on-error, so a quota/network failure can
+      # leave a partial checkins.csv. Abort BEFORE any commit or D1 sync if the
+      # new snapshot lost > 5% of rows or unique venues vs the archived one
+      # (check-ins only grow; a large drop means a truncated fetch, not real
+      # deletions). First run (no archive) skips the guard.
+      - name: Guard against truncated re-fetch
+        run: |
+          if [ -z "$ARCHIVE_NAME" ]; then
+            echo "No archived snapshot to compare against — skipping guard."
+            exit 0
+          fi
+          python - "private-data/archive/${ARCHIVE_NAME}" private-data/checkins.csv <<'PY'
+          import csv, sys
+
+          def counts(path):
+              rows = 0
+              venues = set()
+              with open(path, encoding="utf-8", newline="") as fh:
+                  for r in csv.DictReader(fh):
+                      rows += 1
+                      vid = (r.get("venue_id") or "").strip()
+                      if vid:
+                          venues.add(vid)
+              return rows, len(venues)
+
+          old_path, new_path = sys.argv[1], sys.argv[2]
+          old_rows, old_venues = counts(old_path)
+          new_rows, new_venues = counts(new_path)
+          print(f"old snapshot: {old_rows} rows / {old_venues} venues")
+          print(f"new snapshot: {new_rows} rows / {new_venues} venues")
+
+          FLOOR = 0.95
+          bad = []
+          if old_rows and new_rows < FLOOR * old_rows:
+              bad.append(f"rows {new_rows} < 95% of {old_rows}")
+          if old_venues and new_venues < FLOOR * old_venues:
+              bad.append(f"venues {new_venues} < 95% of {old_venues}")
+          if bad:
+              print("::error::truncated re-fetch suspected — " + "; ".join(bad))
+              print("Aborting before commit / D1 sync. Re-run manually once the "
+                    "Foursquare fetch completes fully.")
+              sys.exit(1)
+          print("Guard passed — snapshot is complete enough to sync.")
+          PY
+
+      # ── 7. Diff old vs new — detect venue renames/moves, sync tips.json ────
       - name: Sync venue changes into tips.json
         run: |
           if [ -n "$ARCHIVE_NAME" ] && [ -f "private-data/tips.json" ]; then
@@ -82,7 +138,7 @@ jobs:
             echo "No archive snapshot or no tips.json — skipping venue diff."
           fi
 
-      # ── 7. Commit archive + fresh CSV + updated tips to private data repo ──
+      # ── 8. Commit archive + fresh CSV + updated tips to private data repo ──
       - name: Commit to private data repo
         run: |
           cd private-data
@@ -102,7 +158,7 @@ jobs:
             git push
           fi
 
-      # ── 8. Sync check-ins, venue changes, and tips to D1 ─────────────────
+      # ── 9. Sync check-ins, venue changes, and tips to D1 ─────────────────
       - name: Sync to D1
         env:
           CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}

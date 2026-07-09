@@ -23,10 +23,18 @@ import argparse
 import csv
 import os
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 import d1_client
+
+# Audit table for every D1 deletion (mirrors sync_to_d1.SQL_VENUE_CHANGES).
+SQL_VENUE_CHANGES = (
+    "INSERT OR REPLACE INTO venue_changes "
+    "(venue_id,field,old_value,new_value,detected_at,venue_name,action) "
+    "VALUES (?,?,?,?,?,?,?)"
+)
 
 
 def _load(path: str) -> list[dict]:
@@ -109,6 +117,7 @@ def main() -> None:
     else:
         id_list = list(ids_to_delete)
         placeholders = ",".join("?" * len(id_list))
+        now_ts = int(time.time())
 
         d1_client.query(
             f"DELETE FROM checkins WHERE id IN ({placeholders})",
@@ -116,12 +125,22 @@ def main() -> None:
         )
         print(f"D1: removed {len(id_list)} row(s) from checkins")
 
+        # Audit each removed check-in (subject = checkin id → unique PK;
+        # old_value carries the venue_id it belonged to).
+        audit_rows = [
+            [r["checkin_id"], "checkin", r.get("venue_id") or None,
+             None, now_ts, r.get("venue") or None, "deleted"]
+            for r in deleted
+        ]
+
         # Update or remove venues affected by the deletion
         deleted_venue_ids = {r["venue_id"] for r in deleted if r.get("venue_id")}
         kept_venue_ids    = {r["venue_id"] for r in kept    if r.get("venue_id")}
         orphans  = deleted_venue_ids - kept_venue_ids
         affected = deleted_venue_ids - orphans  # still have remaining check-ins
 
+        # Names for orphaned venues, taken from the deleted CSV rows.
+        orphan_names = {r["venue_id"]: r.get("venue") for r in deleted if r.get("venue_id")}
         if orphans:
             ph = ",".join("?" * len(orphans))
             d1_client.query(
@@ -129,6 +148,15 @@ def main() -> None:
                 list(orphans),
             )
             print(f"D1: removed {len(orphans)} orphaned venue(s) from venues")
+            audit_rows += [
+                [vid, "venue", orphan_names.get(vid), None, now_ts,
+                 orphan_names.get(vid), "deleted"]
+                for vid in orphans
+            ]
+
+        if audit_rows:
+            d1_client.batch_upsert(SQL_VENUE_CHANGES, audit_rows,
+                                   label="venue_changes(deleted)")
 
         for vid in affected:
             d1_client.query(

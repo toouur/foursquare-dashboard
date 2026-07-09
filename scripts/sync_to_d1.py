@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import sys
@@ -68,6 +69,32 @@ def _int(v, default=0):
 def _str(v) -> str | None:
     s = (v or "").strip()
     return s or None
+
+
+# -- Content-hash gate --------------------------------------------------------
+# CI drives trips/lists off the *check-ins* fetch flag, so every hour a new
+# check-in arrives they re-sync in full even when their own content is
+# identical (lists re-sends ~18.5K list_venues rows for nothing). A sha256 of
+# the parsed rows, persisted in the sync_state table, lets each table skip the
+# D1 write when nothing it cares about actually changed.
+
+def _rows_hash(rows) -> str:
+    """Stable sha256 of a row list, independent of dict/key ordering."""
+    return hashlib.sha256(
+        json.dumps(rows, sort_keys=True, default=str, ensure_ascii=False).encode()
+    ).hexdigest()
+
+
+def _load_sync_hashes() -> dict:
+    rows = d1.query("SELECT key, hash FROM sync_state", silent=True)
+    return {r["key"]: r["hash"] for r in (rows or [])}
+
+
+def _save_sync_hash(key: str, h: str) -> None:
+    d1.query(
+        "INSERT OR REPLACE INTO sync_state (key, hash, updated_at) VALUES (?,?,?)",
+        [key, h, int(time.time())],
+    )
 
 
 # -- SQL templates ------------------------------------------------------------
@@ -432,6 +459,13 @@ def main() -> None:
                     help="DELETE FROM lists + list_venues then full INSERT OR REPLACE (manual resync)")
     ap.add_argument("--force-checkins", dest="force_checkins", action="store_true",
                     help="DELETE FROM checkins + venues then full reinsert (use after stale-row cleanup)")
+    ap.add_argument("--prune-stale-checkins", dest="prune_stale_checkins", action="store_true",
+                    help="DELETE checkin rows whose id is absent from the CSV (D1>CSV drift). "
+                         "Opt-in only — checkins are append-only by design; guarded by a safety cap "
+                         "(--prune-cap) so a truncated CSV fetch can't wipe the table")
+    ap.add_argument("--prune-cap", dest="prune_cap", type=int, default=200,
+                    help="Abort stale-checkin pruning if it would delete more than this many rows "
+                         "(guards against a bad/truncated CSV). Default 200")
     ap.add_argument("--fix-city-country", dest="fix_city_country", action="store_true",
                     help="UPDATE all D1 checkin rows where transform changed city or country "
                          "(fixes blank cities synced before transform pipeline was applied)")
@@ -448,6 +482,10 @@ def main() -> None:
     # Schema (idempotent -- CREATE IF NOT EXISTS, no drops)
     print("D1 sync: applying schema ...", flush=True)
     d1.apply_schema(args.schema)
+
+    # Content-hash gate state (sync_state table): lets trips/lists/tips/ratings
+    # skip the D1 write when their parsed content is byte-identical to last run.
+    sync_hashes = _load_sync_hashes()
 
     # Snapshot counts before sync -- used to detect unexpected shrinkage
     _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues", "trips", "venue_changes")
@@ -558,32 +596,91 @@ def main() -> None:
         if new_checkin_rows:
             d1.batch_upsert(SQL_CHECKINS_NEW, new_checkin_rows, label="checkins (new)")
 
-        # Upsert only affected venues
-        if new_venue_ids:
+        # Opt-in: prune checkin rows whose id is no longer in the CSV (D1>CSV
+        # drift). Checkins are append-only by design — a bad/truncated CSV fetch
+        # must never silently wipe them — so this only runs with the explicit
+        # flag and aborts if it would exceed the safety cap.
+        if args.prune_stale_checkins:
+            csv_ids = {r[0] for r in all_checkin_rows}
+            existing = d1.query("SELECT DISTINCT id FROM checkins")
+            existing_ids = {row["id"] for row in existing} if existing else set()
+            stale_ids = sorted(existing_ids - csv_ids)
+            if not stale_ids:
+                print("D1 sync: no stale check-ins to prune (D1 ids all present in CSV)", flush=True)
+            elif len(stale_ids) > args.prune_cap:
+                sys.exit(f"D1 sync: ABORT — {len(stale_ids)} stale check-in ids exceeds "
+                         f"--prune-cap={args.prune_cap}. Refusing to delete; the CSV may be "
+                         f"truncated. Re-run with a higher cap only if the CSV is known good.")
+            else:
+                print(f"D1 sync: pruning {len(stale_ids)} stale check-in row(s) absent from CSV",
+                      flush=True)
+                now_ts = int(time.time())
+                audit_rows = []
+                for i in range(0, len(stale_ids), 200):
+                    chunk = stale_ids[i:i + 200]
+                    ph = ",".join("?" * len(chunk))
+                    # Capture venue context for the audit trail BEFORE deleting.
+                    doomed = d1.query(
+                        f"SELECT id, venue_id, venue FROM checkins WHERE id IN ({ph})", chunk)
+                    for row in (doomed or []):
+                        # Audit subject = checkin id (unique per row → no PK clash);
+                        # old_value carries the venue_id it belonged to.
+                        audit_rows.append([row["id"], "checkin", row.get("venue_id"),
+                                           None, now_ts, row.get("venue"), "deleted"])
+                    d1.query(f"DELETE FROM checkins WHERE id IN ({ph})", chunk)
+                if audit_rows:
+                    d1.batch_upsert(SQL_VENUE_CHANGES, audit_rows,
+                                    label="venue_changes(deleted checkins)")
+                changed = True
+
+        # Reconcile venues in BOTH directions so the table always equals
+        # venue_meta (the CSV aggregation). A pure upsert-of-new-venue-ids path
+        # drifts two ways:
+        #   D1 < CSV — a venue_id that first appears via a transform / venue_fixes
+        #     reassignment, or on a backdated check-in already synced, is never in
+        #     new_venue_ids and so was never inserted (missing venues → broken
+        #     /api/search & venue-tips lookups).
+        #   D1 > CSV — a venue orphaned by a merge / reassignment / archive dedup
+        #     lingers (check-in deletion is handled by delete_checkin.py).
+        # Query the D1 id set once and drive both add + prune from it.
+        existing_venues = d1.query("SELECT id FROM venues")
+        existing_venue_ids = {row["id"] for row in existing_venues} if existing_venues else set()
+        meta_ids = set(venue_meta.keys())
+        # Upsert new-checkin venues plus any CSV venue missing from D1.
+        to_upsert = new_venue_ids | (meta_ids - existing_venue_ids)
+        if to_upsert:
+            missing_only = (meta_ids - existing_venue_ids) - new_venue_ids
+            if missing_only:
+                print(f"D1 sync: {len(missing_only)} venue(s) present in CSV but missing "
+                      f"from D1 — inserting", flush=True)
             venue_rows = [
                 [vid, m["name"] or None, m["category"] or None, m["lat"], m["lng"],
                  m["city"] or None, m["country"] or None, m["count"], m["first_ts"] or None, m["last_ts"] or None]
-                for vid, m in venue_meta.items() if vid in new_venue_ids
+                for vid, m in venue_meta.items() if vid in to_upsert
             ]
             d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
-
-        # The venues path is upsert-only, so it can never drop venues that went
-        # orphaned by a venue merge / venue_id reassignment / archive dedup
-        # (check-in deletion is handled separately by delete_checkin.py). If D1
-        # holds more venues than the CSV now aggregates to, delete the orphans
-        # so the venues table stays in sync with the check-in data.
-        venue_res = d1.query("SELECT COUNT(*) AS n FROM venues")
-        d1_venue_count = (venue_res[0].get("n") or 0) if venue_res else 0
-        if d1_venue_count > len(venue_meta):
-            existing_venues = d1.query("SELECT id FROM venues")
-            existing_venue_ids = {row["id"] for row in existing_venues} if existing_venues else set()
-            orphan_ids = sorted(existing_venue_ids - set(venue_meta.keys()))
-            if orphan_ids:
-                print(f"D1 sync: removing {len(orphan_ids)} orphaned venue(s) "
-                      f"absent from check-in data", flush=True)
-                ph = ",".join("?" * len(orphan_ids))
-                d1.query(f"DELETE FROM venues WHERE id IN ({ph})", orphan_ids)
+            if missing_only:
                 changed = True
+        # Prune orphans absent from the CSV aggregation.
+        orphan_ids = sorted(existing_venue_ids - meta_ids)
+        if orphan_ids:
+            print(f"D1 sync: removing {len(orphan_ids)} orphaned venue(s) "
+                  f"absent from check-in data", flush=True)
+            now_ts = int(time.time())
+            audit_rows = []
+            for i in range(0, len(orphan_ids), 200):
+                chunk = orphan_ids[i:i + 200]
+                ph = ",".join("?" * len(chunk))
+                # Capture names for the audit trail BEFORE deleting.
+                doomed = d1.query(f"SELECT id, name FROM venues WHERE id IN ({ph})", chunk)
+                for row in (doomed or []):
+                    audit_rows.append([row["id"], "venue", row.get("name"),
+                                       None, now_ts, row.get("name"), "deleted"])
+                d1.query(f"DELETE FROM venues WHERE id IN ({ph})", chunk)
+            if audit_rows:
+                d1.batch_upsert(SQL_VENUE_CHANGES, audit_rows,
+                                label="venue_changes(deleted venues)")
+            changed = True
 
     # Tips
     if args.force_tips:
@@ -591,11 +688,17 @@ def main() -> None:
         d1.query("DELETE FROM tips")
         tip_rows = parse_tips(args.tips)
         d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
+        _save_sync_hash("tips", _rows_hash(tip_rows))
         changed = True
     elif args.tips_changed == "true":
         tip_rows = parse_tips(args.tips)
-        d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
-        changed = True
+        h = _rows_hash(tip_rows)
+        if h == sync_hashes.get("tips"):
+            print("  tips     : skipped (content hash unchanged)", flush=True)
+        else:
+            d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
+            _save_sync_hash("tips", h)
+            changed = True
     else:
         print("  tips     : skipped (no new tips this run)", flush=True)
 
@@ -609,13 +712,19 @@ def main() -> None:
         d1.query("DELETE FROM ratings")
         rating_rows = parse_ratings(args.ratings)
         d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
+        _save_sync_hash("ratings", _rows_hash(rating_rows))
         changed = True
     elif args.ratings_changed == "true":
         if not args.ratings:
             sys.exit("--ratings-changed=true requires --ratings")
         rating_rows = parse_ratings(args.ratings)
-        d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
-        changed = True
+        h = _rows_hash(rating_rows)
+        if h == sync_hashes.get("ratings"):
+            print("  ratings  : skipped (content hash unchanged)", flush=True)
+        else:
+            d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
+            _save_sync_hash("ratings", h)
+            changed = True
     else:
         print("  ratings  : skipped (no new ratings this run)", flush=True)
 
@@ -627,12 +736,18 @@ def main() -> None:
         d1.query("DELETE FROM trips")
         trip_rows = parse_trips(args.trips)
         d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
+        _save_sync_hash("trips", _rows_hash(trip_rows))
         changed = True
     elif args.trips_changed == "true" and args.trips:
         if Path(args.trips).exists():
             trip_rows = parse_trips(args.trips)
-            d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
-            changed = True
+            h = _rows_hash(trip_rows)
+            if h == sync_hashes.get("trips"):
+                print("  trips    : skipped (content hash unchanged)", flush=True)
+            else:
+                d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
+                _save_sync_hash("trips", h)
+                changed = True
         else:
             print(f"  trips    : file not found: {args.trips}", flush=True)
     else:
@@ -780,13 +895,19 @@ def main() -> None:
         list_rows, lv_rows = parse_lists(args.lists, visited_vids)
         d1.batch_upsert(SQL_LISTS,       list_rows, label="lists    ")
         d1.batch_upsert(SQL_LIST_VENUES, lv_rows,   label="list_venues")
+        _save_sync_hash("lists", _rows_hash([list_rows, lv_rows]))
         changed = True
     elif args.lists_changed == "true":
         if not args.lists:
             sys.exit("--lists-changed=true requires --lists")
         list_rows, lv_rows = parse_lists(args.lists, visited_vids)
-        _sync_lists_diff(list_rows, lv_rows)
-        changed = True
+        h = _rows_hash([list_rows, lv_rows])
+        if h == sync_hashes.get("lists"):
+            print("  lists    : skipped (content hash unchanged)", flush=True)
+        else:
+            _sync_lists_diff(list_rows, lv_rows)
+            _save_sync_hash("lists", h)
+            changed = True
     else:
         print("  lists    : skipped (no new check-ins this run)", flush=True)
 
@@ -820,6 +941,28 @@ def main() -> None:
                     print(f"::warning::{msg}", flush=True)
                 else:
                     print(f"WARNING: {msg}", flush=True)
+
+    # Source-vs-D1 drift check. The shrinkage guard above only compares D1
+    # against ITS OWN previous count, so a table that is persistently wrong
+    # relative to the source files (e.g. append-only checkins accumulating
+    # phantom rows, or venues missing an out-of-band id) never trips it. Compare
+    # the final D1 counts against the source aggregation and warn on any gap.
+    source_expected = {"checkins": len(all_checkin_rows), "venues": len(venue_meta)}
+    for tbl, expected in source_expected.items():
+        try:
+            res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
+            after = res[0].get("n", 0) if res else 0
+        except Exception:
+            continue
+        if after != expected:
+            drift = after - expected
+            hint = ("run --prune-stale-checkins to reconcile" if tbl == "checkins" and drift > 0
+                    else "venues auto-reconcile each run; investigate if this persists" if tbl == "venues"
+                    else "")
+            msg = (f"D1 DRIFT: {tbl} D1={after} vs source={expected} "
+                   f"({'+' if drift > 0 else ''}{drift}){' — ' + hint if hint else ''}")
+            alerts.append(msg)
+            print(f"::warning::{msg}" if in_gha else f"WARNING: {msg}", flush=True)
 
     if not alerts:
         print("D1 sync: all counts stable or growing", flush=True)

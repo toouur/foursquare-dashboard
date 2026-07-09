@@ -141,6 +141,16 @@ ALTER TABLE venue_changes ADD COLUMN action TEXT;
 -- Migrations: add new columns to existing checkins tables
 ALTER TABLE checkins ADD COLUMN city_inferred INTEGER DEFAULT 0;
 
+-- ── Sync state (content-hash gate for trips/lists/tips/ratings) ─────────────
+-- One row per synced table; sync_to_d1.py skips the D1 write when the sha256
+-- of the parsed rows matches the stored hash (avoids hourly re-sync of
+-- unchanged trips/lists driven by the check-ins fetch flag).
+CREATE TABLE IF NOT EXISTS sync_state (
+    key        TEXT    PRIMARY KEY,   -- 'tips' | 'ratings' | 'trips' | 'lists'
+    hash       TEXT,                  -- sha256 hex of parsed rows last written
+    updated_at INTEGER                -- unix ts of last write
+);
+
 -- ── Indexes ───────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_checkins_id       ON checkins(id);
 CREATE INDEX IF NOT EXISTS idx_checkins_venue_id ON checkins(venue_id);
