@@ -223,6 +223,11 @@ python -m http.server 8000 --directory _site
   - `config/country_aliases.json` — raw native country name → English canonical (was inline `CTRY_NORM` in gen_tips.py)
   - `config/country_flags.json` — English country → ISO 3166-1 alpha-2 (was inline CTRY_CODE/ISO2 dicts in 9 templates + gen_photos.py)
   - `config/category_icons.json` — Foursquare category → `[emoji, color]` (was inline CAT_ICON dicts in 6 templates)
+  - `config/year_covers.json` — /years cover + narrative pins (loader: `scripts/year_covers.py`):
+    `"2024": "<photo filename or checkin_id>"` pins the YEAR cover (index card + year-page hero + og:image);
+    `"2024-07": "<filename or checkin_id>"` pins that month's timeline photo (claimed up front so the auto-picker can't reuse it, honored even on empty months);
+    `"2024-07-note": "text"` replaces that month's auto narrative with hand-written text (plain text, HTML-escaped).
+    Without a pin, year covers use a deterministic signature score (shout + companions + photo count, earliest-ts tie-break) so covers are stable across builds. Unresolvable pin values are reported at build and ignored.
 - Config (other): `config/city_merge.yaml`, `config/city_fixes.json`, `config/venue_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
 
 ## City normalization pipeline (priority order)

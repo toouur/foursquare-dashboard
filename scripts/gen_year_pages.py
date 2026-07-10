@@ -35,7 +35,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from year_covers import select_year_covers
+from year_covers import load_month_cover_overrides, load_month_notes, select_year_covers
 
 CTRY_CODE: dict[str, str] = {}
 
@@ -297,6 +297,53 @@ def _render_year_clock(yr: int, mon_counter: Counter, months_short: list[str]) -
     )
 
 
+# ── Narrative helpers ───────────────────────────────────────────────────
+_MONTHS_FULL = ["January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December"]
+_SMALL_NUMS = ["zero", "one", "two", "three", "four", "five", "six",
+               "seven", "eight", "nine", "ten", "eleven", "twelve"]
+
+
+def _nword(n: int) -> str:
+    """Counts up to twelve as words ('seven'), larger ones as digits."""
+    return _SMALL_NUMS[n] if 0 <= n < len(_SMALL_NUMS) else f"{n:,}"
+
+
+def _dayord(d: int) -> str:
+    """1 → '1st', 22 → '22nd', 13 → '13th'."""
+    if 11 <= d % 100 <= 13:
+        suf = "th"
+    else:
+        suf = {1: "st", 2: "nd", 3: "rd"}.get(d % 10, "th")
+    return f"{d}{suf}"
+
+
+def _oxford(items: list[str]) -> str:
+    """'A' / 'A and B' / 'A, B and C'."""
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _cap_html(body: str) -> str:
+    """Capitalize the first plain letter, skipping any leading HTML tags."""
+    i = 0
+    while i < len(body) and body[i] == "<":
+        close = body.find(">", i)
+        if close < 0:
+            break
+        i = close + 1
+    if i < len(body):
+        body = body[:i] + body[i].upper() + body[i + 1:]
+    return body
+
+
+def _strong(s: str) -> str:
+    return f"<strong>{_esc(s)}</strong>"
+
+
 def _compose_month_narrative(
     yr: int, mo: int,
     rows_m: list[dict], mon_venue_m: Counter, mon_city_m: Counter,
@@ -309,228 +356,339 @@ def _compose_month_narrative(
     trips_ending: list[dict] | None = None,
     photos_count_m: int = 0,
     new_countries_m: list[str] | None = None,
+    country_ordinals: dict[str, int] | None = None,
 ) -> str:
-    """Build a richer flowing narrative for a single month — picks up the
-    busiest city, the dominant routine bucket (coffee / dining / travel /
-    work / home), and any landmark events (concerts, museums, sports,
-    poker, nightclubs, outdoor walks) by name.  Mood phrase from shouts
-    closes the sentence when strong enough."""
-    # Bucket the month's check-ins
+    """Write the month's story in real sentences instead of stat fragments.
+
+    Shape (at most five short sentences, fully deterministic):
+      1. Lead — the geographic shape of the month (home / split / on the road).
+      2. Rhythm or anchor — the dominant routine, OR the venue that kept
+         recurring (never both; whichever wins rotates month to month).
+      3. Landmarks — up to two named one-off events, with the venue's OWN
+         visit count (the old text misleadingly showed the bucket's total).
+      4. Journey — trips departing or winding down, with door-to-door length;
+         first-time countries carry their all-time ordinal ("country № 47").
+      5. Texture — at most two of: top companion, new-places volume, photo
+         volume, busiest single day, weekend tilt, thin-log note, mood.
+
+    Phrase pools rotate on (yr + mo) so adjacent months never reuse the same
+    template; counts up to twelve are spelled out and "(N×)" tallies are gone.
+    """
+    rot = yr + mo
+    mon_name = _MONTHS_FULL[mo - 1]
+    total_m = len(rows_m)
+
+    # ── Raw material ─────────────────────────────────────────────────
     bucket_n: Counter = Counter()
     bucket_venue: dict[str, Counter] = defaultdict(Counter)
-    # Track which city each venue lives in (most-common city for the
-    # venue in this month) so we can annotate cross-city landmarks
-    # honestly: "walks in Park X · Minsk" when the lead city differs.
     venue_city: dict[str, Counter] = defaultdict(Counter)
+    day_counter: Counter = Counter()
+    weekend_n = 0
     for r in rows_m:
         b = _bucket_for(r.get("category") or "")
         v = (r.get("venue") or "").strip()
         c = (r.get("city") or "").strip()
         if v and c:
             venue_city[v][c] += 1
-        if not b:
-            continue
-        bucket_n[b] += 1
-        if v:
-            bucket_venue[b][v] += 1
+        if b:
+            bucket_n[b] += 1
+            if v:
+                bucket_venue[b][v] += 1
+        try:
+            ts = int(r.get("date") or 0)
+        except (ValueError, TypeError):
+            ts = 0
+        if ts:
+            d = datetime.fromtimestamp(ts, tz=timezone.utc)
+            day_counter[d.day] += 1
+            if d.weekday() >= 5:
+                weekend_n += 1
 
     routines = sorted(
-        [(b, n) for b, n in bucket_n.items() if ACTIVITY_BUCKETS[b]["kind"] == "routine" and n > 0],
+        [(b, n) for b, n in bucket_n.items()
+         if ACTIVITY_BUCKETS[b]["kind"] == "routine" and n > 0],
         key=lambda x: -x[1],
     )
     landmarks = sorted(
-        [(b, n) for b, n in bucket_n.items() if ACTIVITY_BUCKETS[b]["kind"] == "landmark" and n > 0],
+        [(b, n) for b, n in bucket_n.items()
+         if ACTIVITY_BUCKETS[b]["kind"] == "landmark" and n > 0],
         key=lambda x: -x[1],
     )
 
-    # Detect how concentrated the month is: if the top city has < 55% of
-    # all check-ins, treat it as a multi-city month (otherwise the lead
-    # "Minsk set the rhythm" hides week-long trips elsewhere).
-    total_m = sum(mon_city_m.values()) or 1
+    city_total = sum(mon_city_m.values()) or 1
     top_c = mon_city_m.most_common(1)[0] if mon_city_m else ("", 0)
-    cities_significant = sum(1 for c, n in mon_city_m.items() if n / total_m >= 0.12)
-    multi_city = bool(top_c[0]) and (top_c[1] / total_m) < 0.55
     second_c = mon_city_m.most_common(2)[1] if len(mon_city_m) >= 2 else ("", 0)
+    sig_cities = [c for c, nn in mon_city_m.most_common() if nn / city_total >= 0.12]
+    multi_city = bool(top_c[0]) and (top_c[1] / city_total) < 0.55
+    lead_city = top_c[0] if (top_c[0] and not multi_city) else ""
 
-    salt = yr * 12 + mo
-
-    bits: list[str] = []
-    # Lead: shape depends on geographic spread.  Skip the travel routine
-    # phrase when we're already saying "on the move" — otherwise the line
-    # reads "on the move ... on the move ...".
-    suppress_travel = False
-    if multi_city and second_c[0]:
-        if cities_significant >= 3:
-            bits.append(
-                f"Across <strong>{cities_significant}</strong> cities, "
-                f"anchored in <strong>{_esc(top_c[0])}</strong>"
-            )
-        else:
-            bits.append(
-                f"Split between <strong>{_esc(top_c[0])}</strong> "
-                f"and <strong>{_esc(second_c[0])}</strong>"
-            )
-        suppress_travel = True
-        # Append routine flavour, but not the travel one
-        if routines:
-            for b, _ in routines:
-                if suppress_travel and b == "travel":
-                    continue
-                ph = ACTIVITY_BUCKETS[b]["phrases"]
-                bits.append(ph[salt % len(ph)])
-                break
-    elif top_c[0] and routines:
-        b, _ = routines[0]
+    def _landmark_frag(b: str, with_count: bool) -> str:
+        """'walks in <strong>Park</strong> · City — five visits over the month'"""
         ph = ACTIVITY_BUCKETS[b]["phrases"]
-        bits.append(f"<strong>{_esc(top_c[0])}</strong> set the rhythm — {ph[salt % len(ph)]}")
-    elif top_c[0]:
-        bits.append(f"<strong>{_esc(top_c[0])}</strong> held most of it")
-    elif routines:
-        b, _ = routines[0]
-        ph = ACTIVITY_BUCKETS[b]["phrases"]
-        bits.append(ph[salt % len(ph)].capitalize())
-
-    # Landmarks — pick top 2 by count, name venues.  Annotate the venue's
-    # city when it differs from the month's lead city, so cross-city
-    # months don't read as if everything happened in one place.
-    lead_city = top_c[0] if top_c and not multi_city else ""
-    landmark_bits: list[str] = []
-    for b, n in landmarks[:2]:
-        ph = ACTIVITY_BUCKETS[b]["phrases"]
-        phrase = ph[(yr + mo + len(b)) % len(ph)]
+        phrase = ph[(rot + len(b)) % len(ph)]
         top_v = bucket_venue[b].most_common(1)
-        if top_v and top_v[0][0]:
-            venue = top_v[0][0]
-            v_city = venue_city[venue].most_common(1)[0][0] if venue_city.get(venue) else ""
-            label = f"<strong>{_esc(venue)}</strong>"
-            # Only annotate if multi-city month and the venue is in a
-            # different city than the lead — keeps single-city months clean.
-            if v_city and lead_city and v_city != lead_city:
-                label += f" <span style=\"color:var(--muted);font-style:normal;font-size:.85em;\">· {_esc(v_city)}</span>"
-            elif v_city and multi_city:
-                label += f" <span style=\"color:var(--muted);font-style:normal;font-size:.85em;\">· {_esc(v_city)}</span>"
-            if n >= 2:
-                landmark_bits.append(f"{phrase} {label} ({n}×)")
-            else:
-                landmark_bits.append(f"{phrase} {label}")
-        elif n >= 2:
-            landmark_bits.append(f"{n} {b}")
-    if landmark_bits:
-        bits.append("with " + " and ".join(landmark_bits[:2]))
+        if not top_v or not top_v[0][0]:
+            return ""
+        venue, vcnt = top_v[0]
+        v_city = venue_city[venue].most_common(1)[0][0] if venue_city.get(venue) else ""
+        label = _strong(venue)
+        # Annotate the venue's city on multi-city months (or when it sits
+        # outside the lead city) so cross-city months read honestly.
+        if v_city and (multi_city or (lead_city and v_city != lead_city)):
+            label += ('<span style="color:var(--muted);font-style:normal;'
+                      f'font-size:.85em;"> · {_esc(v_city)}</span>')
+        frag = f"{phrase} {label}"
+        if with_count and vcnt >= 4:
+            frag += f" — {_nword(vcnt)} visits over the month"
+        return frag
 
-    # Fallback if nothing else
-    if not bits:
-        top_v = mon_venue_m.most_common(1)[0] if mon_venue_m else ("", 0)
-        if top_v[0]:
-            bits.append(f"<strong>{_esc(top_v[0])}</strong> the recurring stop ({top_v[1]}×)")
+    # ── Sparse months read short and honest ──────────────────────────
+    if total_m < 8:
+        where = f", most of it around {_strong(top_c[0])}" if top_c[0] else ""
+        plural = "s" if total_m != 1 else ""
+        leads = [
+            f"A quiet {mon_name} — {_nword(total_m)} check-in{plural} in the log{where}.",
+            f"The log runs thin here: {_nword(total_m)} entr{'ies' if total_m != 1 else 'y'}{where}.",
+            f"{mon_name} barely registered — {_nword(total_m)} stop{plural}{where}.",
+        ]
+        out = [leads[rot % len(leads)]]
+        if landmarks:
+            frag = _landmark_frag(landmarks[0][0], with_count=False)
+            if frag:
+                out.append(f"Still, time for {frag}.")
+        return " ".join(out)
+
+    # ── 1. Lead — the geographic shape of the month ──────────────────
+    kind = "flat"
+    if len(sig_cities) >= 3 or (multi_city and len(sig_cities) >= 2 and new_countries_m):
+        kind = "roam"
+    elif multi_city and second_c[0]:
+        kind = "split"
+    elif top_c[0]:
+        kind = "home"
+
+    if kind == "roam":
+        # Name the significant cities in the order they were first visited.
+        sig_set = set(sig_cities[:4])
+        order: list[str] = []
+        for r in sorted(rows_m, key=lambda r: int(r.get("date") or 0)):
+            c = (r.get("city") or "").strip()
+            if c in sig_set and c not in order:
+                order.append(c)
+        cl = [_strong(c) for c in (order or sig_cities[:4])]
+        k = len(sig_cities)
+        if len(cl) >= 3 and rot % 3 == 0:
+            lead = (f"{mon_name} belonged to the road — {cl[0]} first, then {cl[1]}, "
+                    f"then {cl[2]}" + (", and onward" if k > 3 else "") + ".")
+        elif len(cl) >= 2 and rot % 3 == 1:
+            lead = (f"A month in motion — {_nword(k)} cities, running from {cl[0]} "
+                    f"through to {cl[-1]}.")
         else:
-            bits.append("A month in the rotation")
+            named = cl[:3]
+            listed = (", ".join(named) + " and more" if k > len(named)
+                      else _oxford(named))
+            lead = (f"The map hardly sat still: {listed} — "
+                    f"{_nword(k)} cities in a single month.")
+    elif kind == "split":
+        a, b2 = _strong(top_c[0]), _strong(second_c[0])
+        pool = [
+            f"The month ran on two rails — {a} on one, {b2} on the other.",
+            f"{a} and {b2} split {mon_name} between them.",
+            f"Two home bases this time: {a} and {b2}.",
+            f"{a} took the larger share of the month, {b2} much of the rest.",
+        ]
+        lead = pool[rot % len(pool)]
+    elif kind == "home":
+        ch = _strong(top_c[0])
+        pool = [
+            f"{ch} held the month together.",
+            f"A {ch} month, wall to wall.",
+            f"{ch} set the pace from the first day to the last.",
+            f"{mon_name} ran on {ch} time.",
+        ]
+        lead = pool[rot % len(pool)]
+    else:
+        lead = f"{mon_name}, logged on the move."
 
-    sentence1 = ", ".join(bits) + "."
-    sentence1 = sentence1[0].upper() + sentence1[1:]
-
-    # ── Sentence 2 — what punctuated the routine ─────────────────────
-    s2_bits: list[str] = []
-
-    # Anchor venue: 25+ check-ins is a "regular" / 10-24 is a frequent stop
+    # ── 2. Rhythm or anchor (one, not both) ──────────────────────────
+    rhythm_s = ""
     top_v = mon_venue_m.most_common(1)[0] if mon_venue_m else ("", 0)
-    if top_v[0] and top_v[1] >= 25:
-        s2_bits.append(
-            f"<strong>{_esc(top_v[0])}</strong> kept showing up — "
-            f"{top_v[1]} check-ins, near-daily"
-        )
-    elif top_v[0] and top_v[1] >= 10:
-        s2_bits.append(
-            f"<strong>{_esc(top_v[0])}</strong> the recurring anchor ({top_v[1]}×)"
-        )
+    anchor = top_v if (top_v[0] and top_v[1] >= 10) else None
+    routine = ""
+    for b, _n in routines:
+        if b == "travel":
+            continue  # the journey sentence already covers being on the road
+        if kind == "roam" and b in ("shopping", "work"):
+            continue  # "grocery loops" reads absurd against a four-city month
+        routine = b
+        break
+    use_anchor = anchor is not None and (not routine or rot % 2 == 0)
+    if use_anchor and anchor:
+        vs, vn = _strong(anchor[0]), anchor[1]
+        pool = [
+            f"{vs} was practically a second address — {vn} visits.",
+            f"The log keeps circling back to {vs}: {_nword(vn)} check-ins.",
+            f"{vs}, again and again — {_nword(vn)} times this month.",
+        ]
+        rhythm_s = pool[rot % len(pool)]
+    elif routine:
+        ph = ACTIVITY_BUCKETS[routine]["phrases"]
+        p = ph[rot % len(ph)]
+        pool = [
+            f"The rhythm underneath: {p}.",
+            _cap_html(f"{p}, mostly."),
+            f"Day to day, it was {p}.",
+        ]
+        rhythm_s = pool[rot % len(pool)]
 
-    # Trips that started this month
+    # ── 3. Landmarks — named one-off events ──────────────────────────
+    lm_s = ""
+    lm_frags = []
+    for i, (b, _n) in enumerate(landmarks[:2]):
+        frag = _landmark_frag(b, with_count=(i == 0))
+        if frag:
+            lm_frags.append(frag)
+    if len(lm_frags) == 2:
+        pool = [
+            f"There was time for {lm_frags[0]}, and for {lm_frags[1]}.",
+            f"The standouts: {lm_frags[0]}; also {lm_frags[1]}.",
+            _cap_html(f"{lm_frags[0]} — plus {lm_frags[1]}."),
+        ]
+        lm_s = pool[rot % len(pool)]
+    elif lm_frags:
+        pool = [
+            f"There was time for {lm_frags[0]}.",
+            f"The standout: {lm_frags[0]}.",
+            _cap_html(f"{lm_frags[0]}."),
+        ]
+        lm_s = pool[rot % len(pool)]
+
+    # ── 4. Journey — trips and first-time countries ──────────────────
+    def _trip_phase(t: dict) -> tuple[str, str]:
+        try:
+            day = int((t.get("start_date") or "").split("-")[2])
+        except (ValueError, IndexError):
+            return "Mid-month", "mid-month"
+        if day <= 10:
+            return "Early in the month", "early in the month"
+        if day <= 20:
+            return "Mid-month", "mid-month"
+        return "Late in the month", "late in the month"
+
+    def _trip_days(t: dict) -> int:
+        try:
+            sd = datetime.strptime(t.get("start_date") or "", "%Y-%m-%d")
+            ed = datetime.strptime(t.get("end_date") or "", "%Y-%m-%d")
+            return (ed - sd).days + 1
+        except ValueError:
+            return 0
+
+    journey_s = ""
     if trips_starting:
-        trip_names = [t.get("name") or "trip" for t in trips_starting[:2]]
         if len(trips_starting) == 1:
-            s2_bits.append(f"the <strong>{_esc(trip_names[0])}</strong> trip departed mid-month")
+            t0 = trips_starting[0]
+            name0 = _strong(t0.get("name") or "trip")
+            cap, low = _trip_phase(t0)
+            dur = _trip_days(t0)
+            dtxt = f" — {_nword(dur)} days door to door" if dur >= 3 else ""
+            pool = [
+                f"{cap}, the {name0} trip pulled everything onto the road{dtxt}.",
+                f"The {name0} trip departed {low}{dtxt}.",
+                f"{cap}, a packed bag again: {name0}{dtxt}.",
+            ]
+            journey_s = pool[rot % len(pool)]
         else:
-            s2_bits.append(
-                f"<strong>{len(trips_starting)}</strong> trips launching — "
-                + " and ".join(f"<em>{_esc(n)}</em>" for n in trip_names)
-            )
+            names = [_strong(t.get("name") or "trip") for t in trips_starting[:2]]
+            more = ", and more besides" if len(trips_starting) > 2 else ""
+            pool = [
+                f"{_nword(len(trips_starting))} separate departures — "
+                f"{names[0]}, then {names[1]}{more}.",
+                f"The suitcase never quite got put away: {names[0]}, "
+                f"then {names[1]}{more}.",
+            ]
+            journey_s = _cap_html(pool[rot % len(pool)])
     elif trips_ending:
-        # Only mention end if we didn't already mention a start
-        trip_names = [t.get("name") or "trip" for t in trips_ending[:2]]
-        s2_bits.append(
-            f"returning home from <strong>{_esc(trip_names[0])}</strong>"
-        )
+        name0 = _strong(trips_ending[0].get("name") or "trip")
+        pool = [
+            f"The month opened on the road, closing out {name0}.",
+            f"{name0} wound down in the month's first days.",
+        ]
+        journey_s = pool[rot % len(pool)]
 
-    # New countries this month
-    if new_countries_m:
-        if len(new_countries_m) == 1:
-            s2_bits.append(
-                f"a first stamp in <strong>{_esc(new_countries_m[0])}</strong>"
-            )
+    ctry_s = ""
+    ncs = new_countries_m or []
+    if len(ncs) == 1:
+        o = (country_ordinals or {}).get(ncs[0])
+        otxt = f" — country № {o}" if o else ""
+        pool = [
+            f"{_strong(ncs[0])} went on the map for the first time{otxt}.",
+            f"A first-ever stamp: {_strong(ncs[0])}{otxt}.",
+        ]
+        ctry_s = pool[rot % len(pool)]
+    elif ncs:
+        cs = _oxford([_strong(c) for c in ncs[:3]])
+        if len(ncs) > 3:
+            ctry_s = (f"{_nword(len(ncs)).capitalize()} new flags in a single "
+                      f"month — {cs} among them.")
         else:
-            s2_bits.append(
-                f"<strong>{len(new_countries_m)}</strong> first-time countries — "
-                + " and ".join(f"<strong>{_esc(c)}</strong>" for c in new_countries_m[:3])
-            )
+            word = "both" if len(ncs) == 2 else "all"
+            ctry_s = (f"{cs} {word} joined the map for the first time — "
+                      f"{_nword(len(ncs))} new flags in one month.")
 
-    # New venues discovered (only meaningful when ≥ 5)
-    new_v_list = new_venues_m or []
-    new_v_n = len(new_v_list)
-    if new_v_n >= 8:
-        s2_bits.append(f"<strong>{new_v_n}</strong> new places on the map")
-
-    sentence2 = ""
-    if s2_bits:
-        body = ", ".join(s2_bits[:3])
-        # Capitalize the first plain letter (skipping any HTML opener)
-        i = 0
-        while i < len(body) and body[i] == "<":
-            close = body.find(">", i)
-            if close < 0:
-                break
-            i = close + 1
-        if i < len(body):
-            body = body[:i] + body[i].upper() + body[i+1:]
-        sentence2 = " " + body + "."
-
-    # ── Sentence 3 — closing colour (companions / mood / volume) ─────
-    s3_bits: list[str] = []
+    # ── 5. Texture — at most two quick human details ─────────────────
+    tex: list[str] = []
     top_comp = comp_m.most_common(1)[0] if comp_m else ("", 0)
     if top_comp[0] and top_comp[1] >= 4:
-        s3_bits.append(
-            f"most often beside <strong>{_esc(top_comp[0])}</strong>"
-        )
-    elif top_comp[0] and top_comp[1] >= 2:
-        s3_bits.append(
-            f"with <strong>{_esc(top_comp[0])}</strong> in the frame"
-        )
+        cn = _strong(top_comp[0])
+        if top_comp[1] >= 20 or top_comp[1] / total_m >= 0.25:
+            pool = [
+                f"{cn} was there for most of it",
+                f"more often than not, {cn} was in the frame",
+                f"most days had {cn} in them",
+            ]
+        else:
+            pool = [
+                f"{cn} drifts in and out of the entries",
+                f"{cn} shows up more than anyone else",
+                f"the name beside mine most often: {cn}",
+            ]
+        tex.append(pool[rot % len(pool)])
+    new_v_n = len(new_venues_m or [])
+    if new_v_n >= 150:
+        pool = [
+            f"{new_v_n:,} of the month's stops were brand-new ground",
+            f"{new_v_n:,} places entered the log for the first time",
+            f"the map gained {new_v_n:,} places it had never seen",
+        ]
+        tex.append(pool[rot % len(pool)])
+    if len(tex) < 2 and photos_count_m >= 300:
+        pool = [
+            f"the camera barely rested — {photos_count_m:,} photos made the cut",
+            f"{photos_count_m:,} photos survived the month",
+        ]
+        tex.append(pool[rot % len(pool)])
+    busiest = day_counter.most_common(1)[0] if day_counter else (0, 0)
+    avg_day = total_m / max(days_active, 1)
+    if len(tex) < 2 and total_m >= 40 and busiest[1] >= max(15, int(2.5 * avg_day)):
+        tex.append(f"the {_dayord(busiest[0])} alone stacked up {busiest[1]} stops")
+    if len(tex) < 2 and total_m >= 40 and weekend_n / total_m >= 0.5:
+        tex.append("weekends did the heavy lifting")
+    if len(tex) < 2 and 0 < days_active <= 8:
+        tex.append(f"only {_nword(days_active)} days made it into the log")
+    if len(tex) < 2:
+        mp = _mood_phrase(_mood_score(shouts_m), yr, mo)
+        if mp:
+            tex.append(mp)
+    tex_s = _cap_html("; ".join(tex[:2]) + ".") if tex else ""
 
-    if days_active >= 25:
-        s3_bits.append(f"<strong>{days_active}</strong> active days — barely a gap")
-    elif days_active and days_active <= 6:
-        s3_bits.append(f"only <strong>{days_active}</strong> active day{'s' if days_active != 1 else ''}")
-
-    if photos_count_m >= 20:
-        s3_bits.append(f"<strong>{photos_count_m}</strong> frames kept")
-
-    mp = _mood_phrase(_mood_score(shouts_m), yr, mo)
-    if mp:
-        s3_bits.append(mp)
-
-    sentence3 = ""
-    if s3_bits:
-        body = ", ".join(s3_bits[:3])
-        i = 0
-        while i < len(body) and body[i] == "<":
-            close = body.find(">", i)
-            if close < 0:
-                break
-            i = close + 1
-        if i < len(body):
-            body = body[:i] + body[i].upper() + body[i+1:]
-        sentence3 = " " + body + "."
-
-    return sentence1 + sentence2 + sentence3
+    # ── Assemble (max five sentences; the rhythm line gives way first) ─
+    out = [lead]
+    for s in (rhythm_s, lm_s, journey_s, ctry_s, tex_s):
+        if s:
+            out.append(s)
+    if len(out) > 5 and rhythm_s in out:
+        out.remove(rhythm_s)
+    return " ".join(out[:5])
 
 
 def _pick_month_photo(yr: int, mo: int,
@@ -582,6 +740,7 @@ PAGE_TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.classList.add('js');</script>
 <title>{title}</title>
 <meta name="description" content="{description}">
 <link rel="canonical" href="https://4sq.pages.dev/year-{year}.html">
@@ -615,7 +774,7 @@ a{{color:var(--teal);}}
 .scroll-bg::after{{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,12,18,0.55) 0%,rgba(10,12,18,0.92) 100%);}}
 
 /* ── Hero ── */
-.hero{{position:relative;height:100vh;min-height:580px;overflow:hidden;display:flex;align-items:center;justify-content:center;z-index:5;}}
+.hero{{position:relative;height:100vh;height:100svh;min-height:580px;overflow:hidden;display:flex;align-items:center;justify-content:center;z-index:5;}}
 .hero-bg{{position:absolute;inset:0;z-index:0;}}
 .hero-bg .ph{{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.6s ease;filter:brightness(.45) contrast(1.05);}}
 .hero-bg .ph.active{{opacity:1;animation:kb 18s ease-in-out infinite;}}
@@ -637,14 +796,17 @@ a{{color:var(--teal);}}
 .sticky-strip .ssh-sec strong{{color:var(--gold);font-weight:500;}}
 
 /* ── Sections ── */
-.section{{padding:120px 28px;max-width:1200px;margin:0 auto;opacity:0;transform:translateY(50px);transition:opacity 1.1s cubic-bezier(.16,1,.3,1),transform 1.1s cubic-bezier(.16,1,.3,1);position:relative;z-index:5;}}
+.section{{padding:120px 28px;max-width:1200px;margin:0 auto;transition:opacity 1.1s cubic-bezier(.16,1,.3,1),transform 1.1s cubic-bezier(.16,1,.3,1);position:relative;z-index:5;}}
+/* Reveal-on-scroll hidden state only when JS is running (html.js set inline in <head>) —
+   without it, no-JS/reader/crawler loads would render every section invisible. */
+html.js .section:not(.in){{opacity:0;transform:translateY(50px);}}
 .section.in{{opacity:1;transform:translateY(0);}}
 .section-h{{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.22em;color:var(--gold);margin-bottom:8px;}}
 .section-title{{font-family:'Playfair Display',serif;font-size:clamp(1.9rem,3.6vw,3.2rem);font-weight:700;color:var(--text);margin-bottom:34px;line-height:1.1;letter-spacing:-0.015em;}}
 .section-title em{{font-style:normal;color:var(--gold);font-weight:500;}}
 .section-intro{{font-family:'Playfair Display',serif;font-size:1.08rem;color:#cdd5f0;max-width:720px;margin-bottom:36px;line-height:1.75;font-style:italic;font-weight:400;}}
 .section-intro strong{{color:var(--gold);font-weight:500;font-style:normal;}}
-@media(max-width:600px){{.section{{padding:70px 18px;}}.section-title{{font-size:1.65rem;margin-bottom:24px;}}.sticky-strip{{padding:10px 16px;}}}}
+@media(max-width:600px){{.section{{padding:70px 18px;}}.section-title{{font-size:1.65rem;margin-bottom:24px;}}.sticky-strip{{padding:10px 16px;}}.hero-content{{padding:24px 18px;}}.hero-yr{{font-size:clamp(4.4rem,24vw,7rem);}}}}
 
 /* ── KPI tiles ── */
 .kpi-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px;}}
@@ -667,7 +829,8 @@ a{{color:var(--teal);}}
 
 /* ── Month timeline — alternating photo / text columns ── */
 .months{{display:flex;flex-direction:column;gap:18px;}}
-.mo{{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;padding:14px 0;opacity:0;transform:translateY(40px);transition:opacity 1s cubic-bezier(.16,1,.3,1),transform 1s cubic-bezier(.16,1,.3,1);}}
+.mo{{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;padding:14px 0;transition:opacity 1s cubic-bezier(.16,1,.3,1),transform 1s cubic-bezier(.16,1,.3,1);}}
+html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
 .mo.in{{opacity:1;transform:translateY(0);}}
 .mo:nth-child(even){{direction:rtl;}}
 .mo:nth-child(even) > *{{direction:ltr;}}
@@ -817,7 +980,12 @@ a{{color:var(--teal);}}
 <script>
 // ── Section fade-in ──
 const sObs = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('in')), {{threshold: 0.06}});
-document.querySelectorAll('.section, .mo').forEach(s => sObs.observe(s));
+document.querySelectorAll('.section, .mo').forEach(s => {{
+  sObs.observe(s);
+  // Anchored / restored-scroll loads: elements already above the viewport never
+  // intersect, so reveal them immediately instead of leaving them invisible.
+  if (s.getBoundingClientRect().bottom < 0) s.classList.add('in');
+}});
 
 // ── Scroll progress bar ──
 (function(){{
@@ -1071,6 +1239,9 @@ def build_page(
         country = (r.get("country") or "").strip()
         if country and country not in country_first_seen_yr_mo:
             country_first_seen_yr_mo[country] = ym
+    # Rows were iterated in ts order, so insertion order IS discovery order —
+    # position N means "the Nth country ever visited".
+    country_ordinal = {c: i + 1 for i, c in enumerate(country_first_seen_yr_mo)}
 
     # Trips and flights by year
     trips_by_year: dict[int, list[dict]] = defaultdict(list)
@@ -1091,6 +1262,27 @@ def build_page(
     # signature score + config/year_covers.json override). Used as the lead
     # frame of the hero Ken-Burns cycle and the og:image.
     covers = select_year_covers(rows, photos_by_checkin, config_dir, pix_url=pix_url)
+
+    # Per-month pins from the same config file: "YYYY-MM" → filename or
+    # checkin_id (resolved here against the photo index), "YYYY-MM-note" →
+    # hand-written text that replaces the auto narrative.
+    month_notes = load_month_notes(config_dir)
+    month_cover_ov: dict[tuple[int, int], dict] = {}
+    raw_month_ov = load_month_cover_overrides(config_dir)
+    if raw_month_ov:
+        fname_entry: dict[str, dict] = {}
+        cid_entry: dict[str, dict] = {}
+        for entries in photos_by_yr_mo.values():
+            for e in entries:
+                fname_entry.setdefault(e["src"].rsplit("/", 1)[-1], e)
+                cid_entry.setdefault(e["checkin_id"], e)
+        for ym, val in raw_month_ov.items():
+            ent = fname_entry.get(val) or cid_entry.get(val)
+            if ent:
+                month_cover_ov[ym] = ent
+            else:
+                print(f"  ! year_covers.json: month cover {ym[0]}-{ym[1]:02d} "
+                      f"value {val!r} matches no photo filename or checkin_id — ignored")
 
     # All year list (for prev/next nav)
     all_years_sorted = sorted({ys["year"] for ys in year_summaries})
@@ -1165,13 +1357,20 @@ def build_page(
         for t in trips_y:
             try:
                 sdate = t.get("start_date") or ""
-                edate = t.get("end_date") or ""
                 if sdate:
                     sm = int(sdate.split("-")[1])
                     trip_starts_by_mo[sm].append(t)
+            except (ValueError, IndexError):
+                continue
+        # Ends scan ALL trips, not just this year's starts — a trip can
+        # straddle the year boundary — and must match the end YEAR too.
+        for t in trips:
+            try:
+                edate = t.get("end_date") or ""
                 if edate:
-                    em = int(edate.split("-")[1])
-                    trip_ends_by_mo[em].append(t)
+                    ey, em = int(edate.split("-")[0]), int(edate.split("-")[1])
+                    if ey == yr:
+                        trip_ends_by_mo[em].append(t)
             except (ValueError, IndexError):
                 continue
 
@@ -1253,7 +1452,13 @@ def build_page(
 
         # Track which photo URLs have been used for this year's timeline
         # so no two months show the same image (incl. borrowed photos).
+        # Pinned covers are claimed up front so the auto-picker in an earlier
+        # month can't consume a photo the config reserves for a later one.
         used_photos_this_year: set[str] = set()
+        for mo_ov in range(1, 13):
+            ent = month_cover_ov.get((yr, mo_ov))
+            if ent:
+                used_photos_this_year.add(ent["src"])
 
         mo_rows_html: list[str] = []
         for mo in range(1, 13):
@@ -1277,6 +1482,15 @@ def build_page(
                     photo_html = f'<div class="mo-photo-empty">Quiet · {mo_name}</div>'
                     count_txt = "No check-ins logged"
                     narr_txt = "A month off the map — the calendar quietly empty."
+                # Explicit config pins still win on empty months.
+                ent = month_cover_ov.get((yr, mo))
+                if ent:
+                    photo_html = (
+                        f'<div class="mo-photo" style="background-image:url(\'{_esc(ent["src"])}\')"></div>'
+                    )
+                note = month_notes.get((yr, mo))
+                if note:
+                    narr_txt = _esc(note)
                 mo_rows_html.append(
                     f'<div class="mo empty" id="mo-{mo_num}">'
                     f'{photo_html}'
@@ -1289,9 +1503,13 @@ def build_page(
                 )
                 continue
 
-            picked, tag = _pick_month_photo(
-                yr, mo, photos_by_yr_mo, used_photos_this_year, months_full,
-            )
+            pinned = month_cover_ov.get((yr, mo))
+            if pinned:
+                picked, tag = pinned, ""
+            else:
+                picked, tag = _pick_month_photo(
+                    yr, mo, photos_by_yr_mo, used_photos_this_year, months_full,
+                )
             if picked and not tag:
                 photo_html = (
                     f'<div class="mo-photo" style="background-image:url(\'{_esc(picked["src"])}\')"></div>'
@@ -1305,17 +1523,24 @@ def build_page(
             else:
                 photo_html = f'<div class="mo-photo-empty">{mo_name}</div>'
 
-            mo_narr = _compose_month_narrative(
-                yr, mo, rows_by_mo[mo],
-                mon_venue[mo], mon_city[mo], mon_cat[mo], mo_shouts,
-                comp_m=mon_comp[mo],
-                days_active=len(mon_days[mo]),
-                new_venues_m=mon_new_venues[mo],
-                trips_starting=trip_starts_by_mo.get(mo, []),
-                trips_ending=trip_ends_by_mo.get(mo, []),
-                photos_count_m=len(photos_by_yr_mo.get((yr, mo), [])),
-                new_countries_m=mon_new_countries[mo],
-            )
+            note = month_notes.get((yr, mo))
+            if note:
+                # Hand-written note from year_covers.json replaces the
+                # auto-generated narrative wholesale.
+                mo_narr = _esc(note)
+            else:
+                mo_narr = _compose_month_narrative(
+                    yr, mo, rows_by_mo[mo],
+                    mon_venue[mo], mon_city[mo], mon_cat[mo], mo_shouts,
+                    comp_m=mon_comp[mo],
+                    days_active=len(mon_days[mo]),
+                    new_venues_m=mon_new_venues[mo],
+                    trips_starting=trip_starts_by_mo.get(mo, []),
+                    trips_ending=trip_ends_by_mo.get(mo, []),
+                    photos_count_m=len(photos_by_yr_mo.get((yr, mo), [])),
+                    new_countries_m=mon_new_countries[mo],
+                    country_ordinals=country_ordinal,
+                )
 
             # Mood badge
             mood = _mood_score(mo_shouts)

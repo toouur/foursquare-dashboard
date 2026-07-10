@@ -82,10 +82,12 @@ def life_narrative(year_summaries: list[dict]) -> str:
             f"It's just {g(str(first_year))} so far — {g(_plural(grand_total, 'check-in'))} "
             f"and the start of a habit I never quite meant to keep.")
     else:
+        # NB: must start with a LETTER — .life-lede::first-letter renders a
+        # drop cap, and a leading digit gets torn off ("2" + "012–2026").
         parts.append(
-            f"{g(f'{first_year}–{last_year}')} — {n_years} years of checking in, "
-            f"{g(f'{grand_total:,}')} times over, a habit I never quite meant to keep "
-            f"and never managed to break.")
+            f"From {g(str(first_year))} to {g(str(last_year))} — {n_years} years of "
+            f"checking in, {g(f'{grand_total:,}')} times over, a habit I never quite "
+            f"meant to keep and never managed to break.")
     # S2 — reach.
     reach = []
     if n_countries:
@@ -189,6 +191,7 @@ HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.classList.add('js');</script>
 <title>Years — Check-in Journal</title>
 <meta name="description" content="A year-by-year album of every place you've been, every flight you've taken, every photo you've kept.">
 <link rel="canonical" href="https://4sq.pages.dev/years.html">
@@ -218,7 +221,10 @@ a{{color:var(--teal);}}
 
 /* Cards */
 .grid{{max-width:1280px;margin:0 auto;padding:50px 28px 80px;display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:22px;}}
-.yc{{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--text);display:flex;flex-direction:column;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease;opacity:0;transform:translateY(30px);}}
+.yc{{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;text-decoration:none;color:var(--text);display:flex;flex-direction:column;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease;}}
+/* Stagger-reveal hidden state only when JS runs (html.js set inline in <head>) —
+   keeps cards visible for no-JS/reader/crawler loads. */
+html.js .yc:not(.in){{opacity:0;transform:translateY(30px);}}
 .yc.in{{opacity:1;transform:translateY(0);transition-duration:.7s;}}
 .yc:hover{{transform:translateY(-4px);border-color:rgba(232,184,109,.55);box-shadow:0 14px 40px rgba(0,0,0,.32);}}
 .yc-thumb{{aspect-ratio:16/9;background-size:cover;background-position:center;background-color:rgba(232,184,109,.06);position:relative;}}
@@ -289,7 +295,11 @@ const obs = new IntersectionObserver(es => es.forEach((e, i) => {{
   setTimeout(() => e.target.classList.add('in'), i * 60);
   obs.unobserve(e.target);
 }}), {{ threshold: 0.08 }});
-cards.forEach(c => obs.observe(c));
+cards.forEach(c => {{
+  obs.observe(c);
+  // Restored-scroll loads: cards already above the viewport never intersect.
+  if (c.getBoundingClientRect().bottom < 0) c.classList.add('in');
+}});
 (function(){{document.body.classList.toggle('light', localStorage.getItem('fsq-theme') === 'light');}})();
 </script>
 </body>

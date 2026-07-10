@@ -9,7 +9,12 @@ build-to-build. These tests pin that guarantee plus the override precedence.
 from datetime import datetime, timedelta, timezone
 
 from conftest import make_row
-from year_covers import select_year_covers
+from year_covers import (
+    load_cover_overrides,
+    load_month_cover_overrides,
+    load_month_notes,
+    select_year_covers,
+)
 
 # A timestamp `day` days into `year` (day=1 → Jan 1) so ordering is explicit.
 def _ts(year, day=1):
@@ -117,3 +122,35 @@ def test_missing_override_file_is_noop():
     rows, photos = _rows_and_photos([("a", 2020, 1, {}, ["a.jpg"])])
     covers = select_year_covers(rows, photos, "__nonexistent__")
     assert covers[2020]["override"] is False
+
+
+# ── Month keys ("YYYY-MM" pins + "YYYY-MM-note" texts) ──────────────────
+
+MIXED = (
+    '{"_comment": "doc", "2024": "year.jpg", "2024-07": "july.jpg",'
+    ' "2024-2": "feb-cid", "2024-07-note": "Hand-written July.",'
+    ' "2024-13": "bad-month.jpg", "2024-05": "  ", "junk": "x"}'
+)
+
+
+def test_month_keys_parsed_and_separated(tmp_path):
+    (tmp_path / "year_covers.json").write_text(MIXED, encoding="utf-8")
+    # Year loader sees ONLY the plain-int key; month/note/_comment/junk skipped.
+    assert load_cover_overrides(tmp_path) == {2024: "year.jpg"}
+    # Month loader: zero-padded and bare month both parse; month 13 and
+    # empty values are dropped; note keys don't leak in.
+    assert load_month_cover_overrides(tmp_path) == {
+        (2024, 7): "july.jpg",
+        (2024, 2): "feb-cid",
+    }
+    assert load_month_notes(tmp_path) == {(2024, 7): "Hand-written July."}
+
+
+def test_month_loaders_missing_or_malformed_file(tmp_path):
+    assert load_month_cover_overrides("__nonexistent__") == {}
+    assert load_month_notes("__nonexistent__") == {}
+    (tmp_path / "year_covers.json").write_text("{not json", encoding="utf-8")
+    assert load_month_cover_overrides(tmp_path) == {}
+    assert load_cover_overrides(tmp_path) == {}
+    (tmp_path / "year_covers.json").write_text('["list"]', encoding="utf-8")
+    assert load_month_notes(tmp_path) == {}

@@ -1,0 +1,3 @@
+{
+  "_comment": "Cover pins for /years. Key '2024' pins the YEAR cover (index card + year-page hero); key '2024-07' pins that month's timeline photo; key '2024-07-note' replaces that month's auto narrative with hand-written text. Values for photo keys are a photo filename (as in photos.json / R2 pix) or a checkin_id (its first photo is used). Unknown values are reported at build and ignored."
+}

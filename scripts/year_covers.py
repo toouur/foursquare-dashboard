@@ -25,21 +25,33 @@ Precedence
    never reshuffles a completed year's cover (and only displaces the current
    year's cover if a strictly higher-signature moment appears).
 
+The same ``config/year_covers.json`` file also carries per-MONTH keys, read by
+the year album pages (gen_year_pages):
+
+- ``"2024-07": "<filename or checkin_id>"`` — pins that month's timeline photo.
+- ``"2024-07-note": "free text"`` — hand-written note that REPLACES the
+  auto-generated month narrative (plain text, HTML-escaped at render).
+
 Public API
 ----------
 ``select_year_covers(rows, photos_by_checkin, config_dir, pix_url="")``
     → ``{year: {"fname", "src", "checkin_id", "ts", "override"}}``
+``load_month_cover_overrides(config_dir)`` → ``{(year, month): value}``
+``load_month_notes(config_dir)`` → ``{(year, month): text}``
 """
 
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
+_MONTH_KEY_RE = re.compile(r"^(\d{4})-(\d{1,2})$")
+_NOTE_KEY_RE = re.compile(r"^(\d{4})-(\d{1,2})-note$")
 
-def load_cover_overrides(config_dir: str | Path) -> dict[int, str]:
-    """Read config/year_covers.json → {year:int -> filename_or_checkin_id:str}."""
+
+def _read_covers_json(config_dir: str | Path) -> dict:
     p = Path(config_dir) / "year_covers.json"
     if not p.exists():
         return {}
@@ -47,8 +59,17 @@ def load_cover_overrides(config_dir: str | Path) -> dict[int, str]:
         data = json.loads(p.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return {}
+    return data if isinstance(data, dict) else {}
+
+
+def load_cover_overrides(config_dir: str | Path) -> dict[int, str]:
+    """Read config/year_covers.json → {year:int -> filename_or_checkin_id:str}.
+
+    Month ("YYYY-MM") and note ("YYYY-MM-note") keys live in the same file but
+    are ignored here — int() fails on them, which is the filter.
+    """
     out: dict[int, str] = {}
-    for k, v in (data or {}).items():
+    for k, v in _read_covers_json(config_dir).items():
         try:
             yr = int(k)
         except (ValueError, TypeError):
@@ -57,6 +78,29 @@ def load_cover_overrides(config_dir: str | Path) -> dict[int, str]:
         if val:
             out[yr] = val
     return out
+
+
+def _month_keyed(config_dir: str | Path, pattern: re.Pattern) -> dict[tuple[int, int], str]:
+    out: dict[tuple[int, int], str] = {}
+    for k, v in _read_covers_json(config_dir).items():
+        m = pattern.match(str(k).strip())
+        if not m:
+            continue
+        yr, mo = int(m.group(1)), int(m.group(2))
+        val = str(v).strip()
+        if 1 <= mo <= 12 and val:
+            out[(yr, mo)] = val
+    return out
+
+
+def load_month_cover_overrides(config_dir: str | Path) -> dict[tuple[int, int], str]:
+    """``"YYYY-MM"`` keys → {(year, month): filename_or_checkin_id}."""
+    return _month_keyed(config_dir, _MONTH_KEY_RE)
+
+
+def load_month_notes(config_dir: str | Path) -> dict[tuple[int, int], str]:
+    """``"YYYY-MM-note"`` keys → {(year, month): hand-written narrative text}."""
+    return _month_keyed(config_dir, _NOTE_KEY_RE)
 
 
 def _companion_count(row: dict) -> int:
