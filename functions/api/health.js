@@ -26,7 +26,7 @@ export async function onRequestGet({ request, env }) {
   try {
     if (!env.DB) throw new Error('DB binding not configured');
     const row = await env.DB
-      .prepare('SELECT COUNT(*) AS n, MAX(ts) AS latest FROM checkins')
+      .prepare('SELECT COUNT(*) AS n, MAX(date) AS latest FROM checkins')
       .first();
     checks.d1 = {
       ok: true,
