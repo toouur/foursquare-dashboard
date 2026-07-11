@@ -177,6 +177,14 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
 │       ├── custom-list.js       # /api/custom-list — custom curated lists
 │       └── health.js            # /api/health — D1 + data-freshness health check (200/503)
+├── tests/                    # 219-test pytest suite (see "Tests" section below)
+│   ├── conftest.py           # Markers (live/e2e) + shared make_row() factory
+│   ├── test_*.py             # Offline unit (175) / live API contract (22) / E2E + a11y (22)
+│   └── load/search.js        # k6 load-test script for /api/search
+├── qa/
+│   ├── test-strategy.md          # Risk analysis → test pyramid → quality gates per stage
+│   ├── exploratory-checklist.md  # Manual pre-release charter (what automation can't judge)
+│   └── bug-reports/              # 5 real defects written up: repro → root cause → fix → regression test
 ├── data/
 │   ├── checkins.csv          # Your check-in data — gitignored, lives in private repo
 │   ├── tips.json             # Your tips data — gitignored, lives in private repo
@@ -388,14 +396,21 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **162-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **219-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 118 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 175 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
 | Browser E2E smoke + accessibility | `live` + `e2e` | 22 | internet + Playwright chromium |
+
+The reasoning behind the suite — risk analysis, why the pyramid is shaped this way, quality
+gates per lifecycle stage, and what is deliberately *not* tested — is written up in
+[`qa/test-strategy.md`](qa/test-strategy.md). The [`qa/`](qa/) directory also holds a
+[manual exploratory checklist](qa/exploratory-checklist.md) and
+[five real bug reports](qa/bug-reports/) (repro → root cause → fix → regression test) from
+this project's history.
 
 ```bash
 pip install pytest
@@ -452,7 +467,7 @@ never block a code push.
   Warsaw UTC+1/+2) can never shift a check-in across a date boundary and make the test
   flaky depending on the season.
 
-#### `tests/test_transport_mode.py` — transport-mode classifier (34 tests)
+#### `tests/test_transport_mode.py` — transport-mode classifier (45 tests)
 
 - **Why:** the per-segment transport-mode inference (`scripts/transport_mode.py`) drives
   the mode icons on the trips map and in the feed. It is a rule cascade (FR24 flight
@@ -510,6 +525,49 @@ never block a code push.
 - **How to run:** `python -m pytest tests/test_shouts.py -q`
 - **Tech stack:** pure pytest against `metrics.shout_records`,
   `merge_comments_into_shouts`, `_detect_lang`, `_extract_emojis`.
+
+#### `tests/test_route_paths.py` — trip route polylines (20 tests)
+
+- **Why:** the trips map draws road-following route paths from `scripts/route_paths.py` —
+  a polyline5 codec, Douglas-Peucker simplification, and a persistent on-disk route cache
+  in front of the external routing fetcher. A codec or cache bug corrupts every trip map
+  silently.
+- **What it verifies:** encode/decode round-trips plus the reference vector from Google's
+  polyline documentation; simplification drops collinear points but keeps corners; cache
+  hit/miss/persistence semantics; `attach_routes` behavior with a **mocked fetcher**
+  (no network) including failure and empty-route paths.
+- **How to run:** `python -m pytest tests/test_route_paths.py -q`
+- **Tech stack:** pure pytest, synthetic coordinates (same 1° ≈ 111.19 km convention as
+  the transport-mode tests), `tmp_path` for the cache.
+
+#### `tests/test_year_covers.py` — stable year/month cover selection (11 tests)
+
+- **Why:** `/years` covers must NOT drift build-to-build (the auto-picker scores photos by
+  signature: shout + companions + photo count, earliest-ts tie-break), and
+  `config/year_covers.json` overrides must beat the auto-pick.
+- **What it verifies:** determinism across calls; the signature ranking; appending
+  lower-signature photos never changes an existing cover; overrides by filename and by
+  checkin_id (first photo used); month-pin (`"2024-07"`) and month-note
+  (`"2024-07-note"`) key parsing with malformed keys/values dropped; missing/malformed
+  config files are no-ops.
+- **How to run:** `python -m pytest tests/test_year_covers.py -q`
+- **Tech stack:** pure pytest against `scripts/year_covers.py`, `tmp_path` for config
+  fixtures.
+
+#### `tests/test_month_narrative.py` — month narrative composer (15 tests)
+
+- **Why:** the `/years/<year>` month texts are generated prose; the composer is
+  deterministic (phrase pools rotate on `year+month`) and the tests pin its invariants —
+  not exact sentences, so phrasing tweaks don't shatter the suite.
+- **What it verifies:** number-word and ordinal helpers; determinism; the death of the old
+  `"(N×)"` tally fragments; sparse/home/roam lead paths; the roam city list always
+  matching its stated count ("A, B, C and more — four cities", never "and X and more");
+  new-country sentences (all-time ordinal "country № N", both/all agreement, "N new
+  flags" capitalized); trips starting/ending named in the journey sentence — including a
+  trip that straddles New Year ([BUG-004](qa/bug-reports/BUG-004-year-straddle-trip-end.md)).
+- **How to run:** `python -m pytest tests/test_month_narrative.py -q`
+- **Tech stack:** pure pytest against `_compose_month_narrative` in
+  `scripts/gen_year_pages.py`, rows from the shared `make_row()` factory.
 
 #### `tests/test_api_contract.py` — live API contract (22 tests, marker `live`)
 

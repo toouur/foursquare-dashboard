@@ -1516,14 +1516,16 @@ python scripts/build.py \
     <div class="section-title">Testing &amp; CI Gates</div>
     <div class="section-body">
       <p>
-        The pipeline is protected by a <strong>120-test pytest suite</strong> organised into
-        three rings by what they need to run. The offline ring (84 tests, no network, no
+        The pipeline is protected by a <strong>219-test pytest suite</strong> organised into
+        three rings by what they need to run. The offline ring (175 tests, no network, no
         secrets, finishes in seconds) covers the highest-risk pure logic: the 5-layer
         city/country normalisation priority order, trip detection (synthetic timelines
         anchored at noon UTC so timezone localisation can never flake a test across a date
-        boundary), companion collection with all its Foursquare quirks (the <code>"-"</code>
-        sentinel, the <code>"Name ,Name"</code> spacing bug, case-insensitive dedup), and the
-        shout text-mining filters.
+        boundary), the transport-mode classifier, route polyline encoding and caching,
+        companion collection with all its Foursquare quirks (the <code>"-"</code>
+        sentinel, the <code>"Name ,Name"</code> spacing bug, case-insensitive dedup), the
+        shout text-mining filters, and the year-page cover selection and month-narrative
+        composer invariants.
       </p>
       <p>
         A dedicated <strong>parity test</strong> guards the one place logic deliberately exists
@@ -1541,10 +1543,13 @@ python scripts/build.py \
         edge-cached, a silent shape change would break pages an hour <em>after</em> a deploy.
         <strong>14 Playwright E2E smoke tests</strong> (headless Chromium) then load eight core
         pages asserting zero console errors and no unsubstituted template placeholders, and
-        exercise the search overlay and the feed's virtual scroll end-to-end.
+        exercise the search overlay and the feed's virtual scroll end-to-end. An
+        <strong>8-test axe-core accessibility audit</strong> (WCAG 2.0/2.1 A+AA) runs alongside
+        them, failing the build only on <em>new</em> critical/serious violations against a
+        documented baseline.
       </p>
       <p>
-        CI splits the rings deliberately: lint (ruff) and the offline suite gate every push and
+        CI splits the rings deliberately: lint (ruff + mypy) and the offline suite gate every push and
         pull request, while the live suite runs weekly and on demand — so a temporary site
         outage can never block a code change. Independently, a post-build HTML validator runs
         before <em>every</em> deploy, checking that all required pages exist, every
@@ -1624,7 +1629,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Testing &amp; QA</div>
         <div class="si-tech">pytest + Playwright + ruff</div>
-        <div class="si-role">120 tests · unit / API contract / E2E rings · HTML deploy gate</div>
+        <div class="si-role">219 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
       </div>
     </div>
   </div>

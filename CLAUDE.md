@@ -164,7 +164,7 @@ python -m http.server 8000 --directory _site
 
 ### Run tests / lint
 ```bash
-# Offline suite (118 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (175 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 /c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 14 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -210,8 +210,9 @@ python -m http.server 8000 --directory _site
 - Check-ins fetch: `scripts/fetch_checkins.py`
 - Flights fetch: `scripts/fetch_flights.py` (FR24 login → diary CSV; weekly `fr24-flights.yml`)
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
-- Tests: `tests/` — pytest suite (162 tests): offline unit tests for transform/trips/companions/shouts/transport-mode, `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
+- Tests: `tests/` — pytest suite (219 tests): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative, `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
 - HTML deploy gate: `scripts/validate_html.py` — runs in `update-dashboard.yml` before every deploy (required pages present, no leftover `{{PLACEHOLDER}}`, embedded JSON parses, min page size; skips `solution.html` which quotes placeholders as documentation).
+- QA docs: `qa/` — `test-strategy.md` (risk analysis → pyramid → gates), `exploratory-checklist.md` (manual pre-release charter), `bug-reports/` (5 written-up real defects). `docs/` is gitignored — QA docs must live in `qa/`.
 - Lint config: `ruff.toml` (E4/E7/E9+F; E401/E701/E702/E731 ignored deliberately).
 - Type-check config: `setup.cfg` `[mypy]` — `files = scripts`, ignore_missing_imports, allow_redefinition, var-annotated disabled; tree is CLEAN (0 errors / 55 files) and must stay so (runs in the tests.yml lint job). NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
 - Other QA workflows: `lighthouse.yml` (weekly Mon 07:00 UTC, 4 pages, score floors perf≥60 / a11y+bp+seo≥85), `k6-load.yml` (manual, /api/search, fail >1% errors or p95>1s), `mutation.yml` (manual, mutmut over transform.py, config in setup.cfg `[mutmut]`).
