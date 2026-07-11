@@ -184,7 +184,7 @@ lazy loading, lightbox, and inline tip photos ·
 ├── qa/
 │   ├── test-strategy.md          # Risk analysis → test pyramid → quality gates per stage
 │   ├── exploratory-checklist.md  # Manual pre-release charter (what automation can't judge)
-│   └── bug-reports/              # 5 real defects written up: repro → root cause → fix → regression test
+│   └── bug-reports/              # 13 real defects written up: repro → root cause → fix → regression test
 ├── data/
 │   ├── checkins.csv          # Your check-in data — gitignored, lives in private repo
 │   ├── tips.json             # Your tips data — gitignored, lives in private repo
@@ -409,7 +409,7 @@ The reasoning behind the suite — risk analysis, why the pyramid is shaped this
 gates per lifecycle stage, and what is deliberately *not* tested — is written up in
 [`qa/test-strategy.md`](qa/test-strategy.md). The [`qa/`](qa/) directory also holds a
 [manual exploratory checklist](qa/exploratory-checklist.md) and
-[five real bug reports](qa/bug-reports/) (repro → root cause → fix → regression test) from
+[thirteen real bug reports](qa/bug-reports/) (repro → root cause → fix → regression test) from
 this project's history.
 
 ```bash
