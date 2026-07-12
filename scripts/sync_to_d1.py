@@ -1010,6 +1010,35 @@ def main() -> None:
     if not alerts:
         print("D1 sync: all counts stable or growing", flush=True)
 
+    # ── Rebuild FTS5 search indexes ──────────────────────────────────────────
+    # venues_fts / tips_fts / trips_fts are external-content FTS5 tables (see
+    # d1_schema.sql). We keep them fresh with a full `('rebuild')` rather than
+    # triggers (apply_schema splits the schema on ';' and would shred a trigger
+    # body). A rebuild is a single server-side D1 statement — cheap even at 20k
+    # venue rows — so we run it whenever this sync wrote anything. An empty-index
+    # guard also backfills on the first deploy (schema just created) and self-heals
+    # if an index was ever left empty, independent of whether this run changed data.
+    def _fts_is_empty(fts_table: str) -> bool:
+        try:
+            res = d1.query(f"SELECT rowid FROM {fts_table} LIMIT 1")
+            return not res
+        except Exception:
+            return False   # can't tell → don't force an extra rebuild
+
+    for fts_table, base_table in (("venues_fts", "venues"),
+                                  ("tips_fts", "tips"),
+                                  ("trips_fts", "trips")):
+        if changed or _fts_is_empty(fts_table):
+            try:
+                d1.query(f"INSERT INTO {fts_table}({fts_table}) VALUES('rebuild')")
+                print(f"  {fts_table}: rebuilt from {base_table}", flush=True)
+            except Exception as exc:
+                # A missing FTS module or DDL race must not fail the whole sync —
+                # search falls back gracefully and the next run retries.
+                print(f"::warning::FTS rebuild for {fts_table} failed: {exc}"
+                      if in_gha else f"WARNING: FTS rebuild for {fts_table} failed: {exc}",
+                      flush=True)
+
     print(f"CHANGED={'true' if changed else 'false'}", flush=True)
     print("D1 sync: done", flush=True)
 

@@ -94,6 +94,19 @@ TRIPS_TEMPLATE = (_TEMPLATES_DIR / "trips.html.tmpl").read_text(encoding="utf-8"
 
 def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     import os
+    # ── Externalize the heavy below-the-fold map payload ────────────────────
+    # unique_places (~2.8 MB) + venues_heatmap (~1.4 MB) + explorer_groups +
+    # country_centroids feed ONLY the Leaflet map card, which is lazy-built on
+    # first view. Ship them in map_data.json (fetched on demand) instead of
+    # inlining into every index/trips page's {{STATS}} const S={...}.
+    _MAP_KEYS = ('unique_places', 'venues_heatmap', 'explorer_groups', 'country_centroids')
+    map_payload = {k: data[k] for k in _MAP_KEYS if k in data}
+    with open(os.path.join(out_dir, 'map_data.json'), 'w', encoding='utf-8') as f:
+        json.dump(map_payload, f, ensure_ascii=False, separators=(',', ':'))
+    # STATS without the map keys — do NOT mutate `data` (later generators read it).
+    stats_slim = {k: v for k, v in data.items() if k not in _MAP_KEYS}
+    stats_json = json.dumps(stats_slim, ensure_ascii=False).replace('</', '<\\/')
+
     # ── index.html ──────────────────────────────────────────────────────────
     html = TEMPLATE
     html = html.replace('{{DATE_MIN}}',  data['date_min'])
@@ -104,7 +117,7 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     html = html.replace('{{PLACES}}',    f"{data['unique_places_count']:,}")
     html = html.replace('{{UPDATED}}',   datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     html = html.replace('{{TRIPS}}',      str(data['trips_count']))
-    html = html.replace('{{STATS}}',     json.dumps(data, ensure_ascii=False).replace('</', '<\\/'))
+    html = html.replace('{{STATS}}',     stats_json)
     if extra_replacements:
         for key, val in extra_replacements.items():
             html = html.replace(key, val)
@@ -119,7 +132,7 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     trips_html = trips_html.replace('{{COUNTRIES}}', str(len(data['countries'])))
     trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     trips_html = trips_html.replace('{{PIX_DIR_JSON}}', pix_dir_json)
-    trips_html = trips_html.replace('{{STATS}}', json.dumps(data, ensure_ascii=False).replace('</', '<\\/'))
+    trips_html = trips_html.replace('{{STATS}}', stats_json)
     if extra_replacements:
         for key, val in extra_replacements.items():
             trips_html = trips_html.replace(key, val)
@@ -209,19 +222,6 @@ if __name__ == "__main__":
         except Exception as _fde:
             log.warning("flight days for feed_meta failed: %s", _fde)
     generate_feed_meta(rows, args.output_dir, _flight_days)
-
-    # ── Generate venues_filter.json (year + catgrp heatmap layers, loaded lazily) ─
-    # Extracted from S to keep index.html lean; fetched on first map filter use.
-    def _write_venues_filter(data_dict: dict, out_dir: str) -> None:
-        payload = {
-            "by_year":    data_dict.get("venues_by_year", {}),
-            "by_catgrp":  data_dict.get("venues_by_catgrp", {}),
-        }
-        out_path = os.path.join(out_dir, "venues_filter.json")
-        with open(out_path, "w", encoding="utf-8") as fh:
-            json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
-        log.info("venues_filter.json → %s  (%d KB)",
-                 out_path, os.path.getsize(out_path) // 1024)
 
     trip_names_path = config_dir / "trip_names.json"
     trip_names: dict = {}
@@ -318,12 +318,6 @@ if __name__ == "__main__":
             data["flights_recent"] = list(reversed(_all_fl))[:15]   # newest first
         except Exception:
             pass
-
-    # Write per-year / per-catgrp heatmap layers as a separate static file.
-    # Remove from data dict so they don't bloat index.html.
-    _write_venues_filter(data, args.output_dir)
-    data.pop("venues_by_year", None)
-    data.pop("venues_by_catgrp", None)
 
     # ── Auto-populate trip_names.json with new trips ──────────────────────────
     # Any trip whose _name_ts is not yet in trip_names.json gets added with its
@@ -1010,6 +1004,29 @@ if __name__ == "__main__":
         except Exception as _ye:
             log.warning("gen_year_pages failed: %s", _ye)
 
+    # ── Generate country-<slug>.html per-country pages ──────────────────────────
+    _gen_ctry = _SCRIPT_DIR / "gen_country_pages.py"
+    if _gen_ctry.exists():
+        try:
+            import importlib.util as _ilu_c
+            _spec_c = _ilu_c.spec_from_file_location("gen_country_pages", _gen_ctry)
+            assert _spec_c and _spec_c.loader
+            _mod_c  = _ilu_c.module_from_spec(_spec_c)
+            _spec_c.loader.exec_module(_mod_c)
+            _mod_c.build_page(
+                csv_path=args.input,
+                config_dir=str(config_dir),
+                out_path=args.output_dir,
+                tmpl_path="",                           # not used; template inlined
+                rows=rows,
+                stats_data=data,
+                photos_by_checkin=_photos_by_checkin,
+                pix_url=_pix_dir_uri,
+                trips=trips,
+            )
+        except Exception as _ce:
+            log.warning("gen_country_pages failed: %s", _ce)
+
     # ── Post-process: substitute canonical placeholders in every generated file ──
     # Single source of truth: config/country_flags.json + config/category_icons.json
     # (both loaded once above).  Done after generators run so we don't need to
@@ -1070,5 +1087,81 @@ if __name__ == "__main__":
                 log.warning("gen_photos.py failed: %s", _e)
         else:
             log.warning("gen_photos.py not found — skipping photos.html")
+
+    # ── Inject shared site.css (content-hashed) ───────────────────────────────
+    # assets/site.css holds the byte-identical side-nav rail pulled out of the 12
+    # page templates. Copy it into the output root under a content-hashed name and
+    # replace the {{SITE_CSS_LINK}} placeholder in EVERY generated page in one pass
+    # — index/trips (built via build()), all _gen_outputs, photos, years, trips and
+    # flights — so no page can ship an unsubstituted placeholder (which would fail
+    # validate_html). Pages without the placeholder (year/trip pages that still
+    # inline their nav CSS) are simply left untouched.
+    _site_css_src = _PROJECT_ROOT / "assets" / "site.css"
+    if _site_css_src.exists():
+        import hashlib as _hashlib
+        _css_bytes = _site_css_src.read_bytes()
+        _css_hash = _hashlib.sha1(_css_bytes).hexdigest()[:8]
+        _css_name = f"site-{_css_hash}.css"
+        (Path(args.output_dir) / _css_name).write_bytes(_css_bytes)
+        _n_linked = 0
+        for _html in Path(args.output_dir).glob("*.html"):
+            _txt = _html.read_text(encoding="utf-8")
+            if "{{SITE_CSS_LINK}}" in _txt:
+                _html.write_text(_txt.replace("{{SITE_CSS_LINK}}", _css_name), encoding="utf-8")
+                _n_linked += 1
+        log.info("Injected %s into %d pages", _css_name, _n_linked)
+    else:
+        log.warning("assets/site.css not found — {{SITE_CSS_LINK}} left unsubstituted")
+
+    # ── PWA: manifest + service worker (versioned per build) ──────────────────
+    # Render templates/{manifest.webmanifest,sw.js}.tmpl into the output root,
+    # stamping the SW cache name with this build's UTC timestamp so every deploy
+    # invalidates the previous service-worker cache. Then inject the manifest
+    # link + theme-color + SW registration into every generated page before
+    # </head> (idempotent — skips a page that already carries the link).
+    _sw_version = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+    _manifest_src = _TEMPLATES_DIR / "manifest.webmanifest.tmpl"
+    _sw_src = _TEMPLATES_DIR / "sw.js.tmpl"
+    if _manifest_src.exists() and _sw_src.exists():
+        (Path(args.output_dir) / "manifest.webmanifest").write_text(
+            _manifest_src.read_text(encoding="utf-8"), encoding="utf-8")
+        (Path(args.output_dir) / "sw.js").write_text(
+            _sw_src.read_text(encoding="utf-8").replace("{{SW_VERSION}}", _sw_version),
+            encoding="utf-8")
+        _pwa_head = (
+            '<link rel="manifest" href="/manifest.webmanifest">'
+            '<meta name="theme-color" content="#0b0d13">'
+            "<script>if('serviceWorker'in navigator){"
+            "addEventListener('load',function(){"
+            "navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>"
+        )
+        _n_pwa = 0
+        for _html in Path(args.output_dir).glob("*.html"):
+            _txt = _html.read_text(encoding="utf-8")
+            if 'rel="manifest"' in _txt or "</head>" not in _txt:
+                continue
+            _html.write_text(_txt.replace("</head>", _pwa_head + "</head>", 1), encoding="utf-8")
+            _n_pwa += 1
+        log.info("PWA: manifest + sw.js (v%s) injected into %d pages", _sw_version, _n_pwa)
+    else:
+        log.warning("PWA templates missing — skipping manifest/sw.js")
+
+    # ── Syndication feeds: feed.xml (RSS 2.0) + feed.json (JSON Feed 1.1) ──────
+    # Built from the metrics recent[] list (30 newest check-ins). The CI cp glob
+    # already ships *.xml/*.json, and both are gitignored like other generated
+    # output. index.html links feed.xml via <link rel="alternate">.
+    try:
+        _gen_feeds = _SCRIPT_DIR / "gen_feeds.py"
+        if _gen_feeds.exists():
+            import importlib.util as _ilu_gf
+            _spec_gf = _ilu_gf.spec_from_file_location("gen_feeds", _gen_feeds)
+            assert _spec_gf and _spec_gf.loader
+            _mod_gf = _ilu_gf.module_from_spec(_spec_gf)
+            _spec_gf.loader.exec_module(_mod_gf)
+            _mod_gf.build_feeds(data.get("recent", []), args.output_dir,
+                                swarm_user_id=fs_user_id)
+            log.info("Syndication: feed.xml + feed.json written")
+    except Exception as _fe:
+        log.warning("gen_feeds failed: %s", _fe)
 
     log.info("Done!")

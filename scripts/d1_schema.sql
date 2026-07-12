@@ -1,5 +1,5 @@
 -- Cloudflare D1 schema for swarmdata
--- Run via import_to_d1.py (full recreate) or sync_to_d1.py (IF NOT EXISTS)
+-- Applied by sync_to_d1.py via d1_client.apply_schema() (all statements IF NOT EXISTS).
 
 -- ── Core check-ins ────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS checkins (
@@ -150,6 +150,19 @@ CREATE TABLE IF NOT EXISTS sync_state (
     hash       TEXT,                  -- sha256 hex of parsed rows last written
     updated_at INTEGER                -- unix ts of last write
 );
+
+-- ── Full-text search (FTS5) ──────────────────────────────────────────────────
+-- External-content FTS5 indexes: they store only the inverted index and read
+-- display columns from the base table via rowid (venues/tips/trips are ordinary
+-- rowid tables even though their PK is TEXT/INTEGER). Populated by sync_to_d1.py
+-- with `INSERT INTO <t>_fts(<t>_fts) VALUES('rebuild')` after the base table is
+-- written (rebuild-on-change — no triggers, because apply_schema splits on ';'
+-- and would shred a BEGIN..END trigger body). search.js queries these via MATCH
+-- + bm25(). Each is a single statement with no internal ';' so it survives the
+-- split-on-';' parser in d1_client.apply_schema().
+CREATE VIRTUAL TABLE IF NOT EXISTS venues_fts USING fts5(name, category, city, country, content='venues', content_rowid='rowid');
+CREATE VIRTUAL TABLE IF NOT EXISTS tips_fts USING fts5(venue, text, city, country, content='tips', content_rowid='rowid');
+CREATE VIRTUAL TABLE IF NOT EXISTS trips_fts USING fts5(name, countries, cities, content='trips', content_rowid='rowid');
 
 -- ── Indexes ───────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_checkins_id       ON checkins(id);

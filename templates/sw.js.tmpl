@@ -1,0 +1,60 @@
+// Service worker — versioned per build so a fresh deploy invalidates old caches.
+// {{SW_VERSION}} is substituted at build time with the build timestamp.
+const VERSION = '{{SW_VERSION}}';
+const CACHE = 'foursq-' + VERSION;
+// Tiny app shell precached on install; every other page is runtime-cached.
+const SHELL = ['/', '/index.html', '/favicon.svg', '/manifest.webmanifest'];
+
+self.addEventListener('install', (e) => {
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => {})));
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(
+        keys.filter((k) => k.startsWith('foursq-') && k !== CACHE).map((k) => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
+  );
+});
+
+function isStaticAsset(pathname) {
+  return /\.(css|js|svg|png|jpe?g|webp|gif|ico|woff2?)$/i.test(pathname);
+}
+
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+
+  // Cross-origin (CDN tiles / Leaflet / fonts): let the browser handle it.
+  if (url.origin !== self.location.origin) return;
+  // Live API and big generated data blobs must always hit the network.
+  if (url.pathname.startsWith('/api/')) return;
+  if (/(feed_meta|map_data|routes|trips_meta)\.json$/.test(url.pathname)) return;
+
+  // Static assets: cache-first (content-hashed CSS, immutable SVG/PNG/JS).
+  if (isStaticAsset(url.pathname)) {
+    e.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+        return res;
+      }))
+    );
+    return;
+  }
+
+  // Navigations / HTML: network-first, fall back to cache then the shell.
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+        return res;
+      }).catch(() => caches.match(req).then((hit) => hit || caches.match('/')))
+    );
+  }
+});

@@ -24,12 +24,13 @@ FAIL_IMPACTS = {"critical", "serious"}
 
 # Pre-existing debt (baseline audit 2026-07): reported as advisory, not failing.
 # Fix a rule site-wide → remove it here so the gate starts protecting it.
+# Burned down 2026-07: select-name (aria-label on every <select>), link-name
+# (aria-label on the index trip-timeline bars), image-alt (alt="" on OSM map
+# tiles + all lightbox <img>) — these now regression-gate site-wide.
 KNOWN_ISSUES = {
-    "color-contrast",                # every page, dominated by companions.html
-    "image-alt",                     # index photo strip
-    "link-name",                     # index icon links
+    "color-contrast",                # residual: chart legends, badges, opacity-dimmed
+                                     # timestamps. Muted body text lifted to AA in 2026-07.
     "scrollable-region-focusable",   # index + stats scroll panes
-    "select-name",                   # shouts filter dropdowns
 }
 
 _RUN_AXE = """

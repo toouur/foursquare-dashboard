@@ -136,7 +136,6 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── sync_to_d1.py            # Incremental CI sync of all data to Cloudflare D1
 │   ├── d1_client.py             # Low-level D1 HTTP client (batch upsert, schema apply)
 │   ├── gen_d1_dump.py           # Generates SQL dump for bulk D1 resync via wrangler
-│   ├── import_to_d1.py          # One-time bulk import to D1 (uses /raw endpoint)
 │   ├── sync_venue_changes.py    # Diffs archived vs fresh checkins; patches tips.json metadata
 │   ├── delete_checkin.py        # Removes check-in(s) by ID from CSV + D1 (and orphaned venues)
 │   ├── refresh_venue.py         # Re-fetches a single venue's metadata from Foursquare
@@ -149,13 +148,10 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── update-dashboard.yml       # Hourly incremental: fetch + build + deploy (direct upload) + D1 sync
 │   ├── archive-checkins.yml       # Manual: full re-fetch + venue-change sync (see below)
 │   ├── delete-checkin.yml         # Manual: delete check-in by ID from CSV + D1 + rebuild
-│   ├── resync-checkins-d1.yml     # Manual: wipe + reinsert checkins/venues via wrangler SQL dump
-│   ├── resync-d1.yml              # Manual: force resync of tips/ratings/lists/trips tables
-│   ├── resync-all.yml             # Manual: composite — runs checkins dump + every table force resync
+│   ├── resync-all.yml             # Manual: single D1 resync entry point — pick tables + force/upsert mode
 │   ├── backup-d1.yml              # Manual: snapshot D1 to a downloadable SQL backup
 │   ├── fix-city-country-d1.yml    # Manual: re-apply normalization (city_merge/country_fixes/city_inferred) to D1
 │   ├── test-d1-schema.yml         # Manual: verifies D1 schema columns + indexes match expectations
-│   ├── upsert-d1.yml              # Manual: incremental upsert (same as nightly, on demand)
 │   ├── add-venue-tip.yml          # Manual: post a tip to a venue
 │   ├── add-venue-rating.yml       # Manual: set like/okay/dislike on a venue
 │   ├── add-checkin-photos.yml     # Manual: ingest new photos from a data export
@@ -1043,7 +1039,16 @@ python scripts/delete_checkin.py \
   --dry-run   # optional
 ```
 
-### Bulk D1 resync via wrangler SQL dump (`resync-checkins-d1` workflow)
+### Manual D1 resync (`resync-all` workflow)
+
+All ad-hoc D1 resyncs run through the single **Resync D1 (manual)** workflow dispatch. Tick any combination of tables and pick a **mode**:
+
+- **force** — `DELETE` + full `INSERT OR REPLACE` (`sync_to_d1.py --force-*`). Use when rows must be *removed* from D1 (un-rated venues, deleted tips) or after a Foursquare data-export comparison.
+- **upsert** — `INSERT OR REPLACE` only, no `DELETE`. Use to push a single added/edited row without a full wipe.
+
+`checkins + venues` always go through the wrangler SQL dump path regardless of mode (see below); `mode` only affects tips / ratings / lists / trips.
+
+#### checkins + venues use the wrangler SQL dump path
 
 The Python batch-API sync path (`--force-checkins`) is unreliable for 65K rows — a single network failure leaves D1 in a partial state. The wrangler SQL dump path is the safe alternative: it generates one `.sql` file and executes it atomically against D1.
 
@@ -1062,9 +1067,9 @@ npx wrangler d1 execute swarmdata --file=/tmp/checkins_venues_dump.sql --remote
 
 The workflow additionally runs a `SELECT COUNT(*)` verification query afterwards.
 
-### Force resync individual tables (`resync-d1` workflow)
+#### tips / ratings / lists / trips
 
-For tips / ratings / lists / trips that drifted (e.g. after a Foursquare data export reveals extra items), tick the tables to reset in the workflow dispatch inputs. Backed by `sync_to_d1.py --force-tips --force-ratings ...`.
+For tips / ratings / lists / trips that drifted (e.g. after a Foursquare data export reveals extra items), tick the tables to reset and choose `force` mode. Backed by `sync_to_d1.py --force-tips --force-ratings ...`. Choose `upsert` mode instead to push added/edited rows without deleting anything (`sync_to_d1.py --tips-changed true ...`).
 
 ### Venue-metadata hygiene
 

@@ -21,8 +21,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=DM+Sans:wght@400;600&family=DM+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{{SITE_CSS_LINK}}">
 <style>
-:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#6b7280;--gold:#e8b86d;--teal:#4ec9b0;}
+:root{--bg:#0c0e14;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#8b93a8;--gold:#e8b86d;--teal:#4ec9b0;}
 body.light{--bg:#ddd8cf;--card:#f0ece3;--card2:#e5e0d7;--border:#aaa49a;--gold:#7a3e00;--teal:#155c58;--muted:#54576a;--text:#15172a;--text2:#373b58;}
 body.light header{background:linear-gradient(160deg,#d6d1c8 0%,#dedad1 70%);}
 body.light .side-nav{background:rgba(220,215,208,0.97);}
@@ -53,16 +54,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .gs-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.95rem;}
 .gs-input::placeholder{color:var(--muted);}
 .gs-esc-hint{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
-.side-nav{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;gap:0;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}
-.side-nav a,.side-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:52px;padding:6px 4px;border:none;background:none;cursor:pointer;color:var(--muted);text-decoration:none;transition:color .15s,background .15s;-webkit-tap-highlight-color:transparent;}
-.side-nav a:hover,.side-nav button:hover{background:rgba(255,255,255,.06);color:var(--text);}
-.side-nav a.active,.side-nav button.active{color:var(--gold);}
-.side-nav .sn-icon{font-size:.82rem;line-height:1;display:inline-block;transition:transform .15s;}
-.side-nav a:hover .sn-icon,.side-nav button:hover .sn-icon{transform:scale(1.28);}
-.side-nav .sn-lbl{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;line-height:1;white-space:nowrap;}
-.side-nav .sn-sep{width:32px;height:1px;background:var(--border);margin:1px auto;}
-.side-nav .sn-sep--pages{width:36px;height:2px;background:var(--border);margin:2px auto;border-radius:1px;}
-@media(max-width:900px){.side-nav{display:none;}}
 
 /* ── Layout ── */
 .content{display:flex;flex:1;overflow:hidden;}
@@ -239,7 +230,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
               <button class="avb-search-btn" id="avbSearchBtn" onclick="_vsearchManual()">&#x1F50D; Search</button>
             </div>
             <div class="avb-row">
-              <select class="avb-select" id="vsCatSelect" onchange="_vsearchIfActive();document.getElementById('vsCatHint').style.display=this.value?'block':'none';">
+              <select class="avb-select" id="vsCatSelect" aria-label="Filter by category" onchange="_vsearchIfActive();document.getElementById('vsCatHint').style.display=this.value?'block':'none';">
                 <option value="">All categories</option>
                 <optgroup label="☕ Dining &amp; Drinking">
                   <option value="13000">All Dining &amp; Drinking</option>
@@ -465,7 +456,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
                   <option value="12094">Residential Building</option>
                 </optgroup>
               </select>
-              <select class="avb-select" id="vsSortSelect" onchange="_vsearchIfActive()">
+              <select class="avb-select" id="vsSortSelect" aria-label="Sort results" onchange="_vsearchIfActive()">
                 <option value="RELEVANCE">Relevance</option>
                 <option value="POPULARITY">Most Popular</option>
                 <option value="DISTANCE">Nearest</option>

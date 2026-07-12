@@ -377,7 +377,7 @@ jobs:
           rm -rf _site && mkdir -p _site
           # Root-level page + data assets (globs match files only, not subdirs,
           # so private-data/ / scripts/ / config/ are never picked up).
-          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv _site/ 2>/dev/null || true
+          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
           cp -r assets   _site/assets
           cp -r functions _site/functions   # Cloudflare Pages Functions
           # Defensive: ensure nothing sensitive or non-asset slipped in.
@@ -507,7 +507,7 @@ jobs:
         if: steps.lastday.outputs.is_last_day == 'true'
         run: |
           rm -rf _site && mkdir -p _site
-          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv _site/ 2>/dev/null || true
+          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
           cp -r assets   _site/assets
           cp -r functions _site/functions
           rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git

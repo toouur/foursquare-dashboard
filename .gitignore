@@ -23,9 +23,16 @@ year-*.html
 trip-*.html
 trips_meta.json
 feed_meta.json
+map_data.json
 routes.json
-venues_filter.json
+feed.xml
+feed.json
 city_review.csv
+country-*.html
+# generated PWA artifacts (rendered from templates/*.tmpl at build)
+manifest.webmanifest
+sw.js
+site-*.css
 # assembled deploy dir
 _site/
 

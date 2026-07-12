@@ -11,6 +11,12 @@
  *
  * Returns: { venue: [...], city: [...], trip: [], tip: [...], companion: [...] }
  * Each item shape mirrors the legacy search-index.json format for drop-in compatibility.
+ *
+ * Venues / cities / tips / trips are served by FTS5 external-content indexes
+ * (venues_fts / tips_fts / trips_fts, created in d1_schema.sql, rebuilt by
+ * sync_to_d1.py). Each query is prefix-matched (`token*`) and — for venues and
+ * tips — ranked by bm25() relevance. Companions have no FTS table (they live in
+ * the 65k-row checkins table across three comma-joined columns) and stay on LIKE.
  */
 
 const HEADERS = {
@@ -18,48 +24,65 @@ const HEADERS = {
   'Cache-Control': 'no-store',
 };
 
+const EMPTY = { venue: [], city: [], trip: [], tip: [], companion: [] };
+
 export async function onRequestGet({ request, env }) {
   if (!env.DB) {
-    return jsonResp({ error: 'DB binding not configured', venue: [], city: [], trip: [], tip: [], companion: [] }, 503);
+    return jsonResp({ error: 'DB binding not configured', ...EMPTY }, 503);
   }
 
   const url = new URL(request.url);
   const q   = (url.searchParams.get('q') || '').trim();
 
   if (q.length < 2) {
-    return jsonResp({ venue: [], city: [], trip: [], tip: [], companion: [] });
+    return jsonResp({ ...EMPTY });
   }
 
   const like  = `%${q}%`;
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
 
-  // Returns true if all query words appear in the joined string
-  function matches(...parts) {
-    const t = parts.filter(Boolean).join(' ').toLowerCase();
-    return words.every(w => t.includes(w));
-  }
+  // FTS5 MATCH expression: each word becomes a prefix-matched phrase, AND-ed
+  // together (every word must appear). Double-quotes are stripped (they delimit
+  // FTS phrases); tokens with no letter/digit are dropped so we never emit an
+  // empty `""` phrase, which is an FTS syntax error.
+  const ftsTokens = words
+    .map(w => w.replace(/"/g, ' ').trim())
+    .filter(w => /[\p{L}\p{N}]/u.test(w));
+  const ftsMatch  = ftsTokens.map(w => `"${w}"*`).join(' AND ');
+  // City search restricts the same tokens to the city/country columns of venues_fts.
+  const ftsCity   = ftsTokens.map(w => `{city country} : "${w}"*`).join(' AND ');
+
+  // Empty MATCH (query was all punctuation) → skip the FTS-backed queries but
+  // still run the LIKE-based companion lookups below.
+  const noFts = { results: [] };
+  const runFts = (sql, param) =>
+    ftsMatch ? env.DB.prepare(sql).bind(param).all() : Promise.resolve(noFts);
 
   // Run all D1 queries in parallel
   const [venueRes, cityRes, tipRes, compRes, overlapRes, tripRes] = await Promise.all([
-    env.DB.prepare(
-      'SELECT name, category, city, country, checkin_count ' +
-      'FROM venues WHERE name LIKE ?1 OR city LIKE ?1 OR category LIKE ?1 ' +
-      'ORDER BY checkin_count DESC LIMIT 60'
-    ).bind(like).all(),
+    runFts(
+      'SELECT venues.name, venues.category, venues.city, venues.country, venues.checkin_count ' +
+      'FROM venues_fts JOIN venues ON venues.rowid = venues_fts.rowid ' +
+      'WHERE venues_fts MATCH ?1 ' +
+      'ORDER BY bm25(venues_fts), venues.checkin_count DESC LIMIT 60',
+      ftsMatch),
 
-    env.DB.prepare(
-      'SELECT city, country, COUNT(*) AS cnt FROM venues ' +
-      'WHERE city LIKE ?1 OR country LIKE ?1 ' +
-      'GROUP BY city, country ORDER BY cnt DESC LIMIT 40'
-    ).bind(like).all(),
+    runFts(
+      'SELECT venues.city, venues.country, COUNT(*) AS cnt ' +
+      'FROM venues_fts JOIN venues ON venues.rowid = venues_fts.rowid ' +
+      'WHERE venues_fts MATCH ?1 AND venues.city IS NOT NULL ' +
+      'GROUP BY venues.city, venues.country ORDER BY cnt DESC LIMIT 40',
+      ftsCity),
 
-    env.DB.prepare(
-      'SELECT venue, text, city, country FROM tips ' +
-      'WHERE venue LIKE ?1 OR text LIKE ?1 OR city LIKE ?1 LIMIT 60'
-    ).bind(like).all(),
+    runFts(
+      'SELECT tips.venue, tips.text, tips.city, tips.country ' +
+      'FROM tips_fts JOIN tips ON tips.rowid = tips_fts.rowid ' +
+      'WHERE tips_fts MATCH ?1 ORDER BY bm25(tips_fts) LIMIT 60',
+      ftsMatch),
 
     // with_name + created_by_name merged, then overlaps_name separately
-    // (overlaps_name is comma-separated so we split in JS)
+    // (overlaps_name is comma-separated so we split in JS). No FTS table for
+    // checkins — companion search stays on LIKE.
     env.DB.prepare(
       'SELECT name, SUM(cnt) AS cnt FROM (' +
         'SELECT with_name AS name, COUNT(*) AS cnt FROM checkins ' +
@@ -76,12 +99,12 @@ export async function onRequestGet({ request, env }) {
       'GROUP BY overlaps_name LIMIT 60'
     ).bind(like).all(),
 
-    env.DB.prepare(
-      'SELECT id, name, start_date, end_date, checkin_count, countries, cities ' +
-      'FROM trips ' +
-      'WHERE name LIKE ?1 OR countries LIKE ?1 OR cities LIKE ?1 ' +
-      'ORDER BY start_ts DESC LIMIT 20'
-    ).bind(like).all(),
+    runFts(
+      'SELECT trips.id, trips.name, trips.start_date, trips.end_date, ' +
+      'trips.checkin_count, trips.countries, trips.cities ' +
+      'FROM trips_fts JOIN trips ON trips.rowid = trips_fts.rowid ' +
+      'WHERE trips_fts MATCH ?1 ORDER BY trips.start_ts DESC LIMIT 20',
+      ftsMatch),
   ]);
 
   // Merge overlaps_name (comma-separated) into companion counts
@@ -102,19 +125,17 @@ export async function onRequestGet({ request, env }) {
   }
 
   return jsonResp({
-    venue: (venueRes.results || [])
-      .filter(v => matches(v.name, v.city, v.country, v.category))
-      .map(v => ({
-        t:   'venue',
-        n:   v.name,
-        c:   v.city   || null,
-        co:  v.country || null,
-        cat: v.category || null,
-        cnt: v.checkin_count || 0,
-      })),
+    venue: (venueRes.results || []).map(v => ({
+      t:   'venue',
+      n:   v.name,
+      c:   v.city   || null,
+      co:  v.country || null,
+      cat: v.category || null,
+      cnt: v.checkin_count || 0,
+    })),
 
     city: (cityRes.results || [])
-      .filter(c => c.city && matches(c.city, c.country))
+      .filter(c => c.city)
       .map(c => ({
         t:   'city',
         n:   c.city,
@@ -122,29 +143,21 @@ export async function onRequestGet({ request, env }) {
         cnt: c.cnt     || 0,
       })),
 
-    tip: (tipRes.results || [])
-      .filter(t => matches(t.venue, t.text, t.city, t.country))
-      .map(t => ({
-        t:  'tip',
-        n:  t.venue  || null,
-        tx: (t.text  || '').slice(0, 120),
-        c:  t.city   || null,
-        co: t.country || null,
-      })),
+    tip: (tipRes.results || []).map(t => ({
+      t:  'tip',
+      n:  t.venue  || null,
+      tx: (t.text  || '').slice(0, 120),
+      c:  t.city   || null,
+      co: t.country || null,
+    })),
 
-    trip: (tripRes.results || [])
-      .filter(t => {
-        const countries = tryParseJson(t.countries, []);
-        const cities    = tryParseJson(t.cities, []);
-        return matches(t.name, ...countries, ...cities);
-      })
-      .map(t => ({
-        t:   'trip',
-        n:   t.name,
-        d:   t.start_date || null,
-        cnt: t.checkin_count || 0,
-        id:  t.id,
-      })),
+    trip: (tripRes.results || []).map(t => ({
+      t:   'trip',
+      n:   t.name,
+      d:   t.start_date || null,
+      cnt: t.checkin_count || 0,
+      id:  t.id,
+    })),
 
     companion: [...compMap.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -159,9 +172,4 @@ export async function onRequestOptions() {
 
 function jsonResp(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: HEADERS });
-}
-
-function tryParseJson(str, fallback = []) {
-  if (!str) return fallback;
-  try { return JSON.parse(str); } catch { return fallback; }
 }

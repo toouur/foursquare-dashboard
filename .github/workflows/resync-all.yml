@@ -1,8 +1,18 @@
 # .github/workflows/resync-all.yml
 #
-# Consolidated manual D1 resync. Tick any combination of tables.
-# checkins+venues uses the wrangler SQL dump path (reliable for 65K rows).
-# Other tables use the Python batch-API path (incremental, targeted).
+# Single manual entry point for every ad-hoc D1 resync. Tick any combination of
+# tables and pick a mode. Replaces the old resync-checkins-d1 / resync-d1 /
+# upsert-d1 trio (each was a strict subset of this).
+#
+#   checkins + venues → always a full wipe + reinsert via the wrangler SQL dump
+#     (reliable for 65K rows; the Python batch API is not). `mode` does not apply.
+#
+#   ratings / tips / trips / lists → controlled by `mode`:
+#     • force  — DELETE + full INSERT OR REPLACE  (sync_to_d1 --force-*).
+#                Use after a data-export comparison, bulk edit/deletion, or when
+#                rows must be REMOVED from D1 (un-rated venues, deleted tips).
+#     • upsert — INSERT OR REPLACE only, no DELETE  (sync_to_d1 --*-changed true).
+#                Use to push a single added/edited row without a full wipe.
 #
 # Required secrets:
 #   DATA_REPO_PAT      — Fine-grained PAT with Contents read on toouur/foursquare-data
@@ -10,7 +20,7 @@
 #   CF_ACCOUNT_ID      — Cloudflare account ID
 #   CF_D1_DATABASE_ID  — D1 database ID
 
-name: Resync D1 (all tables)
+name: Resync D1 (manual)
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -18,24 +28,29 @@ env:
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "Table mode for ratings/tips/trips/lists (checkins is always a full dump)"
+        type: choice
+        options: [force, upsert]
+        default: force
       resync_checkins:
-        description: "checkins + venues — SQL dump via wrangler (safe for 65K rows)"
+        description: "checkins + venues — SQL dump via wrangler (safe for 65K rows; always full)"
         type: boolean
         default: false
       resync_ratings:
-        description: "ratings — DELETE + full INSERT from venueRatings.json"
+        description: "ratings — from venueRatings.json"
         type: boolean
         default: false
       resync_tips:
-        description: "tips — DELETE + full INSERT from tips.json"
+        description: "tips — from tips.json"
         type: boolean
         default: false
       resync_trips:
-        description: "trips — DELETE + full INSERT from trips_meta.json"
+        description: "trips — from trips_meta.json"
         type: boolean
         default: false
       resync_lists:
-        description: "lists + list_venues — DELETE + full INSERT from lists.json"
+        description: "lists + list_venues — from lists.json"
         type: boolean
         default: false
 
@@ -106,7 +121,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           wrangler d1 execute swarmdata \
-            --command="SELECT 'checkins' tbl,COUNT(*) n FROM checkins UNION ALL SELECT 'venues',COUNT(*) FROM venues" \
+            --command="SELECT 'checkins' tbl,COUNT(*) n FROM checkins UNION ALL SELECT 'venues',COUNT(*) FROM venues UNION ALL SELECT 'empty_id',COUNT(*) FROM checkins WHERE id=''" \
             --remote
 
       # ── ratings / tips / trips / lists via Python batch API ──────────────────
@@ -116,13 +131,25 @@ jobs:
           CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
           CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
         run: |
-          FORCE_FLAGS=""
-          if [ "${{ inputs.resync_ratings }}" = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-ratings"; fi
-          if [ "${{ inputs.resync_tips }}"    = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-tips";    fi
-          if [ "${{ inputs.resync_trips }}"   = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-trips";   fi
-          if [ "${{ inputs.resync_lists }}"   = "true" ]; then FORCE_FLAGS="$FORCE_FLAGS --force-lists";   fi
+          if [ -z "$CF_D1_TOKEN" ]; then
+            echo "CF_D1_TOKEN not set — cannot run."
+            exit 1
+          fi
 
-          if [ -z "$FORCE_FLAGS" ]; then
+          # force → --force-<table> (DELETE + reinsert); upsert → --<table>-changed true (no DELETE).
+          if [ "${{ inputs.mode }}" = "upsert" ]; then
+            R="--ratings-changed true"; T="--tips-changed true"; P="--trips-changed true"; L="--lists-changed true"
+          else
+            R="--force-ratings"; T="--force-tips"; P="--force-trips"; L="--force-lists"
+          fi
+
+          FLAGS=""
+          [ "${{ inputs.resync_ratings }}" = "true" ] && FLAGS="$FLAGS $R"
+          [ "${{ inputs.resync_tips }}"    = "true" ] && FLAGS="$FLAGS $T"
+          [ "${{ inputs.resync_trips }}"   = "true" ] && FLAGS="$FLAGS $P"
+          [ "${{ inputs.resync_lists }}"   = "true" ] && FLAGS="$FLAGS $L"
+
+          if [ -z "$FLAGS" ]; then
             echo "No non-checkins tables selected — skipping Python sync."
             exit 0
           fi
@@ -132,9 +159,10 @@ jobs:
           LISTS_ARG=""
           [ -f private-data/lists.json ] && LISTS_ARG="--lists private-data/lists.json"
 
+          echo "mode=${{ inputs.mode }} flags:$FLAGS"
           python scripts/sync_to_d1.py \
             --csv   private-data/checkins.csv \
             --tips  private-data/tips.json \
             --trips trips_meta.json \
             $RATINGS_ARG $LISTS_ARG \
-            $FORCE_FLAGS
+            $FLAGS
