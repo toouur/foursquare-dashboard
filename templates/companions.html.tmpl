@@ -236,7 +236,14 @@ function show(idx){
     <tbody id="compBody">${buildRows(all)}</tbody></table>`;
 }
 const p=new URLSearchParams(location.search).get('person');
-const idx=p?COMP.findIndex(c=>c[0]===p):0;
+let idx=0;
+if(p){
+  idx=COMP.findIndex(c=>c[0]===p);                                  // exact
+  if(idx<0){                                                        // combined "A, B" string from one check-in — match first known person
+    for(const part of p.split(',')){const t=part.trim();const j=COMP.findIndex(c=>c[0]===t);if(j>=0){idx=j;break;}}
+  }
+  if(idx<0){const pl=p.toLowerCase();idx=COMP.findIndex(c=>(c[0]||'').toLowerCase().includes(pl));}  // substring fallback
+}
 show(idx>=0?idx:0);
 (function(){const _q=new URLSearchParams(location.search).get('q');if(_q&&!p){const ql=_q.toLowerCase();const fi=COMP.findIndex(c=>(c[0]||'').toLowerCase().includes(ql));if(fi>=0)show(fi);}})();
 </script>

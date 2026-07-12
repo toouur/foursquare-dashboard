@@ -259,22 +259,21 @@ jobs:
           if [ -f private-data/lists.json ]; then
             LISTS_ARG="--lists private-data/lists.json"
           fi
-          # Route-geometry warm is throttled: OSRM/BRouter fetches are the slow
-          # part of the build. Every run keeps a small floor (40) so a fresh
+          # Route-geometry warm keeps a small per-build floor (40) so a fresh
           # check-in's segments — always sorted newest-first by Pass 1b — get
           # fetched and committed the SAME build they arrive, whatever the hour.
-          # A single daily run at 04:00 UTC (and any manual dispatch) raises the
-          # budget to 400 to also drain the historical backlog.
-          RMF=40
-          if [ "$(date -u +%H)" = "04" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RMF=400
-          fi
+          # 40 fetches across the worker pool is a few seconds, so this stays off
+          # the critical path (check-in-poller rebuilds finish in ~a minute).
+          # The historical BACKLOG drain (hundreds of rate-limited OSRM/BRouter
+          # calls — the slow part) lives in a separate daily job: warm-routes.yml
+          # (03:00 UTC + manual dispatch). This job never does the big drain, so
+          # manual dispatch here stays fast.
           python scripts/build.py \
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
             --routes-cache private-data/routes_cache.json \
-            --routes-max-fetch "$RMF" \
+            --routes-max-fetch 40 \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
       # ── 7c. Persist warmed route-geometry cache to the data repo ─────────────

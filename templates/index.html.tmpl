@@ -49,7 +49,8 @@ header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d
 .guide-link{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--teal);text-decoration:none;border:1px solid rgba(78,201,196,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;white-space:nowrap;}
 .guide-link:hover{border-color:var(--teal);background:rgba(78,201,196,0.08);}
 @media(max-width:600px){.header-actions{top:12px;right:16px;}.solution-link,.guide-link{font-size:0.54rem;padding:5px 10px;}}
-header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);font-weight:900;line-height:1;letter-spacing:-0.02em;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.12em .15em .35em;overflow:visible;display:inline-block;}
+header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);font-weight:900;line-height:1;letter-spacing:-0.02em;background:linear-gradient(130deg,#f5d48a 0%,#e8b86d 45%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;padding:.12em .15em .35em;overflow:visible;display:inline-block;white-space:nowrap;}
+header>.masthead{flex:0 0 auto;min-width:0;}
 header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
 .updated{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px;}
 .kpis{display:flex;gap:22px 24px;flex-wrap:wrap;align-items:flex-end;justify-content:flex-end;align-content:flex-end;flex:1 1 auto;min-width:0;}
@@ -488,7 +489,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
       <kbd>⌘K</kbd>
     </button>
   </div>
-  <div>
+  <div class="masthead">
     <h1 id="top">Check-in Journal</h1>
     <p class="sub">Foursquare &nbsp;&middot;&nbsp; {{DATE_MIN}} &ndash; {{DATE_MAX}}</p>
     <p class="updated">Updated {{UPDATED}}</p>
@@ -1994,7 +1995,9 @@ function buildCityMap(){
       list.forEach(it=>{
         const name=it.n||'';
         const sub=[it.c,it.co].filter(Boolean).join(', ')||it.tx||'';
-        const href=_typePage(t,it.id);
+        const href=t==='companion'?'companions.html?person='+encodeURIComponent(name)
+                  :t==='venue'?'venues.html?q='+encodeURIComponent(name)
+                  :_typePage(t,it.id);
         html+=`<a class="gs-item" href="${esc(href)}" data-gs-t="${t}" data-gs-n="${esc(name)}"><span class="gs-item-icon">${_typeIcon(t)}</span><div class="gs-item-body"><div class="gs-item-name">${esc(name)}</div>${sub?`<div class="gs-item-sub">${esc(sub)}</div>`:''}</div></a>`;
       });
     });
@@ -2002,17 +2005,13 @@ function buildCityMap(){
     el.innerHTML=html; el.style.display='';
   }
 
-  // Click delegation: venue/city navigate within this page; others follow href
+  // Click delegation: city navigates within this page; others follow href
+  // (venues route to venues.html?q= — the full list, which also matches by category)
   document.getElementById('gsResults').addEventListener('click',function(e){
     const a=e.target.closest('a[data-gs-t]');
     if(!a) return;
     const t=a.dataset.gsT, name=a.dataset.gsN;
-    if(t==='venue'){
-      e.preventDefault(); closeSearch();
-      const box=document.querySelector('#s-venues .search-box');
-      if(box){box.value=name; filterList('venuesList',name);}
-      document.getElementById('s-venues')?.scrollIntoView({behavior:'smooth',block:'start'});
-    } else if(t==='city'){
+    if(t==='city'){
       e.preventDefault(); closeSearch();
       const box=document.querySelector('#s-cities .search-box');
       if(box){box.value=name; filterList('citiesList',name);}

@@ -1,0 +1,103 @@
+# .github/workflows/warm-routes.yml
+#
+# Historical route-geometry backlog drain — split OUT of update-dashboard.yml so
+# it never sits on the critical path of a check-in-poller rebuild.
+#
+# The hourly update job fetches only a small floor (40) of missing OSRM/BRouter
+# route polylines per build — enough that a fresh check-in's road geometry lands
+# the same build it arrives, in ~a few seconds. Draining the *historical* backlog
+# (hundreds of rate-limited route fetches) is the slow part, so it runs here
+# instead: once daily, plus on demand with a tunable budget.
+#
+# This job only WARMS + COMMITS routes_cache.json to the private data repo. It
+# does NOT build/validate/deploy the site: the drained backlog is not
+# time-sensitive and ships on the next scheduled update-dashboard run, which
+# reads the freshly-committed cache. Scheduled at 03:00 UTC so its cache commit
+# lands before the 03:00…04:00 hourly runs read the data repo.
+#
+# Required repository secrets:
+#   DATA_REPO_PAT — Fine-grained PAT with Contents read/write on toouur/foursquare-data
+#   R2_PUBLIC_URL — (optional) only so build.py runs identically to the main job;
+#                   no HTML is deployed here.
+
+name: Warm route-geometry cache
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    - cron: "0 3 * * *"      # daily, 03:00 UTC (ahead of the hourly update reads)
+  workflow_dispatch:
+    inputs:
+      max_fetch:
+        description: "Max missing routes to fetch this run (backlog drain budget)"
+        required: false
+        default: "400"
+
+permissions:
+  contents: write
+
+jobs:
+  warm:
+    # Honor the same pause switch as the hourly update job.
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── Warm the cache ────────────────────────────────────────────────────────
+      #   Runs the full build (route warming lives inside build.py) but the
+      #   generated HTML is discarded — only routes_cache.json matters here.
+      #   Photos/pix args are passed so the build behaves identically to the main
+      #   job; the output is never deployed.
+      - name: Warm route-geometry backlog
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          RMF="${{ github.event.inputs.max_fetch || '400' }}"
+          PIX_URL_ARG=""; [ -n "$R2_PUBLIC_URL" ] && PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"
+          PHOTOS_ARG="";  [ -f private-data/photos.json ]       && PHOTOS_ARG="--photos private-data/photos.json"
+          RATINGS_ARG=""; [ -f private-data/venueRatings.json ] && RATINGS_ARG="--ratings private-data/venueRatings.json"
+          LISTS_ARG="";   [ -f private-data/lists.json ]        && LISTS_ARG="--lists private-data/lists.json"
+          python scripts/build.py \
+            --input private-data/checkins.csv \
+            --config-dir config \
+            --output-dir . \
+            --routes-cache private-data/routes_cache.json \
+            --routes-max-fetch "$RMF" \
+            $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
+
+      # ── Persist the warmed cache to the data repo ─────────────────────────────
+      #   The next scheduled update-dashboard run checks out the data repo fresh,
+      #   sees the enlarged cache, and ships the newly-warmed polylines.
+      - name: Commit route cache to data repo
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          [ -f routes_cache.json ] && git add routes_cache.json || true
+          if git diff --cached --quiet; then
+            echo "Route cache unchanged — no backlog to drain."
+          else
+            git commit -m "chore: drain route-geometry backlog"
+            git push || { git pull --rebase && git push; }
+          fi
+          cd ..

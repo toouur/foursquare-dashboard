@@ -118,7 +118,7 @@ a{{color:var(--teal);}}
 .kpi-lbl{{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);margin-top:7px;}}
 section{{margin-top:52px;}}
 .sec-h{{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.2em;color:var(--gold);margin-bottom:16px;}}
-.years{{display:flex;align-items:flex-end;gap:6px;height:110px;padding:8px 0;overflow-x:auto;}}
+.years{{display:flex;align-items:flex-end;gap:6px;height:148px;padding:8px 0;overflow-x:auto;overflow-y:hidden;}}
 .yr-bar{{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;min-width:34px;}}
 .yr-bar .bar{{width:22px;background:linear-gradient(180deg,#f5d48a,#b97c30);border-radius:4px 4px 0 0;}}
 .yr-bar .yr-lbl{{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);}}
