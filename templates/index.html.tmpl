@@ -1974,7 +1974,8 @@ function buildCityMap(){
   function _typeIcon(t){return{venue:'📍',city:'🏙',trip:'✈',tip:'💬',companion:'👤'}[t]||'🔍';}
 
   function _typePage(t,id){
-    if(t==='venue')     return '#s-venues';
+    // NB: venue + companion build their own href inline in _render (venue →
+    // venues.html?q=, companion → companions.html?person=); not routed here.
     if(t==='city')      return '#s-cities';
     if(t==='trip')      return 'trips.html'+(id?'#trip-'+id:'');
     if(t==='tip')       return 'tips.html';
