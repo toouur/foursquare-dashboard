@@ -41,7 +41,7 @@ body.light a{color:var(--teal);}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 
 /* ── HEADER ── */
-header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:28px;position:relative;}
+header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:nowrap;gap:28px;position:relative;}
 .header-actions{position:absolute;top:20px;right:56px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
 .header-actions-row{display:flex;align-items:center;gap:8px;}
 .solution-link{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);text-decoration:none;border:1px solid rgba(232,184,109,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;white-space:nowrap;}
@@ -53,9 +53,13 @@ header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);
 header>.masthead{flex:0 0 auto;min-width:0;}
 header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
 .updated{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px;}
-.kpis{display:flex;gap:22px 24px;flex-wrap:wrap;align-items:flex-end;justify-content:flex-end;align-content:flex-end;flex:1 1 auto;min-width:0;}
-.kpi .num{font-family:'Playfair Display',serif;font-size:clamp(1.55rem,2vw,2.2rem);font-weight:700;color:var(--gold);line-height:1;}
-.kpi .lbl{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-top:5px;}
+.kpis{display:flex;gap:clamp(12px,1.3vw,24px);flex-wrap:nowrap;align-items:flex-end;justify-content:flex-end;align-content:flex-end;flex:0 1 auto;min-width:0;}
+.kpi{text-align:right;white-space:nowrap;}
+.kpi .num{font-family:'Playfair Display',serif;font-size:clamp(1.15rem,1.75vw,2.2rem);font-weight:700;color:var(--gold);line-height:1;}
+.kpi .lbl{font-family:'DM Mono',monospace;font-size:clamp(0.5rem,0.62vw,0.60rem);white-space:nowrap;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-top:5px;}
+/* Below tablet width there isn't room for the KPI row beside the masthead —
+   let the header wrap and the KPIs flow full-width under it. */
+@media(max-width:860px){header{flex-wrap:wrap;}.kpis{flex-wrap:wrap;justify-content:flex-start;flex-basis:100%;}}
 
 /* ── GRID ── */
 .grid{padding:16px 56px 72px;display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1500px;}
