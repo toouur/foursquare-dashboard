@@ -796,6 +796,7 @@ def process(
             continue
         on_this_day.append({
             "ts":         int(r["date"]),
+            "year":       d_local.year,
             "years_ago":  _this_year - d_local.year,
             "date":       d_local.strftime("%d %b %Y"),
             "venue":      r.get("venue", "").strip(),
@@ -806,7 +807,19 @@ def process(
             "checkin_id": r.get("checkin_id", "").strip(),
         })
     on_this_day.sort(key=lambda x: x["ts"], reverse=True)
-    on_this_day = on_this_day[:24]
+    # Cap PER YEAR (not globally) so one very busy anniversary can't crowd out
+    # older years or bloat the page — the index groups these into a year selector,
+    # so every year with a match must survive. Items are newest-first, so the cap
+    # keeps each year's most recent check-ins.
+    _otd_per_year: dict[int, int] = {}
+    _otd_capped: list[dict] = []
+    for _c in on_this_day:
+        _y = _c["year"]
+        if _otd_per_year.get(_y, 0) >= 30:
+            continue
+        _otd_per_year[_y] = _otd_per_year.get(_y, 0) + 1
+        _otd_capped.append(_c)
+    on_this_day = _otd_capped
 
     # ── Shout text mining + cross-dimensional analytics ──────────────────────
     shout_stats = shout_analysis(rows)

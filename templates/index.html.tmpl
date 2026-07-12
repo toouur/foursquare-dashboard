@@ -246,6 +246,14 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 .recent-header{display:flex;align-items:baseline;gap:16px;margin-bottom:14px;}
 .recent-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);}
 .recent-sub{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);}
+.otd-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;margin-bottom:2px;}
+.otd-chips::-webkit-scrollbar{height:3px;}
+.otd-chips::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.otd-chip{flex:0 0 auto;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.06em;color:var(--text2);background:var(--card);border:1px solid var(--border);border-radius:20px;padding:5px 13px;cursor:pointer;white-space:nowrap;transition:border-color 0.15s,color 0.15s,background 0.15s;}
+.otd-chip:hover{border-color:var(--gold);color:var(--text);}
+.otd-chip.active{background:var(--gold);border-color:var(--gold);color:#0b0d13;font-weight:600;}
+.otd-chip .otd-ct{opacity:0.55;margin-left:6px;}
+.otd-chip.active .otd-ct{opacity:0.8;}
 .recent-scroll{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;}
 .recent-scroll::-webkit-scrollbar{height:3px;}
 .recent-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -544,6 +552,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
     <span class="recent-title">On This Day</span>
     <span class="recent-sub" id="onThisDaySub"></span>
   </div>
+  <div class="otd-chips" id="onThisDayChips"></div>
   <div class="recent-scroll" id="onThisDayScroll"></div>
 </div>
 
@@ -1189,16 +1198,20 @@ function filterList(id,q){
   window._catIcon=catIcon;
 })();
 
-// ── On This Day section ──────────────────────────────────────────────────────
+// ── On This Day section (year selector) ──────────────────────────────────────
 (function(){
   const items=(S.on_this_day||[]);
   if(!items.length)return;
   const catIcon=window._catIcon||(()=>'');
   document.getElementById('onThisDaySection').style.display='';
-  const yrs=items.reduce((m,x)=>Math.max(m,x.years_ago),0);
+  // Group by year (items arrive newest-first, so each year's bucket stays newest-first).
+  const byYear=new Map();
+  items.forEach(r=>{ if(!byYear.has(r.year))byYear.set(r.year,[]); byYear.get(r.year).push(r); });
+  const years=[...byYear.keys()].sort((a,b)=>b-a);
+  const minY=years[years.length-1], maxY=years[0];
   document.getElementById('onThisDaySub').textContent=
-    items.length+(items.length===1?' check-in':' check-ins')+' · up to '+yrs+' years ago';
-  document.getElementById('onThisDayScroll').innerHTML=items.map(r=>{
+    years.length+(years.length===1?' year · ':' years · ')+(minY===maxY?maxY:minY+'–'+maxY);
+  const card=r=>{
     const swarmUrl=r.checkin_id?`https://www.swarmapp.com/user/{{SWARM_USER_ID}}/checkin/${r.checkin_id}`:null;
     const vUrl=r.venue_id?`https://foursquare.com/v/${r.venue_id}`:'';
     const cardClick=swarmUrl?` onclick="window.open('${swarmUrl}','_blank')"`:'';
@@ -1212,7 +1225,19 @@ function filterList(id,q){
       <div class="rc-location">${f} ${esc(locStr)}</div>
       <div class="rc-date">${esc(r.date)}</div>
     </div>`;
-  }).join('');
+  };
+  const scroll=document.getElementById('onThisDayScroll');
+  const chipsEl=document.getElementById('onThisDayChips');
+  chipsEl.innerHTML=years.map(y=>
+    `<button class="otd-chip" data-year="${y}">${y}<span class="otd-ct">${byYear.get(y).length}</span></button>`).join('');
+  const chips=[...chipsEl.querySelectorAll('.otd-chip')];
+  function sel(y){
+    chips.forEach(c=>c.classList.toggle('active',+c.dataset.year===y));
+    scroll.innerHTML=byYear.get(y).map(card).join('');
+    scroll.scrollLeft=0;
+  }
+  chips.forEach(c=>c.addEventListener('click',()=>sel(+c.dataset.year)));
+  sel(years[0]);  // default to the most recent year with a match
 })();
 
 // ── Tips recent section ──────────────────────────────────────────────────────
