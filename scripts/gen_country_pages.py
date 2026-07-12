@@ -110,7 +110,7 @@ a{{color:var(--teal);}}
 .wrap{{max-width:960px;margin:0 auto;padding:88px 22px 120px;}}
 .hero-flag{{font-size:0;line-height:0;margin-bottom:16px;}}
 .hero-flag .fi{{width:96px;height:72px;border-radius:8px;box-shadow:0 8px 26px rgba(0,0,0,.5);}}
-.hero-name{{font-family:'Playfair Display',serif;font-size:clamp(2.4rem,6vw,4.2rem);font-weight:900;line-height:1;letter-spacing:-.02em;background:linear-gradient(150deg,#f5d48a 0%,#e8b86d 40%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}}
+.hero-name{{font-family:'Playfair Display',serif;font-size:clamp(2.4rem,6vw,4.2rem);font-weight:900;line-height:1.08;letter-spacing:-.02em;padding-bottom:.08em;background:linear-gradient(150deg,#f5d48a 0%,#e8b86d 40%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}}
 .hero-sub{{font-family:'DM Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.16em;color:var(--muted);margin-top:12px;}}
 .kpis{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:34px 0 12px;}}
 .kpi{{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 16px;text-align:center;}}
@@ -304,9 +304,9 @@ def build_page(
         if ctrips:
             ctrips = sorted(ctrips, key=lambda t: t.get("start_date", ""), reverse=True)
             cards = []
-            for t in ctrips[:12]:
+            for t in ctrips:
                 cards.append(
-                    f'<a class="trip-card" href="/trip-{_esc(t.get("id"))}.html">'
+                    f'<a class="trip-card" href="/trips.html#trip-{_esc(t.get("id"))}">'
                     f'<div class="trip-name">{_esc(t.get("name", "Trip"))}</div>'
                     f'<div class="trip-meta">{_esc(t.get("start_date", ""))} → '
                     f'{_esc(t.get("end_date", ""))} · {t.get("duration", 0)} days · '

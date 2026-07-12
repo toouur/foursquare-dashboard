@@ -527,7 +527,11 @@ a{{color:var(--teal);}}
 .fc-footer{{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);}}
 .fc-note{{font-style:italic;font-size:.7rem;color:var(--muted);margin-top:4px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.06);}}
 
-@media(max-width:600px){{.hero{{padding:42px 16px 30px;}}.kpi-strip{{grid-template-columns:repeat(2,1fr);}}.map-section,.grid{{padding-left:14px;padding-right:14px;}}.grid{{grid-template-columns:1fr;}}}}
+@media(max-width:600px){{.hero{{padding:42px 16px 30px;}}.kpi-strip{{grid-template-columns:repeat(2,1fr);}}.map-section,.grid{{padding-left:14px;padding-right:14px;}}.grid{{grid-template-columns:1fr;}}
+/* let full airline / airport names wrap instead of clipping on narrow screens */
+.fc-airline{{white-space:normal;overflow:visible;}}
+.fc-route-names{{white-space:normal;overflow:visible;line-height:1.25;}}
+.fc-meta-val{{overflow-wrap:anywhere;}}}}
 
 /* ── Side nav ── */
 .side-nav{{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}}

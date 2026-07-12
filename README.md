@@ -978,6 +978,22 @@ Search is powered by a **Cloudflare Pages Function** (`functions/api/search.js`)
 | `lists` / `list_venues` | Foursquare lists + visited status | Full upsert only when checkins changed (`--lists-changed`) |
 | `trips` | Trip metadata (name, dates, countries, cities) | Full upsert only when checkins changed (`--trips-changed`) |
 
+### Full-text index (FTS5) + self-healing rebuild
+
+Venue, tip, and trip search is backed by three **external-content SQLite FTS5** virtual
+tables (`venues_fts` / `tips_fts` / `trips_fts`), ranked with `bm25()` — not `LIKE '%q%'`.
+They store only the inverted index; display columns are read from the base table by `rowid`.
+
+After any sync that changed data (or whenever an index is found empty), `sync_to_d1.py`
+repopulates each index with the canonical `INSERT INTO <t>_fts(<t>_fts) VALUES('rebuild')`.
+That rebuild is then **verified, not trusted**: sync re-counts the index against its base
+table and, if the index is still empty while the base has rows, it hard-repopulates via
+`('delete-all')` + `INSERT INTO <t>_fts(rowid, …) SELECT rowid, … FROM <base>`. The
+empty-index check runs on every sync, so an index left stranded — e.g. by the wrangler
+bulk-resync path, which rewrites the base tables but never touches FTS — self-heals on the
+next run with no manual step. This is what prevents the "search silently returns nothing"
+failure where the base tables have data but the FTS indexes were emptied.
+
 ### D1 sync setup
 
 1. Create a D1 database in the Cloudflare dashboard: Workers & Pages → D1 → Create database → name it `swarmdata`

@@ -1012,32 +1012,62 @@ def main() -> None:
 
     # ── Rebuild FTS5 search indexes ──────────────────────────────────────────
     # venues_fts / tips_fts / trips_fts are external-content FTS5 tables (see
-    # d1_schema.sql). We keep them fresh with a full `('rebuild')` rather than
-    # triggers (apply_schema splits the schema on ';' and would shred a trigger
-    # body). A rebuild is a single server-side D1 statement — cheap even at 20k
-    # venue rows — so we run it whenever this sync wrote anything. An empty-index
-    # guard also backfills on the first deploy (schema just created) and self-heals
-    # if an index was ever left empty, independent of whether this run changed data.
-    def _fts_is_empty(fts_table: str) -> bool:
-        try:
-            res = d1.query(f"SELECT rowid FROM {fts_table} LIMIT 1")
-            return not res
-        except Exception:
-            return False   # can't tell → don't force an extra rebuild
+    # d1_schema.sql). The canonical repopulate is the `('rebuild')` special
+    # command, but it must NOT be trusted blindly on D1: if it ever silently
+    # no-ops — or an index was left empty by the wrangler bulk-resync path, which
+    # never touches FTS — search returns nothing forever and nothing notices.
+    # So we rebuild, then VERIFY the index row count against the base table and,
+    # if the rebuild didn't take, fall back to an explicit `delete-all` +
+    # `INSERT..SELECT` repopulate (a plain write that always lands on D1). The
+    # empty-index check runs every sync, so a stranded index self-heals on the
+    # very next run whether or not this run changed data.
+    FTS_TABLES = (
+        ("venues_fts", "venues", ("name", "category", "city", "country")),
+        ("tips_fts",   "tips",   ("venue", "text", "city", "country")),
+        ("trips_fts",  "trips",  ("name", "countries", "cities")),
+    )
 
-    for fts_table, base_table in (("venues_fts", "venues"),
-                                  ("tips_fts", "tips"),
-                                  ("trips_fts", "trips")):
-        if changed or _fts_is_empty(fts_table):
+    def _count(table: str) -> int:
+        try:
+            res = d1.query(f"SELECT COUNT(*) AS n FROM {table}")
+            return int((res or [{}])[0].get("n", 0))
+        except Exception:
+            return -1   # unknown (treated as "may be empty")
+
+    def _warn(msg: str) -> None:
+        print(f"::warning::{msg}" if in_gha else f"WARNING: {msg}", flush=True)
+
+    for fts_table, base_table, cols in FTS_TABLES:
+        fts_n = _count(fts_table)
+        if not (changed or fts_n <= 0):
+            continue
+        try:
+            d1.query(f"INSERT INTO {fts_table}({fts_table}) VALUES('rebuild')")
+        except Exception as exc:
+            # A missing FTS module or DDL race must not fail the whole sync —
+            # the explicit repopulate below (or the next run) recovers.
+            _warn(f"FTS rebuild for {fts_table} failed: {exc}")
+
+        # Verify the rebuild actually populated the index; if not, hard-repopulate.
+        base_n = _count(base_table)
+        fts_n  = _count(fts_table)
+        if fts_n <= 0 and base_n > 0:
+            col_list = ", ".join(cols)
             try:
-                d1.query(f"INSERT INTO {fts_table}({fts_table}) VALUES('rebuild')")
-                print(f"  {fts_table}: rebuilt from {base_table}", flush=True)
+                try:
+                    d1.query(f"INSERT INTO {fts_table}({fts_table}) VALUES('delete-all')")
+                except Exception:
+                    pass   # empty/contentless already — nothing to clear
+                d1.query(
+                    f"INSERT INTO {fts_table}(rowid, {col_list}) "
+                    f"SELECT rowid, {col_list} FROM {base_table}"
+                )
+                fts_n = _count(fts_table)
+                print(f"  {fts_table}: repopulated via INSERT..SELECT ({fts_n} rows)", flush=True)
             except Exception as exc:
-                # A missing FTS module or DDL race must not fail the whole sync —
-                # search falls back gracefully and the next run retries.
-                print(f"::warning::FTS rebuild for {fts_table} failed: {exc}"
-                      if in_gha else f"WARNING: FTS rebuild for {fts_table} failed: {exc}",
-                      flush=True)
+                _warn(f"FTS repopulate for {fts_table} failed: {exc}")
+        else:
+            print(f"  {fts_table}: rebuilt from {base_table} ({fts_n} rows)", flush=True)
 
     print(f"CHANGED={'true' if changed else 'false'}", flush=True)
     print("D1 sync: done", flush=True)
