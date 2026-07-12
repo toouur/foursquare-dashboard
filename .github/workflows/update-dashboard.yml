@@ -285,29 +285,27 @@ jobs:
           if [ -f private-data/lists.json ]; then
             LISTS_ARG="--lists private-data/lists.json"
           fi
-          # Route-geometry warm keeps a small per-build floor (40) so a fresh
-          # check-in's segments — always sorted newest-first by Pass 1b — get
-          # fetched and committed the SAME build they arrive, whatever the hour.
-          # 40 fetches across the worker pool is a few seconds, so this stays off
-          # the critical path (check-in-poller rebuilds finish in ~a minute).
-          # The historical BACKLOG drain (hundreds of rate-limited OSRM/BRouter
-          # calls — the slow part) lives in a separate daily job: warm-routes.yml
-          # (03:00 UTC + manual dispatch). This job never does the big drain, so
-          # manual dispatch here stays fast.
+          # Route-geometry fetching is fully delegated to warm-routes.yml
+          # (daily 03:00 UTC + manual dispatch): --routes-max-fetch 0 here means
+          # this build reads the cached polylines but makes ZERO OSRM/BRouter
+          # calls, keeping the hourly poller off the network-bound path entirely.
+          # Tradeoff: a brand-new check-in's road polyline appears a day late
+          # (on the next warm run's cache) instead of the same build — accepted,
+          # since the warm job drains the whole backlog daily anyway.
           python scripts/build.py \
             --input private-data/checkins.csv \
             --config-dir config \
             --output-dir . \
             --routes-cache private-data/routes_cache.json \
-            --routes-max-fetch 40 \
+            --routes-max-fetch 0 \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
       # ── 7c. Persist warmed route-geometry cache to the data repo ─────────────
-      #   The build fetches up to --routes-max-fetch missing OSRM/BRouter routes
-      #   per run and appends them to routes_cache.json; committing it back means
-      #   the cache warms over hourly runs instead of refetching forever. Runs
-      #   right after the build so a later validate/deploy failure doesn't lose
-      #   the fetched routes.
+      #   With --routes-max-fetch 0 the hourly build no longer fetches routes, so
+      #   routes_cache.json is normally unchanged here (this step then just prints
+      #   "unchanged") — warm-routes.yml owns cache growth. Kept as a cheap safety
+      #   net so any incidental cache write still gets committed before a later
+      #   validate/deploy step could fail and lose it.
       - name: Commit route cache to data repo
         if: |
           github.event_name == 'workflow_dispatch' ||
