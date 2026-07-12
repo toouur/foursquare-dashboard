@@ -775,7 +775,42 @@ def process(
     # matching check-in, capped so a busy anniversary can't flood the strip.
     _today = datetime.now(tz=timezone.utc)
     _this_year = _today.year
+
+    def _otd_entry(r: dict, d_local: datetime, *, origin: bool = False) -> dict:
+        # Build one On-This-Day card. Carries the same lat/lng/tz_name/time the
+        # recent cards use for their client-side Open-Meteo weather fetch, plus
+        # companions, so historic cards render weather + "with …" like recent ones.
+        try:
+            lat = round(float(r["lat"]), 5)
+        except (ValueError, KeyError, TypeError):
+            lat = None
+        try:
+            lng = round(float(r["lng"]), 5)
+        except (ValueError, KeyError, TypeError):
+            lng = None
+        country_str = r.get("country", "").strip()
+        tz_name = _COUNTRY_TZ.get(country_str) or _tz_at(lat, lng)
+        return {
+            "ts":         int(r["date"]),
+            "year":       d_local.year,
+            "years_ago":  _this_year - d_local.year,
+            "date":       d_local.strftime("%d %b %Y"),
+            "time":       d_local.strftime("%H:%M"),
+            "venue":      r.get("venue", "").strip(),
+            "venue_id":   r.get("venue_id", "").strip(),
+            "city":       r.get("city", "").strip(),
+            "country":    country_str,
+            "category":   r.get("category", "").strip(),
+            "lat":        lat,
+            "lng":        lng,
+            "tz_name":    tz_name,
+            "checkin_id": r.get("checkin_id", "").strip(),
+            "companions": collect_companions(r),
+            "origin":     origin,
+        }
+
     on_this_day: list[dict] = []
+    _earliest: "tuple[int, dict, datetime] | None" = None
     for r in valid_rows:
         d = _parse_ts(r)
         if not d:
@@ -790,22 +825,16 @@ def process(
             lng = None
         country_str = r.get("country", "").strip()
         d_local = _localise(d, lat, lng, country_str)
+        # Track the first-ever check-in so its year (the origin, e.g. 2012) can
+        # anchor the widget even when it has no match for today's calendar day.
+        _rts = int(r["date"])
+        if _earliest is None or _rts < _earliest[0]:
+            _earliest = (_rts, r, d_local)
         if (d_local.month, d_local.day) != (_today.month, _today.day):
             continue
         if d_local.year >= _this_year:
             continue
-        on_this_day.append({
-            "ts":         int(r["date"]),
-            "year":       d_local.year,
-            "years_ago":  _this_year - d_local.year,
-            "date":       d_local.strftime("%d %b %Y"),
-            "venue":      r.get("venue", "").strip(),
-            "venue_id":   r.get("venue_id", "").strip(),
-            "city":       r.get("city", "").strip(),
-            "country":    country_str,
-            "category":   r.get("category", "").strip(),
-            "checkin_id": r.get("checkin_id", "").strip(),
-        })
+        on_this_day.append(_otd_entry(r, d_local))
     on_this_day.sort(key=lambda x: x["ts"], reverse=True)
     # Cap PER YEAR (not globally) so one very busy anniversary can't crowd out
     # older years or bloat the page — the index groups these into a year selector,
@@ -820,6 +849,13 @@ def process(
         _otd_per_year[_y] = _otd_per_year.get(_y, 0) + 1
         _otd_capped.append(_c)
     on_this_day = _otd_capped
+    # Anchor the origin year (first-ever check-in) when it isn't already a match,
+    # so the widget spans the full history (e.g. 2012–now). This lone card may fall
+    # on a different calendar day than "today" — accepted; it marks where it began.
+    if _earliest is not None:
+        _e_ts, _e_row, _e_local = _earliest
+        if _e_local.year < _this_year and _e_local.year not in {c["year"] for c in on_this_day}:
+            on_this_day.append(_otd_entry(_e_row, _e_local, origin=True))
 
     # ── Shout text mining + cross-dimensional analytics ──────────────────────
     shout_stats = shout_analysis(rows)

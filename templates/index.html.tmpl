@@ -1101,6 +1101,7 @@ function filterList(id,q){
     }
     return[em,desc];
   }
+  window._wmoByTime=wmoByTime;  // reused by the On This Day cards
   const scrollEl=document.getElementById('recentScroll');
 
   // ── Streak: count each venue_id in the recent 30 ──
@@ -1211,21 +1212,41 @@ function filterList(id,q){
   const minY=years[years.length-1], maxY=years[0];
   document.getElementById('onThisDaySub').textContent=
     years.length+(years.length===1?' year · ':' years · ')+(minY===maxY?maxY:minY+'–'+maxY);
-  const card=r=>{
+  const card=(r,i)=>{
     const swarmUrl=r.checkin_id?`https://www.swarmapp.com/user/{{SWARM_USER_ID}}/checkin/${r.checkin_id}`:null;
     const vUrl=r.venue_id?`https://foursquare.com/v/${r.venue_id}`:'';
     const cardClick=swarmUrl?` onclick="window.open('${swarmUrl}','_blank')"`:'';
     const venueLink=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(r.venue)||'Unknown venue'}</a>`:esc(r.venue)||'Unknown venue';
     const f=r.country?flagHtml(r.country,'1em'):'';
     const locStr=[r.city,r.country].filter(Boolean).join(', ');
-    const ago=r.years_ago===1?'1 year ago':r.years_ago+' years ago';
+    const ago=r.origin?'✨ first ever':(r.years_ago===1?'1 year ago':r.years_ago+' years ago');
+    const withLine=(r.companions&&r.companions.length)?`<div class="rc-with">with ${esc(r.companions.join(', '))}</div>`:'';
     return `<div${cardClick} class="recent-card" style="${swarmUrl?'cursor:pointer;':''}">
       <div class="rc-venue-row"><div class="rc-venue">${venueLink}</div>${catIcon(r.category)}</div>
       <div class="rc-cat-row"><div class="rc-cat">${esc(r.category||'')}</div><div class="rc-streak">🕰 ${ago}</div></div>
       <div class="rc-location">${f} ${esc(locStr)}</div>
+      ${withLine}
+      <div class="rc-weather" id="otdw_${i}"><span class="rc-weather-loading">fetching weather…</span></div>
       <div class="rc-date">${esc(r.date)}</div>
     </div>`;
   };
+  // Client-side weather for the selected year's cards (mirrors the recent cards).
+  async function otdWx(r,i){
+    const el=document.getElementById('otdw_'+i);
+    if(!el)return;
+    if(!r.lat||!r.lng||!r.time){el.innerHTML='';return;}
+    try{
+      const utcDate=new Date(r.ts*1000).toISOString().slice(0,10);
+      const url=`https://archive-api.open-meteo.com/v1/archive?latitude=${r.lat}&longitude=${r.lng}`+
+        `&start_date=${utcDate}&end_date=${utcDate}&hourly=temperature_2m,weather_code&timezone=auto`;
+      const res=await fetch(url); const d=await res.json();
+      const hour=parseInt(r.time.split(':')[0]);
+      const temp=d.hourly?.temperature_2m?.[hour], code=d.hourly?.weather_code?.[hour];
+      const wmo=window._wmoByTime||((c,h)=>['🌡️','']);
+      const [icon,desc]=wmo(code,hour);
+      if(temp==null&&code==null){el.innerHTML='';}else{el.innerHTML=`<span class="rc-weather-icon">${icon}</span><span class="rc-weather-temp">${temp!=null?Math.round(temp)+'°C':'—'}</span><span class="rc-weather-desc">${desc}</span>`;}
+    }catch(e){el.innerHTML='';}
+  }
   const scroll=document.getElementById('onThisDayScroll');
   const chipsEl=document.getElementById('onThisDayChips');
   chipsEl.innerHTML=years.map(y=>
@@ -1233,8 +1254,10 @@ function filterList(id,q){
   const chips=[...chipsEl.querySelectorAll('.otd-chip')];
   function sel(y){
     chips.forEach(c=>c.classList.toggle('active',+c.dataset.year===y));
-    scroll.innerHTML=byYear.get(y).map(card).join('');
+    const list=byYear.get(y);
+    scroll.innerHTML=list.map((r,i)=>card(r,i)).join('');
     scroll.scrollLeft=0;
+    list.forEach((r,i)=>setTimeout(()=>otdWx(r,i),i*120));
   }
   chips.forEach(c=>c.addEventListener('click',()=>sel(+c.dataset.year)));
   sel(years[0]);  // default to the most recent year with a match
