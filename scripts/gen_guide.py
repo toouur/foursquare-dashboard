@@ -27,6 +27,7 @@ import argparse
 import csv
 import json
 import logging
+import math
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -360,41 +361,6 @@ def build_page(
         in_foreign_country=in_foreign_country,
     )
 
-    # ── Same-day-other-years memory band ────────────────────────────────────
-    # For today's MM-DD across all prior years, collect check-ins so the page
-    # can render "5 years ago today…" memories.
-    today = datetime.now(tz=timezone.utc)
-    today_md = today.strftime("%m-%d")
-    same_day: list[dict] = []
-    for r in rows_sorted:
-        try:
-            ts = int(r.get("date", 0) or 0)
-        except ValueError:
-            continue
-        if not ts:
-            continue
-        d = datetime.fromtimestamp(ts, tz=timezone.utc)
-        if d.strftime("%m-%d") != today_md or d.year == today.year:
-            continue
-        same_day.append({
-            "year":     d.year,
-            "ts":       ts,
-            "venue":    r.get("venue", ""),
-            "venue_id": r.get("venue_id", ""),
-            "city":     r.get("_norm_city", ""),
-            "country":  r.get("_norm_country", ""),
-            "category": r.get("category", ""),
-        })
-    # Group by year, keep up to 5 per year
-    by_year: dict[int, list] = defaultdict(list)
-    for s in same_day:
-        if len(by_year[s["year"]]) < 5:
-            by_year[s["year"]].append(s)
-    same_day_grouped = [
-        {"year": y, "items": items}
-        for y, items in sorted(by_year.items(), reverse=True)
-    ]
-
     # ── Visited venue names in the current city (for "✓ visited" badge) ────
     visited_names: list = []
     if anchor:
@@ -406,6 +372,45 @@ def build_page(
                 if vn and vn not in seen:
                     seen.add(vn)
                     visited_names.append(vn)
+
+    # ── Own visited venues near the anchor (never-empty Overpass fallback) ──
+    # When the live OSM Overpass query is rate-limited or returns nothing, the
+    # client falls back to the user's OWN check-in venues within the current
+    # radius, filtered by category. Compact rows keep the payload small:
+    #   [name, category, lat, lng, liked(0/1)]  (nearest ~600 within 25 km)
+    nearby_mine: list = []
+    if anchor:
+        a_lat, a_lng = anchor["lat"], anchor["lng"]
+        cos_lat = math.cos(math.radians(a_lat))
+        scored: list = []
+        for vid, m in venue_meta.items():
+            lat_s, lng_s = m.get("lat", ""), m.get("lng", "")
+            if not (lat_s and lng_s):
+                continue
+            try:
+                v_lat, v_lng = float(lat_s), float(lng_s)
+            except (TypeError, ValueError):
+                continue
+            cat = m.get("category", "")
+            if not cat or cat in SKIP_CATS:
+                continue
+            # Cheap bounding box (~0.35° ≈ 39 km) before the haversine.
+            if abs(v_lat - a_lat) > 0.35 or abs(v_lng - a_lng) > 0.55:
+                continue
+            dx = (v_lng - a_lng) * cos_lat
+            dy = (v_lat - a_lat)
+            dist_km = math.hypot(dx, dy) * 111.32
+            if dist_km > 25:
+                continue
+            scored.append((dist_km, [
+                m.get("name", ""),
+                cat,
+                round(v_lat, 5),
+                round(v_lng, 5),
+                1 if vid in liked_venue_ids else 0,
+            ]))
+        scored.sort(key=lambda t: t[0])
+        nearby_mine = [row for _d, row in scored[:600]]
 
     # ── Categories config (canonical groups + OSM tags) ────────────────────
     cats_path = config_dir / "categories.json"
@@ -448,10 +453,9 @@ def build_page(
         "liked_venues":         liked_venues,
         "visited_cats":         visited_cats,           # [[cat, count], ...]
         "visited_names":        visited_names,          # lowercased venue names in current city
+        "nearby_mine":          nearby_mine,            # [[name,cat,lat,lng,liked], ...] fallback
         "groups":               groups,                 # canonical 8-group taxonomy
         "osm_tags":             osm_tags,               # cat → [osm tags]
-        "same_day":             same_day_grouped,
-        "today_md":             today_md,
         # ── For the page hero (light context) ──
         "totals": {
             "total_checkins":   len(rows),

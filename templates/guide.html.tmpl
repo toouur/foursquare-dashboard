@@ -52,6 +52,10 @@ header h1{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:900;
 .hero-btn:hover{border-color:var(--gold);color:var(--gold);}
 .hero-btn.gps{background:rgba(78,201,176,.10);border-color:rgba(78,201,176,.35);color:var(--teal);}
 .hero-btn.gps.active{background:rgba(78,201,176,.20);border-color:var(--teal);}
+.hero-btn.gps.locating{opacity:.7;animation:gpspulse 1s ease-in-out infinite;}
+@keyframes gpspulse{0%,100%{opacity:.55;}50%{opacity:1;}}
+.hero-hint{font-size:.72rem;color:var(--muted);margin-top:8px;line-height:1.4;}
+.hero-hint b{color:var(--teal);font-weight:600;}
 
 /* ── Filter panel + map two-pane ── */
 .discover-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
@@ -140,26 +144,17 @@ header h1{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:900;
 .nb-link.o{border-color:rgba(120,200,100,.35);color:#78c864;}
 .nb-link.w{border-color:rgba(232,184,109,.35);color:var(--gold);}
 .nb-link:hover{background:rgba(255,255,255,.05);}
+.nb-item.mine .name::after{content:none;}
+.mine-badge{display:inline-block;margin-left:6px;font-size:.55rem;font-weight:600;color:var(--gold);border:1px solid rgba(232,184,109,.4);border-radius:4px;padding:1px 5px;vertical-align:middle;}
+.nb-banner{margin:8px 0 4px;padding:8px 11px;font-size:.72rem;line-height:1.4;color:var(--gold);background:rgba(232,184,109,.08);border:1px solid rgba(232,184,109,.3);border-radius:7px;}
+.nb-banner.hidden{display:none;}
+.nb-banner .fb-ico{margin-right:4px;}
+.nb-banner b{color:var(--text);font-weight:600;}
 .nb-empty{text-align:center;padding:30px 16px;color:var(--muted);font-size:.82rem;}
 .nb-empty h3{font-size:.95rem;margin-bottom:6px;color:var(--text);}
 .nb-empty a{color:var(--teal);}
 
 /* Side nav */
-
-/* On This Day strip */
-.otd{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:16px;}
-.otd-head{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.15em;color:var(--gold);margin-bottom:10px;}
-.otd-row{display:flex;gap:14px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x mandatory;}
-.otd-row::-webkit-scrollbar{height:3px;}
-.otd-row::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-.otd-yr{flex:0 0 240px;scroll-snap-align:start;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
-.otd-yr-hd{display:flex;align-items:baseline;gap:8px;margin-bottom:6px;}
-.otd-yr-num{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold);font-weight:700;line-height:1;}
-.otd-yr-ago{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;}
-.otd-item{font-size:.74rem;color:var(--text);line-height:1.4;margin-top:5px;display:flex;align-items:flex-start;gap:5px;}
-.otd-item .em{flex-shrink:0;}
-.otd-item .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.otd-item .city{font-size:.6rem;color:var(--muted);margin-top:1px;}
 
 /* Empty state when no anchor */
 .no-anchor{padding:60px 20px;text-align:center;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:14px;}
@@ -178,9 +173,6 @@ header h1{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:900;
 
 <!-- HERO -->
 <div id="heroBox"></div>
-
-<!-- ON THIS DAY -->
-<div id="onThisDay"></div>
 
 <!-- DISCOVERY -->
 <div id="discoverBox"></div>
@@ -227,6 +219,21 @@ const distM = (la1, lo1, la2, lo2) => {
 };
 const catEmoji = c => (CAT_ICON[c] && CAT_ICON[c][0]) || '📍';
 const catColor = c => (CAT_ICON[c] && CAT_ICON[c][1]) || '#4a5270';
+const timeAgo = ts => {
+  if (!ts) return '';
+  const s = Math.floor(Date.now() / 1000) - ts;
+  if (s < 90) return 'just now';
+  const m = Math.round(s / 60);
+  if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+  const d = Math.round(h / 24);
+  if (d < 30) return d + (d === 1 ? ' day ago' : ' days ago');
+  const mo = Math.round(d / 30);
+  if (mo < 12) return mo + (mo === 1 ? ' month ago' : ' months ago');
+  const y = Math.round(mo / 12);
+  return y + (y === 1 ? ' year ago' : ' years ago');
+};
 
 // Opening-hours probe — very lightweight; returns {open: bool|null, text: ''}
 // Full opening_hours grammar is out of scope; we just look for "24/7", "Mo-Su",
@@ -322,6 +329,7 @@ const state = {
   },
   activeCat:     null,
   results:       [],    // raw OSM elements (after distance attach)
+  fallback:      false, // false | 'empty' | 'error' — showing own venues
   filteredCount: 0,
   inFlight:      new Map(),  // tags-key → AbortController
   promiseDedup:  new Map(),  // tags-key → Promise
@@ -338,10 +346,10 @@ function renderHero() {
   const box = document.getElementById('heroBox');
   if (!state.anchor) {
     box.innerHTML = `<div class="no-anchor">
-      <h2>No location yet</h2>
-      <p>The guide uses your latest check-in as the anchor point.<br>
-      Once you check in somewhere with coordinates, this page will surface nearby venues that match your taste.</p>
-      <button onclick="useDeviceLocation()">📍 Use my device location instead</button>
+      <h2>Where are you right now?</h2>
+      <p>This guide finds venues near you that match your taste.<br>
+      Share your location for live results, or it will fall back to your latest check-in.</p>
+      <button onclick="useDeviceLocation()">📡 Use my location</button>
     </div>`;
     return;
   }
@@ -361,16 +369,17 @@ function renderHero() {
   box.innerHTML = `<div class="hero">
     <div class="hero-row1">
       <div class="hero-anchor">
-        <div class="hero-anchor-lbl">${isGps ? 'Device location' : 'Anchored to last check-in'}</div>
+        <div class="hero-anchor-lbl">${isGps ? '📡 Your location · live' : 'Last check-in' + (a.ts ? ' · ' + timeAgo(a.ts) : '')}</div>
         <div class="hero-venue">${esc(a.venue || 'My location')}</div>
         <div class="hero-meta">
           ${a.category ? `<span>${catEmoji(a.category)} <strong>${esc(a.category)}</strong></span>` : ''}
           ${a.city ? `<span>📍 ${esc(a.city)}${a.country ? ', ' + esc(a.country) : ''}</span>` : ''}
         </div>
         <div class="hero-context">${badges.join(' ')}</div>
+        ${!isGps ? `<div class="hero-hint">Showing results around your last check-in. <b>Use my location</b> for what's near you now.</div>` : ''}
       </div>
       <div class="hero-actions">
-        <button class="hero-btn gps ${isGps ? 'active' : ''}" onclick="useDeviceLocation()">📡 ${isGps ? 'Using GPS' : 'Use GPS'}</button>
+        <button class="hero-btn gps ${isGps ? 'active' : ''}" onclick="useDeviceLocation()">📡 ${isGps ? 'Using your location' : 'Use my location'}</button>
         ${!isGps && D.anchor ? `<button class="hero-btn" onclick="useLastCheckin()">↩ Last check-in</button>` : ''}
         <a class="hero-btn" href="${gUrl}" target="_blank" rel="noopener">Google Maps ↗</a>
         <a class="hero-btn" href="${yUrl}" target="_blank" rel="noopener">Yandex Maps ↗</a>
@@ -463,6 +472,7 @@ function renderDiscover() {
           <div id="nbMap"></div>
           <div class="map-loading" id="mapLoading">Pick a category to see what's nearby…</div>
         </div>
+        <div class="nb-banner hidden" id="nbBanner"></div>
         <div class="list-pane" id="nbList"></div>
       </div>
     </div>
@@ -548,7 +558,9 @@ const ENDPOINTS = [
   'https://overpass.openstreetmap.fr/api/interpreter',
 ];
 
-async function overpassFetch(tags, abortSignal) {
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+async function overpassFetch(tags, abortSignal, onStatus) {
   const cacheK = cacheKey(state.anchor.lat, state.anchor.lng, state.radius, tags);
   // 1. cache check
   const hit = await idbGet(cacheK);
@@ -562,23 +574,34 @@ async function overpassFetch(tags, abortSignal) {
   }).join('');
   const query = `[out:json][timeout:25];(${stanzas});out center 150;`;
 
+  // Overpass mirrors are frequently rate-limited (429) or overloaded (504).
+  // Sweep all endpoints, then retry the whole sweep with backoff before giving
+  // up — the caller shows a "busy, retrying…" state rather than a dead end.
+  const ROUNDS = 3;
   const promise = (async () => {
     let lastErr;
-    for (const ep of ENDPOINTS) {
-      try {
-        const r = await fetch(ep, {
-          method: 'POST',
-          body: 'data=' + encodeURIComponent(query),
-          signal: abortSignal,
-        });
-        if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
-        const d = await r.json();
-        const els = d.elements || [];
-        idbSet(cacheK, { t: Date.now(), v: els });
-        return els;
-      } catch (e) {
-        if (e.name === 'AbortError') throw e;
-        lastErr = e;
+    for (let round = 0; round < ROUNDS; round++) {
+      for (const ep of ENDPOINTS) {
+        if (abortSignal && abortSignal.aborted) throw new DOMException('aborted', 'AbortError');
+        try {
+          const r = await fetch(ep, {
+            method: 'POST',
+            body: 'data=' + encodeURIComponent(query),
+            signal: abortSignal,
+          });
+          if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
+          const d = await r.json();
+          const els = d.elements || [];
+          idbSet(cacheK, { t: Date.now(), v: els });
+          return els;
+        } catch (e) {
+          if (e.name === 'AbortError') throw e;
+          lastErr = e;
+        }
+      }
+      if (round < ROUNDS - 1) {
+        if (onStatus) onStatus(round);
+        await sleep(700 * (round + 1));  // 700ms, 1400ms backoff between sweeps
       }
     }
     throw lastErr || new Error('all endpoints failed');
@@ -618,6 +641,27 @@ function parseElements(els) {
   return items;
 }
 
+// ── Never-empty fallback: your own visited venues near the anchor ──────────
+// D.nearby_mine rows are [name, category, lat, lng, liked] (nearest ≤600 within
+// 25 km, from gen_guide). Filter to the selected category + current radius and
+// shape them like parseElements output. These carry mine:true (no OSM id).
+function ownNearby(cat) {
+  const rows = D.nearby_mine || [];
+  const out = [];
+  for (const [name, category, lat, lng, liked] of rows) {
+    if (category !== cat) continue;
+    const d = distM(state.anchor.lat, state.anchor.lng, lat, lng);
+    if (d > state.radius) continue;
+    out.push({
+      name, addr: '', opening: '', website: '',
+      lat, lng, osm_type: null, osm_id: null,
+      isVis: true, mine: true, liked: !!liked, d,
+    });
+  }
+  out.sort((a, b) => a.d - b.d);
+  return out;
+}
+
 // ── Render / filter ───────────────────────────────────────────────────────
 function applyAndRender() {
   if (!state.results.length) {
@@ -631,9 +675,20 @@ function applyAndRender() {
   if (state.filters.openNow) items = items.filter(x => probeOpen(x.opening, now).open === true);
 
   state.filteredCount = items.length;
+  const radTxt = state.radius < 1000 ? state.radius + ' m' : (state.radius / 1000).toFixed(2).replace(/\.?0+$/, '') + ' km';
   document.getElementById('nbCount').innerHTML = items.length
-    ? `<strong>${items.length}</strong> within ${state.radius < 1000 ? state.radius + ' m' : (state.radius / 1000).toFixed(2).replace(/\.?0+$/, '') + ' km'}`
+    ? `<strong>${items.length}</strong> within ${radTxt}`
     : '';
+
+  const banner = document.getElementById('nbBanner');
+  if (banner) {
+    banner.innerHTML = state.fallback
+      ? `<span class="fb-ico">📍</span> ${state.fallback === 'error'
+          ? 'Live map data is unavailable right now — showing places <b>you\'ve been to</b> nearby instead.'
+          : 'No live results here — showing places <b>you\'ve been to</b> nearby instead.'}`
+      : '';
+    banner.classList.toggle('hidden', !state.fallback);
+  }
 
   if (!items.length) {
     renderEmpty('Nothing matches', 'Try a wider radius or relaxing filters.');
@@ -693,16 +748,17 @@ function renderList(items) {
   document.getElementById('nbList').innerHTML = items.map((item, idx) => {
     const gUrl = `https://www.google.com/maps/search/${encodeURIComponent(item.name)}/@${item.lat},${item.lng},17z`;
     const yUrl = `https://yandex.com/maps/?text=${encodeURIComponent(item.name)}&ll=${item.lng},${item.lat}&z=17`;
-    const oUrl = `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}`;
+    // Own-venue fallback items have no OSM id — omit the OSM deep link for them.
+    const oUrl = item.osm_id ? `https://www.openstreetmap.org/${item.osm_type}/${item.osm_id}` : '';
     const oh = probeOpen(item.opening, now);
     const ohHtml = oh.text
       ? `<span class="opening ${oh.open === false ? 'closed' : ''}">${oh.open === true ? '🟢' : oh.open === false ? '🔴' : '⏱'} ${esc(oh.text)}</span>`
       : '';
     const dirChar = bearingChar(state.anchor.lat, state.anchor.lng, item.lat, item.lng);
-    return `<div class="nb-item${item.isVis ? ' visited' : ''}" data-idx="${idx}">
+    return `<div class="nb-item${item.isVis ? ' visited' : ''}${item.mine ? ' mine' : ''}" data-idx="${idx}">
       <div class="dist">${fmtDist(item.d)}<br><span style="font-size:.55rem;opacity:.7;font-weight:400">${esc(fmtWalk(item.d))}</span></div>
       <div class="body">
-        <div class="name">${esc(item.name)}</div>
+        <div class="name">${esc(item.name)}${item.mine ? '<span class="mine-badge">✓ your place</span>' : ''}</div>
         <div class="meta">
           <span>${dirChar}</span>
           ${item.addr ? `<span class="sep">·</span><span>📍 ${esc(item.addr)}</span>` : ''}
@@ -711,7 +767,7 @@ function renderList(items) {
         <div class="links">
           <a class="nb-link g" href="${gUrl}" target="_blank" rel="noopener">Google</a>
           <a class="nb-link y" href="${yUrl}" target="_blank" rel="noopener">Yandex</a>
-          <a class="nb-link o" href="${oUrl}" target="_blank" rel="noopener">OSM</a>
+          ${oUrl ? `<a class="nb-link o" href="${oUrl}" target="_blank" rel="noopener">OSM</a>` : ''}
           ${item.website ? `<a class="nb-link w" href="${esc(item.website)}" target="_blank" rel="noopener">🌐</a>` : ''}
         </div>
       </div>
@@ -780,22 +836,41 @@ async function fetchAndRender(cat) {
   const ctrl = new AbortController();
   state.inFlight.set(key, ctrl);
 
-  document.getElementById('mapLoading').classList.remove('hidden');
-  document.getElementById('mapLoading').textContent = `⏳ Searching "${cat}" within ${state.radius < 1000 ? state.radius + ' m' : (state.radius / 1000) + ' km'}…`;
+  const mapLoading = document.getElementById('mapLoading');
+  mapLoading.classList.remove('hidden');
+  mapLoading.textContent = `⏳ Searching "${cat}" within ${state.radius < 1000 ? state.radius + ' m' : (state.radius / 1000) + ' km'}…`;
+
+  state.fallback = false;
+  const onStatus = round => {
+    mapLoading.textContent = `⏳ OSM busy — retrying (${round + 2}/3)…`;
+  };
 
   try {
-    const els = await overpassFetch(tags, ctrl.signal);
+    const els = await overpassFetch(tags, ctrl.signal, onStatus);
     state.results = parseElements(els);
+    // Live query returned nothing? Fall back to your own places here.
+    if (!state.results.length) {
+      const mine = ownNearby(cat);
+      if (mine.length) { state.results = mine; state.fallback = 'empty'; }
+    }
     applyAndRender();
     // Background idle prefetch — top 2 recommended cats that aren't active
     schedulePrefetch();
   } catch (e) {
     if (e.name === 'AbortError') return;
-    state.results = [];
-    renderEmpty('Fetch error', 'OSM Overpass unavailable. Try again in a moment.');
+    // Never a dead end: fall back to your own visited venues near the anchor.
+    const mine = ownNearby(cat);
+    if (mine.length) {
+      state.results = mine;
+      state.fallback = 'error';
+      applyAndRender();
+    } else {
+      state.results = [];
+      renderEmpty('Fetch error', 'OSM Overpass is unavailable right now and you have no visited places of this type nearby. Try again in a moment.');
+    }
   } finally {
     state.inFlight.delete(key);
-    document.getElementById('mapLoading').classList.add('hidden');
+    mapLoading.classList.add('hidden');
   }
 }
 
@@ -853,43 +928,57 @@ window.useLastCheckin = function() {
   if (state.activeCat) fetchAndRender(state.activeCat);
 };
 
-// ── On This Day ──────────────────────────────────────────────────────────
-function renderOTD() {
-  const box = document.getElementById('onThisDay');
-  const sd = D.same_day || [];
-  if (!sd.length) { box.innerHTML = ''; return; }
-  const thisYear = new Date().getFullYear();
-  const monthDay = (D.today_md || '').split('-');
-  const monthName = ['January','February','March','April','May','June','July','August','September','October','November','December'][(+monthDay[0])-1] || '';
-  const cards = sd.map(g => {
-    const ago = thisYear - g.year;
-    const items = g.items.map(it =>
-      `<div class="otd-item">
-        <span class="em">${catEmoji(it.category)}</span>
-        <div style="flex:1;min-width:0;">
-          <div class="name">${esc(it.venue || 'Unknown venue')}</div>
-          <div class="city">${esc(it.city)}${it.country ? ', ' + esc(it.country) : ''}</div>
-        </div>
-      </div>`).join('');
-    return `<div class="otd-yr">
-      <div class="otd-yr-hd"><span class="otd-yr-num">${g.year}</span><span class="otd-yr-ago">${ago} yr${ago > 1 ? 's' : ''} ago</span></div>
-      ${items}
-    </div>`;
-  }).join('');
-  box.innerHTML = `<div class="otd">
-    <div class="otd-head">📅 On this day — ${esc(monthName)} ${+monthDay[1]}</div>
-    <div class="otd-row">${cards}</div>
-  </div>`;
+// ── GPS-first auto-upgrade ────────────────────────────────────────────────
+// If the user previously used GPS here, or has already granted the browser
+// geolocation permission, silently acquire their live position and switch the
+// anchor away from the (possibly stale) last check-in — no click required.
+// A user who explicitly pinned to their check-in this session is respected.
+async function autoLocate() {
+  if (!('geolocation' in navigator)) return;
+  if (localStorage.getItem('guide-source') === 'checkin') return;
+
+  let allowed = localStorage.getItem('guide-source') === 'gps';
+  if (!allowed && navigator.permissions && navigator.permissions.query) {
+    try {
+      const st = await navigator.permissions.query({ name: 'geolocation' });
+      allowed = st.state === 'granted';
+    } catch { /* permissions API unavailable — leave allowed as-is */ }
+  }
+  if (!allowed) return;  // never prompt on load; the hero button does that
+
+  const gpsBtn = document.querySelector('.hero-btn.gps');
+  if (gpsBtn) gpsBtn.classList.add('locating');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude } = pos.coords;
+    if (!state.anchor) {
+      state.anchor = {
+        lat: latitude, lng: longitude,
+        venue: 'My location', category: '', city: '', country: '',
+        source: 'gps', ts: Math.floor(Date.now() / 1000),
+      };
+      renderHero();
+      renderDiscover();
+      if ((D.recommended || []).length) selectCat(D.recommended[0]);
+    } else {
+      moveAnchor(latitude, longitude, 'My location', 'gps');
+      renderHero();
+      if (state.activeCat) fetchAndRender(state.activeCat);
+    }
+    localStorage.setItem('guide-source', 'gps');
+    if (gpsBtn) gpsBtn.classList.remove('locating');
+  }, () => {
+    if (gpsBtn) gpsBtn.classList.remove('locating');
+  }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-renderOTD();
 renderHero();
 renderDiscover();
 // Auto-select first recommendation
 if (state.anchor && (D.recommended || []).length) {
   selectCat(D.recommended[0]);
 }
+autoLocate();
 </script>
 
 <script>
