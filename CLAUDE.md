@@ -214,7 +214,7 @@ python -m http.server 8000 --directory _site
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
 - Tests: `tests/` — pytest suite (224 tests): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
 - HTML deploy gate: `scripts/validate_html.py` — runs in `update-dashboard.yml` before every deploy (required pages present, no leftover `{{PLACEHOLDER}}`, embedded JSON parses, min page size; skips `solution.html` which quotes placeholders as documentation).
-- QA docs: `qa/` — `test-strategy.md` (risk analysis → pyramid → gates), `exploratory-checklist.md` (manual pre-release charter), `bug-reports/` (13 written-up real defects). `docs/` is gitignored — QA docs must live in `qa/`.
+- QA docs: `qa/` — `test-strategy.md` (risk analysis → pyramid → gates), `exploratory-checklist.md` (manual pre-release charter), `bug-reports/` (14 written-up real defects). `docs/` is gitignored — QA docs must live in `qa/`.
 - Lint config: `ruff.toml` (E4/E7/E9+F; E401/E701/E702/E731 ignored deliberately).
 - Type-check config: `setup.cfg` `[mypy]` — `files = scripts`, ignore_missing_imports, allow_redefinition, var-annotated disabled; tree is CLEAN (0 errors / 55 files) and must stay so (runs in the tests.yml lint job). NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
 - Other QA workflows: `lighthouse.yml` (weekly Mon 07:00 UTC, 4 pages, score floors perf≥60 / a11y+bp+seo≥85), `k6-load.yml` (manual, /api/search, fail >1% errors or p95>1s), `mutation.yml` (manual, mutmut over transform.py, config in setup.cfg `[mutmut]`).
@@ -365,6 +365,16 @@ To accept a new raw nearest-city name, add it to `canonical_map` in
   because that path is gitignored).
 - Pause switch: repo Variable `UPDATES_PAUSED=true` halts the hourly update job and the
   monthly Netlify mirror job.
+- **Shared data-repo pushes are concurrency-hardened.** Three workflows commit to
+  `toouur/foursquare-data` `main` — `update-dashboard.yml` (hourly), `warm-routes.yml`
+  (daily 03:00 UTC), `fr24-flights.yml` (weekly Sun). Overlapping runs (e.g. the 03:00
+  route-warm still pushing as the 03:00 hourly build commits) caused non-fast-forward
+  rejections (`! [rejected] main -> main (fetch first)`) that failed the run. Every
+  data-repo commit step now wraps its push in the SAME bounded rebase-and-retry loop
+  (`git push` → on failure `git pull --rebase origin main` → retry, 5 attempts, then
+  `exit 1`). The commits touch disjoint files so rebases always apply cleanly. A repo-wide
+  `concurrency` group was deliberately NOT used — it would queue the latency-sensitive
+  hourly poller behind the daily backlog drain. See `qa/bug-reports/BUG-014-concurrent-data-push-race.md`.
 - Photo hosting: Cloudflare R2 under `/pix` prefix.
 - Search backend: Cloudflare D1 database `swarmdata` (ID `52210bd9-a019-415e-8f12-6a73b42278f9`), queried by `functions/api/search.js`.
 - D1 binding must be added manually in CF dashboard: Pages → 4sq → Settings → Functions → D1 database bindings → Variable: `DB`, database: `swarmdata`.

@@ -361,7 +361,17 @@ function closeTipPhoto(){
   document.getElementById('tipLightbox-img').src='';
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTipPhoto();});
-(function(){const _q=new URLSearchParams(location.search).get('q');if(_q){const _inp=document.getElementById('srch');if(_inp){_inp.value=_q;onSearch(_q);}}})();
+(function(){
+  const _q=new URLSearchParams(location.search).get('q');
+  if(!_q) return;
+  const _inp=document.getElementById('srch');
+  if(_inp){_inp.value=_q;onSearch(_q);}
+  // Arriving from global search (a tip click passes the venue name as ?q=): land
+  // ON the matching tip — select + highlight the top result and pan the map to it,
+  // rather than dropping the user on an unscrolled filtered list.
+  const first=document.querySelector('#feedScroll .tcard');
+  if(first){const m=first.id.match(/^tc_(\d+)$/);if(m)selectTip(+m[1]);}
+})();
 </script>
 <div id="tipLightbox" onclick="closeTipPhoto()">
   <img id="tipLightbox-img" src="" alt="" onclick="event.stopPropagation()">

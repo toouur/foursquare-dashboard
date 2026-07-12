@@ -8,7 +8,7 @@ Quality documentation for this project. The automated suite itself lives in
 |----------|------------|
 | [test-strategy.md](test-strategy.md) | Risk analysis → test pyramid (175 unit / 22 API / 14 E2E / 8 a11y), quality gates per lifecycle stage, test-data strategy, and the honest list of what is deliberately **not** tested and why |
 | [exploratory-checklist.md](exploratory-checklist.md) | Manual pre-release charter: what a human checks that automation can't (visual layout, generated prose quality, post-deploy spot checks) |
-| [bug-reports/](bug-reports/) | Thirteen real defects found (and all but one fixed) in this project, written up Jira-style: repro, expected/actual, root cause, fix, regression coverage, and lessons |
+| [bug-reports/](bug-reports/) | Fourteen real defects found (and all but one fixed) in this project, written up Jira-style: repro, expected/actual, root cause, fix, regression coverage, and lessons |
 
 ## Bug report index
 
@@ -27,3 +27,4 @@ Quality documentation for this project. The automated suite itself lives in
 | [BUG-011](bug-reports/BUG-011-feed-calendar-double-count.md) | Feed calendar double-counts months after jump navigation | Minor |
 | [BUG-012](bug-reports/BUG-012-inline-lookup-dict-drift.md) | Copy-pasted lookup dicts drift: shouts page had icons for 40 of 559 categories | Minor–Major |
 | [BUG-013](bug-reports/BUG-013-d1-watermark-sync-drift.md) | Watermark-based D1 sync silently drops backdated check-ins, keeps orphaned venues | Major |
+| [BUG-014](bug-reports/BUG-014-concurrent-data-push-race.md) | Concurrent scheduled jobs race to push the shared data repo → non-fast-forward fails the build | Major |

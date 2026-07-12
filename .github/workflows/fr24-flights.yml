@@ -88,7 +88,14 @@ jobs:
             echo "Nothing to commit."
           else
             git commit -m "chore: update flights.csv from FR24 [$(date -u +'%Y-%m-%d %H:%M UTC')]"
-            git push
+            # update-dashboard / warm-routes may push to the same data-repo ref
+            # between our checkout and this push → non-fast-forward. Rebase-and-retry.
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
           fi
 
       # Fail ONLY on rejected credentials (exit 2) so the failure email prompts

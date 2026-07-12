@@ -41,7 +41,7 @@ body.light a{color:var(--teal);}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 
 /* ── HEADER ── */
-header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:nowrap;gap:28px;position:relative;}
+header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:28px;position:relative;}
 .header-actions{position:absolute;top:20px;right:56px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
 .header-actions-row{display:flex;align-items:center;gap:8px;}
 .solution-link{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);text-decoration:none;border:1px solid rgba(232,184,109,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;white-space:nowrap;}
@@ -54,7 +54,7 @@ header>.masthead{flex:0 0 auto;min-width:0;}
 header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
 .updated{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px;}
 .kpis{display:flex;gap:22px 24px;flex-wrap:wrap;align-items:flex-end;justify-content:flex-end;align-content:flex-end;flex:1 1 auto;min-width:0;}
-.kpi .num{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:700;color:var(--gold);line-height:1;}
+.kpi .num{font-family:'Playfair Display',serif;font-size:clamp(1.55rem,2vw,2.2rem);font-weight:700;color:var(--gold);line-height:1;}
 .kpi .lbl{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-top:5px;}
 
 /* ── GRID ── */
@@ -1974,8 +1974,9 @@ function buildCityMap(){
   function _typeIcon(t){return{venue:'📍',city:'🏙',trip:'✈',tip:'💬',companion:'👤'}[t]||'🔍';}
 
   function _typePage(t,id){
-    // NB: venue + companion build their own href inline in _render (venue →
-    // venues.html?q=, companion → companions.html?person=); not routed here.
+    // NB: venue + companion + tip build their own href inline in _render (venue →
+    // venues.html?q=, companion → companions.html?person=, tip → tips.html?q=<venue>);
+    // not routed here.
     if(t==='city')      return '#s-cities';
     if(t==='trip')      return 'trips.html'+(id?'#trip-'+id:'');
     if(t==='tip')       return 'tips.html';
@@ -1998,6 +1999,7 @@ function buildCityMap(){
         const sub=[it.c,it.co].filter(Boolean).join(', ')||it.tx||'';
         const href=t==='companion'?'companions.html?person='+encodeURIComponent(name)
                   :t==='venue'?'venues.html?q='+encodeURIComponent(name)
+                  :t==='tip'?'tips.html?q='+encodeURIComponent(name)
                   :_typePage(t,it.id);
         html+=`<a class="gs-item" href="${esc(href)}" data-gs-t="${t}" data-gs-n="${esc(name)}"><span class="gs-item-icon">${_typeIcon(t)}</span><div class="gs-item-body"><div class="gs-item-name">${esc(name)}</div>${sub?`<div class="gs-item-sub">${esc(sub)}</div>`:''}</div></a>`;
       });

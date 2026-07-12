@@ -228,7 +228,15 @@ jobs:
           else
             TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
             git commit -m "chore: update data [${TIMESTAMP}]"
-            git push
+            # Another workflow (warm-routes / fr24-flights / a concurrent run of
+            # this job) may push to the same data-repo ref between our checkout and
+            # this push, causing a non-fast-forward rejection. Rebase-and-retry.
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
           fi
           cd ..
 

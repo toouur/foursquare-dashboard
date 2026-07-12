@@ -180,7 +180,7 @@ lazy loading, lightbox, and inline tip photos ·
 ├── qa/
 │   ├── test-strategy.md          # Risk analysis → test pyramid → quality gates per stage
 │   ├── exploratory-checklist.md  # Manual pre-release charter (what automation can't judge)
-│   └── bug-reports/              # 13 real defects written up: repro → root cause → fix → regression test
+│   └── bug-reports/              # 14 real defects written up: repro → root cause → fix → regression test
 ├── data/
 │   ├── checkins.csv          # Your check-in data — gitignored, lives in private repo
 │   ├── tips.json             # Your tips data — gitignored, lives in private repo

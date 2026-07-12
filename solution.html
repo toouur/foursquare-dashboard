@@ -1429,6 +1429,57 @@ cover = <span class="hl">min</span>(candidates, key=key)   <span class="cm"># sa
       </div>
     </div>
 
+    <!-- C19 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 19 — Three Scheduled Jobs Racing to Push the Same Data Repo</div>
+        <div class="cs-text">
+          All the private data — check-ins, tips, the route-geometry cache, the FR24 flight
+          diary — lives in a single repo (<code>toouur/foursquare-data</code>), and
+          <strong>three separate GitHub Actions workflows commit to its <code>main</code></strong>:
+          the hourly <code>update-dashboard.yml</code>, the daily <code>warm-routes.yml</code>
+          (03:00&nbsp;UTC), and the weekly <code>fr24-flights.yml</code> (Sunday 05:00&nbsp;UTC).
+          Each job checks out the ref, works for a minute or two, then pushes. When two jobs
+          overlap — the 03:00 route-warm still running as the 03:00 hourly build starts — the
+          second one to push finds its checkout is no longer the tip and Git rejects it:
+        </div>
+        <div class="code-block">
+<span class="cm"># The hourly job's push, after warm-routes landed a commit mid-run:</span>
+ ! [rejected]        main -> main (<span class="hl2">fetch first</span>)
+error: failed to push some refs to 'github.com/toouur/foursquare-data'
+<span class="cm"># non-fast-forward: our base commit is no longer the remote tip → exit 1, red build</span>
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — A Bounded Rebase-and-Retry Loop on Every Data Push</div>
+        <div class="cs-text">
+          The commits never actually conflict — they touch different files (<code>checkins.csv</code>
+          vs <code>routes_cache.json</code> vs <code>flights.csv</code>), so a rebase always applies
+          cleanly. Rather than serialize the jobs with a repo-wide <code>concurrency</code> group —
+          which would queue the latency-sensitive hourly poller behind a long backlog drain — each
+          push is wrapped in the <strong>same bounded retry</strong>: on rejection, rebase onto the
+          latest <code>main</code> and try again, up to five times, then hard-fail so a genuinely
+          stuck push still surfaces.
+        </div>
+        <div class="code-block">
+<span class="cm"># Identical guard in all three workflows' commit step:</span>
+<span class="kw">for</span> i <span class="kw">in</span> 1 2 3 4 5; <span class="kw">do</span>
+  <span class="kw">if</span> git push; <span class="kw">then</span> <span class="kw">break</span>; <span class="kw">fi</span>
+  <span class="cm"># another job pushed between our checkout and now — replay on top of it</span>
+  git pull <span class="hl2">--rebase</span> origin main
+  [ <span class="hl">"$i"</span> = 5 ] &amp;&amp; { <span class="hl">echo</span> <span class="hl2">"push still failing after rebase retries"</span>; <span class="kw">exit</span> 1; }
+<span class="kw">done</span>
+        </div>
+        <div class="cs-text">
+          The fix is deliberately uniform across the three files so the concurrency contract is
+          obvious to anyone reading any one of them, and it keeps the hourly job on the fast path:
+          a lost race costs one extra fetch-and-replay, not a queued wait behind the daily backlog
+          drain. The five-attempt ceiling means a real problem (a broken token, a diverged history)
+          still fails loudly instead of looping forever.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>

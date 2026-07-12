@@ -98,6 +98,13 @@ jobs:
             echo "Route cache unchanged — no backlog to drain."
           else
             git commit -m "chore: drain route-geometry backlog"
-            git push || { git pull --rebase && git push; }
+            # update-dashboard / fr24-flights may push to the same data-repo ref
+            # between our checkout and this push → non-fast-forward. Rebase-and-retry.
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
           fi
           cd ..
