@@ -41,12 +41,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ── Checkout private data repo ────────────────────────────────────────────
+      # ── Checkout private data repo (shallow: verify only reads the working tree) ─
       - uses: actions/checkout@v4
         with:
           repository: toouur/foursquare-data
           token: ${{ secrets.DATA_REPO_PAT }}
           path: private-data
+          fetch-depth: 1
 
       - uses: actions/setup-python@v5
         with:
@@ -91,11 +92,17 @@ jobs:
           fetch-depth: 1
 
       # ── 2. Checkout private data repo ────────────────────────────────────────
+      #   Shallow (depth 1): this job reads the current working tree (checkins.csv,
+      #   pix/, routes_cache.json) and pushes new commits — it never walks history.
+      #   The data repo gets hourly data commits + binary photos, so a full clone
+      #   is ~15s; depth-1 keeps it to a few seconds. The later rebase-and-retry
+      #   push still works on a shallow clone (git fetches what it needs to rebase).
       - uses: actions/checkout@v4
         with:
           repository: toouur/foursquare-data
           token: ${{ secrets.DATA_REPO_PAT }}
           path: private-data
+          fetch-depth: 1
 
       # ── 3. Python setup ──────────────────────────────────────────────────────
       - uses: actions/setup-python@v5
@@ -349,73 +356,87 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           exit $status
 
-      # ── 7b. Sync data to Cloudflare D1 ──────────────────────────────────────
-      - name: Sync data to D1
+      # ── 7b. Warm the wrangler install cache ──────────────────────────────────
+      #   The deploy runs `npx wrangler@3`, which otherwise cold-downloads wrangler
+      #   (+deps) into ~/.npm on every run — several seconds on the critical path.
+      #   Persist ~/.npm (npm's cache + the _npx package dir) keyed on the pinned
+      #   major, so after the first run npx resolves wrangler straight from cache.
+      #   Bump the key suffix if the `wrangler@N` major below changes.
+      - name: Cache wrangler (npm)
         if: |
           github.event_name == 'workflow_dispatch' ||
           steps.fetch.outputs.CHANGED == 'true' ||
           steps.fetch_tips.outputs.CHANGED == 'true' ||
+          steps.fetch_photos.outputs.CHANGED == 'true' ||
+          steps.fetch_ratings.outputs.CHANGED == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-wrangler3-${{ runner.os }}
+
+      # ── 7c. Sync D1 (in background) ∥ assemble & deploy ─────────────────────
+      #   D1 sync (~13s of HTTP) and the Cloudflare Pages upload are independent —
+      #   the sync needs only the CSV/tips, the deploy needs only the built HTML —
+      #   so we background the sync and let it run WHILE the deploy uploads, then
+      #   reap it at the end. Merging the two former steps is required because a
+      #   backgrounded process can't be `wait`ed across step boundaries.
+      #   NOTE: D1 sync keeps its stricter gate (NOT on a photos-only change) via
+      #   the RUN_D1 flag; assemble+deploy still run on any change.
+      #   The generated HTML is NOT committed to git (it bloated history to 4GB+);
+      #   we deploy it directly to Cloudflare Pages via wrangler. Copy only known
+      #   site assets — never the working dir wholesale (it holds private-data/).
+      - name: Sync D1 (background), assemble & deploy
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          steps.fetch.outputs.CHANGED == 'true' ||
+          steps.fetch_tips.outputs.CHANGED == 'true' ||
+          steps.fetch_photos.outputs.CHANGED == 'true' ||
           steps.fetch_ratings.outputs.CHANGED == 'true'
         env:
           CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
           CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
           CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+          # Deploy reuses CF_D1_TOKEN — that token also carries the
+          # "Account → Cloudflare Pages → Edit" permission (no separate secret).
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_D1_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          # D1 sync runs on checkin/tips/ratings changes but NOT a photos-only
+          # rebuild (photos don't touch D1). Evaluated to 'true'/'false' by Actions.
+          RUN_D1: ${{ github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_ratings.outputs.CHANGED == 'true' }}
         run: |
-          RATINGS_ARG=""
-          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
-          LISTS_ARG=""
-          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
-          if [ -z "$CF_D1_TOKEN" ]; then
+          # ── Kick off the D1 sync in the background (overlaps the deploy) ──
+          D1_PID=""
+          if [ "$RUN_D1" = "true" ] && [ -n "$CF_D1_TOKEN" ]; then
+            RATINGS_ARG=""
+            if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+            LISTS_ARG=""
+            if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+            ( python scripts/sync_to_d1.py \
+                --csv             private-data/checkins.csv \
+                --tips            private-data/tips.json \
+                --trips           trips_meta.json \
+                --tips-changed    ${{ steps.fetch_tips.outputs.CHANGED    || 'false' }} \
+                --ratings-changed ${{ steps.fetch_ratings.outputs.CHANGED || 'false' }} \
+                --lists-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
+                --trips-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
+                $RATINGS_ARG $LISTS_ARG; echo $? > /tmp/d1_rc ) &
+            D1_PID=$!
+            echo "D1 sync started in background (pid $D1_PID) — overlapping deploy."
+          elif [ -z "$CF_D1_TOKEN" ]; then
             echo "⚠️  CF_D1_TOKEN not set — skipping D1 sync."
           else
-            python scripts/sync_to_d1.py \
-              --csv             private-data/checkins.csv \
-              --tips            private-data/tips.json \
-              --trips           trips_meta.json \
-              --tips-changed    ${{ steps.fetch_tips.outputs.CHANGED    || 'false' }} \
-              --ratings-changed ${{ steps.fetch_ratings.outputs.CHANGED || 'false' }} \
-              --lists-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
-              --trips-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
-              $RATINGS_ARG $LISTS_ARG
+            echo "⏭  No checkin/tips/ratings change — skipping D1 sync (photos-only rebuild)."
           fi
 
-      # ── 8. Assemble the static site into a clean deploy dir ──────────────────
-      #   The generated HTML is NO LONGER committed to git (it bloated history to
-      #   4GB+). We deploy it directly to Cloudflare Pages via wrangler instead.
-      #   IMPORTANT: copy only known site assets — never the working dir as a
-      #   whole, which contains private-data/ (private check-ins) and scripts/.
-      - name: Assemble deploy directory
-        if: |
-          github.event_name == 'workflow_dispatch' ||
-          steps.fetch.outputs.CHANGED == 'true' ||
-          steps.fetch_tips.outputs.CHANGED == 'true' ||
-          steps.fetch_photos.outputs.CHANGED == 'true' ||
-          steps.fetch_ratings.outputs.CHANGED == 'true'
-        run: |
+          # ── Assemble the clean deploy dir (root asset globs match files only) ──
           rm -rf _site && mkdir -p _site
-          # Root-level page + data assets (globs match files only, not subdirs,
-          # so private-data/ / scripts/ / config/ are never picked up).
           cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
           cp -r assets   _site/assets
           cp -r functions _site/functions   # Cloudflare Pages Functions
-          # Defensive: ensure nothing sensitive or non-asset slipped in.
           rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git
           echo "Deploy dir contents:" && ls _site
 
-      # ── 8b. Deploy the static site to Cloudflare Pages (direct upload) ───────
-      - name: Deploy to Cloudflare Pages
-        if: |
-          github.event_name == 'workflow_dispatch' ||
-          steps.fetch.outputs.CHANGED == 'true' ||
-          steps.fetch_tips.outputs.CHANGED == 'true' ||
-          steps.fetch_photos.outputs.CHANGED == 'true' ||
-          steps.fetch_ratings.outputs.CHANGED == 'true'
-        env:
-          # Reuses CF_D1_TOKEN — add the "Account → Cloudflare Pages → Edit"
-          # permission to that existing token (no separate secret needed).
-          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_D1_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: |
+          # ── Deploy to Cloudflare Pages (direct upload) ──
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
             echo "::error title=Deploy skipped::CF_D1_TOKEN not set — cannot deploy to Pages."
             exit 1
@@ -424,6 +445,23 @@ jobs:
             --project-name 4sq \
             --branch main \
             --commit-dirty=true
+          DEPLOY_RC=$?
+
+          # ── Reap the backgrounded D1 sync; fail the job if either failed ──
+          D1_RC=0
+          if [ -n "$D1_PID" ]; then
+            wait "$D1_PID" || true
+            D1_RC="$(cat /tmp/d1_rc 2>/dev/null || echo 1)"
+            [ "$D1_RC" = "0" ] && echo "D1 sync completed OK (overlapped with deploy)."
+          fi
+          if [ "$DEPLOY_RC" != "0" ]; then
+            echo "::error title=Deploy failed::wrangler pages deploy exited $DEPLOY_RC"
+            exit "$DEPLOY_RC"
+          fi
+          if [ "$D1_RC" != "0" ]; then
+            echo "::error title=D1 sync failed::sync_to_d1.py exited $D1_RC"
+            exit 1
+          fi
 
       # ── 9. Alert on REPEATED failure (Telegram) ──────────────────────────────
       #   GitHub already emails on the first failure; the risk worth paging for
@@ -489,6 +527,7 @@ jobs:
           repository: toouur/foursquare-data
           token: ${{ secrets.DATA_REPO_PAT }}
           path: private-data
+          fetch-depth: 1
 
       - uses: actions/setup-python@v5
         if: steps.lastday.outputs.is_last_day == 'true'
