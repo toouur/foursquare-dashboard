@@ -146,6 +146,8 @@ lazy loading, lightbox, and inline tip photos ·
 │   └── find_closed_venue_tips.py  # One-time utility: find tips on closed venues via browser cookies
 ├── .github/workflows/
 │   ├── update-dashboard.yml       # Hourly incremental: fetch + build + deploy (direct upload) + D1 sync
+│   ├── recheck-enrich.yml         # Daily 04:15 UTC: re-fetch 48h overlaps + recent photos, rebuild + deploy + D1 overlaps-fix
+│   ├── warm-routes.yml            # Daily 03:00 UTC: drain historic route-polyline backlog into routes_cache.json
 │   ├── archive-checkins.yml       # Manual: full re-fetch + venue-change sync (see below)
 │   ├── delete-checkin.yml         # Manual: delete check-in by ID from CSV + D1 + rebuild
 │   ├── resync-all.yml             # Manual: single D1 resync entry point — pick tables + force/upsert mode
@@ -1175,6 +1177,35 @@ HTTP 402 once spent, so the step only fires at **04:00 UTC on days where the
 day-of-year is divisible by 3** (≈ every 3 days, ~10 fetches/month ≈ ~36 % of
 budget). A manual `workflow_dispatch` bypasses the gate. See the `Fetch venue
 ratings` step in `update-dashboard.yml`.
+
+### Hourly vs. daily: keeping the poller fast
+
+The hourly job is on the **check-in latency path** — the Cloudflare Worker
+triggers it within ~1 min of a new post, so it must stay lean. Two expensive
+kinds of *historic enrichment* were therefore pulled out of it into a separate
+daily workflow, **`recheck-enrich.yml`** (`04:15 UTC` + manual dispatch):
+
+- **Overlap re-check** — Foursquare adds friend-overlap companions to a
+  check-in *minutes to hours after* it was first posted, so the hourly fetch
+  that captured the raw post misses them. `recheck-enrich.yml` re-fetches the
+  last **48 h** of check-ins (`fetch_checkins.py --recheck-recent-hours 48`) to
+  pick up those late `overlaps_*` values.
+- **Photo re-index** — the same late-arrival pattern for photos attached after
+  the fact (`--recheck-days` on the photo fetch).
+
+It then rebuilds, deploys, and syncs to D1 exactly like the hourly job. One
+subtlety: the D1 check-in sync is **append-only** (`INSERT OR IGNORE`), so a
+late overlap added to an *already-synced* row would never reach the D1-backed
+`/api/feed` — only the statically-rebuilt pages (index / trips / companions)
+would show it. `sync_to_d1.py --fix-overlaps-hours 48` closes that gap: it
+diffs the CSV's `overlaps_*` against D1 for rows inside the recheck window and
+emits targeted `UPDATE checkins SET overlaps_… WHERE id=…` statements (the same
+batched-UPDATE machinery as `--fix-city-country`). It never touches the
+`changed` flag, so FTS indexes aren't needlessly rebuilt.
+
+`recheck-enrich.yml` is the **fourth** writer to the shared `foursquare-data`
+repo, so its commit step uses the same bounded rebase-and-retry push loop as the
+other three (see *Deployment* / BUG-014).
 
 ---
 

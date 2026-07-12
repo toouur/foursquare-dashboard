@@ -469,6 +469,12 @@ def main() -> None:
     ap.add_argument("--fix-city-country", dest="fix_city_country", action="store_true",
                     help="UPDATE all D1 checkin rows where transform changed city or country "
                          "(fixes blank cities synced before transform pipeline was applied)")
+    ap.add_argument("--fix-overlaps-hours", dest="fix_overlaps_hours", type=int, default=0,
+                    help="UPDATE overlaps_name/overlaps_id in D1 for check-ins within the last N "
+                         "hours whose companions changed since first sync. Check-ins are otherwise "
+                         "append-only (INSERT OR IGNORE), so a friend-overlap added to an "
+                         "already-synced check-in by the daily recheck never reaches the /api/feed "
+                         "without this. Scoped to the recheck window (a few-dozen-row diff).")
     ap.add_argument("--delete-checkin-rows", dest="delete_checkin_rows", default=None,
                     help='JSON file with list of {"venue_id","date"} pairs to DELETE from checkins; '
                          "also prunes orphaned venue_ids from venues table")
@@ -545,6 +551,55 @@ def main() -> None:
             d1._raw_with_retry("; ".join(chunk))
             sent += len(chunk)
         print(f"\r  fix-city-country: {sent}/{len(stmts)} done    ")
+
+    if args.fix_overlaps_hours > 0:
+        # Targeted UPDATE of overlaps_* for rows enriched AFTER their first sync.
+        # Check-ins insert as INSERT OR IGNORE (append-only), so a friend-overlap
+        # the daily recheck adds to an already-synced check-in never reaches D1 via
+        # the normal path — /api/feed would keep showing that check-in without the
+        # late companion. Compare the CSV's overlaps_name/id against D1 for rows
+        # inside the recheck window and UPDATE any that drifted. Brand-new rows in
+        # the window aren't in D1 yet → skipped here, carried by the insert below.
+        ov_cutoff = int(time.time()) - args.fix_overlaps_hours * 3600
+        # row layout (SQL_CHECKINS_NEW): id=0, date=1, overlaps_name=20, overlaps_id=21
+        csv_ov = {row[0]: (row[20], row[21]) for row in all_checkin_rows
+                  if row[0] and _int(row[1]) >= ov_cutoff}
+        d1_ov: dict = {}
+        ov_ids = list(csv_ov.keys())
+        for i in range(0, len(ov_ids), 90):  # D1 caps ~100 bindings per statement
+            id_chunk = ov_ids[i:i + 90]
+            ph = ",".join("?" * len(id_chunk))
+            res = d1.query(
+                f"SELECT id, overlaps_name, overlaps_id FROM checkins WHERE id IN ({ph})",
+                id_chunk)
+            for r in (res or []):
+                d1_ov[r["id"]] = (r.get("overlaps_name"), r.get("overlaps_id"))
+        ov_stmts = []
+        for cid, cur in csv_ov.items():
+            if cid in d1_ov and cur != d1_ov[cid]:
+                ov_stmts.append(
+                    f"UPDATE checkins SET overlaps_name={d1._sql_val(cur[0])},"
+                    f"overlaps_id={d1._sql_val(cur[1])} WHERE id={d1._sql_val(cid)}"
+                )
+        print(f"  fix-overlaps: {len(ov_stmts)} row(s) with changed companions to UPDATE",
+              flush=True)
+        ov_chunk: list[str] = []
+        ov_bytes = 0
+        ov_sent = 0
+        for stmt in ov_stmts:
+            sb = len(stmt.encode()) + 2
+            if ov_chunk and ov_bytes + sb > 90_000:
+                d1._raw_with_retry("; ".join(ov_chunk))
+                ov_sent += len(ov_chunk)
+                ov_chunk = []
+                ov_bytes = 0
+            ov_chunk.append(stmt)
+            ov_bytes += sb
+        if ov_chunk:
+            d1._raw_with_retry("; ".join(ov_chunk))
+            ov_sent += len(ov_chunk)
+        if ov_stmts:
+            print(f"  fix-overlaps: {ov_sent}/{len(ov_stmts)} UPDATE(s) applied", flush=True)
 
     if args.force_checkins:
         print("  checkins : FORCE full resync — wiping checkins + venues and reinserting", flush=True)

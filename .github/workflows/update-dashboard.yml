@@ -114,6 +114,13 @@ jobs:
         run: pip install -r requirements.txt
 
       # ── 4. Fetch new check-ins ───────────────────────────────────────────────
+      #   NO --recheck-recent-hours here: the historic overlap re-scan (re-fetching
+      #   friend tags added AFTER a check-in was first posted) is the expensive part
+      #   — it prints CHANGED=true every hour even with zero new posts, forcing a
+      #   full rebuild+deploy. It lives in the separate daily `recheck-enrich.yml`
+      #   instead, so most hourly/manual/poller runs fetch 0 new → hit "Skip if no
+      #   new data" → finish in ~50s. Brand-new check-ins still get their overlaps
+      #   enriched at fetch time (fetch_checkins.py enriches `added` rows directly).
       - name: Fetch new Swarm check-ins
         id: fetch
         env:
@@ -123,7 +130,7 @@ jobs:
             echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping fetch."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
-            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv --recheck-recent-hours 48 >> "$GITHUB_OUTPUT"
+            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv >> "$GITHUB_OUTPUT"
           fi
 
       # ── 4b. Fetch new tips ───────────────────────────────────────────────────
@@ -140,6 +147,11 @@ jobs:
           fi
 
       # ── 4c. Fetch photos for new check-ins ──────────────────────────────────
+      #   NO --recheck-days here: re-probing already-indexed recent check-ins for
+      #   late-added photos is the slow historic pass and moves to the daily
+      #   `recheck-enrich.yml`. This step still downloads photos for genuinely-new
+      #   check-ins (fetch_photos treats any check-in past the export cutoff and not
+      #   yet indexed as pending regardless of the recheck window).
       - name: Fetch photos for new check-ins
         id: fetch_photos
         env:
@@ -153,7 +165,6 @@ jobs:
               --csv   private-data/checkins.csv \
               --out   private-data/photos.json \
               --pix-dir private-data/pix \
-              --recheck-days 1 \
               --sleep 0.3 >> "$GITHUB_OUTPUT"
           fi
 
@@ -411,7 +422,10 @@ jobs:
             if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
             LISTS_ARG=""
             if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
-            ( python scripts/sync_to_d1.py \
+            # `set +e` inside the subshell so a non-zero sync still reaches the
+            # `echo $? > /tmp/d1_rc` line — otherwise the step's errexit kills the
+            # subshell at python and the reaper reads a missing file as failure.
+            ( set +e; python scripts/sync_to_d1.py \
                 --csv             private-data/checkins.csv \
                 --tips            private-data/tips.json \
                 --trips           trips_meta.json \
@@ -441,11 +455,22 @@ jobs:
             echo "::error title=Deploy skipped::CF_D1_TOKEN not set — cannot deploy to Pages."
             exit 1
           fi
-          npx --yes wrangler@3 pages deploy _site \
-            --project-name 4sq \
-            --branch main \
-            --commit-dirty=true
-          DEPLOY_RC=$?
+          # `set +e` so a wrangler failure doesn't abort the step under errexit
+          # before we can capture the rc / reap the background sync. The Cloudflare
+          # API occasionally returns a transient 5xx (e.g. 521 "web server down"),
+          # so retry the upload a few times with backoff before giving up.
+          set +e
+          DEPLOY_RC=1
+          for attempt in 1 2 3; do
+            npx --yes wrangler@3 pages deploy _site \
+              --project-name 4sq \
+              --branch main \
+              --commit-dirty=true
+            DEPLOY_RC=$?
+            [ "$DEPLOY_RC" = "0" ] && break
+            echo "::warning title=Deploy retry::wrangler exited $DEPLOY_RC on attempt $attempt/3 — retrying in $((attempt*10))s"
+            sleep $((attempt*10))
+          done
 
           # ── Reap the backgrounded D1 sync; fail the job if either failed ──
           D1_RC=0
@@ -454,6 +479,7 @@ jobs:
             D1_RC="$(cat /tmp/d1_rc 2>/dev/null || echo 1)"
             [ "$D1_RC" = "0" ] && echo "D1 sync completed OK (overlapped with deploy)."
           fi
+          set -e
           if [ "$DEPLOY_RC" != "0" ]; then
             echo "::error title=Deploy failed::wrangler pages deploy exited $DEPLOY_RC"
             exit "$DEPLOY_RC"

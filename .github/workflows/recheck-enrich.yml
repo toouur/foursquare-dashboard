@@ -1,0 +1,287 @@
+# .github/workflows/recheck-enrich.yml
+#
+# Daily historic-enrichment pass, split OUT of the hourly update-dashboard.yml so
+# the hourly / manual / poller runs stay fast.
+#
+# What this does that the hourly job no longer does:
+#   • fetch_checkins.py --recheck-recent-hours 48
+#       Re-fetches friend-overlap tags added to a check-in AFTER it was first
+#       posted (a per-row individual-API-call sweep). This prints CHANGED=true
+#       every run even with zero new posts, which is exactly why it can't live on
+#       the hourly path — it would force a full rebuild+deploy every hour.
+#   • fetch_photos.py --recheck-days 2
+#       Re-probes already-indexed recent check-ins for late-added photos.
+#
+# The hourly job still fetches genuinely-new check-ins/photos and enriches a NEW
+# check-in's overlaps at fetch time; only the historic re-scan lives here.
+#
+# Because the enrichment writes to checkins.csv / photos.json / R2, it needs the
+# full downstream chain to surface on the site: commit data → rebuild static HTML
+# → D1 sync → deploy. So this is a near-copy of the update job's tail, minus the
+# tips fetch (tips have no recheck concept and are handled hourly) and minus the
+# "skip if no new data" gate (the whole point is a once-daily refresh).
+#
+# Concurrency note: this is the 4th writer to the shared toouur/foursquare-data
+# repo (after update-dashboard hourly, warm-routes daily, fr24-flights weekly).
+# The data-repo commit step uses the SAME bounded rebase-and-retry push loop as
+# the others (see qa/bug-reports/BUG-014). No repo-wide concurrency group — that
+# would queue the latency-sensitive hourly poller behind this drain.
+
+name: Daily recheck enrichment
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    - cron: "15 4 * * *"   # daily 04:15 UTC — after warm-routes (03:00), offset
+                           # from the top-of-hour hourly runs to ease push contention
+  workflow_dispatch:       # manual trigger button in GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  recheck:
+    # Honor the same pause switch as the hourly job.
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout public repo (shallow: build → deploy, never reads history) ─
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── 2. Checkout private data repo (shallow; rebase push still works) ──────
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+          fetch-depth: 1
+
+      # ── 3. Python setup ──────────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Recheck check-ins (historic overlap re-scan, last 48h) ────────────
+      - name: Recheck recent check-in overlaps
+        id: fetch
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          if [ -z "$FOURSQUARE_TOKEN" ]; then
+            echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping recheck."
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv --recheck-recent-hours 48 >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 4b. Recheck photos (already-indexed recent check-ins, last 2 days) ───
+      #   2 days (not 1) so a photo added ~25h ago isn't missed if the daily run
+      #   slips past its 24h slot.
+      - name: Recheck recent check-in photos
+        id: fetch_photos
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          if [ -z "$FOURSQUARE_TOKEN" ]; then
+            echo "CHANGED=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/fetch_photos.py \
+              --token "$FOURSQUARE_TOKEN" \
+              --csv   private-data/checkins.csv \
+              --out   private-data/photos.json \
+              --pix-dir private-data/pix \
+              --recheck-days 2 \
+              --sleep 0.3 >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 4c. Upload new photos to Cloudflare R2 ───────────────────────────────
+      - name: Upload new photos to R2
+        if: steps.fetch_photos.outputs.CHANGED == 'true'
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID:         ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME:        ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          pip install awscli --quiet
+          aws s3 sync private-data/pix/ s3://${R2_BUCKET_NAME}/pix/ \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --no-progress
+
+      # ── 5. Commit updated data files to private data repo ────────────────────
+      #   Same bounded rebase-and-retry push loop as every other data-repo writer
+      #   (BUG-014): a concurrent hourly/warm-routes/flights push between our
+      #   checkout and this push causes a non-fast-forward — rebase and retry.
+      - name: Commit updated data files to data repo
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add checkins.csv photos.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit in data repo."
+          else
+            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "chore: daily recheck enrichment [${TIMESTAMP}]"
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
+          fi
+          cd ..
+
+      # ── 6. Rebuild dashboard (small route-warm floor, same as hourly) ────────
+      - name: Rebuild dashboard
+        env:
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          PIX_URL_ARG=""
+          if [ -n "$R2_PUBLIC_URL" ]; then PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"; fi
+          PHOTOS_ARG=""
+          if [ -f private-data/photos.json ]; then PHOTOS_ARG="--photos private-data/photos.json"; fi
+          RATINGS_ARG=""
+          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+          LISTS_ARG=""
+          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          python scripts/build.py \
+            --input private-data/checkins.csv \
+            --config-dir config \
+            --output-dir . \
+            --routes-cache private-data/routes_cache.json \
+            --routes-max-fetch 40 \
+            $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
+
+      # ── 6b. Persist warmed route-geometry cache to the data repo ─────────────
+      - name: Commit route cache to data repo
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          [ -f routes_cache.json ] && git add routes_cache.json || true
+          if git diff --cached --quiet; then
+            echo "Route cache unchanged."
+          else
+            git commit -m "chore: warm route-geometry cache"
+            git push || { git pull --rebase && git push; }
+          fi
+          cd ..
+
+      # ── 7. Validate generated HTML before anything ships ─────────────────────
+      - name: Validate generated HTML
+        run: python scripts/validate_html.py --dir . --quiet
+
+      # ── 7b. City-count drift gate ────────────────────────────────────────────
+      - name: City-count drift gate
+        run: |
+          echo '### City-count drift gate' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python scripts/check_city_count.py \
+            --csv private-data/checkins.csv \
+            --config-dir config \
+            --baseline config/city_count_baseline.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          status=${PIPESTATUS[0]}
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      # ── 7c. Warm the wrangler install cache ──────────────────────────────────
+      - name: Cache wrangler (npm)
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-wrangler3-${{ runner.os }}
+
+      # ── 8. Sync D1 (in background) ∥ assemble & deploy ───────────────────────
+      #   Same merged step as the hourly job: background the D1 sync so it overlaps
+      #   the Pages upload, then reap it. `set +e` around the capture/reap so a
+      #   transient wrangler 5xx (e.g. Cloudflare 521) is retried, not fatal.
+      #   RUN_D1 mirrors the hourly gate (checkins change ⇒ sync); tips/ratings are
+      #   not fetched here so their -changed flags are false.
+      - name: Sync D1 (background), assemble & deploy
+        env:
+          CF_D1_TOKEN:           ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:         ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID:     ${{ secrets.CF_D1_DATABASE_ID }}
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_D1_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          RUN_D1: ${{ steps.fetch.outputs.CHANGED == 'true' }}
+        run: |
+          # ── Kick off the D1 sync in the background (overlaps the deploy) ──
+          D1_PID=""
+          if [ "$RUN_D1" = "true" ] && [ -n "$CF_D1_TOKEN" ]; then
+            RATINGS_ARG=""
+            if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
+            LISTS_ARG=""
+            if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+            # `set +e` inside the subshell so a non-zero sync still reaches the
+            # `echo $? > /tmp/d1_rc` line (the step runs under errexit).
+            ( set +e; python scripts/sync_to_d1.py \
+                --csv             private-data/checkins.csv \
+                --tips            private-data/tips.json \
+                --trips           trips_meta.json \
+                --tips-changed    false \
+                --ratings-changed false \
+                --lists-changed   false \
+                --trips-changed   ${{ steps.fetch.outputs.CHANGED || 'false' }} \
+                --fix-overlaps-hours 48 \
+                $RATINGS_ARG $LISTS_ARG; echo $? > /tmp/d1_rc ) &
+            D1_PID=$!
+            echo "D1 sync started in background (pid $D1_PID) — overlapping deploy."
+          elif [ -z "$CF_D1_TOKEN" ]; then
+            echo "⚠️  CF_D1_TOKEN not set — skipping D1 sync."
+          else
+            echo "⏭  No check-in change — skipping D1 sync."
+          fi
+
+          # ── Assemble the clean deploy dir (root asset globs match files only) ──
+          rm -rf _site && mkdir -p _site
+          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
+          cp -r assets    _site/assets
+          cp -r functions _site/functions
+          rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git
+          echo "Deploy dir contents:" && ls _site
+
+          # ── Deploy to Cloudflare Pages (direct upload) with transient retry ──
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error title=Deploy skipped::CF_D1_TOKEN not set — cannot deploy to Pages."
+            exit 1
+          fi
+          set +e
+          DEPLOY_RC=1
+          for attempt in 1 2 3; do
+            npx --yes wrangler@3 pages deploy _site \
+              --project-name 4sq \
+              --branch main \
+              --commit-dirty=true
+            DEPLOY_RC=$?
+            [ "$DEPLOY_RC" = "0" ] && break
+            echo "::warning title=Deploy retry::wrangler exited $DEPLOY_RC on attempt $attempt/3 — retrying in $((attempt*10))s"
+            sleep $((attempt*10))
+          done
+
+          # ── Reap the backgrounded D1 sync; fail the job if either failed ──
+          D1_RC=0
+          if [ -n "$D1_PID" ]; then
+            wait "$D1_PID" || true
+            D1_RC="$(cat /tmp/d1_rc 2>/dev/null || echo 1)"
+            [ "$D1_RC" = "0" ] && echo "D1 sync completed OK (overlapped with deploy)."
+          fi
+          set -e
+          if [ "$DEPLOY_RC" != "0" ]; then
+            echo "::error title=Deploy failed::wrangler pages deploy exited $DEPLOY_RC"
+            exit "$DEPLOY_RC"
+          fi
+          if [ "$D1_RC" != "0" ]; then
+            echo "::error title=D1 sync failed::sync_to_d1.py exited $D1_RC"
+            exit 1
+          fi

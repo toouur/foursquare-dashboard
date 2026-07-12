@@ -1432,13 +1432,14 @@ cover = <span class="hl">min</span>(candidates, key=key)   <span class="cm"># sa
     <!-- C19 -->
     <div class="cs-block">
       <div class="cs-challenge">
-        <div class="cs-label ch">Challenge 19 — Three Scheduled Jobs Racing to Push the Same Data Repo</div>
+        <div class="cs-label ch">Challenge 19 — Four Scheduled Jobs Racing to Push the Same Data Repo</div>
         <div class="cs-text">
           All the private data — check-ins, tips, the route-geometry cache, the FR24 flight
           diary — lives in a single repo (<code>toouur/foursquare-data</code>), and
-          <strong>three separate GitHub Actions workflows commit to its <code>main</code></strong>:
+          <strong>four separate GitHub Actions workflows commit to its <code>main</code></strong>:
           the hourly <code>update-dashboard.yml</code>, the daily <code>warm-routes.yml</code>
-          (03:00&nbsp;UTC), and the weekly <code>fr24-flights.yml</code> (Sunday 05:00&nbsp;UTC).
+          (03:00&nbsp;UTC), the daily <code>recheck-enrich.yml</code> (04:15&nbsp;UTC — see
+          Challenge&nbsp;20), and the weekly <code>fr24-flights.yml</code> (Sunday 05:00&nbsp;UTC).
           Each job checks out the ref, works for a minute or two, then pushes. When two jobs
           overlap — the 03:00 route-warm still running as the 03:00 hourly build starts — the
           second one to push finds its checkout is no longer the tip and Git rejects it:
@@ -1462,7 +1463,7 @@ error: failed to push some refs to 'github.com/toouur/foursquare-data'
           stuck push still surfaces.
         </div>
         <div class="code-block">
-<span class="cm"># Identical guard in all three workflows' commit step:</span>
+<span class="cm"># Identical guard in all four workflows' commit step:</span>
 <span class="kw">for</span> i <span class="kw">in</span> 1 2 3 4 5; <span class="kw">do</span>
   <span class="kw">if</span> git push; <span class="kw">then</span> <span class="kw">break</span>; <span class="kw">fi</span>
   <span class="cm"># another job pushed between our checkout and now — replay on top of it</span>
@@ -1471,11 +1472,67 @@ error: failed to push some refs to 'github.com/toouur/foursquare-data'
 <span class="kw">done</span>
         </div>
         <div class="cs-text">
-          The fix is deliberately uniform across the three files so the concurrency contract is
+          The fix is deliberately uniform across the four files so the concurrency contract is
           obvious to anyone reading any one of them, and it keeps the hourly job on the fast path:
           a lost race costs one extra fetch-and-replay, not a queued wait behind the daily backlog
           drain. The five-attempt ceiling means a real problem (a broken token, a diverged history)
           still fails loudly instead of looping forever.
+        </div>
+      </div>
+    </div>
+
+    <!-- C20 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 20 — Keeping the Poller Fast Without Losing Historic Enrichment</div>
+        <div class="cs-text">
+          The hourly <code>update-dashboard.yml</code> job sits on the <strong>check-in latency
+          path</strong>: the sooner it runs, the sooner a just-posted check-in shows up on the site.
+          But it was also doing two kinds of <em>historic enrichment</em> that have nothing to do with
+          the newest check-in — re-fetching the last 48&nbsp;hours of check-ins to pick up
+          <strong>friend overlaps</strong> that Foursquare attaches minutes-to-hours <em>after</em> the
+          fact, and re-indexing recently-added <strong>photos</strong>. Those re-checks paginate extra
+          API pages and re-hash photos on every single hourly tick, padding the poller with work whose
+          result almost never changes — pure latency tax on the one job that must stay quick.
+        </div>
+        <div class="code-block">
+<span class="cm"># Hourly job, before: every tick re-walked 48h of history just in case…</span>
+python fetch_checkins.py <span class="hl2">--recheck-recent-hours 48</span>   <span class="cm"># extra API pages, every hour</span>
+python fetch_photos.py   <span class="hl2">--recheck-days 1</span>           <span class="cm"># re-hash recent photos, every hour</span>
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Split Enrichment into a Daily Job, and Patch D1 in Place</div>
+        <div class="cs-text">
+          The two re-checks moved out of the hourly path into a dedicated daily workflow,
+          <strong><code>recheck-enrich.yml</code></strong> (04:15&nbsp;UTC + manual dispatch). It
+          re-fetches the 48&nbsp;hour overlap window and the recent photos <em>once a day</em>, then
+          rebuilds, deploys, and syncs. The hourly job keeps only what a fresh check-in needs, so a
+          normal tick — and every manual dispatch — is a minute, not five.
+        </div>
+        <div class="cs-text">
+          That split exposed a subtle divergence. The static pages (index, trips, companions) are
+          rebuilt wholesale from the CSV, so a late-arriving overlap surfaces there on the next build.
+          But the D1-backed <code>/api/feed</code> does not: the check-in sync is <strong>append-only</strong>
+          (<code>INSERT OR IGNORE</code>, and the selection filter skips already-synced IDs), so an
+          overlap added to a check-in that D1 already has would <em>never</em> reach the feed. A row
+          would show its companions on the trips page but not in the live feed.
+        </div>
+        <div class="code-block">
+<span class="cm"># sync_to_d1.py --fix-overlaps-hours 48 — diff CSV vs D1 for the recent window,</span>
+<span class="cm"># emit a targeted UPDATE for each row whose overlaps actually changed:</span>
+<span class="kw">UPDATE</span> checkins <span class="kw">SET</span> overlaps_name=<span class="hl2">'…'</span>, overlaps_id=<span class="hl2">'…'</span> <span class="kw">WHERE</span> id=<span class="hl">'…'</span>;
+<span class="cm"># batched to ~90 KB per statement; never touches the `changed` flag →</span>
+<span class="cm"># no needless FTS rebuild (overlaps aren't full-text indexed anyway)</span>
+        </div>
+        <div class="cs-text">
+          A new <code>--fix-overlaps-hours 48</code> pass in <code>sync_to_d1.py</code> closes the gap,
+          mirroring the existing <code>--fix-city-country</code> targeted-update machinery: it diffs the
+          CSV's <code>overlaps_*</code> columns against D1 for rows inside the window and issues one
+          <code>UPDATE … WHERE id=…</code> per genuine change. And because <code>recheck-enrich.yml</code>
+          commits back to the shared <code>foursquare-data</code> repo, it became the <strong>fourth</strong>
+          writer to it — so it carries the exact same bounded rebase-and-retry push loop from
+          Challenge&nbsp;19.
         </div>
       </div>
     </div>
