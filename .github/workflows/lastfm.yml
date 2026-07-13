@@ -1,0 +1,112 @@
+# .github/workflows/lastfm.yml
+#
+# Last.fm scrobble-stats fetcher (weekly, fully automated).
+#
+# The year-story pages carry a "The year in sound" section: total scrobbles +
+# most-played artist + a 12-month histogram, per year. That data comes from the
+# compact aggregate lastfm_years.json (a few KB), derived from an incremental
+# state cache lastfm_state.json (a few hundred KB) that lets each run fetch only
+# NEW scrobbles since its last_ts watermark.
+#
+# This job calls user.getRecentTracks with LASTFM_API_KEY, folds the new plays
+# into the state, rewrites both files, and commits them to the private data repo
+# (toouur/foursquare-data) when they changed — build.py auto-discovers
+# lastfm_years.json next to checkins.csv and rebuilds the year pages.
+#
+# Exit contract from scripts/fetch_lastfm.py (mirrors fetch_flights.py):
+#   0  key OK (aggregate written if scrobbles changed)
+#   2  API key rejected  -> job FAILS on purpose so GitHub emails the owner
+#   1  transient error    -> neutral, does NOT fail the run
+#
+# Required secrets:
+#   LASTFM_API_KEY — a Last.fm API key (https://www.last.fm/api/account/create).
+#   DATA_REPO_PAT  — fine-grained PAT with Contents read/write on
+#                    toouur/foursquare-data.
+
+name: Last.fm scrobbles (weekly)
+
+on:
+  schedule:
+    - cron: '0 6 * * 0'   # Sunday 06:00 UTC (an hour after FR24)
+  workflow_dispatch:
+
+jobs:
+  lastfm:
+    # Honor the same global pause switch as the hourly update job.
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout private data repo
+        uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch Last.fm scrobbles
+        id: fetch
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+        run: |
+          set +e
+          python scripts/fetch_lastfm.py \
+            --user TOOUUR \
+            --out   private-data/lastfm_years.json \
+            --state private-data/lastfm_state.json | tee out.txt
+          CODE=${PIPESTATUS[0]}
+          set -e
+          VALID=$(grep -m1 '^KEY_VALID=' out.txt | cut -d= -f2)
+          CHANGED=$(grep -m1 '^CHANGED=' out.txt | cut -d= -f2)
+          echo "valid=${VALID:-unknown}"   >> "$GITHUB_OUTPUT"
+          echo "changed=${CHANGED:-false}" >> "$GITHUB_OUTPUT"
+          echo "code=${CODE}"              >> "$GITHUB_OUTPUT"
+          {
+            echo "### Last.fm scrobbles fetch — $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "- **key valid**: \`${VALID:-unknown}\`"
+            echo "- **exit code**: \`${CODE}\` (0 ok · 1 transient · 2 bad key)"
+            echo "- **aggregate changed**: \`${CHANGED:-false}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit updated Last.fm data
+        if: steps.fetch.outputs.changed == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add lastfm_years.json lastfm_state.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore: update Last.fm scrobbles [$(date -u +'%Y-%m-%d %H:%M UTC')]"
+            # update-dashboard / warm-routes / recheck-enrich / fr24 may push to
+            # the same data-repo ref between our checkout and this push →
+            # non-fast-forward. Rebase-and-retry (BUG-014 pattern).
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
+          fi
+
+      # Fail ONLY on a rejected API key (exit 2) so the failure email prompts a
+      # secret fix. Transient errors (exit 1) pass quietly.
+      - name: Alarm if API key rejected
+        if: steps.fetch.outputs.code == '2'
+        run: |
+          echo "::error::LASTFM_API_KEY was rejected (bad or absent key). Verify the LASTFM_API_KEY secret."
+          exit 1

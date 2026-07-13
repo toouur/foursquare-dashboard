@@ -988,6 +988,16 @@ if __name__ == "__main__":
                     _flights_list = _load_flights2(flights_path)
                 except Exception:
                     pass
+            # Last.fm per-year music aggregate (sibling of checkins.csv, like flights.csv).
+            _music_by_year: dict = {}
+            _lastfm_path = Path(args.input).resolve().parent / "lastfm_years.json"
+            if _lastfm_path.exists():
+                try:
+                    _lf_music = json.loads(_lastfm_path.read_text(encoding="utf-8"))
+                    _music_by_year = _lf_music.get("years", {}) or {}
+                    log.info("Last.fm: %d years of scrobble stats loaded", len(_music_by_year))
+                except Exception as _lfe:
+                    log.warning("lastfm_years.json load failed: %s", _lfe)
             _mod_y.build_page(
                 csv_path=args.input,
                 config_dir=str(config_dir),
@@ -1000,6 +1010,7 @@ if __name__ == "__main__":
                 trips=trips,
                 flight_history=data.get("flight_history"),
                 flights_data=_flights_list,
+                music_by_year=_music_by_year,
             )
         except Exception as _ye:
             log.warning("gen_year_pages failed: %s", _ye)

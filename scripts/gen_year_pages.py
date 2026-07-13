@@ -816,6 +816,14 @@ html.js .section:not(.in){{opacity:0;transform:translateY(50px);}}
 .kpi-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:7px;}}
 .kpi-sub{{font-size:.66rem;color:var(--text);margin-top:5px;opacity:.7;}}
 
+/* ── The year in sound (Last.fm) ── */
+.music-hero{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:34px;}}
+.music-artist{{font-family:'Playfair Display',serif;font-size:1.55rem;font-weight:700;color:var(--teal);line-height:1.12;overflow-wrap:anywhere;}}
+.music-months{{display:flex;align-items:flex-end;gap:5px;height:120px;margin-top:8px;}}
+.music-months .mm-col{{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px;height:100%;}}
+.music-months .mm-fill{{width:100%;max-width:26px;background:linear-gradient(180deg,var(--teal),rgba(78,201,176,.22));border-radius:4px 4px 0 0;min-height:2px;}}
+.music-months .mm-lbl{{font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;}}
+
 /* ── Year clock — polar bar at top of timeline ── */
 .yearclock-wrap{{display:flex;flex-direction:column;align-items:center;gap:10px;margin:0 auto 60px;max-width:340px;animation:rotateIn 1.6s cubic-bezier(.22,1,.36,1) both;}}
 @keyframes rotateIn{{from{{opacity:0;transform:rotate(-6deg) scale(.92);}}to{{opacity:1;transform:rotate(0) scale(1);}}}}
@@ -965,6 +973,7 @@ html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
 {photos_section}
 {shouts_section}
 {companions_section}
+{music_section}
 
 {year_nav}
 
@@ -1134,6 +1143,7 @@ def build_page(
     trips: list | None = None,
     flight_history: dict | None = None,
     flights_data: list | None = None,
+    music_by_year: dict | None = None,
     **_extra,
 ) -> None:
     out_dir = Path(out_path)
@@ -1391,7 +1401,7 @@ def build_page(
 
         # Scrolling background photos (one per non-hero section, picked spaced
         # out from the year's photos so each section has a different feel)
-        section_count = 9  # roughly: kpi, months, top, newc, trips, flights, photos, shouts, comp
+        section_count = 11  # kpi, months, top, newc, trips, flights, photos, shouts, comp, music
         bg_pool = photos_y[5:5 + section_count] if len(photos_y) > 5 else photos_y[:section_count]
         # Pad with cycle if fewer photos than sections
         while len(bg_pool) < section_count and photos_y:
@@ -1759,6 +1769,52 @@ def build_page(
         else:
             companions_section = ""
 
+        # ── The year in sound (Last.fm scrobbles) ──
+        mys = (music_by_year or {}).get(str(yr)) or {}
+        if mys.get("scrobbles"):
+            m_total = int(mys.get("scrobbles", 0))
+            top_a = mys.get("top_artist") or {}
+            a_name = (top_a.get("name") or "").strip()
+            a_plays = int(top_a.get("plays", 0) or 0)
+            tiles = (
+                f'<div class="kpi"><div class="kpi-num" data-count="{m_total}">0</div>'
+                f'<div class="kpi-lbl">Scrobbles</div>'
+                f'<div class="kpi-sub">tracks played</div></div>'
+            )
+            if a_name:
+                tiles += (
+                    f'<div class="kpi"><div class="kpi-num music-artist">{_esc(a_name)}</div>'
+                    f'<div class="kpi-lbl">Most-played artist</div>'
+                    f'<div class="kpi-sub">{a_plays:,} play{"s" if a_plays != 1 else ""}</div></div>'
+                )
+            months = mys.get("months") or [0] * 12
+            m_max = max(months) if months else 0
+            m_labels = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+            if m_max > 0:
+                bars = "".join(
+                    f'<div class="mm-col"><div class="mm-fill" '
+                    f'style="height:{max(2, round(c / m_max * 100))}%"></div>'
+                    f'<div class="mm-lbl">{m_labels[i]}</div></div>'
+                    for i, c in enumerate(months)
+                )
+                months_html = f'<div class="music-months">{bars}</div>'
+            else:
+                months_html = ""
+            lead = (
+                f'{a_name} led the rotation. ' if a_name else ''
+            )
+            music_section = (
+                f'<section class="section" id="sec-music" data-bg-index="10" data-sec-title="The Year in Sound">'
+                f'<div class="section-h">The year in sound</div>'
+                f'<div class="section-title">{m_total:,} scrobble{"s" if m_total != 1 else ""} <em>across {yr}</em></div>'
+                f'<div class="section-intro">The private radio behind the check-ins. {lead}Every track logged to Last.fm.</div>'
+                f'<div class="music-hero">{tiles}</div>'
+                f'{months_html}'
+                f'</section>'
+            )
+        else:
+            music_section = ""
+
         # ── Year prev/next nav ──
         idx = all_years_sorted.index(yr) if yr in all_years_sorted else -1
         prev_yr = all_years_sorted[idx - 1] if idx > 0 else None
@@ -1795,6 +1851,7 @@ def build_page(
             photos_section=photos_section,
             shouts_section=shouts_section,
             companions_section=companions_section,
+            music_section=music_section,
             year_nav=year_nav,
         )
         (out_dir / f"year-{yr}.html").write_text(html, encoding="utf-8")

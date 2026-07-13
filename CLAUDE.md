@@ -49,6 +49,29 @@ python scripts/fetch_flights.py --out C:/Users/toouur/Documents/GitHub/foursquar
 python scripts/fetch_flights.py --check   # probe auth, no write
 ```
 
+### Fetch Last.fm scrobbles (per-year "year in sound")
+No CSV export — pulls `user.getRecentTracks` with `LASTFM_API_KEY`. Two-file model:
+`lastfm_state.json` (full per-year artist→plays counters + month histogram + `last_ts`
+watermark, ~700KB incremental cache) and `lastfm_years.json` (compact derived per-year
+`{scrobbles, top_artist:{name,plays}, months:[12]}`, ~3KB, the build input). Each run
+fetches only scrobbles after `last_ts` and folds them in. Exit 0 ok / 2 key-invalid /
+1 transient; prints `KEY_VALID=` / `CHANGED=`. Runs weekly in CI (`lastfm.yml`, Sun
+06:00 UTC, honors `UPDATES_PAUSED`, 5th data-repo writer with the BUG-014 rebase loop)
+and commits both files to the data repo. `build.py` auto-discovers `lastfm_years.json`
+next to `checkins.csv` and threads it to `gen_year_pages.build_page(music_by_year=...)`.
+```bash
+export LASTFM_API_KEY=...
+# One-off bootstrap from a full local export (no key needed):
+python scripts/fetch_lastfm.py --bootstrap path/to/all_scrobbles_api.json \
+  --out   C:/Users/toouur/Documents/GitHub/foursquare-data/lastfm_years.json \
+  --state C:/Users/toouur/Documents/GitHub/foursquare-data/lastfm_state.json
+# Weekly incremental:
+python scripts/fetch_lastfm.py --user TOOUUR \
+  --out   C:/Users/toouur/Documents/GitHub/foursquare-data/lastfm_years.json \
+  --state C:/Users/toouur/Documents/GitHub/foursquare-data/lastfm_state.json
+python scripts/fetch_lastfm.py --user TOOUUR --check   # probe key, no write
+```
+
 ### Fetch photos from export
 ```bash
 /c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/fetch_photos.py \
@@ -211,6 +234,7 @@ python -m http.server 8000 --directory _site
 - Tips fetch: `scripts/fetch_tips.py`
 - Check-ins fetch: `scripts/fetch_checkins.py`
 - Flights fetch: `scripts/fetch_flights.py` (FR24 login → diary CSV; weekly `fr24-flights.yml`)
+- Last.fm fetch: `scripts/fetch_lastfm.py` (per-year scrobble aggregate; weekly `lastfm.yml`; feeds year-page "The year in sound" section via `gen_year_pages` `music_by_year`)
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
 - Tests: `tests/` — pytest suite (224 tests): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
 - HTML deploy gate: `scripts/validate_html.py` — runs in `update-dashboard.yml` before every deploy (required pages present, no leftover `{{PLACEHOLDER}}`, embedded JSON parses, min page size; skips `solution.html` which quotes placeholders as documentation).
@@ -367,10 +391,10 @@ To accept a new raw nearest-city name, add it to `canonical_map` in
   because that path is gitignored).
 - Pause switch: repo Variable `UPDATES_PAUSED=true` halts the hourly update job and the
   monthly Netlify mirror job.
-- **Shared data-repo pushes are concurrency-hardened.** Four workflows commit to
+- **Shared data-repo pushes are concurrency-hardened.** Five workflows commit to
   `toouur/foursquare-data` `main` — `update-dashboard.yml` (hourly), `warm-routes.yml`
   (daily 03:00 UTC), `recheck-enrich.yml` (daily 04:15 UTC), `fr24-flights.yml` (weekly
-  Sun). Overlapping runs (e.g. the 03:00
+  Sun 05:00), `lastfm.yml` (weekly Sun 06:00). Overlapping runs (e.g. the 03:00
   route-warm still pushing as the 03:00 hourly build commits) caused non-fast-forward
   rejections (`! [rejected] main -> main (fetch first)`) that failed the run. Every
   data-repo commit step now wraps its push in the SAME bounded rebase-and-retry loop
