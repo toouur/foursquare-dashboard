@@ -243,6 +243,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 .fc-loc{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .fc-with{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--teal);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
+/* Reconstructed (pre-2012 backfill) check-ins: muted card + dashed border + "reconstructed" badge */
+.fcard--refurb{border-style:dashed;opacity:.82;}
+.fc-refurb{display:inline-flex;align-items:center;gap:3px;background:rgba(150,150,170,.12);border:1px dashed rgba(150,150,170,.5);color:var(--muted);border-radius:4px;padding:1px 6px;font-family:'DM Mono',monospace;font-size:.5rem;letter-spacing:.05em;margin:2px 0;align-self:flex-start;}
 
 .fc-loc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
@@ -762,7 +765,7 @@ function mkCard(i){
 
   const ci=DATA[i];
 
-  const [ts,date,time,venue,city,country,cat,vid,lat,lng,cid,companions]=ci;
+  const [ts,date,time,venue,city,country,cat,vid,lat,lng,cid,companions,refurb]=ci;
 
   const vn=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(venue||'—')}</a>`:esc(venue||'—');
 
@@ -790,9 +793,11 @@ function mkCard(i){
 
   else wHtml='<span class="fc-weather-loading">fetching weather…</span>';
 
-  return `<div class="fcard${isActive?' active':''}" id="fc${i}" onclick="onCardClick(${i})" onmouseenter="onCardHover(${i})" style="top:${pos[i]}px;height:${CARD_H}px;">
+  return `<div class="fcard${isActive?' active':''}${refurb?' fcard--refurb':''}" id="fc${i}" onclick="onCardClick(${i})" onmouseenter="onCardHover(${i})" style="top:${pos[i]}px;height:${CARD_H}px;">
 
     <div class="fc-venue-row"><div class="fc-venue">${vn}</div>${ico}</div>
+
+    ${refurb?`<div class="fc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>`:''}
 
     <div class="fc-cat">${esc(cat)}</div>
 
@@ -1045,7 +1050,7 @@ async function _fetchDayCounts(ym){
   if(_ymDaysFetching.has(ym)) return _ymDaysFetching.get(ym);
   const p=(async()=>{
     try{
-      const data=await(await fetch(`/api/feed?_v=companions&month=${ym}`)).json();
+      const data=await(await fetch(`/api/feed?_v=refurb&month=${ym}`)).json();
       const items=data.items||[];
       const[myr,mmo]=ym.split('-').map(Number);
       const mdays=new Date(myr,mmo,0).getDate();
@@ -1121,7 +1126,7 @@ async function goYMD(ymd){
   const ts=YD_IDX[ymd];
   if(ts==null) return;
   try{
-    const d=await(await fetch(`/api/feed?_v=companions&cursor=${ts+1}&limit=50`)).json();
+    const d=await(await fetch(`/api/feed?_v=refurb&cursor=${ts+1}&limit=50`)).json();
     const items=d.items||[];
     if(!items.length) return;
     _loadGen++;
@@ -1163,7 +1168,7 @@ async function fetchAndShowMonth(ym){
 
   let rawItems=[];
   try{
-    const res=await fetch(`/api/feed?_v=companions&month=${ym}`);
+    const res=await fetch(`/api/feed?_v=refurb&month=${ym}`);
     const data=await res.json();
     rawItems=data.items||[];
   }catch(e){}
@@ -1219,7 +1224,7 @@ async function goLatest(){
   if(monthMode) exitMonthView();
   if(revDone){jumpTo(0);return;}
   try{
-    const d=await(await fetch('/api/feed?_v=companions&limit=100')).json();
+    const d=await(await fetch('/api/feed?_v=refurb&limit=100')).json();
     const items=d.items||[];
     if(!items.length) return;
     _loadGen++;
@@ -1246,7 +1251,7 @@ async function goLatest(){
 async function goOldest(){
   if(monthMode) exitMonthView();
   try{
-    const d=await(await fetch('/api/feed?_v=companions&oldest=1&limit=100')).json();
+    const d=await(await fetch('/api/feed?_v=refurb&oldest=1&limit=100')).json();
     const items=d.items||[];
     if(!items.length) return;
     _loadGen++;
@@ -1280,7 +1285,7 @@ async function loadFwd(){
   const gen=_loadGen;
   try{
     const cid=fwdCursorId?`&cursor_id=${encodeURIComponent(fwdCursorId)}`:'';
-    const d=await(await fetch(`/api/feed?_v=companions&limit=50&cursor=${fwdCursor}${cid}`)).json();
+    const d=await(await fetch(`/api/feed?_v=refurb&limit=50&cursor=${fwdCursor}${cid}`)).json();
     if(gen!==_loadGen) return;
     const items=d.items||[];
     if(!items.length){fwdDone=true;return;}
@@ -1306,7 +1311,7 @@ async function loadRev(){
   const gen=_loadGen;
   try{
     const rid=revCursorId?`&after_id=${encodeURIComponent(revCursorId)}`:'';
-    const d=await(await fetch(`/api/feed?_v=companions&after=${revCursor}${rid}&limit=50`)).json();
+    const d=await(await fetch(`/api/feed?_v=refurb&after=${revCursor}${rid}&limit=50`)).json();
     if(gen!==_loadGen) return;
     const items=d.items||[];
     if(!items.length){revDone=true;return;}
@@ -1402,7 +1407,7 @@ function onSearch(q){
       (r[5]||'').toLowerCase().includes(lo)||(r[6]||'').toLowerCase().includes(lo));
     _applySearchResults(local, ql);
     try{
-      const d=await(await fetch('/api/feed?_v=companions&q='+encodeURIComponent(ql))).json();
+      const d=await(await fetch('/api/feed?_v=refurb&q='+encodeURIComponent(ql))).json();
       if(gen!==_srchGen) return; // stale
       _applySearchResults(d.items||[], ql);
     }catch(e){console.warn('search',e);}
@@ -1456,7 +1461,7 @@ window.addEventListener('resize',()=>{lastR=[-1,-1];renderVis();});
 
   let newestData={items:[],has_more:false,next_cursor:null,next_cursor_id:null};
   try{
-    newestData=await(await fetch(`/api/feed?_v=companions&limit=${PG}`)).json();
+    newestData=await(await fetch(`/api/feed?_v=refurb&limit=${PG}`)).json();
   }catch(e){console.warn('init fetch',e);}
 
   const items=newestData.items||[];

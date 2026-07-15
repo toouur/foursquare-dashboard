@@ -147,13 +147,20 @@ SQL_VENUE_CHANGES = (
 
 # -- Loaders ------------------------------------------------------------------
 
-def parse_checkins(csv_path: str, config_dir: str | None = None, city_review: str | None = None):
+def parse_checkins(csv_path: str, config_dir: str | None = None, city_review: str | None = None,
+                   backfill_path: str | None = None):
     rows = []
     venue_meta: dict = defaultdict(lambda: {
         "name": "", "category": "", "lat": None, "lng": None,
         "city": "", "country": "", "first_ts": 0, "last_ts": 0, "count": 0,
     })
     raw_rows = list(csv.DictReader(open(csv_path, encoding="utf-8-sig", newline="")))
+    # Reconstructed pre-2012 rows (source_app="refurbished", blank venue_id, rf* ids)
+    # ride the same normalization + INSERT OR IGNORE path. Their blank venue_id means
+    # the `if vid:` guards below skip the venues table + FTS for them automatically.
+    if backfill_path and Path(backfill_path).exists():
+        bf = list(csv.DictReader(open(backfill_path, encoding="utf-8-sig", newline="")))
+        raw_rows.extend(bf)
     if config_dir:
         mappings = _transform.load_mappings(config_dir)
         resolver = None
@@ -418,6 +425,10 @@ def _sync_lists_diff(list_rows: list, lv_rows: list) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description="Incremental D1 sync for CI")
     ap.add_argument("--csv",        required=True)
+    ap.add_argument("--backfill",   default=None,
+                    help="Optional reconstructed pre-2012 check-in CSV (backfill.csv, "
+                         "source_app=refurbished, blank venue_id, rf* ids). Merged into the "
+                         "checkins insert stream so the live feed/search return them too.")
     ap.add_argument("--config-dir", dest="config_dir", default=str(HERE.parent / "config"),
                     help="Config dir with city_fixes.json, country_fixes.json, city_merge.yaml "
                          "(default: <repo>/config). Pass empty string to skip transforms.")
@@ -507,7 +518,8 @@ def main() -> None:
     # Parse CSV (always needed) — apply full transform pipeline so D1 gets resolved cities/countries
     _cfg = args.config_dir if args.config_dir else None
     _rev = args.city_review if args.config_dir else None
-    all_checkin_rows, venue_meta = parse_checkins(args.csv, config_dir=_cfg, city_review=_rev)
+    all_checkin_rows, venue_meta = parse_checkins(args.csv, config_dir=_cfg, city_review=_rev,
+                                                   backfill_path=args.backfill)
     visited_vids = {r[2] for r in all_checkin_rows if r[2]}  # index 2 = venue_id
 
     if args.fix_city_country:

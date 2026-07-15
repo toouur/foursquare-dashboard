@@ -766,6 +766,7 @@ def process(
                 "tz_name":    tz_name,
                 "checkin_id": r.get("checkin_id", "").strip(),
                 "companions": collect_companions(r),
+                "refurbished": r.get("source_app", "").strip() == "refurbished",
             }
         )
 
@@ -806,6 +807,7 @@ def process(
             "tz_name":    tz_name,
             "checkin_id": r.get("checkin_id", "").strip(),
             "companions": collect_companions(r),
+            "refurbished": r.get("source_app", "").strip() == "refurbished",
             "origin":     origin,
         }
 

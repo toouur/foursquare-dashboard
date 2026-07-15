@@ -203,6 +203,20 @@ if __name__ == "__main__":
         rows = list(csv.DictReader(fh))
     log.info("  %d rows loaded", len(rows))
 
+    # Merge reconstructed pre-2012 travel history (backfill.csv), if present next
+    # to the input CSV. These rows are stamped source_app="refurbished" and flow
+    # through the same transforms + generators as real check-ins, so every KPI /
+    # story / map / trip shifts automatically. They are badged as reconstructed
+    # wherever an individual check-in card renders. See scripts/build_backfill.py.
+    _backfill_csv = Path(args.input).resolve().parent / "backfill.csv"
+    if _backfill_csv.exists():
+        with open(_backfill_csv, encoding="utf-8") as fh:
+            _bf_rows = list(csv.DictReader(fh))
+        rows.extend(_bf_rows)
+        rows.sort(key=lambda r: int(r.get("date") or 0))
+        log.info("  + %d reconstructed row(s) from %s (%d total)",
+                 len(_bf_rows), _backfill_csv.name, len(rows))
+
     # Blank-city inference: if the review CSV exists next to the config dir,
     # resolve blank city fields using timestamp + coordinate matching.
     review_csv = config_dir / "city_merge_normalized_review.csv"

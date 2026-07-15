@@ -1,0 +1,3 @@
+{
+  "_comment": "Fallback city -> [lat, lng] for reconstructed (backfill) check-ins whose city never appears in checkins.csv post-2012. build_backfill.py uses this only after (1) explicit lat/lng on the entry and (2) the mean centroid of that city already in checkins.csv both miss. Keys are matched NFC-normalized + casefolded. Keep entries alphabetical."
+}

@@ -72,6 +72,32 @@ python scripts/fetch_lastfm.py --user TOOUUR \
 python scripts/fetch_lastfm.py --user TOOUUR --check   # probe key, no write
 ```
 
+### Build pre-2012 travel backfill ("refurbished" check-ins)
+The Foursquare dataset starts in 2012; earlier travel (~2008+) is reconstructed at
+country/city/day granularity from a hand-editable `backfill.yaml` (next to
+`checkins.csv` in the data repo). `build_backfill.py` converts it to `backfill.csv`
+in the exact 23-column check-in schema; `build.py` auto-discovers that sibling CSV and
+merges its rows into `rows` (re-sorted by `date`), so every stat/KPI/map/trip/feed
+shifts. Reconstructed rows carry `source_app="refurbished"` (the discriminator — real
+rows are only Swarm/Foursquare/Pebble) and `checkin_id="rf<seq>"` (e.g. `rf0001`,
+never collides with 24-char hex). Coords resolve explicit→existing-city-centroid (from
+checkins.csv)→gazetteer→unresolved; coarse dates fill to noon UTC (month→1st,
+year→Jul 1). Each reconstructed check-in renders with a `↺ reconstructed` badge (feed,
+trips modal, index recent); a fully-reconstructed year page gets a hero-eyebrow badge.
+`sync_to_d1.py --backfill backfill.csv` also ingests them so `/api/feed` + `/api/search`
+return them (blank venue_id → no venue/FTS row; feed.js emits `source_app` as a 13th
+tuple field, `_v=refurb` cache tag). Sources funnel through `backfill.yaml`:
+`import_polarsteps.py` (Polarsteps export ZIP → appends entries; PENDING user export),
+LiveInternet diary, and manual entry.
+```bash
+python scripts/build_backfill.py \
+  --yaml      C:/Users/toouur/Documents/GitHub/foursquare-data/backfill.yaml \
+  --checkins  C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --out       C:/Users/toouur/Documents/GitHub/foursquare-data/backfill.csv
+# then a normal build auto-merges the sibling backfill.csv; sync to D1 with:
+python scripts/sync_to_d1.py --csv .../checkins.csv --backfill .../backfill.csv [other --* flags]
+```
+
 ### Fetch photos from export
 ```bash
 /c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/fetch_photos.py \
@@ -235,6 +261,7 @@ python -m http.server 8000 --directory _site
 - Check-ins fetch: `scripts/fetch_checkins.py`
 - Flights fetch: `scripts/fetch_flights.py` (FR24 login → diary CSV; weekly `fr24-flights.yml`)
 - Last.fm fetch: `scripts/fetch_lastfm.py` (per-year scrobble aggregate; weekly `lastfm.yml`; feeds year-page "The year in sound" section via `gen_year_pages` `music_by_year`)
+- Pre-2012 backfill: `scripts/build_backfill.py` (`backfill.yaml` → `backfill.csv`, 23-col schema, `source_app="refurbished"`, `rf<seq>` ids, centroid-reuse geocode); `build.py` auto-merges the sibling `backfill.csv`; `sync_to_d1.py --backfill` ingests to D1; `scripts/import_polarsteps.py` (Polarsteps export → backfill.yaml; PENDING user export). Reconstructed rows badged in feed/trips/year-hero. Tests: `tests/test_backfill.py`.
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
 - Tests: `tests/` — pytest suite (224 tests): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
 - HTML deploy gate: `scripts/validate_html.py` — runs in `update-dashboard.yml` before every deploy (required pages present, no leftover `{{PLACEHOLDER}}`, embedded JSON parses, min page size; skips `solution.html` which quotes placeholders as documentation).

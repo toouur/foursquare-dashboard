@@ -782,6 +782,7 @@ a{{color:var(--teal);}}
 .hero-overlay{{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(10,12,18,0.10) 0%,rgba(10,12,18,0.85) 80%);z-index:1;}}
 .hero-content{{position:relative;z-index:2;text-align:center;padding:24px;max-width:840px;}}
 .hero-eyebrow{{font-family:'DM Mono',monospace;font-size:.65rem;text-transform:uppercase;letter-spacing:.32em;color:var(--gold);margin-bottom:18px;opacity:0;animation:fadeUp .9s .25s forwards;text-shadow:0 1px 6px rgba(0,0,0,.7);}}
+.hero-refurb{{display:inline-block;margin-left:10px;padding:1px 8px;border:1px dashed rgba(200,200,220,.6);border-radius:5px;color:#cfd0da;letter-spacing:.1em;text-shadow:0 1px 6px rgba(0,0,0,.7);}}
 .hero-yr{{font-family:'Playfair Display',serif;font-size:clamp(7rem,18vw,18rem);font-weight:900;line-height:0.92;letter-spacing:-0.035em;background:linear-gradient(150deg,#f5d48a 0%,#e8b86d 40%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0;animation:fadeUp 1.1s .55s forwards;}}
 .hero-vivid{{font-family:'Playfair Display',serif;font-size:clamp(1.05rem,2vw,1.5rem);font-weight:400;color:#f0f1f6;line-height:1.6;margin-top:24px;text-shadow:0 2px 18px rgba(0,0,0,0.6);max-width:760px;margin-left:auto;margin-right:auto;font-style:italic;opacity:0;animation:fadeUp 1.4s .95s forwards;}}
 .hero-vivid strong{{color:var(--gold);font-style:normal;font-weight:500;}}
@@ -951,7 +952,7 @@ html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
   <div class="hero-bg" id="heroBg">{hero_bg_html}</div>
   <div class="hero-overlay"></div>
   <div class="hero-content">
-    <div class="hero-eyebrow">A year in review · {year}</div>
+    <div class="hero-eyebrow">{hero_eyebrow}</div>
     <div class="hero-yr">{year}</div>
     <div class="hero-vivid">{vivid}</div>
   </div>
@@ -1301,6 +1302,18 @@ def build_page(
     for ys in year_summaries:
         yr = ys["year"]
         rows_y = by_year_rows.get(yr, [])
+        # A year whose check-ins are entirely reconstructed (pre-2012 backfill)
+        # is flagged in the hero eyebrow so it's never read as live app data.
+        _refurb_n = sum(
+            1 for r in rows_y
+            if r.get("source_app", "").strip() == "refurbished"
+        )
+        hero_eyebrow = f"A year in review · {yr}"
+        if rows_y and _refurb_n == len(rows_y):
+            hero_eyebrow += (
+                '<span class="hero-refurb" title="This year is reconstructed '
+                'from travel history — not live app check-ins">↺ reconstructed</span>'
+            )
         photos_y = sorted(photos_by_year.get(yr, []), key=lambda p: -p["ts"])
         shouts_y = shouts_by_year.get(yr, [])
         trips_y = sorted(trips_by_year.get(yr, []), key=lambda t: t.get("start_ts", 0))
@@ -1836,6 +1849,7 @@ def build_page(
         )
         html = PAGE_TEMPLATE.format(
             year=yr,
+            hero_eyebrow=hero_eyebrow,
             title=f"{yr} — Year in Review",
             description=description,
             og_image=og_image,

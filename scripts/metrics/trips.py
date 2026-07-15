@@ -579,6 +579,7 @@ def detect_trips(
                     "lat":        lat,
                     "lng":        lng,
                     "checkin_id": r.get("checkin_id", "").strip(),
+                    "refurbished": r.get("source_app", "").strip() == "refurbished",
                 }
             )
 
