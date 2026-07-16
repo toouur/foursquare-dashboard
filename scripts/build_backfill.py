@@ -30,6 +30,27 @@ backfill.yaml entry shape (coarse granularity is fine):
       source: liveinternet  # provenance note: manual | liveinternet | polarsteps
       note: "Interrail, first night"   # optional -> becomes the shout text
 
+When a reconstructed visit is precise enough to name a real Foursquare venue and
+an exact wall-clock time, the entry may carry the richer optional fields below —
+they pass straight through to the row (blank when omitted, so coarse entries are
+unchanged):
+
+    - date: 2008-07-08
+      time: "09:00"         # local wall-clock HH:MM[:SS]; omitted -> 12:00 (noon)
+      tz: 3                  # local UTC offset in hours; stored `date` is UTC
+      venue: Fidesco
+      venue_id: 4bc2ca1e920eb71372a71c2c   # real venue -> links to its venue page
+      venue_url: ""         # optional; auto-derived from venue_id when blank
+      state: Municipiul Chișinău
+      neighborhood: Ciocana
+      address: "Bd. Mircea cel Bătrân, 6"
+      category: Supermarket
+
+The file root may be either a plain YAML list of entries (backward-compatible) or
+a mapping with an ``entries:`` key (so an ``anchors:`` block can hold reusable
+``&anchor`` venue templates that entries pull in with ``<<: *anchor``). Any
+top-level key other than ``entries`` is ignored — it exists only to host anchors.
+
 Coordinate resolution is fully offline and deterministic:
   1. explicit ``lat``/``lng`` on the entry, else
   2. the mean centroid of that city already present in ``checkins.csv`` (exact
@@ -49,7 +70,7 @@ import logging
 import sys
 import unicodedata
 from collections import defaultdict
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -78,32 +99,71 @@ def _norm_city(name: str) -> str:
     return unicodedata.normalize("NFC", (name or "").strip())
 
 
-def parse_backfill_date(value: Any) -> int:
-    """Resolve a coarse date to a unix timestamp at 12:00 UTC.
+def _ymd(value: Any) -> tuple[int, int, int]:
+    """Resolve a coarse date value to a ``(year, month, day)`` triple.
 
     Accepts a ``datetime.date``/``datetime`` (PyYAML parses ``2009-07-14`` to a
     date) or a string ``"YYYY-MM-DD"`` / ``"YYYY-MM"`` / ``"YYYY"``. A month-only
     value fills day 1; a year-only value fills July 1 (mid-year).
     """
     if isinstance(value, datetime):
-        y, mo, d = value.year, value.month, value.day
-    elif isinstance(value, date):
-        y, mo, d = value.year, value.month, value.day
-    else:
-        s = str(value).strip()
-        parts = s.split("-")
-        try:
-            if len(parts) >= 3:
-                y, mo, d = int(parts[0]), int(parts[1]), int(parts[2])
-            elif len(parts) == 2:
-                y, mo, d = int(parts[0]), int(parts[1]), 1
-            elif len(parts) == 1 and parts[0]:
-                y, mo, d = int(parts[0]), 7, 1
-            else:
-                raise ValueError("empty date")
-        except ValueError as e:
-            raise ValueError(f"unparseable backfill date {value!r}: {e}") from None
+        return value.year, value.month, value.day
+    if isinstance(value, date):
+        return value.year, value.month, value.day
+    s = str(value).strip()
+    parts = s.split("-")
+    try:
+        if len(parts) >= 3:
+            return int(parts[0]), int(parts[1]), int(parts[2])
+        if len(parts) == 2:
+            return int(parts[0]), int(parts[1]), 1
+        if len(parts) == 1 and parts[0]:
+            return int(parts[0]), 7, 1
+        raise ValueError("empty date")
+    except ValueError as e:
+        raise ValueError(f"unparseable backfill date {value!r}: {e}") from None
+
+
+def parse_backfill_date(value: Any) -> int:
+    """Resolve a coarse date to a unix timestamp at 12:00 UTC (noon)."""
+    y, mo, d = _ymd(value)
     return int(datetime(y, mo, d, 12, 0, 0, tzinfo=timezone.utc).timestamp())
+
+
+def _parse_hms(value: Any) -> tuple[int, int, int]:
+    """Parse a ``"HH:MM"`` / ``"HH:MM:SS"`` local wall-clock string.
+
+    Time values MUST be quoted in the YAML — YAML 1.1 parses a bare ``09:00`` as a
+    sexagesimal integer (540), so an unquoted time never reaches here as a string.
+    """
+    parts = str(value).strip().split(":")
+    try:
+        h = int(parts[0])
+        m = int(parts[1]) if len(parts) > 1 else 0
+        s = int(parts[2]) if len(parts) > 2 else 0
+    except (ValueError, IndexError):
+        raise ValueError(f"unparseable backfill time {value!r}") from None
+    return h, m, s
+
+
+def resolve_timestamp(entry: dict) -> int:
+    """Resolve an entry's ``date`` (+ optional ``time``/``tz``) to a unix ts.
+
+    ``date`` gives the day; the optional quoted ``time`` gives a local wall-clock
+    ``HH:MM[:SS]`` (default noon 12:00 when absent, matching the coarse day-only
+    behaviour); the optional ``tz`` is the local UTC offset in hours (default 0, so
+    a time with no ``tz`` is read as UTC). The stored value is always UTC. Using a
+    ``timedelta`` for the offset lets pre-dawn local hours roll into the prior UTC
+    day correctly.
+    """
+    y, mo, d = _ymd(entry["date"])
+    if entry.get("time") is not None:
+        h, mi, s = _parse_hms(entry["time"])
+    else:
+        h, mi, s = 12, 0, 0
+    tz = float(entry.get("tz") or 0)
+    dt = datetime(y, mo, d, h, mi, s, tzinfo=timezone.utc) - timedelta(hours=tz)
+    return int(dt.timestamp())
 
 
 def load_centroids(csv_path: str | Path) -> dict[str, tuple[float, float]]:
@@ -174,7 +234,7 @@ def resolve_coords(
 
 def entry_to_row(entry: dict, seq: int, coords: tuple[float, float]) -> dict:
     """Build one 23-column check-in row from a resolved backfill entry."""
-    ts = parse_backfill_date(entry["date"])
+    ts = resolve_timestamp(entry)
     lat, lng = coords
     row = {k: "" for k in SCHEMA}
     row["date"] = str(ts)
@@ -191,6 +251,22 @@ def entry_to_row(entry: dict, seq: int, coords: tuple[float, float]) -> dict:
     row["source_url"] = f"backfill:{src}"
     row["city_inferred"] = "1"
     row["checkin_id"] = f"rf{seq:04d}"
+    # Optional real-venue metadata. A reconstruction precise enough to name a real
+    # Foursquare venue passes these straight through so the row links to the venue
+    # page just like a live check-in. All blank for coarse city/day entries. The
+    # "reconstructed" badge keys on source_app, not on a blank venue_id, so a real
+    # venue_id here does not un-badge the row; downstream sync_to_d1's venue_meta
+    # picks display fields by last_ts, so a 2008 row never overrides the real
+    # 2012+/2019 venue display.
+    vid = str(entry.get("venue_id") or "").strip()
+    if vid:
+        row["venue_id"] = vid
+        vurl = str(entry.get("venue_url") or "").strip()
+        row["venue_url"] = vurl or f"https://foursquare.com/v/{vid}"
+    row["state"] = _norm_city(str(entry.get("state") or "")).strip()
+    row["neighborhood"] = _norm_city(str(entry.get("neighborhood") or "")).strip()
+    row["address"] = str(entry.get("address") or "").strip()
+    row["category"] = str(entry.get("category") or "").strip()
     return row
 
 
@@ -210,7 +286,7 @@ def build_rows(
             unresolved.append({"entry": entry, "why": "missing date or city"})
             continue
         try:
-            ts = parse_backfill_date(entry["date"])
+            ts = resolve_timestamp(entry)
         except ValueError as e:
             unresolved.append({"entry": entry, "why": str(e)})
             continue
@@ -251,9 +327,17 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     with open(args.yaml, encoding="utf-8") as fh:
-        entries = yaml.safe_load(fh) or []
+        doc = yaml.safe_load(fh) or []
+    # Root may be a bare list of entries (backward-compatible) OR a mapping with an
+    # `entries:` key — the mapping form lets an `anchors:` block (or any other
+    # sibling key) host reusable `&anchor` venue templates that entries merge in.
+    if isinstance(doc, dict):
+        entries = doc.get("entries", [])
+    else:
+        entries = doc
     if not isinstance(entries, list):
-        log.error("backfill.yaml must be a YAML list of entries")
+        log.error("backfill.yaml must be a YAML list of entries, or a mapping "
+                  "with an `entries:` list")
         return 1
 
     centroids = load_centroids(args.checkins)

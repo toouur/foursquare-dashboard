@@ -145,3 +145,110 @@ def test_write_csv_roundtrips(tmp_path):
     assert back[0]["source_app"] == "refurbished"
     assert back[0]["checkin_id"] == "rf0001"
     assert list(back[0].keys()) == bb.SCHEMA
+
+
+# ── precise time + local tz offset ────────────────────────────────────────
+def test_resolve_timestamp_defaults_to_noon_utc():
+    # No time / no tz -> same noon-UTC value as the coarse day-only path.
+    assert bb.resolve_timestamp({"date": "2008-07-08"}) == _ts(2008, 7, 8)
+
+
+def test_resolve_timestamp_applies_local_time_and_tz():
+    # 09:00 local at UTC+3 -> 06:00 UTC.
+    ts = bb.resolve_timestamp({"date": "2008-07-08", "time": "09:00", "tz": 3})
+    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+    assert (dt.year, dt.month, dt.day, dt.hour, dt.minute) == (2008, 7, 8, 6, 0)
+
+
+def test_resolve_timestamp_predawn_rolls_into_prior_utc_day():
+    # 02:00 local at UTC+3 -> 23:00 UTC the previous day.
+    ts = bb.resolve_timestamp({"date": "2008-08-11", "time": "02:00", "tz": 3})
+    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+    assert (dt.month, dt.day, dt.hour) == (8, 10, 23)
+
+
+def test_resolve_timestamp_time_without_tz_is_utc():
+    ts = bb.resolve_timestamp({"date": "2008-07-08", "time": "09:00"})
+    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+    assert dt.hour == 9
+
+
+# ── real-venue metadata passthrough ───────────────────────────────────────
+def test_entry_to_row_passes_venue_metadata():
+    entry = {
+        "date": "2008-07-08", "time": "09:00", "tz": 3,
+        "city": "Chișinău", "country": "Moldova", "venue": "Fidesco",
+        "venue_id": "4bc2ca1e920eb71372a71c2c",
+        "state": "Municipiul Chișinău", "neighborhood": "Ciocana",
+        "address": "Bd. Mircea cel Bătrân, 6", "category": "Supermarket",
+    }
+    row = bb.entry_to_row(entry, 1, (47.040107, 28.891401))
+    assert row["venue_id"] == "4bc2ca1e920eb71372a71c2c"
+    # venue_url auto-derived from the id when not given
+    assert row["venue_url"] == "https://foursquare.com/v/4bc2ca1e920eb71372a71c2c"
+    assert row["state"] == "Municipiul Chișinău"
+    assert row["neighborhood"] == "Ciocana"
+    assert row["address"] == "Bd. Mircea cel Bătrân, 6"
+    assert row["category"] == "Supermarket"
+    # still badged reconstructed despite carrying a real venue_id
+    assert row["source_app"] == "refurbished"
+    assert list(row.keys()) == bb.SCHEMA
+
+
+def test_entry_to_row_explicit_venue_url_wins():
+    entry = {"date": "2008-07-08", "city": "Prague",
+             "venue_id": "abc", "venue_url": "https://example.test/v/abc"}
+    row = bb.entry_to_row(entry, 1, (50.0, 14.0))
+    assert row["venue_url"] == "https://example.test/v/abc"
+
+
+def test_coarse_entry_leaves_venue_metadata_blank():
+    row = bb.entry_to_row({"date": "2009-07-14", "city": "Prague"},
+                          1, (50.08, 14.44))
+    for k in ("venue_id", "venue_url", "state", "neighborhood",
+              "address", "category"):
+        assert row[k] == ""
+
+
+# ── mapping root with an entries: key (+ anchors) ─────────────────────────
+def test_main_accepts_mapping_root_with_entries(tmp_path):
+    import yaml
+    yaml_path = tmp_path / "backfill.yaml"
+    doc = {
+        "anchors": {"prague": {"city": "Prague", "country": "Czechia"}},
+        "entries": [{"date": "2010-01-01", "city": "Prague",
+                     "country": "Czechia"}],
+    }
+    yaml_path.write_text(yaml.safe_dump(doc), encoding="utf-8")
+    checkins = tmp_path / "checkins.csv"
+    _write_checkins(checkins, [{"city": "Prague", "lat": "50.08", "lng": "14.44"}])
+    out = tmp_path / "backfill.csv"
+    gaz = tmp_path / "gaz.json"
+    gaz.write_text("{}", encoding="utf-8")
+    rc = bb.main(["--yaml", str(yaml_path), "--checkins", str(checkins),
+                  "--gazetteer", str(gaz), "--out", str(out)])
+    assert rc == 0
+    with open(out, encoding="utf-8", newline="") as fh:
+        back = list(csv.DictReader(fh))
+    assert len(back) == 1
+    assert back[0]["city"] == "Prague"
+    assert back[0]["checkin_id"] == "rf0001"
+
+
+def test_main_still_accepts_bare_list_root(tmp_path):
+    import yaml
+    yaml_path = tmp_path / "backfill.yaml"
+    yaml_path.write_text(
+        yaml.safe_dump([{"date": "2010-01-01", "city": "Prague"}]),
+        encoding="utf-8")
+    checkins = tmp_path / "checkins.csv"
+    _write_checkins(checkins, [{"city": "Prague", "lat": "50.08", "lng": "14.44"}])
+    out = tmp_path / "backfill.csv"
+    gaz = tmp_path / "gaz.json"
+    gaz.write_text("{}", encoding="utf-8")
+    rc = bb.main(["--yaml", str(yaml_path), "--checkins", str(checkins),
+                  "--gazetteer", str(gaz), "--out", str(out)])
+    assert rc == 0
+    with open(out, encoding="utf-8", newline="") as fh:
+        back = list(csv.DictReader(fh))
+    assert len(back) == 1
