@@ -639,15 +639,26 @@ def main() -> None:
         new_checkin_rows = [r for r in all_checkin_rows if r[1] > max_date]
 
         # The watermark misses backdated / out-of-order check-ins (ts <= max_date)
-        # that D1 has never seen — e.g. a manually-added past visit, or a row
-        # surfaced by the --recheck-recent-hours sweep. If the CSV holds more rows
-        # than D1 will after the watermark pass, fall back to an authoritative
-        # checkin_id set-difference. (id is not unique in D1, but any id present
-        # in the CSV and absent from D1 is genuinely new.)
-        if len(all_checkin_rows) > d1_count + len(new_checkin_rows):
-            missing = len(all_checkin_rows) - d1_count - len(new_checkin_rows)
-            print(f"D1 sync: row-count mismatch ({missing} unaccounted) — "
-                  f"falling back to checkin_id set-difference", flush=True)
+        # that D1 has never seen. Two triggers force an authoritative checkin_id
+        # set-difference (id is not unique in D1, but any id present in the CSV and
+        # absent from D1 is genuinely new):
+        #   (a) reconstructed backfill rows ("rf*" ids) are ALWAYS backdated (2008+)
+        #       so they never clear the ~2026 watermark; worse, duplicate ids in D1
+        #       inflate d1_count enough that the row-count guard alone can stay false
+        #       and strand them out of the D1-backed feed. No real 24-char-hex id
+        #       starts with "rf", so their presence is a safe, cheap trigger.
+        #   (b) a plain row-count mismatch — a manually-added past visit, or a row
+        #       surfaced by the --recheck-recent-hours sweep.
+        has_backfill = any(str(r[0]).startswith("rf") for r in all_checkin_rows)
+        count_mismatch = len(all_checkin_rows) > d1_count + len(new_checkin_rows)
+        if has_backfill or count_mismatch:
+            if count_mismatch:
+                missing = len(all_checkin_rows) - d1_count - len(new_checkin_rows)
+                print(f"D1 sync: row-count mismatch ({missing} unaccounted) — "
+                      f"falling back to checkin_id set-difference", flush=True)
+            else:
+                print("D1 sync: backfill rows present — reconciling via "
+                      "checkin_id set-difference", flush=True)
             existing = d1.query("SELECT id FROM checkins")
             existing_ids = {row["id"] for row in existing} if existing else set()
             new_checkin_rows = [r for r in all_checkin_rows if r[0] not in existing_ids]
