@@ -172,6 +172,7 @@ def detect_trips(
     trip_start_overrides: dict[int, int] | None = None,
     trip_tags: dict[int, list[str]] | None = None,
     home_history: list[tuple[int, str]] | None = None,
+    home_venue_ids: set[str] | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
@@ -521,13 +522,21 @@ def detect_trips(
             row_ts = int(valid[j]["date"])
             if row_ts - cur_end_ts > _MAX_HOME_ARRIVAL:
                 break
+            # Era-aware home: a 2008 Chișinău homecoming must not read as a foreign
+            # city just because the modern home_city is Minsk.
+            row_home = _home_at(row_ts, home_city, home_history)
             row_city = valid[j].get("city", "").strip()
             row_cat  = valid[j].get("category", "").strip()
-            if row_city and row_city != home_city and row_cat not in _ROADSIDE_CATS:
+            row_vid  = valid[j].get("venue_id", "").strip()
+            if row_city and row_city != row_home and row_cat not in _ROADSIDE_CATS:
                 break  # non-home city → new trip
             if row_cat in _NIGHTLIFE_CATS:
                 break  # afterparty → stop before it
-            if row_city == home_city and row_cat == "Home (private)":
+            # Homecoming: a Home (private) check-in in the era-home city, OR a
+            # check-in at a configured era-home venue (any category — e.g. an
+            # apartment/condo that Foursquare never tags "Home (private)").
+            if (row_city == row_home and row_cat == "Home (private)") or \
+               (home_venue_ids and row_vid in home_venue_ids):
                 home_idx = j
                 break
             j += 1

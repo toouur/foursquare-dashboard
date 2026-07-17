@@ -12,6 +12,13 @@ trip_detection:
   home_history:
     - city: Chișinău
       until: "2012-09-01"
+      # venue_id(s) that ARE this era's home. A check-in at one of these counts
+      # as the homecoming for the trip's home-arrival extension regardless of its
+      # Foursquare category (e.g. "Str. Alecu Russo, 55" is categorised
+      # "Apartment or Condo", not "Home (private)"). These ids have no real
+      # check-ins, so recognising them can't perturb any modern trip.
+      venues:
+        - 50fbc23ae4b0afd6fe382f57   # Str. Alecu Russo, 55 (Chișinău home)
   # Optional: path to a hand-curated trips YAML override file.
   # When set, the automatic detection is skipped and these dates are used instead.
   # trips_override_file: trips_manual.yaml
