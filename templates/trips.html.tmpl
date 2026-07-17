@@ -120,12 +120,12 @@ a{color:inherit;}
 .tl-checkin{display:flex;gap:10px;align-items:flex-start;padding:5px 0;}
 .tl-checkin-time{font-family:'DM Mono',monospace;font-size:.60rem;color:var(--muted);flex-shrink:0;width:40px;}
 .tl-checkin-info{flex:1;min-width:0;}
-.tl-checkin-venue{font-size:.80rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tl-checkin-venue{font-size:.80rem;color:var(--text);display:flex;align-items:center;gap:6px;}
+.tl-venue-name{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tl-checkin-venue a{color:inherit;text-decoration:none;}
 .tl-checkin-venue a:hover{color:var(--gold);}
 .tl-checkin-sub{font-size:.65rem;color:var(--muted);}
-.tl-checkin--refurb{opacity:.85;}
-.tl-refurb{display:inline-flex;align-items:center;gap:3px;background:rgba(150,150,170,.12);border:1px dashed rgba(150,150,170,.5);color:var(--muted);border-radius:4px;padding:0 5px;font-family:'DM Mono',monospace;font-size:.5rem;letter-spacing:.05em;margin-left:6px;vertical-align:middle;}
+.tl-refurb{flex-shrink:0;margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 6px;font-family:'DM Mono',monospace;font-size:.5rem;letter-spacing:.04em;white-space:nowrap;}
 .tl-route-tip.leaflet-tooltip{background:rgba(11,13,19,.92);border:1px solid var(--gold);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:.68rem;padding:3px 8px;border-radius:6px;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;}
 .tl-route-tip.leaflet-tooltip::before{border-top-color:var(--gold);}
 .mode-legend{background:rgba(11,13,19,.88);border:1px solid rgba(232,184,109,.25);border-radius:8px;padding:5px 9px;font-family:'DM Sans',sans-serif;font-size:.66rem;color:var(--text2);display:flex;gap:9px;flex-wrap:wrap;max-width:230px;}
@@ -450,10 +450,10 @@ function showTrip(id){
         const photosHtml = cPhotos.length
           ? `<div class="tl-photos">${cPhotos.map((src,i)=>`<img class="tl-photo" src="${PIX_DIR}/${src}" loading="lazy" onclick="openGallery(${galStart+i})">`).join('')}</div>`
           : '';
-        return `<div class="tl-checkin${c.refurbished?' tl-checkin--refurb':''}" data-ts="${c.ts}">
+        return `<div class="tl-checkin" data-ts="${c.ts}">
           <div class="tl-checkin-time">${c.time}</div>
           <div class="tl-checkin-info">
-            <div class="tl-checkin-venue">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}${c.refurbished?`<span class="tl-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</span>`:''}</div>
+            <div class="tl-checkin-venue"><span class="tl-venue-name">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}</span>${c.refurbished?`<span class="tl-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</span>`:''}</div>
             <div class="tl-checkin-sub">${[c.category,c.city,c.country].filter(Boolean).join(' · ')}</div>
             ${photosHtml}
           </div>

@@ -143,6 +143,25 @@ def _is_home_transport(row: dict, home_city: str) -> bool:
     )
 
 
+def _home_at(
+    ts: int,
+    home_city: str,
+    home_history: list[tuple[int, str]] | None,
+) -> str:
+    """Resolve the home city in effect at unix-ts ``ts``.
+
+    ``home_history`` is a list of ``(until_ts, city)`` sorted ascending: ``city``
+    was home for every ts strictly BEFORE ``until_ts``. At/after the last
+    ``until_ts`` the current ``home_city`` applies. Empty/None → static
+    ``home_city`` (identity for the modern era, so behaviour is unchanged).
+    """
+    if home_history:
+        for until_ts, city in home_history:
+            if ts < until_ts:
+                return city
+    return home_city
+
+
 def detect_trips(
     rows: list[dict],
     home_city: str = "Minsk",
@@ -152,6 +171,7 @@ def detect_trips(
     trip_end_overrides: dict[int, int] | None = None,
     trip_start_overrides: dict[int, int] | None = None,
     trip_tags: dict[int, list[str]] | None = None,
+    home_history: list[tuple[int, str]] | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
@@ -172,7 +192,8 @@ def detect_trips(
     raw_trips: list[list[dict]] = []
     current: list[dict] = []
     for row in valid:
-        if row.get("city", "").strip() != home_city:
+        row_home = _home_at(int(row["date"]), home_city, home_history)
+        if row.get("city", "").strip() != row_home:
             current.append(row)
         else:
             if current:

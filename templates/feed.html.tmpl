@@ -243,9 +243,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 .fc-loc{font-size:.68rem;color:var(--muted);display:flex;align-items:center;gap:5px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .fc-with{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--teal);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
-/* Reconstructed (pre-2012 backfill) check-ins: muted card + dashed border + "reconstructed" badge */
-.fcard--refurb{border-style:dashed;opacity:.82;}
-.fc-refurb{display:inline-flex;align-items:center;gap:3px;background:rgba(150,150,170,.12);border:1px dashed rgba(150,150,170,.5);color:var(--muted);border-radius:4px;padding:1px 6px;font-family:'DM Mono',monospace;font-size:.5rem;letter-spacing:.05em;margin:2px 0;align-self:flex-start;}
+/* Reconstructed (pre-2012 backfill) check-ins render identically to real cards;
+   only a compact "↺ reconstructed" marker sits in the top-right corner of the
+   venue row (where the category icon would be). No card muting/dashing. */
+.fc-refurb{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 6px;font-family:'DM Mono',monospace;font-size:.5rem;letter-spacing:.04em;white-space:nowrap;margin-top:1px;}
 
 .fc-loc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
@@ -793,11 +794,9 @@ function mkCard(i){
 
   else wHtml='<span class="fc-weather-loading">fetching weather…</span>';
 
-  return `<div class="fcard${isActive?' active':''}${refurb?' fcard--refurb':''}" id="fc${i}" onclick="onCardClick(${i})" onmouseenter="onCardHover(${i})" style="top:${pos[i]}px;height:${CARD_H}px;">
+  return `<div class="fcard${isActive?' active':''}" id="fc${i}" onclick="onCardClick(${i})" onmouseenter="onCardHover(${i})" style="top:${pos[i]}px;height:${CARD_H}px;">
 
-    <div class="fc-venue-row"><div class="fc-venue">${vn}</div>${ico}</div>
-
-    ${refurb?`<div class="fc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>`:''}
+    <div class="fc-venue-row"><div class="fc-venue">${vn}</div>${refurb?`<div class="fc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>`:ico}</div>
 
     <div class="fc-cat">${esc(cat)}</div>
 

@@ -195,6 +195,21 @@ if __name__ == "__main__":
     min_checkins  = args.min_checkins  or trip_cfg.get("min_checkins", 5)
     fs_user_id    = settings.get("dashboard", {}).get("foursquare_user_id", "")
 
+    # Era-aware home: each home_history entry names the home BEFORE its `until`
+    # date (exclusive, UTC midnight). Parse to sorted [(until_ts, city)] so
+    # detect_trips can bucket pre-move check-ins (e.g. 2008 Chișinău) as home,
+    # not as a phantom trip. See config/settings.yaml trip_detection.home_history.
+    home_history: list[tuple[int, str]] = []
+    for _hh in trip_cfg.get("home_history", []) or []:
+        _city = str(_hh.get("city", "")).strip()
+        _until = str(_hh.get("until", "")).strip()
+        if not _city or not _until:
+            continue
+        _until_ts = int(datetime.strptime(_until, "%Y-%m-%d")
+                        .replace(tzinfo=timezone.utc).timestamp())
+        home_history.append((_until_ts, _city))
+    home_history.sort(key=lambda p: p[0])
+
     log.info("Loading mappings from %s …", config_dir)
     mappings = load_mappings(config_dir)
 
@@ -290,7 +305,7 @@ if __name__ == "__main__":
             log.warning("flights.csv load for metrics failed: %s", _mfe)
 
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
-    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides, flights=_metrics_flights)
+    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides, flights=_metrics_flights, home_history=home_history)
 
     # ── Flights: parse FR24 flight-diary CSV if present ─────────────────────
     # data/flights.csv lives next to checkins.csv in the private data repo.

@@ -2,8 +2,16 @@
 # Edit this file to customise behaviour without touching Python code.
 
 trip_detection:
-  home_city: Minsk         # check-ins in this city are treated as "home" (not part of a trip)
+  home_city: Minsk         # current home — check-ins here are "home" (not part of a trip)
   min_checkins: 5          # minimum check-ins outside home to count as a real trip
+  # Home city changed over time. Each entry names the home BEFORE its `until`
+  # date (exclusive, UTC midnight); at/after the last `until`, `home_city` above
+  # applies. So Chișinău was home from the earliest (backfilled) check-in until
+  # the move to Minsk on 2012-09-01 — those Chișinău check-ins are home, not a
+  # trip, while the 2008 Black Sea run stays a trip. Keep sorted by `until`.
+  home_history:
+    - city: Chișinău
+      until: "2012-09-01"
   # Optional: path to a hand-curated trips YAML override file.
   # When set, the automatic detection is skipped and these dates are used instead.
   # trips_override_file: trips_manual.yaml
