@@ -117,6 +117,13 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     html = html.replace('{{PLACES}}',    f"{data['unique_places_count']:,}")
     html = html.replace('{{UPDATED}}',   datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     html = html.replace('{{TRIPS}}',      str(data['trips_count']))
+    _rf_ci = data.get('refurb_checkins', 0)
+    _rf_pl = data.get('refurb_places', 0)
+    _rf_note = (
+        f'<div class="kpi-note">↺ {_rf_ci:,} reconstructed check-ins'
+        f' &middot; +{_rf_pl:,} unique places</div>'
+    ) if _rf_ci else ''
+    html = html.replace('{{RECONSTRUCTED_NOTE}}', _rf_note)
     html = html.replace('{{STATS}}',     stats_json)
     if extra_replacements:
         for key, val in extra_replacements.items():

@@ -499,13 +499,33 @@
       "Boat or Ferry",
       "Ferry"
     ],
-    "Universities": [
+    "Education": [
       "University",
+      "College and University",
       "College Arts Building",
       "College Academic Building",
       "College Technology Building",
       "College Library",
-      "College Residence Hall"
+      "College Residence Hall",
+      "Community College",
+      "Law School",
+      "High School",
+      "Middle School",
+      "Elementary School",
+      "Private School",
+      "Preschool",
+      "Nursery School",
+      "School",
+      "Adult Education",
+      "Education",
+      "Language School",
+      "Music School",
+      "Art School",
+      "Driving School",
+      "Swim School",
+      "Religious School",
+      "Trade School",
+      "Student Center"
     ],
     "Stadiums": [
       "Stadium",

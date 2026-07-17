@@ -53,13 +53,15 @@ header h1{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,5rem);
 header>.masthead{flex:0 0 auto;min-width:0;}
 header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);}
 .updated{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);margin-top:4px;}
+.kpi-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:0 1 auto;min-width:0;}
 .kpis{display:flex;gap:clamp(12px,1.3vw,24px);flex-wrap:nowrap;align-items:flex-end;justify-content:flex-end;align-content:flex-end;flex:0 1 auto;min-width:0;}
+.kpi-note{font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.06em;color:var(--muted);text-align:right;white-space:nowrap;}
 .kpi{text-align:left;white-space:nowrap;}
 .kpi .num{font-family:'Playfair Display',serif;font-size:clamp(1.15rem,1.75vw,2.2rem);font-weight:700;color:var(--gold);line-height:1;}
 .kpi .lbl{font-family:'DM Mono',monospace;font-size:clamp(0.5rem,0.62vw,0.60rem);white-space:nowrap;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin-top:5px;}
 /* Below tablet width there isn't room for the KPI row beside the masthead —
    let the header wrap and the KPIs flow full-width under it. */
-@media(max-width:860px){header{flex-wrap:wrap;}.kpis{flex-wrap:wrap;justify-content:flex-start;flex-basis:100%;}}
+@media(max-width:860px){header{flex-wrap:wrap;}.kpi-wrap{align-items:flex-start;flex-basis:100%;}.kpis{flex-wrap:wrap;justify-content:flex-start;flex-basis:100%;}.kpi-note{text-align:left;}}
 
 /* ── GRID ── */
 .grid{padding:16px 56px 72px;display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1500px;}
@@ -500,15 +502,18 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
     <p class="sub">Foursquare &nbsp;&middot;&nbsp; {{DATE_MIN}} &ndash; {{DATE_MAX}}</p>
     <p class="updated">Updated {{UPDATED}}</p>
   </div>
-  <div class="kpis">
-    <div class="kpi"><div class="num">{{TOTAL}}</div><div class="lbl">Check-ins</div></div>
-    <div class="kpi"><div class="num">{{TIPS_COUNT}}</div><div class="lbl">Tips</div></div>
-    <div class="kpi"><div class="num">{{COUNTRIES}}</div><div class="lbl">Countries</div></div>
-    <div class="kpi"><div class="num">{{CITIES}}</div><div class="lbl">Cities</div></div>
-    <div class="kpi"><div class="num">{{PLACES}}</div><div class="lbl">Unique Places</div></div>
-    {{PHOTOS_KPI}}
-    <div class="kpi"><div class="num">{{TRIPS}}</div><div class="lbl">Trips</div></div>
-    <div class="kpi" id="kpiKm" style="display:none"><div class="num" id="kpiKmNum">—</div><div class="lbl">km Travelled</div></div>
+  <div class="kpi-wrap">
+    <div class="kpis">
+      <div class="kpi"><div class="num">{{TOTAL}}</div><div class="lbl">Check-ins</div></div>
+      <div class="kpi"><div class="num">{{TIPS_COUNT}}</div><div class="lbl">Tips</div></div>
+      <div class="kpi"><div class="num">{{COUNTRIES}}</div><div class="lbl">Countries</div></div>
+      <div class="kpi"><div class="num">{{CITIES}}</div><div class="lbl">Cities</div></div>
+      <div class="kpi"><div class="num">{{PLACES}}</div><div class="lbl">Unique Places</div></div>
+      {{PHOTOS_KPI}}
+      <div class="kpi"><div class="num">{{TRIPS}}</div><div class="lbl">Trips</div></div>
+      <div class="kpi" id="kpiKm" style="display:none"><div class="num" id="kpiKmNum">—</div><div class="lbl">km Travelled</div></div>
+    </div>
+    {{RECONSTRUCTED_NOTE}}
   </div>
 </header>
 

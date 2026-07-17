@@ -224,7 +224,11 @@ def process(
     # First pass: accumulate per-venue stats keyed by venue_id
     _vp: dict = {}  # venue_id → {lat, lng, name, count, last_ts, years, category, city}
     _vp_coord: dict = {}  # (lat3,lng3) → same shape, for no-id rows
+    refurb_checkins = 0  # count of reconstructed (pre-2012 backfill) check-ins
     for r in rows:
+        is_refurb = (r.get("source_app", "") or "").strip() == "refurbished"
+        if is_refurb:
+            refurb_checkins += 1
         vid = r.get("venue_id", "").strip()
         try:
             lat_f, lng_f = float(r["lat"]), float(r["lng"])
@@ -244,9 +248,11 @@ def process(
                     "cat": raw_cat,
                     "city": r.get("city", "").strip(),
                     "has_coords": has_coords,
+                    "refurb": False, "real": False,
                 }
             e = _vp[vid]
             e["count"] += 1
+            e["refurb" if is_refurb else "real"] = True
             if ts > e["last_ts"]:
                 e["last_ts"] = ts
             if yr:
@@ -265,9 +271,11 @@ def process(
                     "cat": raw_cat,
                     "city": r.get("city", "").strip(),
                     "has_coords": True,
+                    "refurb": False, "real": False,
                 }
             e = _vp_coord[key]
             e["count"] += 1
+            e["refurb" if is_refurb else "real"] = True
             if ts > e["last_ts"]:
                 e["last_ts"] = ts
             if yr:
@@ -290,6 +298,13 @@ def process(
         ])
 
     unique_count = len(seen_ids) + len(seen_coords)
+
+    # Places that exist ONLY because of reconstruction (no real check-in ever there).
+    # A venue with both real + refurbished check-ins counts as a real place, not new.
+    refurb_places = sum(
+        1 for e in (*_vp.values(), *_vp_coord.values())
+        if e.get("refurb") and not e.get("real")
+    )
 
     # ── Countries by venues ───────────────────────────────────────────────────
     country_vids: dict[str, set] = defaultdict(set)
@@ -1758,6 +1773,8 @@ def process(
         "date_min":           str(min(dates).date()),
         "date_max":           str(max(dates).date()),
         "unique_places_count":unique_count,
+        "refurb_checkins":    refurb_checkins,
+        "refurb_places":      refurb_places,
         "by_year":            sorted([(str(k), v) for k, v in by_year.items()]),
         "by_month":           sorted([(f"{k[0]}-{k[1]:02d}", v) for k, v in by_month.items()]),
         "by_hour":            [(k, v) for k, v in sorted(by_hour.items())],
