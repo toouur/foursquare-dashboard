@@ -1537,6 +1537,61 @@ python fetch_photos.py   <span class="hl2">--recheck-days 1</span>           <sp
       </div>
     </div>
 
+    <!-- C21 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 21 — Travel That Predates the Dataset, and a Feed That Kept Serving Stale</div>
+        <div class="cs-text">
+          The Foursquare/Swarm history only starts in <strong>2012</strong>, but the real travel goes
+          back to ~2008. That earlier story was reconstructed — at country/city/day granularity — from
+          a LiveInternet diary, Polarsteps trips, and memory, into a separate <code>backfill.csv</code>
+          in the data repo. <code>build.py</code> auto-merges it, so every stat, map, and trip shifts;
+          each reconstructed row is marked <code>source_app="refurbished"</code> with an
+          <code>rf&lt;seq&gt;</code> id (never collides with a real 24-char hex id) and renders a
+          <em>↺ reconstructed</em> badge. Two failure modes emerged once real reconstructed data
+          started flowing.
+        </div>
+        <div class="cs-text">
+          <strong>1. The D1-backed feed served stale content after an edit.</strong> The check-in sync
+          is <strong>append-only by id</strong> (<code>INSERT OR IGNORE</code> / set-difference on id
+          presence) — it inserts a <em>missing</em> id but never <code>UPDATE</code>s one already in D1.
+          So when a <code>backfill.csv</code> row was re-edited behind a stable id (<code>rf0026</code>
+          reassigned from one venue to another), the static pages rebuilt correctly but
+          <code>/api/feed</code> — which reads venue/city/category <em>denormalized off the checkins
+          row</em> — kept serving the old venue forever.
+        </div>
+        <div class="cs-text">
+          <strong>2. One evening produced two check-ins at the same place.</strong> The LiveInternet
+          importer emits one reconstructed check-in per blog post — and on 2&nbsp;Aug&nbsp;2008 there
+          were two posts from home (<em>Str. Alecu Russo, 55</em>): "Ни горячо - ни холодно" at 20:00
+          and "Вечер дня" at 22:00. At day granularity that is a duplicate: same person, same venue,
+          same day.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Reconcile <code>rf*</code> by Content; Collapse Same-Venue-Same-Day to the Earliest</div>
+        <div class="cs-text">
+          The small <code>rf*</code> subset is held out of the append-only path and reconciled by
+          <strong>content</strong> on every sync — delete the lot and reinsert the current CSV rows —
+          so any edit behind a reused id self-heals on the next scheduled run with no manual prod write.
+          The real-row watermark stays correct by counting D1's <code>rf%</code> rows and subtracting
+          them, and the <code>changed</code> flag is deliberately left untouched (check-ins carry no
+          full-text index, so this must not trigger an FTS rebuild).
+        </div>
+        <div class="code-block">
+<span class="cm"># sync_to_d1.py — rf* rows reconciled by content, not id-presence:</span>
+<span class="kw">DELETE FROM</span> checkins <span class="kw">WHERE</span> id <span class="kw">LIKE</span> <span class="hl2">'rf%'</span>;   <span class="cm"># then reinsert current CSV rf* rows</span>
+<span class="cm"># cheap (~dozens of rows), idempotent, self-healing — no `changed`, no FTS rebuild</span>
+        </div>
+        <div class="cs-text">
+          For the duplicate, the reconstruction already has a convention — the Polarsteps adapter
+          <strong>collapses same-day repeats to the earliest step</strong>. Applying the same rule to
+          the diary import, the 20:00 post is kept and the 22:00 one dropped: a reconstructed day is a
+          <em>presence</em> at a place, not a per-post log, so one venue on one day is one check-in.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>

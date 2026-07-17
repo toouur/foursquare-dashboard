@@ -86,7 +86,18 @@ year→Jul 1). Each reconstructed check-in renders with a `↺ reconstructed` ba
 trips modal, index recent); a fully-reconstructed year page gets a hero-eyebrow badge.
 `sync_to_d1.py --backfill backfill.csv` also ingests them so `/api/feed` + `/api/search`
 return them (blank venue_id → no venue/FTS row; feed.js emits `source_app` as a 13th
-tuple field, `_v=refurb` cache tag). Sources funnel through `backfill.yaml`:
+tuple field, `_v=refurb` cache tag). **D1 reconcile is by CONTENT, not id-presence:**
+the normal checkin sync is append-only (`INSERT OR IGNORE` — inserts a missing id but
+never UPDATEs one already in D1), so a row re-edited behind a reused `rf` id served
+stale in `/api/feed` (which reads venue/city/category denormalized off the checkins
+row). `sync_to_d1.py` therefore holds `rf*` out of the append-only path and reconciles
+them every sync via `DELETE FROM checkins WHERE id LIKE 'rf%'` + reinsert — cheap,
+idempotent, self-healing, and it does NOT set `changed` (checkins carry no FTS index).
+**Same venue + same day = one check-in:** the day-granularity model treats a
+reconstructed day as a *presence*, not a per-post log, so multiple diary posts at one
+venue on one day collapse to the **earliest** (mirrors the Polarsteps adapter's
+same-day-repeat collapse). E.g. two 2-Aug-2008 posts at Str. Alecu Russo, 55 (20:00 +
+22:00) → keep 20:00, drop 22:00. Sources funnel through `backfill.yaml`:
 `import_polarsteps.py` (Polarsteps export ZIP → appends entries; PENDING user export),
 LiveInternet diary, and manual entry.
 ```bash
