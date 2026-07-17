@@ -635,33 +635,40 @@ def main() -> None:
         print(f"D1 sync: {d1_count} existing check-ins, last known timestamp = {max_date}",
               flush=True)
 
-        # Fast path: rows strictly newer than D1's newest are always new.
-        new_checkin_rows = [r for r in all_checkin_rows if r[1] > max_date]
+        # Reconstructed backfill rows ("rf*" ids) are reconciled by CONTENT, not by
+        # id-presence, and are held out of the append-only path below. Their
+        # venue/date/city/shout can change behind a STABLE id when backfill.csv is
+        # re-edited or renumbered, and append-only id-sync (INSERT OR IGNORE /
+        # set-difference) only ever INSERTS a missing id — it never UPDATES an id
+        # already in D1 — so an edited backfill row is served stale forever (rf0026
+        # kept showing the old venue after the CSV reassigned it to another place).
+        # The rf* set is tiny (dozens of rows), so it's reconciled by delete-and-
+        # reinsert further down: cheap, idempotent, self-healing. The feed reads
+        # venue/category straight off the checkins row (no venues join), so
+        # refreshing these rows is what fixes /api/feed.
+        backfill_rows = [r for r in all_checkin_rows if str(r[0]).startswith("rf")]
+        real_rows     = [r for r in all_checkin_rows if not str(r[0]).startswith("rf")]
 
-        # The watermark misses backdated / out-of-order check-ins (ts <= max_date)
-        # that D1 has never seen. Two triggers force an authoritative checkin_id
-        # set-difference (id is not unique in D1, but any id present in the CSV and
-        # absent from D1 is genuinely new):
-        #   (a) reconstructed backfill rows ("rf*" ids) are ALWAYS backdated (2008+)
-        #       so they never clear the ~2026 watermark; worse, duplicate ids in D1
-        #       inflate d1_count enough that the row-count guard alone can stay false
-        #       and strand them out of the D1-backed feed. No real 24-char-hex id
-        #       starts with "rf", so their presence is a safe, cheap trigger.
-        #   (b) a plain row-count mismatch — a manually-added past visit, or a row
-        #       surfaced by the --recheck-recent-hours sweep.
-        has_backfill = any(str(r[0]).startswith("rf") for r in all_checkin_rows)
-        count_mismatch = len(all_checkin_rows) > d1_count + len(new_checkin_rows)
-        if has_backfill or count_mismatch:
-            if count_mismatch:
-                missing = len(all_checkin_rows) - d1_count - len(new_checkin_rows)
-                print(f"D1 sync: row-count mismatch ({missing} unaccounted) — "
-                      f"falling back to checkin_id set-difference", flush=True)
-            else:
-                print("D1 sync: backfill rows present — reconciling via "
-                      "checkin_id set-difference", flush=True)
+        # Fast path: real rows strictly newer than D1's newest are always new.
+        new_checkin_rows = [r for r in real_rows if r[1] > max_date]
+
+        # The watermark misses backdated / out-of-order real check-ins (ts <=
+        # max_date) that D1 has never seen — a manually-added past visit, or a row
+        # surfaced by the --recheck-recent-hours sweep. A row-count mismatch forces an
+        # authoritative checkin_id set-difference (id present in CSV, absent from D1 =>
+        # genuinely new). d1_count includes the rf* rows already in D1, so compare the
+        # REAL-row count against D1's real-row count (total minus the rf* subset that
+        # the content reconcile below owns) — otherwise the rf* rows skew the guard.
+        rf_d1        = d1.query("SELECT COUNT(*) AS n FROM checkins WHERE id LIKE 'rf%'")
+        rf_d1_count  = (rf_d1[0].get("n") or 0) if rf_d1 else 0
+        real_d1_count = d1_count - rf_d1_count
+        if len(real_rows) > real_d1_count + len(new_checkin_rows):
+            missing = len(real_rows) - real_d1_count - len(new_checkin_rows)
+            print(f"D1 sync: row-count mismatch ({missing} unaccounted) — "
+                  f"falling back to checkin_id set-difference", flush=True)
             existing = d1.query("SELECT id FROM checkins")
             existing_ids = {row["id"] for row in existing} if existing else set()
-            new_checkin_rows = [r for r in all_checkin_rows if r[0] not in existing_ids]
+            new_checkin_rows = [r for r in real_rows if r[0] not in existing_ids]
 
         new_venue_ids    = {r[2] for r in new_checkin_rows if r[2]}
 
@@ -673,6 +680,18 @@ def main() -> None:
         # Upsert checkins (INSERT OR IGNORE -- safe to re-run)
         if new_checkin_rows:
             d1.batch_upsert(SQL_CHECKINS_NEW, new_checkin_rows, label="checkins (new)")
+
+        # Reconcile reconstructed backfill rows by CONTENT: delete the whole rf*
+        # subset and reinsert the current CSV's backfill rows, refreshing any that
+        # changed behind a reused id. Runs every sync (like the FTS empty-check) so a
+        # stale row self-heals with no manual step; the write is trivial (~dozens of
+        # rows) next to the 65k real check-ins. `changed` is intentionally NOT set
+        # here — checkins carry no FTS index, so this must not trigger an FTS rebuild.
+        if backfill_rows:
+            print(f"D1 sync: reconciling {len(backfill_rows)} backfill row(s) by "
+                  f"content (delete + reinsert rf*)", flush=True)
+            d1.query("DELETE FROM checkins WHERE id LIKE 'rf%'")
+            d1.batch_upsert(SQL_CHECKINS_NEW, backfill_rows, label="checkins (backfill)")
 
         # Opt-in: prune checkin rows whose id is no longer in the CSV (D1>CSV
         # drift). Checkins are append-only by design — a bad/truncated CSV fetch
