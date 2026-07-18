@@ -1,0 +1,34 @@
+name: Fetch Venue Details (temp)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch venue details
+        env:
+          FSQ_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: |
+          for ID in 62b1b6058e0dc66cf294ed6b 4f1986efe4b012690c8819de; do
+            echo "=== Venue: $ID ==="
+            curl -s "https://api.foursquare.com/v2/venues/${ID}?oauth_token=${FSQ_TOKEN}&v=20231010" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+v = d.get('response', {}).get('venue', {})
+loc = v.get('location', {})
+cats = v.get('categories', [])
+cat = cats[0].get('name','') if cats else ''
+print('name:', v.get('name',''))
+print('address:', loc.get('address',''))
+print('city:', loc.get('city',''))
+print('state:', loc.get('state',''))
+print('country:', loc.get('country',''))
+print('neighborhood:', ', '.join(loc.get('formattedAddress',[])))
+print('lat:', loc.get('lat',''))
+print('lng:', loc.get('lng',''))
+print('category:', cat)
+"
+            echo ""
+          done
