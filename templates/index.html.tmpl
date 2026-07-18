@@ -384,6 +384,8 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 .rc-streak{display:inline-flex;align-items:center;gap:3px;background:rgba(232,184,109,0.12);border:1px solid rgba(232,184,109,0.35);color:var(--gold);border-radius:4px;padding:2px 7px;font-family:'DM Mono',monospace;font-size:0.54rem;letter-spacing:.05em;flex-shrink:0;}
 /* Reconstructed (pre-2012 backfill) check-ins: identical card, small top-right "reconstructed" pill */
 .rc-refurb{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 6px;font-family:'DM Mono',monospace;font-size:0.5rem;letter-spacing:.04em;white-space:nowrap;margin-top:1px;}
+.rc-no-fsq{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.4);color:#60a5fa;border-radius:5px;padding:2px 6px;font-family:'DM Mono',monospace;font-size:0.5rem;letter-spacing:.04em;white-space:nowrap;margin-top:2px;}
+.rc-refurb-stack{flex-shrink:0;display:inline-flex;flex-direction:column;align-items:flex-end;}
 
 
 
@@ -1168,7 +1170,7 @@ function filterList(id,q){
     const loc=[r.city,r.country].filter(Boolean);
     const locStr=loc.join(', ');
     const withLine=(r.companions&&r.companions.length)?`<div class="rc-with">with ${esc(r.companions.join(', '))}</div>`:'';
-    const refurbPill=r.refurbished?`<div class="rc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>`:catIcon(r.category);
+    const refurbPill=r.refurbished?`<div class="rc-refurb-stack"><div class="rc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>${!r.venue_id?`<div class="rc-no-fsq" title="No Foursquare venue data — location from diary only">✕ no fsq data</div>`:''}</div>`:catIcon(r.category);
     // Flight info from FR24 match (set in build.py from data/flights.csv)
     let flightLine='';
     if(r.flight){
@@ -1234,7 +1236,7 @@ function filterList(id,q){
     const locStr=[r.city,r.country].filter(Boolean).join(', ');
     const ago=r.origin?'✨ first ever':(r.years_ago===1?'1 year ago':r.years_ago+' years ago');
     const withLine=(r.companions&&r.companions.length)?`<div class="rc-with">with ${esc(r.companions.join(', '))}</div>`:'';
-    const refurbPill=r.refurbished?`<div class="rc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>`:catIcon(r.category);
+    const refurbPill=r.refurbished?`<div class="rc-refurb-stack"><div class="rc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>${!r.venue_id?`<div class="rc-no-fsq" title="No Foursquare venue data — location from diary only">✕ no fsq data</div>`:''}</div>`:catIcon(r.category);
     return `<div${cardClick} class="recent-card" style="${swarmUrl?'cursor:pointer;':''}">
       <div class="rc-venue-row"><div class="rc-venue">${venueLink}</div>${refurbPill}</div>
       <div class="rc-cat-row"><div class="rc-cat">${esc(r.category||'')}</div><div class="rc-streak">🕰 ${ago}</div></div>
