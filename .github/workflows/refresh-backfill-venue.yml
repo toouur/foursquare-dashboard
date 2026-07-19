@@ -1,0 +1,95 @@
+# .github/workflows/refresh-backfill-venue.yml
+#
+# Manual (temporary) workflow: fill venue coords/metadata for reconstructed
+# rows in backfill.csv by fetching venues directly from Foursquare
+# (/v2/venues/{id}). Use for pre-2012 / historical venues that have no real
+# check-in, so refresh-venue.yml's free check-in endpoint can't reach them.
+#
+# Trigger: Actions tab → "Refresh backfill venue coords" → Run workflow
+#   - venue_ids : comma-separated IDs, or leave empty to refresh every row
+#                 still carrying the [coords_approx:pending_api] marker.
+#   - dry_run   : preview only, no commit.
+#
+# The /v2/venues/{id} endpoint uses the premium call budget; if it 402s the
+# quota is spent for the month — rows keep their pending marker and can be
+# retried after the reset.
+#
+# Required secrets:
+#   FOURSQUARE_TOKEN  — Foursquare OAuth token
+#   DATA_REPO_PAT     — Fine-grained PAT with Contents read/write on foursquare-data
+
+name: Refresh backfill venue coords
+
+on:
+  workflow_dispatch:
+    inputs:
+      venue_ids:
+        description: "Comma-separated venue IDs (empty = all rows with the pending marker)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Preview only, do not commit"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch + patch backfill venue coords
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+          VENUE_IDS: ${{ github.event.inputs.venue_ids }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          ARGS="--token $FOURSQUARE_TOKEN --backfill private-data/backfill.csv"
+          if [ -n "$VENUE_IDS" ]; then
+            ARGS="$ARGS --venue-ids $VENUE_IDS"
+          else
+            ARGS="$ARGS --all-pending"
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python scripts/refresh_backfill_venue.py $ARGS
+
+      - name: Commit to private data repo
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backfill.csv
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "backfill: fill venue coords from Foursquare (refresh-backfill-venue)"
+            for i in 1 2 3 4 5; do
+              if git push; then
+                echo "pushed"; break
+              fi
+              echo "push failed (attempt $i) — rebasing and retrying…"
+              git pull --rebase origin main
+              sleep $((2 ** i))
+            done
+          fi
