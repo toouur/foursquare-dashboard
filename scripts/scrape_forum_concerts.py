@@ -141,20 +141,100 @@ def scrape_listing_requests(rubric, only_concerts=False, max_pages=1, sleep=1.0)
             "threads": all_threads}
 
 
-def scrape_thread_requests(url: str) -> dict:
-    sess = _session()
-    html = _fetch(sess, url)
+# Russian genitive month stems → month number (stems avoid case endings).
+_RU_MONTHS = [
+    ("январ", 1), ("феврал", 2), ("март", 3), ("апрел", 4), ("мая", 5),
+    ("ма", 5), ("июн", 6), ("июл", 7), ("август", 8), ("сентябр", 9),
+    ("октябр", 10), ("ноябр", 11), ("декабр", 12),
+]
+
+
+def parse_date(date_str: str):
+    """Return (iso_date | '', year | None) from a forum.md date string.
+
+    Handles the RU header form ("8 апреля 2011, 11:50") and dd.mm.yyyy.
+    """
+    if not date_str:
+        return "", None
+    s = date_str.lower()
+    # dd.mm.yyyy
+    m = re.search(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b", s)
+    if m:
+        d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        return f"{y:04d}-{mo:02d}-{d:02d}", y
+    # "<day> <ru-month> <year>"
+    ym = re.search(r"\b(19|20)\d\d\b", s)
+    year = int(ym.group(0)) if ym else None
+    dm = re.search(r"\b(\d{1,2})\b", s)
+    day = int(dm.group(1)) if dm else None
+    month = None
+    for stem, num in _RU_MONTHS:
+        if stem in s:
+            month = num
+            break
+    if year and month and day:
+        return f"{year:04d}-{month:02d}-{day:02d}", year
+    return "", year
+
+
+def _parse_thread_html(html: str, url: str) -> dict:
     m = re.search(r"<title>(.*?)</title>", html, re.S | re.I)
     title = _clean(m.group(1)) if m else ""
     dm = re.search(
         r'content-article-header-date_posted[^>]*>(.*?)</', html, re.S | re.I)
     date = _clean(dm.group(1)) if dm else ""
+    iso, year = parse_date(date)
     bm = re.search(
         r'content-article-body-text[^>]*>(.*?)</(?:div|article|section)>',
         html, re.S | re.I)
     body = _clean(bm.group(1)) if bm else ""
-    return {"source": url, "engine": "requests", "page_title": title,
-            "date": date, "body": body[:4000]}
+    return {"source": url, "page_title": title, "date": date,
+            "date_iso": iso, "year": year, "body": body[:4000]}
+
+
+def scrape_thread_requests(url: str) -> dict:
+    sess = _session()
+    html = _fetch(sess, url)
+    d = _parse_thread_html(html, url)
+    d["engine"] = "requests"
+    return d
+
+
+def scrape_details(threads, sleep=0.3, before=None, progress=True):
+    """Fetch each listed thread, parse date/year/body, optionally keep year<before.
+
+    ``threads`` is the list from a listing scrape ([{id,title,url}, ...]).
+    Returns {count, before, kept, threads:[enriched]} — threads that fail to
+    parse a year are kept when ``before`` is set (so a missing date is never
+    silently dropped) and flagged with ``year=None``.
+    """
+    sess = _session()
+    out = []
+    total = len(threads)
+    for i, t in enumerate(threads, 1):
+        url = t.get("url") or f"{BASE}/{t['id']}"
+        try:
+            html = _fetch(sess, url)
+            info = _parse_thread_html(html, url)
+        except Exception as e:  # noqa: BLE001 — record the failure, keep going
+            info = {"source": url, "page_title": "", "date": "",
+                    "date_iso": "", "year": None, "body": "", "error": str(e)}
+        row = {"id": t["id"], "title": t.get("title", "") or info["page_title"],
+               "url": url, "date": info["date"], "date_iso": info["date_iso"],
+               "year": info["year"], "body": info["body"]}
+        if "error" in info:
+            row["error"] = info["error"]
+        out.append(row)
+        if progress and (i % 50 == 0 or i == total):
+            print(f"  ... {i}/{total} fetched", file=sys.stderr)
+        if i < total:
+            time.sleep(sleep)
+    if before is not None:
+        kept = [r for r in out if r["year"] is None or r["year"] < before]
+    else:
+        kept = out
+    return {"engine": "requests", "before": before, "fetched": len(out),
+            "count": len(kept), "threads": kept}
 
 
 # --------------------------------------------------------------------------- #
@@ -211,6 +291,12 @@ def main(argv=None):
                     help="seconds between page fetches (requests engine)")
     ap.add_argument("--engine", choices=("requests", "browser"), default="requests",
                     help="fetch engine (default: requests; browser needs direct egress)")
+    ap.add_argument("--details", action="store_true",
+                    help="fetch each thread's date/body (heavy: one request per thread)")
+    ap.add_argument("--in", dest="in_file",
+                    help="reuse a saved listing JSON as the thread source for --details")
+    ap.add_argument("--before", type=int,
+                    help="with --details, keep only threads dated before this year")
     ap.add_argument("--no-headless", action="store_true", help="show the browser (debug)")
     ap.add_argument("--out", help="write JSON here instead of stdout")
     args = ap.parse_args(argv)
@@ -218,6 +304,16 @@ def main(argv=None):
     try:
         if args.thread:
             data = scrape_thread_requests(args.thread)
+        elif args.details:
+            if args.in_file:
+                with open(args.in_file, encoding="utf-8") as f:
+                    threads = json.load(f).get("threads", [])
+            else:
+                listing = scrape_listing_requests(
+                    args.url, only_concerts=not args.all,
+                    max_pages=args.max_pages, sleep=args.sleep)
+                threads = listing["threads"]
+            data = scrape_details(threads, sleep=args.sleep, before=args.before)
         elif args.engine == "browser":
             data = scrape_listing_browser(
                 args.url, only_concerts=not args.all,
