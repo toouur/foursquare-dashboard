@@ -6,7 +6,7 @@ Repository guidance for Claude Code.
 
 ### Build dashboard (recommended Python)
 ```bash
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/build.py \
+/c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe scripts/build.py \
   --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
   --config-dir config --output-dir _site
 ```
@@ -16,7 +16,7 @@ Repository guidance for Claude Code.
 
 ### Build with photos
 ```bash
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/build.py \
+/c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe scripts/build.py \
   --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
   --config-dir config --output-dir _site \
   --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json \
@@ -111,7 +111,7 @@ python scripts/sync_to_d1.py --csv .../checkins.csv --backfill .../backfill.csv 
 
 ### Fetch photos from export
 ```bash
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/fetch_photos.py \
+/c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe scripts/fetch_photos.py \
   --token "$FOURSQUARE_TOKEN" \
   --export path/to/export/photos/ \
   --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
@@ -203,13 +203,26 @@ python scripts/sync_to_d1.py \
 
 ### Delete check-in(s) by ID
 Removes rows from CSV + D1, cleans orphaned venues. Use for deleted / accidental check-ins.
-Also available as `delete-checkin` workflow (Actions tab).
+Also available as `delete-checkin` workflow (Actions tab), which additionally deletes the
+freed images from R2 and deploys the rebuilt site to Pages (the hourly rebuild is gated on
+a *fetch* change, so a deletion would otherwise not reach the live HTML on its own).
+
+**Always pass `--photos`** — photos.json is the only index of what's in R2, so a key left
+behind by a deleted check-in renders on the photos page as a blank, dateless card.
 ```bash
 python scripts/delete_checkin.py \
   --ids CHECKIN_ID1,CHECKIN_ID2 \
   --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json \
   --dry-run   # optional
+
+# Clean up keys stranded by earlier deletions (--ids may be omitted entirely):
+python scripts/delete_checkin.py --prune-orphans \
+  --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json
 ```
+`PHOTO_FILES` lists only images no longer referenced by *any* check-in — a photo inherited
+by a re-created check-in is kept in R2 even though its stale key is dropped.
 
 ### Local D1 dev (Wrangler)
 ```bash
@@ -225,19 +238,19 @@ python -m http.server 8000 --directory _site
 ### Run tests / lint
 ```bash
 # Offline suite (175 unit + parity tests, no network/secrets, seconds) — run before committing script changes
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -m pytest tests/ -m "not live" -q
+/c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 14 Playwright E2E + 8 axe-core a11y against the deployed site)
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -m pytest tests/ -m live -q
+/c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe -m pytest tests/ -m live -q
 
 # Lint (config: ruff.toml — E401/E701/E702/E731 deliberately ignored, house style)
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -m ruff check scripts/ tests/
+/c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe -m ruff check scripts/ tests/
 
 # Type-check (config: [mypy] in setup.cfg — pragmatic gradual-typing settings; must stay clean)
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe -m mypy
+/c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe -m mypy
 
 # Validate generated HTML (same gate CI runs before every deploy)
-/c/Users/toouur/AppData/Local/Programs/Python/Python312/python.exe scripts/validate_html.py --dir _site
+/c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe scripts/validate_html.py --dir _site
 ```
 
 ## Data and Build Model
@@ -309,6 +322,8 @@ Note: `city_fixes.json` is applied **only by unix-ts** in `transform.py`. The
 `check_city_drift.py` to suppress already-reviewed rows — they are NOT applied as
 overrides at build. To override a single venue use `venue_fixes.json` (by
 venue_id); to override a single check-in use a ts key in `city_fixes.json`.
+`check_city_drift.py` is a **manual diagnostic — no workflow invokes it**; the CI
+gate is `check_city_count.py` (see below).
 
 `config/city_canonical.yaml` is the single source of truth for blank-row recovery:
 `canonical_map` (raw→canonical), `valid_canonical` (whitelist), `large_canonical`
@@ -334,7 +349,17 @@ non-empty city/country.
   reported): an added city that count-pairs with a removed one (`RENAME?`, likely a
   Foursquare city rename that now needs a mapping) or a non-ASCII non-canonical
   addition (`REVIEW`). `--strict` makes SOFT block too; `--warn-only` never blocks.
-  Wired into `update-dashboard.yml` (step 7a-bis) after HTML validate, before D1
+  The fold key strips case, apostrophe variants **and diacritics**, so an ASCII
+  spelling collides with its accented twin (`Dusseldorf` vs `Düsseldorf`) — without
+  that they passed as two separate cities.
+  `--auto-merge` is the **self-heal**: each fold-collision is appended to
+  `config/city_merge.yaml` (`variant: keeper`, keeper = canonical/highest-count,
+  ties toward the accented form) instead of failing the run, the counts are
+  recomputed, and `AUTO_MERGED=<n>` is emitted so CI commits the file. Only
+  provably-same-place spellings qualify, so it can never merge two real cities.
+  The heal lands *after* the build, so a merged spelling first shows up in the
+  next hourly rebuild. Both `update-dashboard.yml` (step 7a-bis/7a-ter) and
+  `recheck-enrich.yml` (7b/7b-bis) run it this way, after HTML validate, before D1
   sync. **Refresh the baseline after an intentional city-set change** and commit it:
   `python scripts/check_city_count.py --csv private-data/checkins.csv --baseline
   config/city_count_baseline.json --update-baseline`.

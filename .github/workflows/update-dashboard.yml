@@ -347,7 +347,12 @@ jobs:
       #   the run summary but do NOT block. Refresh the baseline after a real
       #   change: python scripts/check_city_count.py --csv ... --baseline
       #   config/city_count_baseline.json --update-baseline (then commit it).
+      #   --auto-merge self-heals the fold-collision class: a duplicate spelling is
+      #   written into config/city_merge.yaml (committed by the next step) instead
+      #   of failing the run. The current build already shipped, so the merged
+      #   spelling first appears in the *next* hourly rebuild.
       - name: City-count drift gate
+        id: city_gate
         if: |
           github.event_name == 'workflow_dispatch' ||
           steps.fetch.outputs.CHANGED == 'true' ||
@@ -360,10 +365,32 @@ jobs:
           python scripts/check_city_count.py \
             --csv private-data/checkins.csv \
             --config-dir config \
+            --auto-merge \
             --baseline config/city_count_baseline.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           status=${PIPESTATUS[0]}
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           exit $status
+
+      # ── 7a-ter. Commit any self-healed city mappings ─────────────────────────
+      #   Only fires when --auto-merge actually appended a rule, so the normal
+      #   hourly run leaves the dashboard repo untouched.
+      - name: Commit self-healed city mappings
+        if: steps.city_gate.outputs.AUTO_MERGED != '' && steps.city_gate.outputs.AUTO_MERGED != '0'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/city_merge.yaml
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "fix(cities): auto-merge ${{ steps.city_gate.outputs.AUTO_MERGED }} duplicate spelling(s)"
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
+          fi
 
       # ── 7b. Warm the wrangler install cache ──────────────────────────────────
       #   The deploy runs `npx wrangler@3`, which otherwise cold-downloads wrangler

@@ -58,10 +58,17 @@ def build_page(
             "ts":      ts,
         }
 
-    # Build flat photo list sorted by timestamp desc
+    # Build flat photo list sorted by timestamp desc.
+    # Skip photos whose check-in no longer exists (deleted check-in that left a
+    # stale photos.json key): with no metadata they rendered as a blank card at
+    # ts=0, i.e. pinned to the very bottom of the page.
     all_photos: list[dict] = []
+    orphaned = 0
     for cid, filenames in photos_by_checkin.items():
-        meta = ci_meta.get(cid, {})
+        meta = ci_meta.get(cid)
+        if meta is None:
+            orphaned += len(filenames)
+            continue
         ts = meta.get("ts", 0)
         for fname in filenames:
             all_photos.append({
@@ -72,6 +79,9 @@ def build_page(
                 "date":    meta.get("date", ""),
                 "ts":      ts,
             })
+    if orphaned:
+        print(f"  gen_photos: skipped {orphaned} photo(s) with no matching check-in "
+              f"(run delete_checkin.py --prune-orphans to clean photos.json)")
     all_photos.sort(key=lambda p: -p["ts"])
     total = len(all_photos)
     photos_json = json.dumps(all_photos, ensure_ascii=False).replace("</", "<\\/")

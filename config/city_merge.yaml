@@ -40,6 +40,7 @@
 
   # ══ BELGIUM ══
   "Antwerp Province": "Antwerp"  # ok — province label
+  "Province of Liège": "Liège"  # ok — province label
   "East Flanders": "Ghent"  # ok — venue named "Ghent (Gent)"
   "West Flanders": "Bruges"  # ok — venue named "Bruges (Brugge)"
   "City of Brussels": "Brussels"  # ok — administrative label
@@ -462,6 +463,10 @@
   "Warnemunde": "Warnemünde"  # ok — ASCII form
   "Schönefeld": "Schönefeld"  # ok — canonical (Berlin airport area)
   "Schonefeld": "Schönefeld"  # ok — ASCII form
+  "Düsseldorf": "Düsseldorf"  # ok — canonical
+  "Dusseldorf": "Düsseldorf"  # ok — ASCII form
+  "Dūsseldorf": "Düsseldorf"  # ok — macron mis-encoding of ü
+  "亚琛": "Aachen"  # ok — Chinese exonym returned by Foursquare
 
   # ══ GREECE ══
   "Athina": "Athens"  # ok — Greek name
@@ -1569,3 +1574,10 @@
 
   # ══ PORTUGAL ══
   "Colares": "Sintra"  # ok — parish in Sintra municipality (Cabo da Roca area)
+
+  # ══ LUXEMBOURG ══
+  "Люксембург": "Luxembourg"  # ok — Cyrillic → Luxembourg
+  "Hollerich": "Luxembourg"  # ok — quarter of Luxembourg City
+
+  # ══ NETHERLANDS ══
+  "Amstredam": "Amsterdam"  # ok — Foursquare typo

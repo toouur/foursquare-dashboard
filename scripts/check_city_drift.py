@@ -16,7 +16,12 @@ A "drifted" raw city is one that:
   - the row is not covered by a per-timestamp / per-id override in
     `config/city_fixes.json`.
 
-Exit code 0 if no drift; 1 if drift found. Suitable as a CI gate.
+Exit code 0 if no drift; 1 if drift found.
+
+NOTE: this is a MANUAL diagnostic — no workflow invokes it. The CI gate is
+check_city_count.py, which inspects post-transform *displayed* cities and
+self-heals duplicate spellings (--auto-merge). Don't rely on this script
+running automatically.
 
 Usage:
     python scripts/check_city_drift.py \\

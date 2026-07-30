@@ -53,6 +53,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sys
 import unicodedata
 from collections import Counter
@@ -62,10 +63,18 @@ _APOS = {"’": "'", "‘": "'"}
 
 
 def _fold(s: str) -> str:
-    """Collapse encoding/case/apostrophe variants of the same place name."""
+    """Collapse encoding/case/apostrophe/diacritic variants of the same place name.
+
+    Diacritics are stripped so an ASCII spelling and its accented twin collide
+    ('Dusseldorf' vs 'Dūsseldorf' vs 'Düsseldorf'). Without this, the only
+    duplicates caught were pure encoding/case variants, and every
+    ASCII-vs-accent pair passed the gate as two separate cities.
+    """
     s = unicodedata.normalize("NFC", s)
     for a, b in _APOS.items():
         s = s.replace(a, b)
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
     return s.casefold().strip()
 
 
@@ -109,6 +118,28 @@ def load_canonical(config_dir: str) -> tuple[set[str], set[str]]:
     return keys, values
 
 
+def find_fold_collisions(counts: Counter, canonical_values: set[str]) -> dict[str, str]:
+    """Return {redundant_spelling: keeper} for displayed cities that fold to the
+    same key. The keeper is the canonical / highest-count spelling; ties break
+    toward the accented form, matching the house convention in city_merge.yaml
+    (accented spelling is canonical, ASCII maps onto it)."""
+    groups: dict[str, list[str]] = {}
+    for city in counts:
+        groups.setdefault(_fold(city), []).append(city)
+
+    merges: dict[str, str] = {}
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        def rank(c: str) -> tuple:
+            return (c in canonical_values, counts[c], not c.isascii())
+        members.sort(key=rank, reverse=True)
+        keep = members[0]
+        for other in members[1:]:
+            merges[other] = keep
+    return merges
+
+
 def find_invariant_hits(counts: Counter, canonical_values: set[str]) -> list[tuple[str, str]]:
     """Return [(city, reason)] for cities that are demonstrably normalization
     misses: non-NFC strings, or fold-collisions with another displayed city."""
@@ -117,21 +148,40 @@ def find_invariant_hits(counts: Counter, canonical_values: set[str]) -> list[tup
     for city in counts:
         if city != unicodedata.normalize("NFC", city):
             hits.append((city, "non-NFC (decomposed diacritics)"))
-    # fold-collision: group displayed cities by fold key
-    groups: dict[str, list[str]] = {}
-    for city in counts:
-        groups.setdefault(_fold(city), []).append(city)
-    for key, members in groups.items():
-        if len(members) < 2:
-            continue
-        # Prefer the canonical / ASCII / highest-count spelling; flag the rest.
-        def rank(c: str) -> tuple:
-            return (c in canonical_values, c.isascii(), counts[c])
-        members.sort(key=rank, reverse=True)
-        keep = members[0]
-        for other in members[1:]:
-            hits.append((other, f"fold-collision with {keep!r} (same place)"))
+    for other, keep in find_fold_collisions(counts, canonical_values).items():
+        hits.append((other, f"fold-collision with {keep!r} (same place)"))
     return hits
+
+
+def apply_auto_merge(merges: dict[str, str], config_dir: str) -> int:
+    """Self-heal: append each {variant: keeper} pair to config/city_merge.yaml so
+    the next build normalizes it away. Returns the number of rules written.
+
+    Only touches spellings that are provably the same place (they fold to the
+    same key), so this can never merge two genuinely distinct cities. Entries
+    already present are skipped, making repeated runs idempotent.
+    """
+    cm = Path(config_dir) / "city_merge.yaml"
+    if not merges or not cm.exists():
+        return 0
+
+    import yaml
+    existing = yaml.safe_load(cm.read_text(encoding="utf-8")) or {}
+    new = {k: v for k, v in merges.items() if k not in existing}
+    if not new:
+        return 0
+
+    lines = []
+    if "AUTO-MERGED" not in cm.read_text(encoding="utf-8"):
+        lines += ["", "  # ══ AUTO-MERGED (check_city_count.py --auto-merge) ══"]
+    for variant, keep in sorted(new.items()):
+        lines.append(f'  "{variant}": "{keep}"  # auto — fold-collision with canonical spelling')
+
+    # The file is CRLF; match it so the append doesn't produce mixed endings.
+    eol = "\r\n" if "\r\n" in cm.read_bytes().decode("utf-8") else "\n"
+    with cm.open("a", encoding="utf-8", newline="") as f:
+        f.write(eol.join(lines) + eol)
+    return len(new)
 
 
 def judge_added(city: str, count: int, removed: dict[str, int],
@@ -158,6 +208,9 @@ def main() -> int:
                     help="Also exit 1 on soft findings (RENAME?/REVIEW added cities)")
     ap.add_argument("--warn-only", action="store_true",
                     help="Report but always exit 0 (non-blocking CI use)")
+    ap.add_argument("--auto-merge", action="store_true",
+                    help="Self-heal: write fold-collision duplicates into "
+                         "config/city_merge.yaml instead of failing on them")
     args = ap.parse_args()
 
     try:
@@ -186,6 +239,26 @@ def main() -> int:
         print(f"Baseline written: {args.baseline} "
               f"({total_cities} cities / {total_checkins} check-ins)")
         return 0
+
+    # ── self-heal (optional) ─────────────────────────────────────────────────
+    # Duplicate spellings are mechanically fixable: fold-collision proves the two
+    # strings are the same place, so write the mapping and re-run the pipeline.
+    # Whatever survives is a real problem worth reporting below.
+    if args.auto_merge:
+        merges = find_fold_collisions(counts, canonical_values)
+        written = apply_auto_merge(merges, args.config_dir)
+        if written:
+            for variant, keep in sorted(merges.items()):
+                print(f"AUTO-MERGE: {variant!r} → {keep!r}")
+            print(f"Wrote {written} rule(s) to {args.config_dir}/city_merge.yaml")
+            counts = compute_city_counts(args.csv, args.config_dir)
+            _, canonical_values = load_canonical(args.config_dir)
+            total_cities = len(counts)
+            total_checkins = sum(counts.values())
+        gho = os.environ.get("GITHUB_OUTPUT")
+        if gho:
+            with open(gho, "a", encoding="utf-8") as f:
+                f.write(f"AUTO_MERGED={written}\n")
 
     # ── invariant checks (always) ────────────────────────────────────────────
     invariant_hits = find_invariant_hits(counts, canonical_values)

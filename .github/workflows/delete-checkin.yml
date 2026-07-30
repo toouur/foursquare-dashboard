@@ -2,7 +2,9 @@
 #
 # Manual workflow: delete one or more check-ins by ID.
 # Removes rows from checkins.csv (private data repo), deletes orphaned venues,
-# rebuilds the dashboard HTML, and syncs the deletion to D1.
+# prunes the check-ins' photos.json entries (and the now-unreferenced R2 objects),
+# syncs the deletion to D1, then rebuilds the dashboard HTML and deploys it to
+# Cloudflare Pages (HTML is never committed — see update-dashboard.yml step 7c).
 #
 # Trigger: Actions tab → "Delete check-in" → Run workflow
 #
@@ -11,6 +13,8 @@
 #   CF_D1_TOKEN       — Cloudflare API token with D1:Edit permission
 #   CF_ACCOUNT_ID     — Cloudflare account ID
 #   CF_D1_DATABASE_ID — D1 database ID
+#   R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ACCOUNT_ID / R2_BUCKET_NAME
+#                     — R2 credentials, to delete the freed image objects
 
 name: Delete check-in
 
@@ -18,8 +22,16 @@ on:
   workflow_dispatch:
     inputs:
       checkin_ids:
-        description: "Check-in ID(s) to delete, comma-separated"
-        required: true
+        description: "Check-in ID(s) to delete, comma-separated (blank = prune only)"
+        required: false
+      prune_orphans:
+        description: "Also drop photos.json keys whose check-in is already gone"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
       dry_run:
         description: "Dry run — show what would be deleted without making changes"
         required: false
@@ -57,6 +69,9 @@ jobs:
         run: pip install -r requirements.txt
 
       # ── 4. Delete check-in(s) from CSV (and optionally D1) ───────────────
+      #   --photos prunes the deleted check-ins' photos.json entries. photos.json
+      #   is the only index of what's in R2, so a key left behind renders on the
+      #   photos page as a blank card with no venue/date.
       - name: Delete check-in(s)
         id: delete
         env:
@@ -68,32 +83,65 @@ jobs:
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             DRY_RUN_FLAG="--dry-run"
           fi
+          IDS_FLAG=""
+          if [ -n "${{ github.event.inputs.checkin_ids }}" ]; then
+            IDS_FLAG="--ids ${{ github.event.inputs.checkin_ids }}"
+          fi
+          PRUNE_FLAG=""
+          if [ "${{ github.event.inputs.prune_orphans }}" = "true" ]; then
+            PRUNE_FLAG="--prune-orphans"
+          fi
           python scripts/delete_checkin.py \
-            --ids "${{ github.event.inputs.checkin_ids }}" \
+            $IDS_FLAG \
             --csv private-data/checkins.csv \
-            $DRY_RUN_FLAG
+            --photos private-data/photos.json \
+            $PRUNE_FLAG $DRY_RUN_FLAG
 
-      # ── 5. Commit updated checkins.csv to private data repo ───────────────
+      # ── 4b. Delete the freed images from R2 ──────────────────────────────
+      #   Only filenames nothing else references reach PHOTO_FILES, so a photo
+      #   inherited by a re-created check-in is never removed.
+      - name: Delete freed photos from R2
+        if: steps.delete.outputs.PHOTO_COUNT != '' && steps.delete.outputs.PHOTO_COUNT != '0' && github.event.inputs.dry_run != 'true'
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID:         ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME:        ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          if [ -z "$R2_BUCKET_NAME" ]; then
+            echo "R2 secrets not configured — skipping (photos.json already pruned)."
+            exit 0
+          fi
+          pip install awscli --quiet
+          for f in ${{ steps.delete.outputs.PHOTO_FILES }}; do
+            echo "removing pix/$f"
+            aws s3 rm "s3://${R2_BUCKET_NAME}/pix/$f" \
+              --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          done
+
+      # ── 5. Commit updated checkins.csv / photos.json to private data repo ─
+      #   Fires on a photos-only run too (prune_orphans with no --ids).
       - name: Commit to private data repo
-        if: steps.delete.outputs.DELETED == 'true'
+        if: steps.delete.outputs.DELETED == 'true' || steps.delete.outputs.PHOTOS_CHANGED == 'true'
         run: |
           cd private-data
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add checkins.csv
+          git add checkins.csv photos.json
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
             IDS="${{ github.event.inputs.checkin_ids }}"
             COUNT="${{ steps.delete.outputs.COUNT }}"
-            git commit -m "fix(checkins): delete ${COUNT} check-in(s) [${IDS}]"
+            git commit -m "fix(checkins): delete ${COUNT:-0} check-in(s) [${IDS:-prune-only}]"
             git push
           fi
           cd ..
 
       # ── 6. Rebuild dashboard ─────────────────────────────────────────────
+      #   A photos-only prune still changes photos.html, so rebuild on that too.
       - name: Rebuild dashboard
-        if: steps.delete.outputs.DELETED == 'true'
+        if: steps.delete.outputs.DELETED == 'true' || steps.delete.outputs.PHOTOS_CHANGED == 'true'
         env:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
@@ -111,17 +159,31 @@ jobs:
             --output-dir . \
             $PHOTOS_ARG $PIX_URL_ARG $LISTS_ARG $RATINGS_ARG
 
-      # ── 7. Commit rebuilt HTML to public repo ────────────────────────────
-      - name: Commit updated HTML
-        if: steps.delete.outputs.DELETED == 'true'
+      # ── 7. Assemble & deploy to Cloudflare Pages ─────────────────────────
+      #   Generated HTML is NOT committed to git (it bloated history to 4GB+) —
+      #   it is uploaded straight to Pages, same as update-dashboard.yml step 7c.
+      #   Without this the deletion would only reach the live site whenever the
+      #   next hourly run happens to see a real data change.
+      - name: Assemble & deploy
+        if: steps.delete.outputs.DELETED == 'true' || steps.delete.outputs.PHOTOS_CHANGED == 'true'
+        env:
+          # Deploy reuses CF_D1_TOKEN — that token also carries the
+          # "Account → Cloudflare Pages → Edit" permission (no separate secret).
+          CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_D1_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -u
-          if git diff --cached --quiet; then
-            echo "Nothing to commit."
-          else
-            IDS="${{ github.event.inputs.checkin_ids }}"
-            git commit -m "fix(dashboard): rebuild after deleting check-in(s) [${IDS}]"
-            git push
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error title=Deploy skipped::CF_D1_TOKEN not set — cannot deploy to Pages."
+            exit 1
           fi
+          # Copy only known site assets — never the working dir wholesale
+          # (it holds private-data/).
+          rm -rf _site && mkdir -p _site
+          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
+          cp -r assets    _site/assets
+          cp -r functions _site/functions
+          rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git
+          npx --yes wrangler@3 pages deploy _site \
+            --project-name 4sq \
+            --branch main \
+            --commit-dirty=true

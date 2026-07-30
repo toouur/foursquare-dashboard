@@ -182,17 +182,40 @@ jobs:
         run: python scripts/validate_html.py --dir . --quiet
 
       # ── 7b. City-count drift gate ────────────────────────────────────────────
+      #   --auto-merge self-heals duplicate spellings into config/city_merge.yaml
+      #   (see the same step in update-dashboard.yml); the next step commits them.
       - name: City-count drift gate
+        id: city_gate
         run: |
           echo '### City-count drift gate' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           python scripts/check_city_count.py \
             --csv private-data/checkins.csv \
             --config-dir config \
+            --auto-merge \
             --baseline config/city_count_baseline.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
           status=${PIPESTATUS[0]}
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           exit $status
+
+      # ── 7b-bis. Commit any self-healed city mappings ─────────────────────────
+      - name: Commit self-healed city mappings
+        if: steps.city_gate.outputs.AUTO_MERGED != '' && steps.city_gate.outputs.AUTO_MERGED != '0'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/city_merge.yaml
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "fix(cities): auto-merge ${{ steps.city_gate.outputs.AUTO_MERGED }} duplicate spelling(s)"
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
+          fi
 
       # ── 7c. Warm the wrangler install cache ──────────────────────────────────
       - name: Cache wrangler (npm)
