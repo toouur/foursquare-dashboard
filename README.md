@@ -1,6 +1,6 @@
 # Foursquare Check-in Dashboard
 
-A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check-ins** spanning **15 years and 63 countries** — interactive maps, automatic trip detection, live full-text search, and a 21,000-photo gallery. Built with Python and a serverless Cloudflare stack, it rebuilds itself every hour with zero manual steps.
+A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check-ins** spanning **20 years and 64 countries** — interactive maps, automatic trip detection, live full-text search, and a 23,000-photo gallery. Built with Python and a serverless Cloudflare stack, it rebuilds itself every hour with zero manual steps.
 
 <div align="center">
 
@@ -19,14 +19,17 @@ A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check
 
 ## Highlights
 
-- **66,754 check-ins · 32,858 unique venues · 63 countries · 574,332 km** (14× around Earth) of personal location history, visualised across 15+ pages.
-- **Live full-text search** over venues, cities, trips, tips, and companions — queried on demand from a **Cloudflare D1** (SQLite) database, no multi-MB static index.
-- **Bidirectional infinite-scroll feed** over all 66k check-ins: cursor-based D1 pagination, on-demand gap fill, and contiguous-array virtual scroll.
-- **Automatic trip detection** — an 8-stage heuristic reconstructs 160 trips from raw check-in sequences (transport-hub departure/arrival scans, home-return extensions, auto-generated names).
-- **21,000+ photos** served from **Cloudflare R2** (zero-egress object storage) with lazy loading, country/city filters, and a lightbox.
+- **69,222 check-ins · 33,788 unique places · 64 countries · 601,135 km** (15× around Earth) of personal location history, visualised across ~100 generated pages (15 core pages + 20 year albums + 64 country pages).
+- **Live full-text search** over venues, cities, trips, tips, and companions — queried on demand from a **Cloudflare D1** (SQLite) database with FTS5 indexes, no multi-MB static index.
+- **Bidirectional infinite-scroll feed** over all 69k check-ins: cursor-based D1 pagination, on-demand gap fill, and contiguous-array virtual scroll.
+- **Automatic trip detection** — an 8-stage heuristic reconstructs 173 trips from raw check-in sequences (transport-hub departure/arrival scans, home-return extensions, auto-generated names), against an **era-aware home city** that moves with the years.
+- **Pre-2012 travel backfill** — the Foursquare record starts in 2012, so earlier travel (2007+) is reconstructed at country/city/day granularity from a hand-editable `backfill.yaml`, merged into every stat/map/trip and badged `↺ reconstructed` wherever a card renders.
+- **23,000+ photos** served from **Cloudflare R2** (zero-egress object storage) with lazy loading, country/city filters, and a lightbox.
 - **Hourly self-updating pipeline** — GitHub Actions fetches new check-ins, rebuilds every HTML page, and incrementally syncs to D1; a Cloudflare Worker can trigger near-instant rebuilds within ~1 min of a new check-in.
 - **Canonical data-normalization layer** — multilingual city/country resolution (Cyrillic, transliteration, blank-city centroid inference) driven by version-controlled config, validated by a CI merge gate.
-- Deep analytics: activity heatmaps, Hour×Category / Day-of-Week×Category matrices in local time, country hour profiles, shout text-mining (per-year language mix), streaks, venue loyalty, and revisit intervals.
+- **Installable PWA** — a generated `manifest.webmanifest` + service worker (cache-first static assets, network-first HTML, `/api/*` never cached) injected into every page, cache-busted on every deploy.
+- **Syndication + per-country pages** — RSS 2.0 (`feed.xml`) and JSON Feed 1.1 (`feed.json`) with autodiscovery, plus a `country-<slug>.html` for every country visited.
+- Deep analytics: activity heatmaps, Hour×Category / Day-of-Week×Category matrices in local time, country hour profiles, shout text-mining (per-year language mix), streaks, venue loyalty, revisit intervals, per-segment transport-mode inference, and a per-year "year in sound" from Last.fm scrobbles.
 
 ## Screenshots
 
@@ -40,10 +43,11 @@ A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check
 
 ## Tech stack
 
-**Backend / data:** Python 3.9+ (pandas-free, stdlib `zoneinfo`), `requests`, `pyyaml`, `timezonefinder` · Foursquare API
-**Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed APIs), D1 (SQLite at the edge), R2 (photo storage), Workers (check-in poller)
-**Front-end (CDN):** Leaflet (maps), Chart.js, Twemoji
-**CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, plus ~18 on-demand maintenance workflows
+**Backend / data:** Python 3.9+ (pandas-free, stdlib `zoneinfo`), `requests`, `pyyaml`, `timezonefinder` · Foursquare API · FlightRadar24 diary · Last.fm API
+**Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed/health APIs), D1 (SQLite + FTS5 at the edge), R2 (photo storage), Workers (check-in poller)
+**Front-end (CDN):** Leaflet (maps), Chart.js, Twemoji · installable PWA (service worker + web manifest)
+**CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, a daily route-geometry warm and a daily enrichment re-scan, plus ~20 on-demand maintenance workflows
+**Quality:** ruff + mypy + a 224-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
 
 ## Table of contents
 
@@ -64,7 +68,11 @@ A self-updating personal analytics platform for **66,000+ Foursquare/Swarm check
 - [Dependencies](#dependencies)
 - [Changing the update schedule](#changing-the-update-schedule)
 - [Flight diary (FlightRadar24)](#flight-diary-flightradar24)
+- [Music diary (Last.fm)](#music-diary-lastfm)
+- [Pre-2012 travel backfill](#pre-2012-travel-backfill)
+- [PWA, syndication feeds and country pages](#pwa-syndication-feeds-and-country-pages)
 - [How trip detection works](#how-trip-detection-works)
+  - [Home is a timeline, not a constant](#home-is-a-timeline-not-a-constant)
 
 ---
 
@@ -78,9 +86,11 @@ venue loyalty · regular haunts · revisit intervals · venue visit frequency ·
 **Hour × Category** and **Day-of-Week × Category** heatmaps in local time ·
 **country hour profiles** (% per local hour, top 12 countries) ·
 **shout text mining** — word frequency, language mix per year, top words per country, language detection (Cyrillic / Latin / mixed) ·
-**Shouts page** — searchable archive of all real free-text comments (~3.5 k, infinite scroll, year / country filters) ·
-**live full-text search** (venues, cities, tips, companions — powered by Cloudflare D1, no static index file) ·
-**bidirectional infinite-scroll feed** (65 k+ check-ins, cursor-based D1 pagination, on-demand gap fill, virtual scroll) — each card shows companions from all three Foursquare sources (`with_name` / `created_by_name` / `overlaps_name`, deduped union) ·
+**Shouts page** — searchable archive of all real free-text comments (~4.5 k entries incl. comment threads, infinite scroll, year / country filters) ·
+**live full-text search** (venues, cities, tips, companions — powered by Cloudflare D1 + FTS5, no static index file) ·
+**bidirectional infinite-scroll feed** (69 k+ check-ins, cursor-based D1 pagination, on-demand gap fill, virtual scroll) — each card shows companions from all three Foursquare sources (`with_name` / `created_by_name` / `overlaps_name`, deduped union) ·
+**per-segment transport-mode inference** (walk / train / metro / car / plane / ferry …, rule cascade + a self-trained naive-Bayes layer) ·
+**per-country pages** (`country-<slug>.html` for all 64 countries) · **RSS + JSON Feed** syndication · installable **PWA** with an offline shell ·
 **Year in Review pages** (`years.html` + per-year albums) — each year gets a stable cover photo
 (deterministic signature score, never drifts build-to-build, overridable via `config/year_covers.json`)
 shared across the index thumbnail, the hero lead frame, and the `og:image`; the index opens with an
@@ -89,8 +99,9 @@ check-ins, countries/cities, distance, recurring city, most-frequent companion, 
 rewrites itself as new years accrue ·
 category explorer · companions · recent check-ins with historical weather ·
 tips page with country/city tabs, map, closed/deleted-venue detection, view counts, and filter buttons ·
-**photo gallery** with 21 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
+**photo gallery** with 23 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
 lazy loading, lightbox, and inline tip photos ·
+**the year in sound** — per-year Last.fm scrobble totals, top artist and month histogram on each year album ·
 **live travel guide** (`guide.html`) — nearby suggestions based on your 48h session history.
 
 ---
@@ -115,8 +126,19 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── apply_blank_fixes.py     # Appends extracted entries to city_fixes.json (preserves format)
 │   ├── gen_city_review.py       # Emits city_review.csv: spot-check window of recent inferred cities
 │   ├── check_city_config.py     # CI gate: validates city_canonical.yaml + city_fixes.json + city_merge.yaml
-│   ├── metrics.py               # All aggregation + trip-detection logic
+│   ├── check_city_count.py      # CI gate + self-heal: NFC / fold-collision drift vs city_count_baseline.json
+│   ├── metrics/                 # Aggregation + trip detection (package)
+│   │   ├── stats.py             #   all KPI/series/narrative aggregation (incl. era-aware distance from home)
+│   │   ├── trips.py             #   8-stage trip detection + extension passes
+│   │   ├── companions.py        #   collect_companions() — union of the 3 Foursquare companion fields
+│   │   └── shouts.py            #   shout records + text-mining analysis
 │   ├── build.py                 # CLI entry point: checkins.csv → all HTML pages
+│   ├── build_backfill.py        # backfill.yaml → backfill.csv (pre-2012 "refurbished" check-ins)
+│   ├── import_polarsteps.py     # Polarsteps export ZIP → backfill.yaml entries
+│   ├── import_liveinternet.py   # LiveInternet blog diary → backfill.yaml entries
+│   ├── fetch_flights.py         # FR24 login → diary CSV → flights.csv
+│   ├── fetch_lastfm.py          # Last.fm scrobbles → lastfm_state.json + lastfm_years.json
+│   ├── fetch_comments.py        # Check-in comment threads → comments.json
 │   ├── gen_companions.py        # Generates companions.html
 │   ├── gen_feed.py              # Generates feed.html (bidirectional infinite-scroll, cursor-based D1 API)
 │   ├── gen_guide.py             # Generates guide.html (live nearby suggestions, 48h session history)
@@ -124,7 +146,13 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── gen_photos.py            # Generates photos.html (full gallery, city filter, tip photos)
 │   ├── gen_ratings.py           # Generates ratings.html
 │   ├── gen_search.py            # Generates search.html (no longer writes search-index.json)
-│   ├── gen_shouts.py            # Generates shouts.html (searchable archive of ~3.5k real free-text comments)
+│   ├── gen_shouts.py            # Generates shouts.html (searchable archive of ~4.5k shouts + comment threads)
+│   ├── gen_country_pages.py     # Generates country-<slug>.html for every visited country
+│   ├── gen_feeds.py             # Generates feed.xml (RSS 2.0) + feed.json (JSON Feed 1.1)
+│   ├── gen_flights.py           # Generates flights.html from the FR24 diary
+│   ├── transport_mode.py        # Per-segment transport-mode inference (rule cascade + naive Bayes)
+│   ├── route_paths.py           # Road-following trip polylines via OSRM/BRouter, cached in routes_cache.json
+│   ├── validate_html.py         # Deploy gate: placeholders, embedded JSON, required pages, min sizes
 │   ├── gen_stats.py             # Generates stats.html (+ shout text-mining + Hour×Category & DOW×Category heatmaps)
 │   ├── gen_tips.py              # Generates tips.html; also loads + exports CTRY_NORM from config/country_aliases.json
 │   ├── gen_trip_pages.py        # Generates per-trip HTML pages (trip-N.html)
@@ -139,11 +167,12 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── sync_venue_changes.py    # Diffs archived vs fresh checkins; patches tips.json metadata
 │   ├── delete_checkin.py        # Removes check-in(s) by ID from CSV + D1 (and orphaned venues)
 │   ├── refresh_venue.py         # Re-fetches a single venue's metadata from Foursquare
-│   ├── add_venue_tip.py         # Adds a tip to a venue via Foursquare API
+│   ├── refresh_backfill_venue.py  # Fills venue coords/metadata for reconstructed rows (pre-2012 venues)
 │   ├── rate_venue.py            # Sets like/okay/dislike on a venue via Foursquare API
-│   ├── enrich_overlaps.py       # Backfills overlaps_name/overlaps_id on older check-ins
-│   ├── fix_overlap_dupes.py     # Cleans duplicate entries in overlaps_* fields
+│   ├── add_photo.py             # Back-fills a photo onto a historical check-in
 │   └── find_closed_venue_tips.py  # One-time utility: find tips on closed venues via browser cookies
+│   # (a few write-path helpers — add_venue_tip.py, enrich_overlaps.py, fix_overlap_dupes.py —
+│   #  are gitignored local-only utilities invoked by their manual workflows)
 ├── .github/workflows/
 │   ├── update-dashboard.yml       # Hourly incremental: fetch + build + deploy (direct upload) + D1 sync
 │   ├── recheck-enrich.yml         # Daily 04:15 UTC: re-fetch 48h overlaps + recent photos, rebuild + deploy + D1 overlaps-fix
@@ -161,7 +190,11 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── fetch-venue-rating.yml     # Manual: resync venueRatings.json
 │   ├── fetch-lists.yml            # Manual: resync lists.json
 │   ├── fix-overlaps.yml           # Manual: run enrich_overlaps.py / fix_overlap_dupes.py
-│   ├── fr24-flights.yml           # Weekly: FR24 diary CSV → flights.csv in the data repo
+│   ├── fr24-flights.yml           # Weekly Sun 05:00 UTC: FR24 diary CSV → flights.csv in the data repo
+│   ├── lastfm.yml                 # Weekly Sun 06:00 UTC: Last.fm scrobbles → lastfm_years.json
+│   ├── fetch-comments.yml         # Manual: resync check-in comment threads
+│   ├── fetch-venue-details.yml    # Manual: bulk venue-metadata fetch (temporary utility)
+│   ├── refresh-backfill-venue.yml # Manual: fill venue metadata for reconstructed pre-2012 rows
 │   ├── tests.yml                  # Push/PR: ruff + mypy + offline pytest; weekly live suite
 │   ├── lighthouse.yml             # Weekly: Lighthouse audit of 4 live pages w/ score floors
 │   ├── k6-load.yml                # Manual: k6 load test against /api/search
@@ -175,9 +208,9 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
 │       ├── custom-list.js       # /api/custom-list — custom curated lists
 │       └── health.js            # /api/health — D1 + data-freshness health check (200/503)
-├── tests/                    # 219-test pytest suite (see "Tests" section below)
+├── tests/                    # 303-test pytest suite (see "Tests" section below)
 │   ├── conftest.py           # Markers (live/e2e) + shared make_row() factory
-│   ├── test_*.py             # Offline unit (175) / live API contract (22) / E2E + a11y (22)
+│   ├── test_*.py             # Offline unit (259) / live API contract (22) / E2E + a11y (22)
 │   └── load/search.js        # k6 load-test script for /api/search
 ├── qa/
 │   ├── test-strategy.md          # Risk analysis → test pyramid → quality gates per stage
@@ -194,7 +227,7 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── worker.js         #   triggers GitHub Actions on new check-in
 │       └── wrangler.toml
 ├── config/
-│   ├── settings.yaml              # home_city, trip_detection thresholds
+│   ├── settings.yaml              # home_city + home_history (era timeline), trip_detection thresholds
 │   │
 │   │  # ── Canonical lookup tables (single source of truth — see "Canonical normalization layer" below) ──
 │   ├── country_aliases.json       # Raw native country name → English canonical (Беларусь→Belarus, Тоҷикистон→Tajikistan)
@@ -207,9 +240,14 @@ lazy loading, lightbox, and inline tip photos ·
 │   ├── city_canonical.yaml        # Blank-city resolver vocabulary: canonical map, thresholds, skip rules
 │   ├── city_fixes.json            # Per-timestamp city overrides (hex-id keys are drift-review suppressions, not overrides)
 │   ├── country_fixes.json         # Per-timestamp country overrides
+│   ├── city_count_baseline.json   # Frozen {city: count} set — the drift gate compares against this
+│   ├── city_merge_normalized_review.csv  # Blank-city resolver input (ts → city, centroid table)
 │   │
 │   │  # ── Display / metrics ──
 │   ├── categories.json            # Category groupings for charts + explorer
+│   ├── categories_osm_map.json    # Foursquare category → OSM tag (nearby-suggestion lookups)
+│   ├── year_covers.json           # Year/month cover-photo pins + hand-written month narratives
+│   ├── backfill_gazetteer.json    # City → lat/lng for pre-2012 places absent from checkins.csv
 │   │
 │   │  # ── Trips ──
 │   ├── trip_names.json            # Trip name overrides (keyed by _name_ts)
@@ -394,12 +432,12 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **219-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **303-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 175 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 259 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
 | Browser E2E smoke + accessibility | `live` + `e2e` | 22 | internet + Playwright chromium |
 
@@ -407,7 +445,7 @@ The reasoning behind the suite — risk analysis, why the pyramid is shaped this
 gates per lifecycle stage, and what is deliberately *not* tested — is written up in
 [`qa/test-strategy.md`](qa/test-strategy.md). The [`qa/`](qa/) directory also holds a
 [manual exploratory checklist](qa/exploratory-checklist.md) and
-[thirteen real bug reports](qa/bug-reports/) (repro → root cause → fix → regression test) from
+[fourteen real bug reports](qa/bug-reports/) (repro → root cause → fix → regression test) from
 this project's history.
 
 ```bash
@@ -511,7 +549,7 @@ never block a code push.
 
 #### `tests/test_shouts.py` — shout text pipeline (24 tests)
 
-- **Why:** the shouts archive (~3.5 k free-text comments) depends on subtle filtering —
+- **Why:** the shouts archive (~3.8 k free-text comments) depends on subtle filtering —
   e.g. a shout that is *only* a companion's name is attribution leakage, not content — and
   on the comment-thread merge that backs the page.
 - **What it verifies:** `— with X` suffix stripping; with-only shouts dropped; bare
@@ -667,9 +705,32 @@ across the unit suites.
 
 ```yaml
 trip_detection:
-  home_city: Minsk       # Check-ins here are excluded from trips
-  min_checkins: 5        # Minimum check-ins for a sequence to count as a trip
+  home_city: Chișinău      # current home — check-ins here are excluded from trips
+  min_checkins: 5          # minimum check-ins for a sequence to count as a trip
+  home_history:            # earlier homes, oldest first (see "How trip detection works")
+    - city: Chișinău
+      until: "2012-09-01"  # this city is home for every ts strictly BEFORE this date
+      venues:
+        - 50fbc23ae4b0afd6fe382f57   # home venue IDs (union across all eras)
+    - city: Minsk
+      until: "2026-07-29"
+
+dashboard:
+  title: "Check-in Journal"
+  subtitle_source: "Foursquare"
+  foursquare_user_id: "29447180"
+
+output:
+  index_html: index.html
+  trips_html: trips.html
+
+new_country_year_overrides:   # pin the "first visited" year for renamed countries
+  "Türkiye": 2020
+  "Turkey": 2020
 ```
+
+`home_history` is what makes every "distance from home" number honest across a
+20-year record — see [How trip detection works](#how-trip-detection-works).
 
 ### `config/city_merge.yaml`
 
@@ -787,6 +848,43 @@ python scripts/check_city_config.py
 (numeric ts or 24-char hex Foursquare object id), that `venue_fixes.json`
 keys are 24-char hex venue ids with a non-empty city and/or country, and
 that `city_merge.yaml` has no empty canonicals.
+
+### Unicode normalization and the city-count drift gate
+
+Foursquare sometimes returns diacritic city names in **NFD** (decomposed base
+character + combining mark — "Sóc Sơn" with the dot-below as a separate
+codepoint). An NFD string byte-mismatches the NFC keys in `city_merge.yaml`, so
+it silently bypasses *every* rule above and resurfaces as a phantom
+single-check-in city. `transform.py` therefore **NFC-normalizes every city value
+and writes it back to the row** before any string-keyed rule runs. (CJK has no
+NFC/NFD variance — a missing CJK mapping is a plain `city_merge` gap, e.g.
+traditional `北京市海淀區` needing its own entry next to the simplified form.)
+
+`scripts/check_city_count.py` runs the real transform pipeline in CI and diffs the
+distinct `{city: count}` set against `config/city_count_baseline.json`:
+
+- **HARD fail** only on invariant bugs — a displayed city that isn't NFC, or a
+  fold collision (two spellings of one place). The fold key strips case,
+  apostrophe variants **and diacritics**, so `Dusseldorf` collides with
+  `Düsseldorf`; without stripping diacritics those passed as two real cities.
+- **SOFT findings** (reported, exit 0) — an added city that count-pairs with a
+  removed one (`RENAME?`, usually a Foursquare rename that now needs a mapping),
+  or a non-ASCII non-canonical addition (`REVIEW`). `--strict` makes SOFT block
+  too; `--warn-only` never blocks.
+- **`--auto-merge` is the self-heal**: each fold collision is appended to
+  `city_merge.yaml` as `variant: keeper` (keeper = canonical / highest count,
+  ties toward the accented form) instead of failing the run, counts are
+  recomputed, and `AUTO_MERGED=<n>` is emitted so CI commits the file. Only
+  provably-same-place spellings qualify, so it can never merge two real cities.
+  The heal lands *after* the build, so a merged spelling first appears in the
+  next hourly rebuild.
+
+After an intentional change to the city set, refresh and commit the baseline:
+
+```bash
+python scripts/check_city_count.py --csv private-data/checkins.csv \
+  --baseline config/city_count_baseline.json --update-baseline
+```
 
 ---
 
@@ -1100,12 +1198,15 @@ For tips / ratings / lists / trips that drifted (e.g. after a Foursquare data ex
 ## Data flow
 
 ```
-data/checkins.csv
+data/checkins.csv  (+ sibling backfill.csv — reconstructed pre-2012 rows, merged and re-sorted)
   → transform.py (venue_fixes.json, country_fixes.json, city_fixes.json, city_merge.yaml)
-  → metrics.py (categories.json, settings.yaml; collect_companions, shout_records,
-                shout_analysis, cross_dim_analysis)
+  → metrics/ package (categories.json, settings.yaml)
+       stats.py      — process, cross_dim_analysis, era-aware home_at_ts
+       trips.py      — detect_trips + the 8-pass extension pipeline
+       companions.py — collect_companions
+       shouts.py     — shout_records, shout_analysis, merge_comments_into_shouts
   → build.py (templates/*.tmpl → *.html)
-  → gen_*.py (templates/*.tmpl → *.html; some legacy generators still use _TMPL_B64)
+  → gen_*.py × 20 (templates/*.tmpl → *.html)
   → build.py post-process pass:
        {{CTRY_CODE_JSON}} → config/country_flags.json
        {{CAT_ICON_JSON}}  → config/category_icons.json
@@ -1255,13 +1356,141 @@ one-time secret setup.
 
 ---
 
+## Music diary (Last.fm)
+
+Each year album ends with **"the year in sound"** — how many tracks I scrobbled
+that year, the artist I played most, and a 12-bar month histogram. Last.fm has no
+CSV export, so `scripts/fetch_lastfm.py` paginates `user.getRecentTracks` with a
+`LASTFM_API_KEY` and keeps **two files** in the data repo:
+
+| File | Size | Role |
+|------|------|------|
+| `lastfm_state.json` | ~700 KB | incremental cache — full per-year `artist → plays` counters, month histogram, and a `last_ts` watermark |
+| `lastfm_years.json` | ~3 KB | the derived build input — per year `{scrobbles, top_artist:{name,plays}, months:[12]}` |
+
+Every run fetches only scrobbles **after `last_ts`** and folds them into the
+state, so a weekly job stays cheap forever instead of re-walking 20 years of
+history. A one-off `--bootstrap` mode imports a full local export without needing
+a key at all.
+
+```bash
+export LASTFM_API_KEY=...
+python scripts/fetch_lastfm.py --user TOOUUR \
+  --out   .../lastfm_years.json --state .../lastfm_state.json
+python scripts/fetch_lastfm.py --user TOOUUR --check    # probe the key, no write
+```
+
+Same exit contract as the flight fetcher (`0` ok / `2` key invalid / `1`
+transient). `.github/workflows/lastfm.yml` runs weekly (Sunday 06:00 UTC);
+`build.py` auto-discovers `lastfm_years.json` next to `checkins.csv` and threads
+it into the year pages.
+
+---
+
+## Pre-2012 travel backfill
+
+The Foursquare record starts in 2012, but the travel doesn't — so everything from
+~2008 onward is **reconstructed** at country/city/day granularity from an old blog
+diary, trip exports, and memory. Reconstructed visits live in a hand-editable
+`backfill.yaml` in the data repo; `scripts/build_backfill.py` converts it into
+`backfill.csv` in the exact 23-column check-in schema, and `build.py` merges that
+sibling CSV into `rows` (re-sorted by date) so **every** stat, KPI, map, trip and
+feed item shifts — no per-consumer changes needed.
+
+Reconstructed rows are never mistaken for real ones:
+
+- `source_app = "refurbished"` is the discriminator (real rows are only Swarm /
+  Foursquare / Pebble).
+- `checkin_id = "rf0001"…` — never collides with a real 24-char hex id.
+- Coordinates resolve **explicit → an existing city centroid from `checkins.csv`
+  → gazetteer → unresolved**, so reconstructed points land exactly where the real
+  ones already are.
+- Coarse dates fill to noon UTC (month-only → the 1st, year-only → 1 July).
+- Same venue + same day collapses to the **earliest** entry — a reconstructed day
+  is a *presence*, not a per-post log.
+- Every card renders with a `↺ reconstructed` badge (feed, trips modal, index
+  recents); a fully-reconstructed year page gets the badge in its hero.
+
+`sync_to_d1.py --backfill` ingests them too, so `/api/feed` and `/api/search`
+return them. Because the normal check-in sync is append-only (`INSERT OR IGNORE`
+never *updates* a row already in D1), a re-edited row behind a reused `rf` id
+would serve stale — so `rf*` rows are held out of that path and **reconciled by
+content on every sync** (`DELETE … WHERE id LIKE 'rf%'` + reinsert): cheap,
+idempotent and self-healing.
+
+```bash
+python scripts/build_backfill.py --yaml .../backfill.yaml \
+  --checkins .../checkins.csv --out .../backfill.csv
+python scripts/sync_to_d1.py --csv .../checkins.csv --backfill .../backfill.csv
+```
+
+---
+
+## PWA, syndication feeds and country pages
+
+Three things that fall out of the build for free:
+
+- **Installable PWA.** `templates/manifest.webmanifest.tmpl` + `templates/sw.js.tmpl`
+  render into the site root; a post-process pass injects the manifest link,
+  theme-color meta and service-worker registration into every generated page
+  (idempotent). `{{SW_VERSION}}` is stamped with the build timestamp so the cache
+  name `foursq-<version>` busts on each deploy. Strategy: cache-first for
+  same-origin static assets, network-first for navigations with a cached shell
+  fallback, and **pass-through for `/api/*`** and the big data blobs so live data
+  is never served stale.
+- **Syndication.** `scripts/gen_feeds.py` writes an RSS 2.0 `feed.xml` and a JSON
+  Feed 1.1 `feed.json` of the 30 newest check-ins; the index advertises both via
+  autodiscovery `<link>`s.
+- **Per-country pages.** `scripts/gen_country_pages.py` emits
+  `country-<slug>.html` for all 64 countries (slug = lowercased ISO alpha-2 when
+  known, else an ASCII name slug) with that country's cities, venues, photos and
+  **all** its trips. Trip cards deep-link to `/trips.html#trip-<id>`, which opens
+  the matching modal on load.
+
+---
+
 ## How trip detection works
 
-A **trip** is any consecutive sequence of check-ins where `city != home_city`,
-provided the sequence contains at least `min_checkins` entries. The trip name
-is auto-generated from the most-visited countries/cities in that sequence.
-Each trip gets a detail page in `trips.html` with a heatmap, timeline, and
-category breakdown.
+A **trip** is any consecutive sequence of check-ins where the city is not the
+**home city in force at that moment**, provided the sequence contains at least
+`min_checkins` entries. The trip name is auto-generated from the most-visited
+countries/cities in that sequence. Each trip gets a detail page in `trips.html`
+with a heatmap, timeline, and category breakdown.
+
+### Home is a timeline, not a constant
+
+Over 20 years home moved more than once (Chișinău → Minsk → Chișinău), so
+`home_city` alone would misread most of the record. `trip_detection.home_history`
+declares the eras; `home_city` names the current one:
+
+```yaml
+trip_detection:
+  home_city: Chișinău          # the era from the last `until` onward
+  home_history:
+    - city: Chișinău
+      until: "2012-09-01"      # exclusive, UTC midnight
+      venues: [50fbc23ae4b0afd6fe382f57]   # home venue IDs for this era
+    - city: Minsk
+      until: "2026-07-29"
+```
+
+Each entry names the home for every timestamp strictly **before** its `until`; at
+or after the last `until`, `home_city` applies. `metrics/trips.py::_home_at(ts)` is
+the reference resolver and `metrics/stats.py::home_at_ts(ts)` mirrors it for the
+distance series.
+
+Two consequences worth knowing:
+
+- **`venues` (home venue IDs) are a union across all eras**, not per-era. They are
+  the homecoming target of the home-arrival extension and back the `ends_at_home`
+  guard, so an old home address keeps working after a move.
+- **Everything that measures "distance from home" is era-aware.** A single flat
+  centroid scored ~14 years of ordinary Minsk life as a permanent 773 km journey
+  and counted those stay-at-home days as *nomad* days (84.6 % of all days instead
+  of the correct 34.7 %). The trip furthest-point KPI, the daily
+  `distance_from_home` series behind `nomad_kpis`, and the per-year "farthest
+  reach" narrative all resolve the home of that day. `tests/test_home_eras.py`
+  pins the behaviour.
 
 After the raw sequence is found, several extension passes run in order:
 

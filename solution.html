@@ -123,14 +123,16 @@ footer a:hover{text-decoration:underline;}
     <div class="section-body">
       <p>
         A personal analytics dashboard that ingests every Foursquare/Swarm check-in and renders it into
-        <strong>fourteen pages</strong>: a main analytics dashboard, a trip journal with per-trip maps,
+        <strong>~100 pages</strong>: a main analytics dashboard, a trip journal with per-trip maps,
         a companions tracker, a full check-in feed with historical weather, a tips explorer with country/city
         tabs and closed/deleted-venue badges, a venue ratings page (likes / okays / dislikes), a venue
         loyalty explorer, a world cities map, a Foursquare lists page, a full-text search page,
-        a photo gallery with 21&nbsp;000+ images, a <strong>shouts archive</strong> (free-text comments
-        attached to check-ins, with year / country filters and live search), a stats overview with
-        <strong>Hour&nbsp;×&nbsp;Category</strong> and <strong>DOW&nbsp;×&nbsp;Category</strong> heatmaps
-        plus shout text mining, a live travel guide that reads your last 48&nbsp;hours and suggests
+        a photo gallery with 23&nbsp;000+ images, a <strong>shouts archive</strong> (free-text comments
+        attached to check-ins, with year / country filters and live search), a flight diary, a stats
+        overview with <strong>Hour&nbsp;×&nbsp;Category</strong> and <strong>DOW&nbsp;×&nbsp;Category</strong>
+        heatmaps plus shout text mining, <strong>20 per-year albums</strong> (each with its own cover
+        photo, month timeline and a Last.fm "year in sound"), <strong>64 per-country pages</strong>,
+        a live travel guide that reads your last 48&nbsp;hours and suggests
         nearby venues based on your historical preferences, and this engineering write-up — all
         assembled into a clean <code>_site/</code> bundle by CI and pushed to the Cloudflare Pages
         CDN via <strong>direct upload</strong> (the generated HTML is gitignored, not committed).
@@ -149,7 +151,7 @@ footer a:hover{text-decoration:underline;}
         The build pipeline is 100% Python 3.9+, the frontend is vanilla JS with Leaflet and Chart.js.
         Dynamic features (full-text search, the paginated check-in feed) are served by
         <strong>Cloudflare Pages Functions</strong> querying a D1 database — keeping runtime cost at zero
-        while enabling millisecond-latency queries against the full 65 000-row dataset.
+        while enabling millisecond-latency queries against the full 69 000-row dataset.
       </p>
     </div>
   </div>
@@ -161,7 +163,7 @@ footer a:hover{text-decoration:underline;}
       <div class="stat-lbl">Check-in → Live Deploy</div>
     </div>
     <div class="stat-item">
-      <div class="stat-num">14</div>
+      <div class="stat-num">~100</div>
       <div class="stat-lbl">Generated HTML Pages</div>
     </div>
     <div class="stat-item">
@@ -240,7 +242,7 @@ footer a:hover{text-decoration:underline;}
       </p>
       <p>
         GitHub Actions then fetches the updated check-in data from the private data repository,
-        commits the raw data there, and rebuilds all fourteen HTML pages locally in the runner.
+        commits the raw data there, and rebuilds all ~100 HTML pages locally in the runner.
         The generated HTML is <strong>gitignored</strong> — committing it hourly had bloated the
         repository's <code>.git</code> to 4&nbsp;GB+, so it is no longer tracked. Instead CI
         assembles a clean <code>_site/</code> bundle (asset globs + <code>assets/</code> +
@@ -298,10 +300,10 @@ footer a:hover{text-decoration:underline;}
                   │  │  <span class="ts-box">scripts/build.py</span>   (orchestrator)        │    │
                   │  │                                          │    │
                   │  │   transform.py  ── 4-layer city/cntry    │    │
-                  │  │   metrics.py    ── aggregations, trips,  │    │
+                  │  │   metrics/      ── aggregations, trips,  │    │
                   │  │                    companions, shouts,   │    │
                   │  │                    cross-dim heatmaps    │    │
-                  │  │   gen_*.py × 14 ── templates → *.html    │    │
+                  │  │   gen_*.py × 20 ── templates → *.html    │    │
                   │  │   POST-PROCESS  ── {{CTRY_CODE_JSON}},   │    │
                   │  │                    {{CAT_ICON_JSON}}     │    │
                   │  └──────────────────────────────────────────┘    │
@@ -504,7 +506,7 @@ footer a:hover{text-decoration:underline;}
       <div class="cs-solution">
         <div class="cs-label sol">Solution — Explicit Country → IANA Timezone Dict</div>
         <div class="cs-text">
-          <code>metrics.py</code> maintains a <strong><code>_COUNTRY_TZ</code></strong> dictionary mapping
+          <code>metrics/</code> maintains a <strong><code>_COUNTRY_TZ</code></strong> dictionary mapping
           country names to authoritative IANA timezone IDs. This takes precedence over the
           coordinate-based lookup. <code>Europe/Minsk</code> is always UTC+3, regardless of what
           the geometric timezone boundary says — because that's what the clocks actually show.
@@ -607,7 +609,7 @@ const url = <span class="hl">`...&start_date=${utcDate}...&timezone=auto`</span>
       <div class="cs-solution">
         <div class="cs-label sol">Solution — Multi-Pass Extension Pipeline</div>
         <div class="cs-text">
-          <code>metrics.py</code> runs an 8-pass pipeline over each candidate trip window
+          <code>metrics/trips.py</code> runs an 8-pass pipeline over each candidate trip window
           to progressively widen its boundaries until they reflect the actual journey:
         </div>
         <div class="code-block">
@@ -808,7 +810,7 @@ python sync_venue_changes.py \
           Foursquare's <strong>overlaps</strong> field — people who independently checked in at the
           same venue at the same time, distinct from explicit <em>with</em> companions — was only
           ever available via the legacy <code>/v2/checkins/{id}</code> endpoint and is no longer
-          surfaced through any current API. With ~65&nbsp;000 historical check-ins, a one-time
+          surfaced through any current API. With ~69&nbsp;000 historical check-ins, a one-time
           enrichment run was the only way to recover this data before it disappeared entirely.
         </div>
         <div class="cs-text">
@@ -864,7 +866,7 @@ python enrich_overlaps.py --only-ids-file <span class="hl">recovery_ids.txt</spa
           that set whose <code>overlaps_id</code> was incorrectly finalised (back to <code>""</code>),
           ensuring the IDs are always re-processed regardless of prior run state.
           Sleep was increased from 0.35 s to <strong>1.5 s</strong> per call to stay safely below
-          the quota ceiling for the full 65&nbsp;000-row run.
+          the quota ceiling for the full 69&nbsp;000-row run.
         </div>
         <div class="cs-text">
           Post-enrichment cleanup applied the dedup filter retroactively: <strong>408 existing rows
@@ -878,10 +880,10 @@ python enrich_overlaps.py --only-ids-file <span class="hl">recovery_ids.txt</spa
       </div>
 
       <div class="cs-challenge">
-        <div class="cs-label ch">Challenge 11 — Recovering and Hosting 21 000+ Check-in Photos</div>
+        <div class="cs-label ch">Challenge 11 — Recovering and Hosting 23 000+ Check-in Photos</div>
         <div class="cs-text">
           Foursquare's public API exposes photo metadata per check-in, but rate limits and the
-          sheer volume (~21 000 images for ~65 000 check-ins) made a naive full re-fetch
+          sheer volume (~23 000 images for ~69 000 check-ins) made a naive full re-fetch
           impractical. The private data export archive contained all historical photos, but
           the export's CSV files referenced internal Foursquare URLs rather than actual image
           bytes — so photos still had to be fetched individually, and the index had to be
@@ -904,7 +906,7 @@ python enrich_overlaps.py --only-ids-file <span class="hl">recovery_ids.txt</spa
           — matching <em>tip IDs</em>, not check-in IDs. They had been silently mis-classified.
         </div>
         <div class="cs-text">
-          <strong>3. Serving 21 000+ files on a static site at zero cost.</strong>
+          <strong>3. Serving 23 000+ files on a static site at zero cost.</strong>
           GitHub Pages has a 1 GB repo limit; embedding binary assets in the repo was not
           viable. The site needed a public CDN that was genuinely free at this scale.
         </div>
@@ -941,7 +943,7 @@ python scripts/build.py \
     --pix-url <span class="hl">"${R2_PUBLIC_URL}"</span>   <span class="cm"># e.g. https://pub-xxxx.r2.dev/pix</span>
         </div>
         <div class="cs-text">
-          The <code>photos.html</code> gallery renders 21 000+ images lazily in batches of 300,
+          The <code>photos.html</code> gallery renders 23 000+ images lazily in batches of 300,
           with a country/city accordion filter (countries collapsed by default, cities as pill
           buttons), a separate tip photos section with its own lightbox mode, and a hero count
           that includes both check-in and tip photos with an anchor link to the tip section.
@@ -1047,7 +1049,7 @@ venue_first: dict[str, int] = {}
         <div class="cs-label ch">Challenge 13 — 11 MB Embedded JSON Blocks the Feed Page</div>
         <div class="cs-text">
           The check-in feed page was originally generated by embedding the <em>entire</em>
-          65 000-row check-in history as a <code>const ALL=[...]</code> JSON blob directly
+          69 000-row check-in history as a <code>const ALL=[...]</code> JSON blob directly
           inside the HTML — roughly <strong>11 MB of inline JavaScript</strong>. This created
           three compounding problems:
         </div>
@@ -1084,7 +1086,7 @@ GET /api/feed?limit=50
 
 GET /api/feed?limit=50&amp;cursor=1712345678
 <span class="cm"># cursor = Unix timestamp of the last item; WHERE date &lt; cursor ORDER BY date DESC</span>
-<span class="cm"># each page is O(1) — no OFFSET scan over 65k rows</span>
+<span class="cm"># each page is O(1) — no OFFSET scan over 69k rows</span>
 
 GET /api/feed?oldest=1&amp;limit=100
 <span class="cm"># returns 100 oldest check-ins (ORDER BY date ASC), reversed for display</span>
@@ -1098,7 +1100,7 @@ GET /api/search?q=minsk
         <div class="cs-text">
           The feed page's JavaScript was rewritten around a <strong>virtual scroll</strong>
           model: only the rows currently in the viewport are rendered as DOM nodes. All
-          65 000 rows exist only as a flat in-memory array (<code>ALL</code>); position
+          69 000 rows exist only as a flat in-memory array (<code>ALL</code>); position
           computation (<code>buildPos</code>) maps each row to a pixel offset using a gap-row
           strategy. Month and year counts are served from a static <code>feed_meta.json</code>
           pre-built at CI time — zero D1 reads for the calendar. The first 50 items render
@@ -1140,11 +1142,11 @@ GET /api/search?q=minsk
     <!-- C14 -->
     <div class="cs-block">
       <div class="cs-challenge">
-        <div class="cs-label ch">Challenge 14 — Syncing 65 000 Rows to D1 Without Blowing Rate Limits</div>
+        <div class="cs-label ch">Challenge 14 — Syncing 69 000 Rows to D1 Without Blowing Rate Limits</div>
         <div class="cs-text">
           Cloudflare D1's HTTP API limits each batch to <strong>100 SQL statements</strong> and
           enforces per-account rate limits. A naïve "delete everything and re-insert" strategy
-          for 65 000 check-ins would require 650+ batch calls, hit the rate limit within seconds,
+          for 69 000 check-ins would require 690+ batch calls, hit the rate limit within seconds,
           and make every CI run a full-table rebuild — even when only one new check-in arrived.
         </div>
         <div class="cs-text">
@@ -1163,7 +1165,7 @@ GET /api/search?q=minsk
         <div class="cs-text">
           <strong>check-ins</strong> — <code>INSERT OR IGNORE</code> keyed on
           <code>(venue_id, date)</code>. New rows append; existing rows are silently skipped.
-          A full 65 000-row pass takes ~650 batches but is still O(N) reads with zero
+          A full 69 000-row pass takes ~690 batches but is still O(N) reads with zero
           unnecessary writes — D1 discards duplicates at the index level.
         </div>
         <div class="cs-text">
@@ -1432,14 +1434,16 @@ cover = <span class="hl">min</span>(candidates, key=key)   <span class="cm"># sa
     <!-- C19 -->
     <div class="cs-block">
       <div class="cs-challenge">
-        <div class="cs-label ch">Challenge 19 — Four Scheduled Jobs Racing to Push the Same Data Repo</div>
+        <div class="cs-label ch">Challenge 19 — Five Scheduled Jobs Racing to Push the Same Data Repo</div>
         <div class="cs-text">
           All the private data — check-ins, tips, the route-geometry cache, the FR24 flight
-          diary — lives in a single repo (<code>toouur/foursquare-data</code>), and
-          <strong>four separate GitHub Actions workflows commit to its <code>main</code></strong>:
+          diary, the Last.fm scrobble aggregate — lives in a single repo
+          (<code>toouur/foursquare-data</code>), and
+          <strong>five separate GitHub Actions workflows commit to its <code>main</code></strong>:
           the hourly <code>update-dashboard.yml</code>, the daily <code>warm-routes.yml</code>
           (03:00&nbsp;UTC), the daily <code>recheck-enrich.yml</code> (04:15&nbsp;UTC — see
-          Challenge&nbsp;20), and the weekly <code>fr24-flights.yml</code> (Sunday 05:00&nbsp;UTC).
+          Challenge&nbsp;20), the weekly <code>fr24-flights.yml</code> (Sunday 05:00&nbsp;UTC)
+          and the weekly <code>lastfm.yml</code> (Sunday 06:00&nbsp;UTC).
           Each job checks out the ref, works for a minute or two, then pushes. When two jobs
           overlap — the 03:00 route-warm still running as the 03:00 hourly build starts — the
           second one to push finds its checkout is no longer the tip and Git rejects it:
@@ -1463,7 +1467,7 @@ error: failed to push some refs to 'github.com/toouur/foursquare-data'
           stuck push still surfaces.
         </div>
         <div class="code-block">
-<span class="cm"># Identical guard in all four workflows' commit step:</span>
+<span class="cm"># Identical guard in all five workflows' commit step:</span>
 <span class="kw">for</span> i <span class="kw">in</span> 1 2 3 4 5; <span class="kw">do</span>
   <span class="kw">if</span> git push; <span class="kw">then</span> <span class="kw">break</span>; <span class="kw">fi</span>
   <span class="cm"># another job pushed between our checkout and now — replay on top of it</span>
@@ -1472,7 +1476,7 @@ error: failed to push some refs to 'github.com/toouur/foursquare-data'
 <span class="kw">done</span>
         </div>
         <div class="cs-text">
-          The fix is deliberately uniform across the four files so the concurrency contract is
+          The fix is deliberately uniform across the five files so the concurrency contract is
           obvious to anyone reading any one of them, and it keeps the hourly job on the fast path:
           a lost race costs one extra fetch-and-replay, not a queued wait behind the daily backlog
           drain. The five-attempt ceiling means a real problem (a broken token, a diverged history)
@@ -1592,6 +1596,86 @@ python fetch_photos.py   <span class="hl2">--recheck-days 1</span>           <sp
       </div>
     </div>
 
+    <!-- C22 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 22 — "Home" Is a Timeline, Not a Constant</div>
+        <div class="cs-text">
+          Trip detection was built around a single <code>home_city</code> in
+          <code>config/settings.yaml</code>. That is fine for a dataset that spans a couple of years —
+          but this one spans <strong>twenty</strong>, and over that stretch home moved: Chișinău until
+          2012, Minsk for the next fourteen years, then Chișinău again from July&nbsp;2026. A single
+          value cannot describe that, and every consumer that asked "how far from home was this?"
+          silently answered against the <em>wrong city</em> for whichever era it wasn't configured for.
+        </div>
+        <div class="cs-text">
+          <strong>The failure was quantitative, not cosmetic.</strong> The Chișinău–Minsk centroid
+          distance is <strong>773&nbsp;km</strong>. With a flat home, fourteen years of ordinary
+          weekday life in Minsk scored as a permanent 773&nbsp;km journey — comfortably over the
+          50&nbsp;km/day mean that defines a "nomad day". The headline KPI read
+          <strong>4125 nomad days (84.6%)</strong>: the dashboard was claiming its owner had been
+          away from home for five-sixths of his adult life. The per-trip furthest-point KPI and the
+          per-year "farthest reach" narrative were skewed by the same offset.
+        </div>
+        <div class="cs-text">
+          The subtlety is that this was <em>not</em> a case of a stale config value. Setting
+          <code>home_city</code> to either city fixes one era and breaks the other — the data model
+          itself was wrong. Trip detection had partially grown around this already (a set of home
+          venue IDs used as homecoming anchors), which is exactly why the bug survived: trips looked
+          plausible, so nobody re-checked the distance series behind them.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — An Era Timeline and One Shared <code>home_at_ts()</code> Resolver</div>
+        <div class="cs-text">
+          <code>settings.yaml</code> gained <code>home_history</code>: an ordered list of
+          <code>{city, until}</code> eras, each naming home for every timestamp strictly
+          <em>before</em> its <code>until</code>, with the existing <code>home_city</code> covering
+          everything at or after the last one. Adding an era is a two-line config edit, not a code
+          change. The home <em>venue</em> IDs stay a union across all eras — an old flat is still a
+          homecoming anchor for the years it was home.
+        </div>
+        <div class="code-block">
+<span class="cm"># config/settings.yaml</span>
+trip_detection:
+  home_city: <span class="hl">Chișinău</span>          <span class="cm"># current era (from the last `until` onward)</span>
+  home_history:
+    - city: <span class="hl">Chișinău</span>
+      until: <span class="hl2">"2012-09-01"</span>     <span class="cm"># home for every ts strictly BEFORE this</span>
+      venues: [<span class="hl2">50fbc23ae4b0afd6fe382f57</span>]
+    - city: <span class="hl">Minsk</span>
+      until: <span class="hl2">"2026-07-29"</span>
+        </div>
+        <div class="cs-text">
+          On the metrics side the eras are resolved <strong>once</strong> into a closure over the
+          era centroids, and all three distance-from-home call sites — the trip furthest-point KPI,
+          the daily <code>distance_from_home</code> series behind <code>nomad_kpis</code>, and the
+          per-year "farthest reach" narrative — call it instead of reading a module-level
+          <code>_HOME_LAT/_HOME_LNG</code> pair. One resolver means a future era can never be honoured
+          by two of the three.
+        </div>
+        <div class="code-block">
+<span class="cm"># scripts/metrics/stats.py — built once, then used by every distance computation</span>
+<span class="kw">def</span> <span class="hl">home_at_ts</span>(ts: <span class="kw">int</span>) -> tuple[<span class="kw">float</span>, <span class="kw">float</span>]:
+    <span class="cm">"""Home centroid in effect at unix-ts `ts` (mirrors trips._home_at)."""</span>
+    <span class="kw">for</span> _until, _pt <span class="kw">in</span> _home_eras:
+        <span class="kw">if</span> ts &lt; _until:
+            <span class="kw">return</span> _pt
+    <span class="kw">return</span> _home_now
+        </div>
+        <div class="cs-text">
+          <strong>Result on the real dataset:</strong> nomad days fell from
+          <strong>4125 (84.6%)</strong> to <strong>1694 (34.7%)</strong> — 2431 days correctly
+          reclassified as "at home" — while the genuine maximum distance <em>rose</em> to
+          13&nbsp;481&nbsp;km, because far-flung trips in the Minsk era had been measured from the
+          wrong origin too. Three tests in <code>tests/test_home_eras.py</code> pin the behaviour:
+          each era measures against its own home, both-days-at-home yields zero nomad days, and —
+          the regression guard — a deliberately flat configuration is asserted to <em>misread</em>
+          the other era, so the bug cannot quietly return.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>
@@ -1604,7 +1688,8 @@ python fetch_photos.py   <span class="hl2">--recheck-days 1</span>           <sp
       <p>
         The build system is intentionally minimal. <code>build.py</code> is the single orchestrator:
         it loads YAML/JSON config, calls <code>transform.py</code> to normalise city and country names,
-        calls <code>metrics.py</code> to compute all aggregations and trip detection, then renders
+        calls the <code>metrics/</code> package (<code>stats</code>, <code>trips</code>,
+        <code>companions</code>, <code>shouts</code>) to compute all aggregations and trip detection, then renders
         two Jinja-free template files using simple <code>{{PLACEHOLDER}}</code> substitution.
       </p>
       <p>
@@ -1628,10 +1713,12 @@ python fetch_photos.py   <span class="hl2">--recheck-days 1</span>           <sp
         served live by <code>functions/api/search.js</code> querying D1 directly.
       </p>
       <p>
-        Trip detection in <code>metrics.py</code> runs a single-pass scan over the sorted
+        Trip detection in <code>metrics/trips.py</code> runs a single-pass scan over the sorted
         check-in sequence: any consecutive run of check-ins where <code>city ≠ home_city</code>
         and the run length exceeds <code>min_checkins</code> (configurable) is declared a trip.
         Trip names are auto-generated from the most-visited countries and cities in that sequence.
+        "Home" here is not a constant but the era in force at that check-in's own timestamp —
+        resolved through <code>home_history</code>, see Challenge&nbsp;22.
       </p>
     </div>
 
@@ -1645,7 +1732,7 @@ python scripts/build.py \
 <span class="cm">
 # Internal execution order:
 #  1. transform.py        — apply 5-layer city/country normalisation
-#  2. metrics.py          — compute aggregations, trip detection, centroids,
+#  2. metrics/ package    — compute aggregations, trip detection, centroids,
 #                            collect_companions, shout_records,
 #                            shout_analysis, cross_dim_analysis
 #  3. index.html          — rendered from templates/index.html.tmpl
@@ -1679,8 +1766,8 @@ python scripts/build.py \
     <div class="section-title">Testing &amp; CI Gates</div>
     <div class="section-body">
       <p>
-        The pipeline is protected by a <strong>219-test pytest suite</strong> organised into
-        three rings by what they need to run. The offline ring (175 tests, no network, no
+        The pipeline is protected by a <strong>303-test pytest suite</strong> organised into
+        three rings by what they need to run. The offline ring (259 tests, no network, no
         secrets, finishes in seconds) covers the highest-risk pure logic: the 5-layer
         city/country normalisation priority order, trip detection (synthetic timelines
         anchored at noon UTC so timezone localisation can never flake a test across a date
@@ -1782,7 +1869,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Photo Storage</div>
         <div class="si-tech">Cloudflare R2</div>
-        <div class="si-role">21 000+ photos · 10 GB free · $0 egress · S3-compatible sync</div>
+        <div class="si-role">23 000+ photos · 10 GB free · $0 egress · S3-compatible sync</div>
       </div>
       <div class="stack-item">
         <div class="si-layer">Search &amp; Feed API</div>
@@ -1792,7 +1879,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Testing &amp; QA</div>
         <div class="si-tech">pytest + Playwright + ruff</div>
-        <div class="si-role">219 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
+        <div class="si-role">303 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
       </div>
     </div>
   </div>

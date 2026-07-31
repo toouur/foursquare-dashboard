@@ -237,7 +237,7 @@ python -m http.server 8000 --directory _site
 
 ### Run tests / lint
 ```bash
-# Offline suite (175 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (259 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 /c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 14 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -265,16 +265,24 @@ python -m http.server 8000 --directory _site
   (contains `checkins.csv`, `tips.json`, `photos.json`, `pix/`).
 - Main orchestrator: `scripts/build.py`.
 - Core pipeline:
-  `transform.py -> metrics.py -> template/gen scripts -> *.html`.
+  `transform.py -> metrics/ -> template/gen scripts -> *.html`.
 
 ## Key Files
 
 - Build/orchestration: `scripts/build.py`
 - Normalization: `scripts/transform.py`
-- Metrics/trips: `scripts/metrics.py` (also `collect_companions`, `shout_records`, `shout_analysis`, `cross_dim_analysis`)
+- Metrics/trips: `scripts/metrics/` — a **package**, not a module (`__init__.py` re-exports the
+  public surface, so `import metrics` / `from metrics import process, detect_trips,
+  collect_companions, …` keeps working): `stats.py` (`process` — aggregations/KPIs —
+  `cross_dim_analysis`, the era-aware `home_at_ts` closure), `trips.py` (`detect_trips` + the
+  8-pass extension pipeline, `_home_at`, `_COUNTRY_TZ`), `companions.py`
+  (`collect_companions`), `shouts.py` (`shout_records`, `shout_analysis`,
+  `merge_comments_into_shouts`).
 - Tips generation: `scripts/gen_tips.py` (also exports `CTRY_NORM`, loaded from `config/country_aliases.json`)
 - Photos generation: `scripts/gen_photos.py`
-- Shouts page: `scripts/gen_shouts.py` (free-text comment archive, ~3.5k entries)
+- Shouts page: `scripts/gen_shouts.py` (free-text shout archive, ~4.5k entries — 3.8k shouts analyzed + ~650 comment-only check-ins; ~980 carry comment threads)
+- Comments fetch: `scripts/fetch_comments.py` (+ `fetch-comments.yml`) → `comments.json` in the data repo; `metrics.shouts.merge_comments_into_shouts` folds them into the shouts page (1.6k comments over ~980 check-ins)
+- Concerts scrape: `scripts/scrape_forum_concerts.py` (forum gig-list crawl → concert history; feeds backfill candidates)
 - Guide page: `scripts/gen_guide.py` (live nearby suggestions, 48h session history)
 - Trip pages: `scripts/gen_trip_pages.py` (per-trip detail HTML)
 - Country pages: `scripts/gen_country_pages.py` (per-country `country-<slug>.html`; self-contained like year pages — flags via `_flag()` + flag-icons CDN, no `{{SITE_CSS_LINK}}`, computed from `rows`+`stats_data`+`trips`). Slug = ISO alpha-2 lowercased when known else ASCII name-slug; `country_slug()` MUST mirror `countrySlug()` in `templates/index.html.tmpl` (the index country grid links here). The per-country trip cards list **all** the country's trips (no `[:12]` cap) and deep-link to `/trips.html#trip-<id>` — NOT `/trip-<id>.html` (that page is never generated; `gen_trip_pages.py` is dead code). `trips.html` has a `handleHash()` that opens the matching trip modal on load. Output gitignored (`country-*.html`).
@@ -285,13 +293,16 @@ python -m http.server 8000 --directory _site
 - Check-ins fetch: `scripts/fetch_checkins.py`
 - Flights fetch: `scripts/fetch_flights.py` (FR24 login → diary CSV; weekly `fr24-flights.yml`)
 - Last.fm fetch: `scripts/fetch_lastfm.py` (per-year scrobble aggregate; weekly `lastfm.yml`; feeds year-page "The year in sound" section via `gen_year_pages` `music_by_year`)
-- Pre-2012 backfill: `scripts/build_backfill.py` (`backfill.yaml` → `backfill.csv`, 23-col schema, `source_app="refurbished"`, `rf<seq>` ids, centroid-reuse geocode); `build.py` auto-merges the sibling `backfill.csv`; `sync_to_d1.py --backfill` ingests to D1; `scripts/import_polarsteps.py` (Polarsteps export → backfill.yaml; PENDING user export). Reconstructed rows badged in feed/trips/year-hero. Tests: `tests/test_backfill.py`.
+- Pre-2012 backfill: `scripts/build_backfill.py` (`backfill.yaml` → `backfill.csv`, 23-col schema, `source_app="refurbished"`, `rf<seq>` ids, centroid-reuse geocode); `build.py` auto-merges the sibling `backfill.csv`; `sync_to_d1.py --backfill` ingests to D1; source adapters `scripts/import_polarsteps.py` (Polarsteps export ZIP → backfill.yaml; PENDING user export) and `scripts/import_liveinternet.py` (LiveInternet diary crawl → candidate entries). `scripts/refresh_backfill_venue.py` (+ `refresh-backfill-venue.yml`) fills real Foursquare venue metadata onto a reconstructed row. Reconstructed rows badged in feed/trips/year-hero. Tests: `tests/test_backfill.py`.
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
-- Tests: `tests/` — pytest suite (224 tests): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
+- Tests: `tests/` — pytest suite (303 tests: 259 offline, 22 live API contract, 22 live+e2e): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative/home-eras + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
 - HTML deploy gate: `scripts/validate_html.py` — runs in `update-dashboard.yml` before every deploy (required pages present, no leftover `{{PLACEHOLDER}}`, embedded JSON parses, min page size; skips `solution.html` which quotes placeholders as documentation).
 - QA docs: `qa/` — `test-strategy.md` (risk analysis → pyramid → gates), `exploratory-checklist.md` (manual pre-release charter), `bug-reports/` (14 written-up real defects). `docs/` is gitignored — QA docs must live in `qa/`.
 - Lint config: `ruff.toml` (E4/E7/E9+F; E401/E701/E702/E731 ignored deliberately).
-- Type-check config: `setup.cfg` `[mypy]` — `files = scripts`, ignore_missing_imports, allow_redefinition, var-annotated disabled; tree is CLEAN (0 errors / 55 files) and must stay so (runs in the tests.yml lint job). NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
+- Type-check config: `setup.cfg` `[mypy]` — `files = scripts`, ignore_missing_imports, allow_redefinition, var-annotated disabled; tree is CLEAN (0 errors / 64 files) and must stay so (runs in the tests.yml lint job).
+  NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
+  NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in the `fetch_*` scripts —
+  that is drift from a newer locally-installed `requests` shipping its own inline types, not a code change.
 - Other QA workflows: `lighthouse.yml` (weekly Mon 07:00 UTC, 4 pages, score floors perf≥60 / a11y+bp+seo≥85), `k6-load.yml` (manual, /api/search, fail >1% errors or p95>1s), `mutation.yml` (manual, mutmut over transform.py, config in setup.cfg `[mutmut]`).
 - Failure alerting: `update-dashboard.yml` sends a Telegram message after 2 consecutive scheduled failures (secrets `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`; step no-ops if unset).
 - Search API (Cloudflare Pages Function): `functions/api/search.js`
@@ -307,6 +318,46 @@ python -m http.server 8000 --directory _site
     `"2024-07-note": "text"` replaces that month's auto narrative with hand-written text (plain text, HTML-escaped).
     Without a pin, year covers use a deterministic signature score (shout + companions + photo count, earliest-ts tie-break) so covers are stable across builds. Unresolvable pin values are reported at build and ignored.
 - Config (other): `config/city_merge.yaml`, `config/city_fixes.json`, `config/venue_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
+
+## Home is a TIMELINE, not a constant
+
+The dataset spans 20 years and home moved. `config/settings.yaml` →
+`trip_detection.home_history` declares the eras; `trip_detection.home_city` names the
+current/final one:
+
+```yaml
+trip_detection:
+  home_city: Chișinău          # current era (from the last `until` onward)
+  home_history:
+    - city: Chișinău
+      until: "2012-09-01"      # exclusive, UTC midnight
+      venues: [50fbc23ae4b0afd6fe382f57]   # Str. Alecu Russo, 55
+    - city: Minsk
+      until: "2026-07-29"
+```
+
+Each entry names the home for every ts strictly BEFORE its `until`; at/after the last
+`until`, `home_city` applies. Runtime shape:
+`[(1346457600, 'Chișinău'), (1785283200, 'Minsk')]`.
+
+- **Anything that measures distance from / membership in "home" MUST be era-aware.**
+  Resolvers: `metrics.trips._home_at(ts, home_city, home_history)` (reference impl) and
+  `metrics.stats.home_at_ts(ts)`, a closure built once over the era centroids. Never read
+  `home_city` alone. A single flat centroid scored ~14 years of ordinary Minsk life as a
+  permanent 773 km journey (the real Chișinău–Minsk centroid distance) and marked those
+  stay-at-home days as nomad days — `nomad_days` read 4125 / 84.6 % instead of the correct
+  1694 / 34.7 %. Fixed across three call sites (trip furthest-point KPI, the daily
+  `distance_from_home` series feeding `nomad_kpis`, the per-year "farthest reach"
+  narrative); pinned by `tests/test_home_eras.py`, whose third test asserts a deliberately
+  flat config MISREADS the other era so the bug cannot quietly return.
+- **`home_venue_ids` is a UNION across ALL eras**, not per-era. Venue
+  `50fbc23ae4b0afd6fe382f57` is load-bearing twice in `trips.py`: as the homecoming target
+  of the home-arrival extension, and in the `ends_at_home` guard.
+- **Adding an era**: append to `home_history` AND move `home_city` to the new current city;
+  the previous final era needs its own `until` row or its years get scored against the
+  wrong city.
+- **Known remaining consumer**: `gen_guide.py` still derives `home_country`/`is_home` from
+  the flat `home_city` — correct for the current era only.
 
 ## City normalization pipeline (priority order)
 
