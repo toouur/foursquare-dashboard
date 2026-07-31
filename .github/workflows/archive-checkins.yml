@@ -130,18 +130,24 @@ jobs:
       # checkins.csv must follow through there too — otherwise one venue_id shows
       # two different names (and sync_to_d1 re-seeds the stale one into /api/feed
       # on every run, since rf* rows are reconciled rather than append-only).
-      - name: Sync venue changes into tips.json + backfill.csv
+      - name: Sync venue changes into tips.json + backfill.csv + JSONs
         run: |
           if [ -n "$ARCHIVE_NAME" ] && [ -f "private-data/tips.json" ]; then
-            BACKFILL_ARG=""
+            EXTRA_ARGS=""
             if [ -f private-data/backfill.csv ]; then
-              BACKFILL_ARG="--backfill private-data/backfill.csv"
+              EXTRA_ARGS="$EXTRA_ARGS --backfill private-data/backfill.csv"
+            fi
+            if [ -f private-data/venueRatings.json ]; then
+              EXTRA_ARGS="$EXTRA_ARGS --ratings private-data/venueRatings.json"
+            fi
+            if [ -f private-data/comments.json ]; then
+              EXTRA_ARGS="$EXTRA_ARGS --comments private-data/comments.json"
             fi
             python scripts/sync_venue_changes.py \
               --old "private-data/archive/${ARCHIVE_NAME}" \
               --new  private-data/checkins.csv \
               --tips private-data/tips.json \
-              $BACKFILL_ARG \
+              $EXTRA_ARGS \
               --out  /tmp/venue_diffs.json
           else
             echo "No archive snapshot or no tips.json — skipping venue diff."
@@ -155,7 +161,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add checkins.csv tips.json
-          if [ -f backfill.csv ]; then git add backfill.csv; fi
+          if [ -f backfill.csv ];       then git add backfill.csv;       fi
+          if [ -f venueRatings.json ];  then git add venueRatings.json;  fi
+          if [ -f comments.json ];      then git add comments.json;      fi
           [ -n "$ARCHIVE_NAME" ] && git add "archive/${ARCHIVE_NAME}"
           [ -f checkins_anomalies.json ] && git add checkins_anomalies.json
           [ -f duplicate_checkins.csv  ] && git add duplicate_checkins.csv

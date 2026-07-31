@@ -14,12 +14,17 @@ for that id — a split identity in every build, and in /api/feed too, since
 sync_to_d1.py reconciles `rf*` rows on every run. Pass --backfill to keep both
 sides on the same name.
 
+venueRatings.json and comments.json denormalize the venue name too and are
+rendered on the site, so they take the same rename via --ratings / --comments.
+
 Usage:
     python scripts/sync_venue_changes.py \\
         --old private-data/archive/checkins_2026-03-26T12-00-00Z.csv \\
         --new private-data/checkins.csv \\
         --tips private-data/tips.json \\
-        [--backfill private-data/backfill.csv] [--dry-run]
+        [--backfill private-data/backfill.csv] \\
+        [--ratings private-data/venueRatings.json] \\
+        [--comments private-data/comments.json] [--dry-run]
 
 Exit codes:
     0 — success (changes applied or nothing to do)
@@ -246,6 +251,92 @@ def patch_backfill(
     return patch_records
 
 
+def _renames(changes: list[dict]) -> dict[str, str]:
+    """venue_id → new display name, for the venue-name-only consumers."""
+    out = {}
+    for ch in changes:
+        pair = ch["fields"].get("venue")
+        if pair:
+            out[ch["venue_id"]] = pair[1]
+    return out
+
+
+def patch_ratings(
+    path: Path,
+    changes: list[dict],
+    dry_run: bool = False,
+) -> list[dict]:
+    """
+    Rename venues inside venueRatings.json ({venueLikes|venueOkays|venueDislikes:
+    [{id, name, url, createdAt}]}). Only the display name is stored there, so only
+    a `venue` diff applies. `url` keeps its old slug on purpose — it ends in the
+    venue id and resolves regardless.
+
+    Returns [{venue_id, bucket, fields: {"name": (old, new)}}].
+    """
+    renames = _renames(changes)
+    if not renames:
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    records: list[dict] = []
+    for bucket, entries in data.items():
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            vid = entry.get("id", "")
+            new_name = renames.get(vid)
+            if not new_name or entry.get("name") == new_name:
+                continue
+            records.append({
+                "venue_id": vid,
+                "bucket":   bucket,
+                "fields":   {"name": (entry.get("name", ""), new_name)},
+            })
+            entry["name"] = new_name
+    if records and not dry_run:
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return records
+
+
+def patch_comments(
+    path: Path,
+    changes: list[dict],
+    dry_run: bool = False,
+) -> list[dict]:
+    """
+    Rename venues inside comments.json ({_meta, comments: {checkin_id: {venue,
+    venue_id, …}}}). Only the display name is stored there.
+
+    Returns [{venue_id, checkin_id, fields: {"venue": (old, new)}}].
+    """
+    renames = _renames(changes)
+    if not renames:
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    comments = data.get("comments")
+    if not isinstance(comments, dict):
+        return []
+    records: list[dict] = []
+    for checkin_id, entry in comments.items():
+        if not isinstance(entry, dict):
+            continue
+        vid = entry.get("venue_id", "")
+        new_name = renames.get(vid)
+        if not new_name or entry.get("venue") == new_name:
+            continue
+        records.append({
+            "venue_id":   vid,
+            "checkin_id": checkin_id,
+            "fields":     {"venue": (entry.get("venue", ""), new_name)},
+        })
+        entry["venue"] = new_name
+    if records and not dry_run:
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return records
+
+
 def _write_diffs(
     changes: list[dict],
     out_path: str,
@@ -291,6 +382,10 @@ def main() -> None:
     parser.add_argument("--backfill", default=None,
                         help="Path to backfill.csv — reconstructed rows reuse real venue_ids "
                              "and must follow the same rename/move")
+    parser.add_argument("--ratings", default=None,
+                        help="Path to venueRatings.json — carries a denormalized venue name")
+    parser.add_argument("--comments", default=None,
+                        help="Path to comments.json — carries a denormalized venue name")
     parser.add_argument("--out",     default=None,
                         help="Write venue diffs as JSON to this path (for sync_to_d1.py --venue-changes)")
     parser.add_argument("--dry-run", action="store_true", help="Report changes without writing")
@@ -351,6 +446,33 @@ def main() -> None:
                 else:
                     log.info("Saved %s", bf_path)
                 log.info("")
+
+    # ── Patch the venue-name-only JSONs ────────────────────────────────────────
+    # Both denormalize the venue name and are rendered on the site, so a rename
+    # that only lands in checkins.csv leaves them showing the old one forever.
+    for label, arg, patcher, id_key in (
+        ("venueRatings.json", args.ratings,  patch_ratings,  "bucket"),
+        ("comments.json",     args.comments, patch_comments, "checkin_id"),
+    ):
+        if not arg:
+            continue
+        p = Path(arg)
+        if not p.exists():
+            log.info("%s not found at %s — skipping.", label, p)
+            continue
+        recs = patcher(p, changes, dry_run=args.dry_run)
+        if not recs:
+            log.info("%s unchanged.", label)
+            continue
+        log.info("")
+        log.info("── Updated %s (%d) ──", label, len(recs))
+        for i, rec in enumerate(recs, 1):
+            field_summary = ", ".join(
+                f"{f}: {ov!r} → {nv!r}" for f, (ov, nv) in rec["fields"].items()
+            )
+            log.info("  %2d. [%s]  %s", i, rec.get(id_key, ""), field_summary)
+        log.info("%s", "Dry run — not written." if args.dry_run else f"Saved {p}")
+        log.info("")
 
     # ── Patch tips.json ────────────────────────────────────────────────────────
     if not tips_path.exists():

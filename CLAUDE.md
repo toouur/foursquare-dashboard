@@ -183,18 +183,28 @@ python scripts/gen_d1_dump.py \
 ### After "Archive check-in snapshot" — sync venue changes to D1
 Run after `sync_venue_changes.py` patches a new CSV snapshot. This applies targeted
 `UPDATE checkins SET field WHERE venue_id` for each changed venue + records an audit row.
-**`--backfill` is not optional in practice:** reconstructed `rf*` rows reuse the SAME
-real venue_ids, so a Foursquare rename that lands in `checkins.csv` would otherwise
-leave `backfill.csv` on the old name — one venue_id with two names in every build, and
-in `/api/feed` permanently (rf* rows are reconciled on every sync, so the stale name is
-re-seeded each run). `archive-checkins.yml` passes it automatically.
+**Every file that denormalizes the venue name must be passed, or it silently rots.**
+`checkins.csv` is only the source of truth — the same name is copied into `tips.json`,
+`backfill.csv`, `venueRatings.json` and `comments.json`. `--backfill` matters most:
+reconstructed `rf*` rows reuse the SAME real venue_ids, so a rename that lands in
+`checkins.csv` would leave one venue_id with two names in every build — and in
+`/api/feed` permanently, since rf* rows are reconciled on every sync and the stale name
+gets re-seeded each run. `archive-checkins.yml` passes all four automatically.
+
+**The diff is snapshot-vs-refetch, so never "pre-fix" a rename by hand.** The workflow
+snapshots `checkins.csv` at the START of its run and only then does the `--full`
+re-fetch. Correcting the name in the CSV yourself makes both sides identical, the diff
+comes out empty, and D1 keeps the stale name forever (the check-in sync is append-only).
+Let the workflow see the old name and do the rename itself.
 ```bash
-# 1. Diff old vs new snapshot, patch tips.json + backfill.csv, write diffs JSON
+# 1. Diff old vs new snapshot, patch tips/backfill/ratings/comments, write diffs JSON
 python scripts/sync_venue_changes.py \
   --old C:/Users/toouur/Documents/GitHub/foursquare-data/archive/checkins_PREV.csv \
   --new C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
   --tips C:/Users/toouur/Documents/GitHub/foursquare-data/tips.json \
   --backfill C:/Users/toouur/Documents/GitHub/foursquare-data/backfill.csv \
+  --ratings  C:/Users/toouur/Documents/GitHub/foursquare-data/venueRatings.json \
+  --comments C:/Users/toouur/Documents/GitHub/foursquare-data/comments.json \
   --out  /tmp/venue_diffs.json
 
 # 2. Apply diffs to D1 (targeted UPDATE + venue_changes audit table)
