@@ -126,6 +126,8 @@ a{color:inherit;}
 .tl-checkin-venue a:hover{color:var(--gold);}
 .tl-checkin-sub{font-size:.65rem;color:var(--muted);}
 .tl-refurb{flex-shrink:0;margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:5px;padding:2px 6px;font-family:'DM Mono',monospace;font-size:.5rem;letter-spacing:.04em;white-space:nowrap;}
+.tl-no-fsq{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.4);color:#60a5fa;border-radius:5px;padding:2px 6px;font-family:'DM Mono',monospace;font-size:.5rem;letter-spacing:.04em;white-space:nowrap;margin-top:2px;}
+.tl-refurb-stack{flex-shrink:0;margin-left:auto;display:inline-flex;flex-direction:column;align-items:flex-end;}
 .tl-route-tip.leaflet-tooltip{background:rgba(11,13,19,.92);border:1px solid var(--gold);color:var(--gold);font-family:'DM Sans',sans-serif;font-size:.68rem;padding:3px 8px;border-radius:6px;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;}
 .tl-route-tip.leaflet-tooltip::before{border-top-color:var(--gold);}
 .mode-legend{background:rgba(11,13,19,.88);border:1px solid rgba(232,184,109,.25);border-radius:8px;padding:5px 9px;font-family:'DM Sans',sans-serif;font-size:.66rem;color:var(--text2);display:flex;gap:9px;flex-wrap:wrap;max-width:230px;}
@@ -453,7 +455,7 @@ function showTrip(id){
         return `<div class="tl-checkin" data-ts="${c.ts}">
           <div class="tl-checkin-time">${c.time}</div>
           <div class="tl-checkin-info">
-            <div class="tl-checkin-venue"><span class="tl-venue-name">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}</span>${c.refurbished?`<span class="tl-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</span>`:''}</div>
+            <div class="tl-checkin-venue"><span class="tl-venue-name">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}</span>${c.refurbished?`<span class="tl-refurb-stack"><span class="tl-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</span>${!c.venue_id?`<span class="tl-no-fsq" title="No Foursquare venue data — location from diary only">✕ no fsq data</span>`:''}</span>`:''}</div>
             <div class="tl-checkin-sub">${[c.category,c.city,c.country].filter(Boolean).join(' · ')}</div>
             ${photosHtml}
           </div>

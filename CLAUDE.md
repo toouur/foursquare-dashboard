@@ -183,12 +183,18 @@ python scripts/gen_d1_dump.py \
 ### After "Archive check-in snapshot" — sync venue changes to D1
 Run after `sync_venue_changes.py` patches a new CSV snapshot. This applies targeted
 `UPDATE checkins SET field WHERE venue_id` for each changed venue + records an audit row.
+**`--backfill` is not optional in practice:** reconstructed `rf*` rows reuse the SAME
+real venue_ids, so a Foursquare rename that lands in `checkins.csv` would otherwise
+leave `backfill.csv` on the old name — one venue_id with two names in every build, and
+in `/api/feed` permanently (rf* rows are reconciled on every sync, so the stale name is
+re-seeded each run). `archive-checkins.yml` passes it automatically.
 ```bash
-# 1. Diff old vs new snapshot, patch tips.json, write diffs JSON
+# 1. Diff old vs new snapshot, patch tips.json + backfill.csv, write diffs JSON
 python scripts/sync_venue_changes.py \
   --old C:/Users/toouur/Documents/GitHub/foursquare-data/archive/checkins_PREV.csv \
   --new C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
   --tips C:/Users/toouur/Documents/GitHub/foursquare-data/tips.json \
+  --backfill C:/Users/toouur/Documents/GitHub/foursquare-data/backfill.csv \
   --out  /tmp/venue_diffs.json
 
 # 2. Apply diffs to D1 (targeted UPDATE + venue_changes audit table)

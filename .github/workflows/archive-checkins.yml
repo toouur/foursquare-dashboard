@@ -125,14 +125,23 @@ jobs:
           print("Guard passed — snapshot is complete enough to sync.")
           PY
 
-      # ── 7. Diff old vs new — detect venue renames/moves, sync tips.json ────
-      - name: Sync venue changes into tips.json
+      # ── 7. Diff old vs new — detect venue renames/moves, sync tips + backfill ─
+      # backfill.csv reuses the SAME real venue_ids, so a rename that lands in
+      # checkins.csv must follow through there too — otherwise one venue_id shows
+      # two different names (and sync_to_d1 re-seeds the stale one into /api/feed
+      # on every run, since rf* rows are reconciled rather than append-only).
+      - name: Sync venue changes into tips.json + backfill.csv
         run: |
           if [ -n "$ARCHIVE_NAME" ] && [ -f "private-data/tips.json" ]; then
+            BACKFILL_ARG=""
+            if [ -f private-data/backfill.csv ]; then
+              BACKFILL_ARG="--backfill private-data/backfill.csv"
+            fi
             python scripts/sync_venue_changes.py \
               --old "private-data/archive/${ARCHIVE_NAME}" \
               --new  private-data/checkins.csv \
               --tips private-data/tips.json \
+              $BACKFILL_ARG \
               --out  /tmp/venue_diffs.json
           else
             echo "No archive snapshot or no tips.json — skipping venue diff."
@@ -146,6 +155,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add checkins.csv tips.json
+          if [ -f backfill.csv ]; then git add backfill.csv; fi
           [ -n "$ARCHIVE_NAME" ] && git add "archive/${ARCHIVE_NAME}"
           [ -f checkins_anomalies.json ] && git add checkins_anomalies.json
           [ -f duplicate_checkins.csv  ] && git add duplicate_checkins.csv
