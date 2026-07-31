@@ -166,6 +166,29 @@ def process(
                 round(sum(p[1] for p in pts) / len(pts), 3),
                 len(pts),
             ]
+    # ── Era-aware home centroid ───────────────────────────────────────────────
+    # Home moved over the years (Chișinău → Minsk → Chișinău), so a single flat
+    # centroid would measure most of the history against a city that was not
+    # home at the time. Resolve the home in force at each check-in's own
+    # timestamp, mirroring trips._home_at, with each era's coords resolved once.
+    _HOME_FALLBACK = (53.9045, 27.5615)   # Minsk — if an era city has no centroid
+
+    def _home_pt(city: str) -> tuple[float, float]:
+        c = city_centroids.get(city)
+        return (float(c[0]), float(c[1])) if c else _HOME_FALLBACK
+
+    _home_eras: list[tuple[int, tuple[float, float]]] = [
+        (until_ts, _home_pt(city)) for until_ts, city in (home_history or [])
+    ]
+    _home_now = _home_pt(home_city)
+
+    def home_at_ts(ts: int) -> tuple[float, float]:
+        """Home centroid in effect at unix-ts ``ts`` (see trips._home_at)."""
+        for _until, _pt in _home_eras:
+            if ts < _until:
+                return _pt
+        return _home_now
+
     by_year    = Counter(d.year for d in dates)
     by_month   = Counter((d.year, d.month) for d in dates)
     by_hour    = Counter(d.hour for d in dates)
@@ -651,8 +674,6 @@ def process(
 
     # ── Trip analytics (Group 3) ───────────────────────────────────────────────
     if trips:
-        _HOME_LAT, _HOME_LNG = 53.9045, 27.5615  # Minsk
-
         # Duration histogram
         _dur_buckets = [1, 3, 7, 14, 28, 999]
         _dur_labels  = ['1 day', '2–3 days', '4–7 days', '1–2 weeks', '2–4 weeks', '4+ weeks']
@@ -689,7 +710,8 @@ def process(
         for _t in trips:
             for _ck in _t['checkins']:
                 try:
-                    _d = _haversine(_HOME_LAT, _HOME_LNG, float(_ck['lat']), float(_ck['lng']))
+                    _hla, _hlo = home_at_ts(int(_ck['ts']))
+                    _d = _haversine(_hla, _hlo, float(_ck['lat']), float(_ck['lng']))
                     if _d > _max_dist_km:
                         _max_dist_km = _d
                         _furthest = {
@@ -1012,18 +1034,15 @@ def process(
 
     # ── Tier 1.3 — Distance from home + nomad score ──────────────────────────
     # Per-day mean distance from home centroid + rolling 30-day mean for chart.
-    _HOME_LAT, _HOME_LNG = country_centroids.get(home_city, [53.9045, 27.5615, 0])[:2] \
-        if home_city in country_centroids else (53.9045, 27.5615)
-    # Try to use the actual home_city centroid first (more accurate than country)
-    if home_city in city_centroids:
-        _HOME_LAT, _HOME_LNG = city_centroids[home_city]
+    # Measured against the home of the day, not today's home (see home_at_ts).
     _daily_dist: dict[str, list[float]] = defaultdict(list)
     for r in rows:
         try:
             t = int(r["date"]); la = float(r["lat"]); lo = float(r["lng"])
             if la == 0 and lo == 0:
                 continue
-            d = _haversine(_HOME_LAT, _HOME_LNG, la, lo)
+            _hla, _hlo = home_at_ts(t)
+            d = _haversine(_hla, _hlo, la, lo)
             key = datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d")
             _daily_dist[key].append(d)
         except (ValueError, KeyError, TypeError, OSError):
@@ -1669,11 +1688,12 @@ def process(
         for r in rows_y:
             try:
                 la, ln = float(r["lat"]), float(r["lng"])
+                _hla, _hlo = home_at_ts(int(r["date"]))
             except (ValueError, KeyError, TypeError):
                 continue
             if la == 0.0 and ln == 0.0:
                 continue
-            d_km = _haversine(_HOME_LAT, _HOME_LNG, la, ln)
+            d_km = _haversine(_hla, _hlo, la, ln)
             if d_km > far_km:
                 far_km = d_km
                 far_city = r.get("city", "").strip() or r.get("country", "").strip()
