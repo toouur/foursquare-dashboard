@@ -143,6 +143,66 @@ class TestHubExtension:
         assert "M1 Highway" in venues
 
 
+class TestRelocationTrip:
+    """A move to a new home city: the trip's last check-in IS the homecoming.
+
+    Mirrors the real 2026-07-29 Minsk→Chișinău move. Rows dated before the era
+    boundary are "away" (home is still Minsk), so the arrival at the new flat
+    lands *inside* the trip — and everything after the boundary is ordinary
+    home-city life that must stay out of it.
+    """
+
+    # Era boundary: rows before it are Minsk-home, at/after it Chișinău-home.
+    CUTOVER = T0 + 2 * DAY
+    HOME_VID = "f" * 24                    # the new flat's venue_id
+
+    def _rows(self):
+        start = T0 + DAY
+        rows = [home(T0)]                                    # Minsk, home era
+        rows += [away(start + i * HOUR) for i in range(4)]   # Warsaw, en route
+        # Arrival at the new flat, still before the cutover → part of the trip.
+        rows += [away(self.CUTOVER - 2 * HOUR, city="Chisinau", country="Moldova",
+                      category="Apartment or Condo", venue="Alecu Russo, 55",
+                      venue_id=self.HOME_VID)]
+        # Next day, new home city: ordinary life, not trip material.
+        rows += [away(self.CUTOVER + 10 * HOUR, city="Chisinau", country="Moldova",
+                      category="Neighborhood", venue="Ciocana",
+                      venue_id="c" * 24)]
+        return rows
+
+    def _kw(self, **over):
+        kw = {
+            "home_city": "Chisinau",
+            "min_checkins": 5,
+            "home_history": [(self.CUTOVER, "Minsk")],
+        }
+        kw.update(over)
+        return kw
+
+    def test_trip_ends_at_home_venue(self):
+        trips = detect_trips(self._rows(),
+                             **self._kw(home_venue_ids={self.HOME_VID}))
+        assert len(trips) == 1
+        t = trips[0]
+        assert t["checkins"][-1]["venue"] == "Alecu Russo, 55"
+        assert t["checkin_count"] == 5      # 4 Warsaw + the homecoming, no more
+        assert "Ciocana" not in [c["venue"] for c in t["checkins"]]
+
+    def test_without_home_venue_ids_neighborhood_absorbs_next_day(self):
+        # Same timeline, guard disarmed: the arrival Neighborhood fallback
+        # reaches into the following day. This is the behaviour the
+        # home-venue guard exists to suppress.
+        trips = detect_trips(self._rows(), **self._kw())
+        assert len(trips) == 1
+        assert trips[0]["checkins"][-1]["venue"] == "Ciocana"
+
+    def test_guard_only_fires_on_configured_home_venue(self):
+        # An unrelated venue id in home_venue_ids must not arm the guard.
+        trips = detect_trips(self._rows(),
+                             **self._kw(home_venue_ids={"z" * 24}))
+        assert trips[0]["checkins"][-1]["venue"] == "Ciocana"
+
+
 class TestNamingAndMetadata:
     def test_two_country_trip_name(self):
         start = T0 + DAY

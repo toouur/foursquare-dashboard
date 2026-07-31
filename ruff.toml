@@ -1,8 +1,13 @@
 # Ruff lint config — checked in CI (tests.yml) and runnable locally:
 #   python -m ruff check scripts/ tests/
-# Default rule set (E4/E7/E9 + F) minus rules that conflict with the
-# codebase's deliberate compact style.
+# Rule set E4/E7/E9 + F minus rules that conflict with the codebase's
+# deliberate compact style.
+# `select` is stated EXPLICITLY rather than relying on ruff's default: ruff
+# 0.16 broadened that default to a much wider set (BLE/S/B/I/SIM/…), which
+# turned an ignore-only config into ~237 findings repo-wide. CI installs ruff
+# unpinned, so the selection has to live here to stay version-proof.
 [lint]
+select = ["E4", "E7", "E9", "F"]
 ignore = [
     "E401",  # multiple imports on one line — used intentionally in scripts
     "E701",  # one-line `if x: y` — aligned flag blocks are house style

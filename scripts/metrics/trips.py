@@ -291,8 +291,11 @@ def detect_trips(
             row_city = valid[i].get("city", "").strip()
             if trip_start_ts - int(valid[i]["date"]) > _24H:
                 break
-            if row_city == home_city:
-                if _is_home_transport(valid[i], home_city):
+            # Era-aware home: the departure hub of a 2013 trip is in the home of
+            # 2013, not in whatever `home_city` happens to be today.
+            row_home = _home_at(int(valid[i]["date"]), home_city, home_history)
+            if row_city == row_home:
+                if _is_home_transport(valid[i], row_home):
                     if dep_hub is None:
                         dep_hub = i  # first hub found (nearest to trip start)
                     else:
@@ -337,7 +340,7 @@ def detect_trips(
                 if trip_start_ts - row_ts > _24H:
                     break
                 row_city = valid[i].get("city", "").strip()
-                if row_city == home_city or row_city == "":
+                if row_city == _home_at(row_ts, home_city, home_history) or row_city == "":
                     cat = valid[i].get("category", "").strip()
                     row_date = datetime.fromtimestamp(row_ts, tz=timezone.utc).date()
                     if row_date == trip_start_utc_date:
@@ -359,6 +362,18 @@ def detect_trips(
                 if dep_gap <= _MAX_DEP_GAP:
                     ext = valid[chosen_dep:fp] + ext
 
+        # --- Already home? ---
+        # If the trip's last check-in is itself the homecoming — a check-in at a
+        # configured home venue (`home_history[].venues`) — there is nothing left
+        # to extend towards: skip both the arrival-hub scan and the home-arrival
+        # extension below.  This is what a *relocation* trip looks like: the last
+        # non-home-city check-in IS the arrival at the (new) home, and everything
+        # after it is ordinary home-city life.  Without this guard the arrival
+        # scan would walk forward up to 24 h and drag the whole next day into the
+        # trip (its Neighborhood fallback in particular).
+        ends_at_home = bool(home_venue_ids) and \
+            trip_rows[-1].get("venue_id", "").strip() in (home_venue_ids or ())
+
         # --- Arrival ---
         # Scan ALL rows within 24 h after the trip's last check-in for the first
         # home-city transport hub.  We intentionally do NOT stop at intermediate
@@ -369,18 +384,19 @@ def detect_trips(
         trip_end_ts = int(trip_rows[-1]["date"])
         arr_hub: int | None = None
         i = lp + 1
-        while i < len(valid):
+        while i < len(valid) and not ends_at_home:
             if int(valid[i]["date"]) - trip_end_ts > _24H:
                 break
             row_city = valid[i].get("city", "").strip()
-            if row_city == home_city and _is_home_transport(valid[i], home_city):
+            row_home = _home_at(int(valid[i]["date"]), home_city, home_history)
+            if row_city == row_home and _is_home_transport(valid[i], row_home):
                 arr_hub = i  # nearest hub — stop here
                 break
             i += 1
         if arr_hub is not None:
             # Include all rows between trip end and hub (inclusive)
             ext = ext + valid[lp + 1 : arr_hub + 1]
-        else:
+        elif not ends_at_home:
             # Fallback: if no transport hub found, look for a Neighborhood
             # check-in in the home city (e.g. car trip arriving back in a
             # residential area with no fuel stop).
@@ -392,9 +408,10 @@ def detect_trips(
                 if int(valid[i]["date"]) - trip_end_ts > _24H:
                     break
                 row_city = valid[i].get("city", "").strip()
-                if row_city not in ("", home_city):
+                row_home = _home_at(int(valid[i]["date"]), home_city, home_history)
+                if row_city not in ("", row_home):
                     break  # hit a different city — stop
-                if row_city == home_city:
+                if row_city == row_home:
                     cat = valid[i].get("category", "").strip()
                     if cat == "Home (private)":
                         break  # already home — no Neighborhood extension needed
@@ -459,7 +476,7 @@ def detect_trips(
                 if current_start_ts - row_ts > _BIKE_DEP_WINDOW:
                     break
                 row_city = row.get("city", "").strip()
-                if row_city == home_city:
+                if row_city == _home_at(row_ts, home_city, home_history):
                     bike_window.insert(0, j)  # keep in chronological order
                     j -= 1
                 elif row_city == "":
@@ -518,7 +535,7 @@ def detect_trips(
         cur_end_idx = pos[id(ext[-1])]
         home_idx: int | None = None
         j = cur_end_idx + 1
-        while j < len(valid):
+        while j < len(valid) and not ends_at_home:
             row_ts = int(valid[j]["date"])
             if row_ts - cur_end_ts > _MAX_HOME_ARRIVAL:
                 break

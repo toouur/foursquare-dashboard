@@ -2,23 +2,32 @@
 # Edit this file to customise behaviour without touching Python code.
 
 trip_detection:
-  home_city: Minsk         # current home — check-ins here are "home" (not part of a trip)
+  home_city: Chișinău      # current home — check-ins here are "home" (not part of a trip)
   min_checkins: 5          # minimum check-ins outside home to count as a real trip
   # Home city changed over time. Each entry names the home BEFORE its `until`
   # date (exclusive, UTC midnight); at/after the last `until`, `home_city` above
   # applies. So Chișinău was home from the earliest (backfilled) check-in until
   # the move to Minsk on 2012-09-01 — those Chișinău check-ins are home, not a
-  # trip, while the 2008 Black Sea run stays a trip. Keep sorted by `until`.
+  # trip, while the 2008 Black Sea run stays a trip. Minsk was then home until
+  # the move back to Chișinău on 2026-07-29. Keep sorted by `until`.
   home_history:
     - city: Chișinău
       until: "2012-09-01"
-      # venue_id(s) that ARE this era's home. A check-in at one of these counts
-      # as the homecoming for the trip's home-arrival extension regardless of its
-      # Foursquare category (e.g. "Str. Alecu Russo, 55" is categorised
-      # "Apartment or Condo", not "Home (private)"). These ids have no real
-      # check-ins, so recognising them can't perturb any modern trip.
+      # venue_id(s) that ARE home. A check-in at one of these counts as the
+      # homecoming regardless of its Foursquare category (e.g. "Str. Alecu
+      # Russo, 55" is categorised "Apartment or Condo", not "Home (private)").
+      # home_venue_ids is a UNION across eras, so this list also serves the
+      # 2026-07-29 → Chișinău era below.
+      # This venue DOES have real check-ins (59, 2013-01-20 → 2026-07-28), so it
+      # is load-bearing twice in trips.py: as the homecoming target of the
+      # home-arrival extension, and via the `ends_at_home` guard — a trip whose
+      # LAST check-in is here ends there, with no arrival-hub extension into the
+      # following day (that is what makes the 2026-07-17 relocation trip end on
+      # 2026-07-28 at this address instead of running into 07-29).
       venues:
         - 50fbc23ae4b0afd6fe382f57   # Str. Alecu Russo, 55 (Chișinău home)
+    - city: Minsk
+      until: "2026-07-29"
   # Optional: path to a hand-curated trips YAML override file.
   # When set, the automatic detection is skipped and these dates are used instead.
   # trips_override_file: trips_manual.yaml
