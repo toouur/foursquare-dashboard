@@ -3,16 +3,23 @@
 
 """
 sync_venue_changes.py — Diff two checkins.csv snapshots, report changed venues,
-and patch tips.json with updated venue metadata.
+and patch tips.json (and optionally backfill.csv) with updated venue metadata.
 
 After a full re-fetch, checkins.csv already has fresh venue info from the API.
 This script syncs those changes into tips.json without extra API calls.
+
+Reconstructed rows in backfill.csv reuse the SAME real Foursquare venue_ids, so
+a rename that lands in checkins.csv leaves backfill.csv holding the stale name
+for that id — a split identity in every build, and in /api/feed too, since
+sync_to_d1.py reconciles `rf*` rows on every run. Pass --backfill to keep both
+sides on the same name.
 
 Usage:
     python scripts/sync_venue_changes.py \\
         --old private-data/archive/checkins_2026-03-26T12-00-00Z.csv \\
         --new private-data/checkins.csv \\
-        --tips private-data/tips.json [--dry-run]
+        --tips private-data/tips.json \\
+        [--backfill private-data/backfill.csv] [--dry-run]
 
 Exit codes:
     0 — success (changes applied or nothing to do)
@@ -184,6 +191,61 @@ def patch_tips(
     return tips, patch_records
 
 
+def patch_backfill(
+    path: Path,
+    changes: list[dict],
+    dry_run: bool = False,
+) -> list[dict]:
+    """
+    Apply venue changes to the reconstructed rows in backfill.csv.
+
+    Reconstructed rows carry real Foursquare venue_ids, so they must follow the
+    same rename/move as the real check-ins. Rows with a blank venue_id (places
+    that have no Foursquare venue) are untouched.
+
+    Returns a list of {checkin_id, venue, venue_id, fields: {field: (old, new)}}.
+    """
+    patches: dict[str, dict] = {}
+    for ch in changes:
+        patches[ch["venue_id"]] = {field: nv for field, (_, nv) in ch["fields"].items()}
+    if not patches:
+        return []
+
+    with path.open(encoding="utf-8", newline="") as fh:
+        reader = csv.DictReader(fh)
+        fieldnames = list(reader.fieldnames or [])
+        rows = list(reader)
+
+    patch_records: list[dict] = []
+    for row in rows:
+        vid = (row.get("venue_id") or "").strip()
+        if not vid or vid not in patches:
+            continue
+        changed_fields = {}
+        for field, new_val in patches[vid].items():
+            if field not in fieldnames:
+                continue
+            old_val = row.get(field) or ""
+            if old_val == new_val:
+                continue
+            changed_fields[field] = (old_val, new_val)
+            row[field] = new_val
+        if changed_fields:
+            patch_records.append({
+                "checkin_id": row.get("checkin_id", ""),
+                "venue":      row.get("venue", ""),
+                "venue_id":   vid,
+                "fields":     changed_fields,
+            })
+
+    if patch_records and not dry_run:
+        with path.open("w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+    return patch_records
+
+
 def _write_diffs(
     changes: list[dict],
     out_path: str,
@@ -226,6 +288,9 @@ def main() -> None:
     parser.add_argument("--old",     required=True, help="Path to the archived (old) checkins.csv")
     parser.add_argument("--new",     required=True, help="Path to the freshly-fetched checkins.csv")
     parser.add_argument("--tips",    required=True, help="Path to tips.json")
+    parser.add_argument("--backfill", default=None,
+                        help="Path to backfill.csv — reconstructed rows reuse real venue_ids "
+                             "and must follow the same rename/move")
     parser.add_argument("--out",     default=None,
                         help="Write venue diffs as JSON to this path (for sync_to_d1.py --venue-changes)")
     parser.add_argument("--dry-run", action="store_true", help="Report changes without writing")
@@ -260,6 +325,32 @@ def main() -> None:
                 f"{f}: {ov!r}→{nv!r}" for f, (ov, nv) in ch["fields"].items()
             )
             log.info("  %-26s  %s  [%s]", ch["venue_id"], ch["venue_name"], field_summary)
+
+    # ── Patch backfill.csv ─────────────────────────────────────────────────────
+    # Runs before the tips block, which returns early when tips.json is absent.
+    if args.backfill:
+        bf_path = Path(args.backfill)
+        if not bf_path.exists():
+            log.info("backfill.csv not found at %s — skipping backfill patch.", bf_path)
+        else:
+            bf_records = patch_backfill(bf_path, changes, dry_run=args.dry_run)
+            if not bf_records:
+                log.info("backfill.csv unchanged.")
+            else:
+                log.info("")
+                log.info("── Updated backfill rows (%d) ────────────────────────", len(bf_records))
+                for i, rec in enumerate(bf_records, 1):
+                    field_summary = ", ".join(
+                        f"{f}: {ov!r} → {nv!r}" for f, (ov, nv) in rec["fields"].items()
+                    )
+                    log.info("  %2d. [%s]  %s", i, rec["checkin_id"], rec["venue"])
+                    log.info("       %s", field_summary)
+                log.info("─────────────────────────────────────────────────────")
+                if args.dry_run:
+                    log.info("Dry run — backfill.csv not written.")
+                else:
+                    log.info("Saved %s", bf_path)
+                log.info("")
 
     # ── Patch tips.json ────────────────────────────────────────────────────────
     if not tips_path.exists():
