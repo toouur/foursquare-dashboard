@@ -41,6 +41,10 @@ Usage:
   # many check-ins at once: CSV with header  checkin_id,photo_path
   python scripts/add_backfill_photo.py --batch map.csv --photos private-data/photos.json
 
+  # propose a mapping to review by hand, then feed the edited file back via --batch
+  python scripts/add_backfill_photo.py --suggest map.csv --dir "C:/.../photos" \\
+      --backfill .../backfill.csv --photos private-data/photos.json
+
   # preview only
   python scripts/add_backfill_photo.py --checkin-id rf0201 --dir ... --dry-run
 """
@@ -53,6 +57,8 @@ import io
 import json
 import logging
 import os
+import re
+from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -61,18 +67,26 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 DEFAULT_BUCKET = "foursquare-photos"
 R2_PREFIX = "pix/"
 EXT = {".jpg", ".jpeg", ".png", ".heic", ".webp", ".bmp", ".tif", ".tiff"}
-EXIF_DATETIME = 36867          # DateTimeOriginal
+EXIF_DATETIME = 36867          # DateTimeOriginal — lives in the Exif SubIFD, not IFD0
+EXIF_IFD = 0x8769              # pointer to that SubIFD
+EXIF_DATETIME_FALLBACK = 306   # DateTime (file/edit time) in IFD0 — last resort
 CACHE_CONTROL = "public, max-age=31536000, immutable"
 
 
 # --------------------------------------------------------------------- images
 def exif_ts(path: Path) -> str:
-    """DateTimeOriginal as 'YYYY:MM:DD HH:MM:SS', or '' — used only for ordering."""
+    """DateTimeOriginal as 'YYYY:MM:DD HH:MM:SS', or ''.
+
+    `getexif()` only returns IFD0; DateTimeOriginal sits in the Exif SubIFD behind
+    tag 0x8769, so it has to be opened explicitly — reading IFD0 alone silently
+    returns '' for every camera original.
+    """
     try:
         from PIL import Image
         with Image.open(path) as im:
             ex = im.getexif()
-            return str(ex.get(EXIF_DATETIME) or "")
+            val = ex.get_ifd(EXIF_IFD).get(EXIF_DATETIME) or ex.get(EXIF_DATETIME_FALLBACK)
+            return str(val or "").strip().rstrip("\x00")
     except Exception:
         return ""
 
@@ -136,6 +150,17 @@ def exists_in_r2(client, bucket: str, key: str) -> bool:
 
 
 # --------------------------------------------------------------------- inputs
+def input_images(args: argparse.Namespace) -> list[Path]:
+    """--photo / --dir, ordered by EXIF capture time (filename as tiebreak)."""
+    files: list[Path] = [Path(p) for p in (args.photo or [])]
+    if args.dir:
+        found = [p for p in Path(args.dir).iterdir()
+                 if p.is_file() and p.suffix.lower() in EXT]
+        found.sort(key=lambda p: (exif_ts(p) or "9999", p.name.lower()))
+        files.extend(found)
+    return files
+
+
 def collect_jobs(args: argparse.Namespace) -> list[tuple[str, Path]]:
     """-> [(checkin_id, image path)] in render order."""
     jobs: list[tuple[str, Path]] = []
@@ -152,13 +177,7 @@ def collect_jobs(args: argparse.Namespace) -> list[tuple[str, Path]]:
     if not cid:
         log.error("Pass --checkin-id with --photo/--dir, or use --batch.")
         raise SystemExit(2)
-    files: list[Path] = [Path(p) for p in (args.photo or [])]
-    if args.dir:
-        found = [p for p in Path(args.dir).iterdir()
-                 if p.is_file() and p.suffix.lower() in EXT]
-        # EXIF capture time first, filename as the tiebreak / fallback
-        found.sort(key=lambda p: (exif_ts(p) or "9999", p.name.lower()))
-        files.extend(found)
+    files = input_images(args)
     if not files:
         log.error("No input images (--photo / --dir matched nothing).")
         raise SystemExit(2)
@@ -180,6 +199,177 @@ def known_checkin_ids(paths: list[str]) -> set[str]:
     return ids
 
 
+# -------------------------------------------------------------------- suggest
+# Backfill rows are stored as unix ts read as UTC, while EXIF DateTimeOriginal is
+# camera-local wall clock with no offset — so a row has to be rendered in ITS OWN
+# local time before the two can be compared. metrics.trips._COUNTRY_TZ is not reused:
+# it has no Russia key (20 backfill rows) and importing it warns about timezonefinder.
+COUNTRY_TZ = {
+    "Moldova": "Europe/Chisinau", "Belarus": "Europe/Minsk", "Ukraine": "Europe/Kyiv",
+    "Russia": "Europe/Moscow", "Romania": "Europe/Bucharest", "Poland": "Europe/Warsaw",
+    "Lithuania": "Europe/Vilnius", "Latvia": "Europe/Riga", "Estonia": "Europe/Tallinn",
+    "Turkey": "Europe/Istanbul", "Bulgaria": "Europe/Sofia", "Hungary": "Europe/Budapest",
+    "Germany": "Europe/Berlin", "Czechia": "Europe/Prague", "Austria": "Europe/Vienna",
+    "Italy": "Europe/Rome", "France": "Europe/Paris", "Spain": "Europe/Madrid",
+    "Greece": "Europe/Athens", "Georgia": "Asia/Tbilisi", "Egypt": "Africa/Cairo",
+}
+
+
+def row_tz(country: str, lng: str) -> tzinfo:
+    """Timezone of a backfill row: country table, else a longitude guess. Never raises."""
+    name = COUNTRY_TZ.get((country or "").strip())
+    if name:
+        try:
+            from zoneinfo import ZoneInfo
+            return ZoneInfo(name)
+        except Exception:
+            pass
+    try:
+        return timezone(timedelta(hours=round(float(lng) / 15)))
+    except (TypeError, ValueError):
+        return timezone.utc
+
+
+def photo_taken(path: Path) -> datetime | None:
+    """EXIF DateTimeOriginal as a naive (camera-local) datetime."""
+    raw = exif_ts(path)
+    try:
+        return datetime.strptime(raw, "%Y:%m:%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def load_rows(paths: list[str]) -> list[dict[str, str]]:
+    """Rows from the given CSVs, each with a naive row-local `_local` datetime added."""
+    out: list[dict[str, str]] = []
+    for p in paths:
+        f = Path(p)
+        if not f.exists():
+            log.warning("not found, skipped: %s", f)
+            continue
+        with open(f, encoding="utf-8", newline="") as fh:
+            for r in csv.DictReader(fh):
+                if not (r.get("checkin_id") or "").strip():
+                    continue
+                try:
+                    ts = int(r["date"])
+                except (KeyError, ValueError):
+                    continue
+                tz = row_tz(r.get("country", ""), r.get("lng", ""))
+                r["_local"] = datetime.fromtimestamp(ts, tz).replace(tzinfo=None).isoformat(" ")
+                out.append(r)
+    return out
+
+
+def attached_hashes(index: dict[str, list[str]], prefix: str) -> dict[str, str]:
+    """sha1[:8] -> checkin_id for photos already attached by this script."""
+    pat = re.compile(rf"^{re.escape(prefix)}_(.+)_([0-9a-f]{{8}})\.jpg$")
+    seen: dict[str, str] = {}
+    for cid, names in index.items():
+        for n in names:
+            m = pat.match(n)
+            if m:
+                seen[m.group(2)] = cid
+    return seen
+
+
+SUGGEST_COLS = ["checkin_id", "photo_path", "photo_time", "checkin_time", "venue",
+                "city", "gap_h", "day_delta", "confidence", "alternatives"]
+
+
+def suggest(args: argparse.Namespace) -> None:
+    """Propose a checkin_id,photo_path mapping by EXIF day — for human review, then --batch."""
+    files = input_images(args)
+    if not files:
+        log.error("No input images (--photo / --dir matched nothing).")
+        raise SystemExit(2)
+
+    sources = [p for p in (args.backfill, args.csv) if p]
+    if not sources:
+        log.error("--suggest needs --backfill (and optionally --csv) to match against.")
+        raise SystemExit(2)
+    rows = load_rows(sources)
+    log.info("%d candidate rows from %s", len(rows), ", ".join(sources))
+
+    # Already-attached detection: re-encode each input and look up its content hash.
+    index: dict[str, list[str]] = {}
+    photos_path = Path(args.photos)
+    if photos_path.exists():
+        with open(photos_path, encoding="utf-8") as fh:
+            index = json.load(fh)
+    known = attached_hashes(index, args.prefix)
+
+    window = timedelta(hours=args.window_hours)
+    out: list[dict[str, str]] = []
+    for src in files:
+        rec = {c: "" for c in SUGGEST_COLS}
+        rec["photo_path"] = str(src)
+
+        taken = photo_taken(src)
+        rec["photo_time"] = taken.isoformat(" ") if taken else ""
+
+        if known:
+            try:
+                blob = process(src, args.max_size, args.quality)
+                h = hashlib.sha1(blob).hexdigest()[:8]
+            except Exception as exc:
+                log.warning("cannot process %s: %s", src.name, exc)
+                h = ""
+            if h and h in known:
+                rec["confidence"] = f"already:{known[h]}"
+                out.append(rec)
+                continue
+
+        if not taken:
+            rec["confidence"] = "no-exif"
+            out.append(rec)
+            continue
+
+        # Row hours are synthetic placeholders, so the clock only RANKS same-day
+        # candidates — the window is day-sized on purpose (rf0201's own photos sit
+        # 19-21 h from its row time; a ±12 h window would match none of them).
+        cands = []
+        for r in rows:
+            rt = datetime.fromisoformat(r["_local"])
+            gap = rt - taken
+            if abs(gap) <= window:
+                cands.append((abs(gap), gap, r, rt))
+        cands.sort(key=lambda c: (c[0], c[2]["checkin_id"]))
+
+        if not cands:
+            rec["confidence"] = "no-row"
+            out.append(rec)
+            continue
+
+        _, gap, r, rt = cands[0]
+        rec["checkin_id"] = r["checkin_id"]
+        rec["checkin_time"] = rt.isoformat(" ")
+        rec["venue"] = r.get("venue", "")
+        rec["city"] = r.get("city", "")
+        rec["gap_h"] = f"{gap.total_seconds() / 3600:+.1f}"
+        rec["day_delta"] = str((rt.date() - taken.date()).days)
+        rec["confidence"] = "unique" if len(cands) == 1 else f"pick-1-of-{len(cands)}"
+        rec["alternatives"] = " | ".join(
+            f"{c[2]['checkin_id']} {c[3].strftime('%H:%M')} {c[2].get('venue', '')}"
+            for c in cands[1:6])
+        out.append(rec)
+
+    out.sort(key=lambda r: (r["photo_time"] or "9999", r["photo_path"]))
+    dest = Path(args.suggest)
+    with open(dest, "w", encoding="utf-8", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=SUGGEST_COLS)
+        w.writeheader()
+        w.writerows(out)
+
+    picked = sum(1 for r in out if r["checkin_id"])
+    tally: dict[str, int] = {}
+    for r in out:
+        tally[r["confidence"].split(":")[0]] = tally.get(r["confidence"].split(":")[0], 0) + 1
+    log.info("Wrote %s — %d/%d photos matched (%s).", dest, picked, len(out),
+             ", ".join(f"{k} {v}" for k, v in sorted(tally.items())))
+    log.info("Review it by hand (blank checkin_id = skipped), then: --batch %s", dest)
+
+
 # ----------------------------------------------------------------------- main
 def main() -> None:
     ap = argparse.ArgumentParser(description="Attach local photos to backfill check-ins (R2 + photos.json)")
@@ -187,6 +377,9 @@ def main() -> None:
     ap.add_argument("--photo", action="append", help="Image file (repeatable; order preserved)")
     ap.add_argument("--dir", default="", help="Folder of images (sorted by EXIF capture time)")
     ap.add_argument("--batch", default="", help="CSV with header: checkin_id,photo_path")
+    ap.add_argument("--suggest", default="", help="Write a candidate checkin_id,photo_path CSV here (no upload)")
+    ap.add_argument("--window-hours", type=float, default=36.0,
+                    help="--suggest: how far a row may sit from the photo (default: 36 — row hours are synthetic)")
     ap.add_argument("--photos", default="private-data/photos.json", help="Path to photos.json")
     ap.add_argument("--csv", default="", help="checkins.csv — validates the id exists (optional)")
     ap.add_argument("--backfill", default="", help="backfill.csv — validates the id exists (optional)")
@@ -201,6 +394,10 @@ def main() -> None:
     ap.add_argument("--no-upload", action="store_true", help="Skip R2, only update photos.json")
     ap.add_argument("--dry-run", action="store_true", help="Show what would happen, write nothing")
     args = ap.parse_args()
+
+    if args.suggest:
+        suggest(args)
+        return
 
     jobs = collect_jobs(args)
 
