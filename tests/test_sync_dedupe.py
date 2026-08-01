@@ -70,3 +70,16 @@ def test_candidates_may_be_a_subset_of_the_source():
 
     assert dedupe_against_d1(candidates, source, {"dup": 1}) == candidates
     assert dedupe_against_d1(candidates, source, {"dup": 2}) == []
+
+
+def test_fallback_path_semantics_full_source_against_d1_counts():
+    """The set-difference fallback now feeds the whole source through the same
+    helper. Whatever D1 is short of gets inserted — including the second copy of
+    a check-in the CSV lists twice, which the old `id not in existing_ids`
+    filter discarded along with the first."""
+    source = [_row("only-in-csv"), _row("dup"), _row("dup"), _row("synced")]
+    d1_counts = {"dup": 1, "synced": 1}
+
+    kept = dedupe_against_d1(source, source, d1_counts)
+
+    assert [r[0] for r in kept] == ["only-in-csv", "dup"]

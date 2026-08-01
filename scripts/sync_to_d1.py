@@ -694,9 +694,13 @@ def main() -> None:
             missing = len(real_rows) - real_d1_count - len(new_checkin_rows)
             print(f"D1 sync: row-count mismatch ({missing} unaccounted) — "
                   f"falling back to checkin_id set-difference", flush=True)
-            existing = d1.query("SELECT id FROM checkins")
-            existing_ids = {row["id"] for row in existing} if existing else set()
-            new_checkin_rows = [r for r in real_rows if r[0] not in existing_ids]
+            # Counts, not a set of ids: `r[0] not in existing_ids` drops BOTH
+            # copies of an id D1 already holds once, so the twelve check-ins the
+            # CSV legitimately lists twice could never finish arriving. Asking
+            # for COUNT(*) costs the same one row per id as SELECT id did.
+            existing = d1.query("SELECT id, COUNT(*) AS n FROM checkins GROUP BY id")
+            all_id_counts = {row["id"]: (row.get("n") or 0) for row in existing} if existing else {}
+            new_checkin_rows = dedupe_against_d1(real_rows, real_rows, all_id_counts)
 
         # Final guard against the double-insert race described in
         # dedupe_against_d1. Only worth it for an incremental batch: on a cold
