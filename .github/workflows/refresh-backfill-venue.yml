@@ -54,7 +54,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests pyyaml
 
       - name: Fetch + patch backfill venue coords
         env:

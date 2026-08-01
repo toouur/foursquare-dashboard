@@ -133,9 +133,12 @@ def search_venue(token: str, venue_id: str, name: str, ll: str) -> dict | None:
     return None
 
 
+CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+
+
 def _load_country_aliases() -> dict:
     """Native country name -> English canonical (config/country_aliases.json)."""
-    cfg = Path(__file__).resolve().parent.parent / "config" / "country_aliases.json"
+    cfg = CONFIG_DIR / "country_aliases.json"
     try:
         return json.loads(cfg.read_text(encoding="utf-8"))
     except Exception as exc:
@@ -143,24 +146,44 @@ def _load_country_aliases() -> dict:
         return {}
 
 
+def _load_city_merge() -> dict:
+    """Raw Foursquare city -> canonical (config/city_merge.yaml).
+
+    Same story as the country map, one field over: search answers in the venue's
+    own language, so Minsk comes back as the Belarusian 'Мінск'. The build would
+    fold that through city_merge anyway, but D1 stores what the CSV holds, so an
+    un-normalized value reaches /api/feed verbatim and reads as a second city.
+    """
+    cfg = CONFIG_DIR / "city_merge.yaml"
+    try:
+        import yaml
+        return yaml.safe_load(cfg.read_text(encoding="utf-8")) or {}
+    except Exception as exc:
+        log.warning("city_merge.yaml unreadable (%s) — city left as-is", exc)
+        return {}
+
+
 CTRY_NORM = _load_country_aliases()
+CITY_NORM = _load_city_merge()
 
 
 def venue_to_patch(venue: dict) -> dict:
     """Foursquare venue object -> dict of backfill.csv fields to write.
 
-    The country is normalized through config/country_aliases.json: /venues/search
-    answers in the venue's own language ('Republica Moldova') where /venues/{id}
-    answered in English ('Moldova'), and an un-normalized value shows up on the
-    dashboard as a whole extra country sitting next to the real one.
+    City and country are normalized through config/city_merge.yaml and
+    config/country_aliases.json: /venues/search answers in the venue's own
+    language ('Republica Moldova', 'Мінск') where /venues/{id} answered in
+    English, and an un-normalized value shows up on the dashboard as a whole
+    extra city or country sitting next to the real one.
     """
     loc = venue.get("location") or {}
     cats = venue.get("categories") or []
     primary = next((c for c in cats if c.get("primary")), cats[0] if cats else {})
     lat, lng = loc.get("lat"), loc.get("lng")
+    city = (loc.get("city") or "").strip()
     return {
         "venue":        (venue.get("name") or "").strip(),
-        "city":         (loc.get("city") or "").strip(),
+        "city":         CITY_NORM.get(city, city),
         "state":        (loc.get("state") or "").strip(),
         "country":      CTRY_NORM.get((loc.get("country") or "").strip(),
                                       (loc.get("country") or "").strip()),

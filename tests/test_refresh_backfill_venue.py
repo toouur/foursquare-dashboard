@@ -125,3 +125,24 @@ def test_unknown_country_passes_through_untouched():
 
 def test_country_aliases_config_is_readable_and_covers_moldova():
     assert rbv.CTRY_NORM.get("Republica Moldova") == "Moldova"
+
+
+def test_city_is_normalized_to_the_canonical_spelling():
+    """Search answers in the venue's language for the city too: Minsk comes back
+    as 'Мінск'. D1 stores whatever the CSV holds, so an un-normalized value
+    reaches /api/feed as a second city next to the real one."""
+    venue = _venue(VID, "Дворик академии", 53.9232, 27.6007)
+    venue["location"]["city"] = "Мінск"
+
+    assert rbv.venue_to_patch(venue)["city"] == "Minsk"
+
+
+def test_unknown_city_passes_through_untouched():
+    venue = _venue(VID, "Somewhere", 1.0, 2.0)
+    venue["location"]["city"] = "Nowhereville"
+
+    assert rbv.venue_to_patch(venue)["city"] == "Nowhereville"
+
+
+def test_city_merge_config_is_readable_and_covers_minsk():
+    assert rbv.CITY_NORM.get("Мінск") == "Minsk"
