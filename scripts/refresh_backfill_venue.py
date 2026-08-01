@@ -9,9 +9,14 @@ venue directly from Foursquare.
 Unlike refresh_venue.py (which reads the *free* /users/self/checkins endpoint and
 therefore only works for venues you actually checked into), backfill venues are
 pre-2012 / historical places with no real check-in, so this uses the direct
-/v2/venues/{id} endpoint. That endpoint draws on the premium call budget, so a
-402 simply means the monthly quota is spent — the row is left untouched (its
-`[coords_approx:pending_api]` marker stays) and can be retried after the reset.
+/v2/venues/{id} endpoint. That endpoint draws on the premium call budget, so it
+402s once the monthly quota is spent — and permanently for tokens that lost
+premium access. On a 402 the script falls back to /v2/venues/search, a regular
+(free) endpoint whose result objects carry the same location/categories blocks;
+the known venue_id picks the right result, so a name collision can't mis-patch a
+row. Search hides most closed venues, so a defunct place can still come back
+empty — those rows keep their `[coords_approx:pending_api]` marker and can be
+retried later.
 
 Targets rows whose venue_id is set but coords are still placeholders — either the
 explicit --venue-ids list, or (with --all-pending) every row whose shout still
@@ -47,6 +52,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 
 VENUE_API = "https://api.foursquare.com/v2/venues/{}"
+SEARCH_API = "https://api.foursquare.com/v2/venues/search"
 API_V = "20231201"
 PENDING_MARKER = "[coords_approx:pending_api]"
 
@@ -71,7 +77,7 @@ def fetch_venue(token: str, venue_id: str) -> dict | None:
         log.warning("venue %s: request failed: %s", venue_id, exc)
         return None
     if resp.status_code == 402:
-        log.error("venue %s: 402 Payment Required — premium quota spent, retry after reset.", venue_id)
+        log.warning("venue %s: 402 Payment Required on /venues/{id} — falling back to search.", venue_id)
         return None
     if resp.status_code != 200:
         log.warning("venue %s: HTTP %d — %s", venue_id, resp.status_code, resp.text[:200])
@@ -81,6 +87,49 @@ def fetch_venue(token: str, venue_id: str) -> dict | None:
         log.warning("venue %s: API meta %s", venue_id, data.get("meta"))
         return None
     return data.get("response", {}).get("venue")
+
+
+def search_venue(token: str, venue_id: str, name: str, ll: str) -> dict | None:
+    """Free fallback: GET /v2/venues/search and pick the result whose id matches.
+
+    /v2/venues/{id} is a premium endpoint and 402s once the monthly budget is
+    spent — or permanently, for tokens that lost premium access entirely.
+    /v2/venues/search is a *regular* endpoint, and its result objects carry the
+    same `location` / `categories` blocks venue_to_patch() needs. We already know
+    the id, so the search is only used to locate that venue among the results:
+    a name match alone is never trusted.
+
+    Limitation: search hides most closed venues, so a defunct place still needs
+    the premium endpoint.
+    """
+    if not (name and ll):
+        return None
+    try:
+        resp = requests.get(
+            SEARCH_API,
+            params={"oauth_token": token, "v": API_V, "ll": ll, "query": name,
+                    "intent": "browse", "radius": 50000, "limit": 50},
+            timeout=30,
+        )
+    except Exception as exc:
+        log.warning("venue %s: search request failed: %s", venue_id, exc)
+        return None
+    if resp.status_code != 200:
+        log.warning("venue %s: search HTTP %d — %s", venue_id, resp.status_code, resp.text[:200])
+        return None
+    try:
+        data = resp.json()
+    except ValueError:
+        log.warning("venue %s: search returned non-JSON", venue_id)
+        return None
+    if data.get("meta", {}).get("code") != 200:
+        log.warning("venue %s: search API meta %s", venue_id, data.get("meta"))
+        return None
+    for cand in data.get("response", {}).get("venues") or []:
+        if cand.get("id") == venue_id:
+            return cand
+    log.warning("venue %s: not among search results for %r (closed venue?)", venue_id, name)
+    return None
 
 
 def venue_to_patch(venue: dict) -> dict:
@@ -153,10 +202,25 @@ def main() -> None:
         return
     log.info("Refreshing %d venue(s): %s", len(ids), ", ".join(ids))
 
+    # Name + a nearby coordinate per venue, so the search fallback has something
+    # to query with. Rows carry a placeholder centroid, which the 50 km radius covers.
+    hints: dict[str, tuple[str, str]] = {}
+    for r in rows:
+        vid = (r.get("venue_id") or "").strip()
+        if not vid or vid in hints:
+            continue
+        lat, lng = (r.get("lat") or "").strip(), (r.get("lng") or "").strip()
+        hints[vid] = ((r.get("venue") or "").strip(), f"{lat},{lng}" if lat and lng else "")
+
     total_changed = 0
-    ok, failed = 0, 0
+    ok, failed, via_search = 0, 0, 0
     for vid in ids:
         venue = fetch_venue(token, vid)
+        if not venue:
+            name, ll = hints.get(vid, ("", ""))
+            venue = search_venue(token, vid, name, ll)
+            if venue:
+                via_search += 1
         if not venue:
             failed += 1
             continue
@@ -180,7 +244,8 @@ def main() -> None:
         else:
             log.warning("  no backfill rows carry venue_id %s", vid)
 
-    log.info("Done: %d venue(s) ok, %d failed; %d row(s) changed.", ok, failed, total_changed)
+    log.info("Done: %d venue(s) ok (%d via search fallback), %d failed; %d row(s) changed.",
+             ok, via_search, failed, total_changed)
 
     if args.dry_run:
         log.info("Dry run — backfill.csv not written.")
