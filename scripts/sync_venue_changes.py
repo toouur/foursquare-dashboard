@@ -69,10 +69,18 @@ def load_csv_by_venue(path: Path) -> dict[str, dict]:
     return by_venue
 
 
-def _load_ts_index(path: Path) -> tuple[dict[str, list[int]], dict[int, str]]:
-    """Return ({venue_id: [timestamps]}, {timestamp: venue_id}) for merge detection."""
+def _load_ts_index(path: Path) -> tuple[dict[str, list[int]], dict[int, set[str]]]:
+    """Return ({venue_id: [timestamps]}, {timestamp: {venue_ids}}) for merge detection.
+
+    The timestamp map holds a SET, because two check-ins can share one unix second
+    at different venues (e.g. Adolf Fredriks kyrkogård + kyrka, both at 1519338605).
+    A plain {ts: vid} let the later row overwrite the earlier one, so the losing
+    venue vanished from the map, looked "gone" from the new snapshot and was
+    reported as merged into its neighbour — a phantom merge that made sync_to_d1
+    rewrite a perfectly good check-in onto the wrong venue_id.
+    """
     vid_ts: dict[str, list[int]] = {}
-    ts_vid: dict[int, str] = {}
+    ts_vid: dict[int, set[str]] = {}
     with open(path, encoding="utf-8", newline="") as fh:
         for row in csv.DictReader(fh):
             vid = row.get("venue_id", "").strip()
@@ -83,7 +91,7 @@ def _load_ts_index(path: Path) -> tuple[dict[str, list[int]], dict[int, str]]:
             if not vid or not ts:
                 continue
             vid_ts.setdefault(vid, []).append(ts)
-            ts_vid[ts] = vid
+            ts_vid.setdefault(ts, set()).add(vid)
     return vid_ts, ts_vid
 
 
@@ -100,11 +108,12 @@ def detect_merges(
     old_vid_ts, _ = _load_ts_index(old_path)
     _, new_ts_vid = _load_ts_index(new_path)
 
-    gone = set(old_vid_ts) - set(new_ts_vid.values())
+    still_present = {v for vids in new_ts_vid.values() for v in vids}
+    gone = set(old_vid_ts) - still_present
     merges = []
     for vid in sorted(gone):
         timestamps = old_vid_ts[vid]
-        targets = {new_ts_vid[ts] for ts in timestamps if ts in new_ts_vid}
+        targets = {v for ts in timestamps if ts in new_ts_vid for v in new_ts_vid[ts]}
         if len(targets) == 1:
             new_vid = next(iter(targets))
             vname = (old[vid].get("venue") or vid) if vid in old else vid

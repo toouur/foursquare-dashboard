@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from sync_venue_changes import (  # noqa: E402
     detect_changes,
+    detect_merges,
     load_csv_by_venue,
     load_name_variants,
     patch_backfill,
@@ -281,3 +282,42 @@ def test_variants_do_not_widen_non_name_fields(tmp_path):
 
     assert detect_changes(load_csv_by_venue(old_p), load_csv_by_venue(new_p),
                           load_name_variants(old_p)) == []
+
+
+def test_shared_timestamp_does_not_fake_a_merge(tmp_path):
+    """Two venues can share one unix second — neither has vanished.
+
+    Adolf Fredriks kyrkogård + kyrka both sit at 1519338605. With {ts: vid} the
+    later row overwrote the earlier, the loser looked gone, and detect_merges
+    reported a merge that made sync_to_d1 rewrite a live check-in onto the wrong
+    venue_id.
+    """
+    yard, church = "4ddf95ef18388714bb6b061d", "4adcdaeef964a520ae5a21e3"
+    rows = [{"date": "1519338605", "venue": "kyrkogård", "venue_id": yard},
+            {"date": "1519338605", "venue": "kyrka", "venue_id": church}]
+    old_p, new_p = tmp_path / "old.csv", tmp_path / "new.csv"
+    _write_snapshot(old_p, rows)
+    _write_snapshot(new_p, rows)
+
+    assert detect_merges(load_csv_by_venue(old_p), old_p, new_p) == []
+
+
+def test_real_merge_is_still_detected(tmp_path):
+    old_p, new_p = tmp_path / "old.csv", tmp_path / "new.csv"
+    _write_snapshot(old_p, [{"date": "111", "venue": "Old place", "venue_id": "a" * 24}])
+    _write_snapshot(new_p, [{"date": "111", "venue": "New place", "venue_id": "b" * 24}])
+
+    merges = detect_merges(load_csv_by_venue(old_p), old_p, new_p)
+
+    assert [(m["venue_id"], m["new_venue_id"]) for m in merges] == [("a" * 24, "b" * 24)]
+
+
+def test_merge_is_skipped_when_the_timestamp_is_ambiguous(tmp_path):
+    """A gone venue whose only timestamp is shared has two candidate targets —
+    skip rather than guess, since guessing rewrites check-ins."""
+    old_p, new_p = tmp_path / "old.csv", tmp_path / "new.csv"
+    _write_snapshot(old_p, [{"date": "111", "venue": "Old", "venue_id": "a" * 24}])
+    _write_snapshot(new_p, [{"date": "111", "venue": "X", "venue_id": "b" * 24},
+                            {"date": "111", "venue": "Y", "venue_id": "c" * 24}])
+
+    assert detect_merges(load_csv_by_venue(old_p), old_p, new_p) == []
