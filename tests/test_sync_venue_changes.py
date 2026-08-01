@@ -17,6 +17,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from sync_venue_changes import (  # noqa: E402
     detect_changes,
+    load_csv_by_venue,
+    load_name_variants,
     patch_backfill,
     patch_comments,
     patch_ratings,
@@ -214,3 +216,68 @@ def test_detect_changes_feeds_patch_backfill(tmp_path):
     _write_backfill(bf, [{"venue": OLD_NAME, "venue_id": VID, "checkin_id": "rf0095"}])
     assert len(patch_backfill(bf, changes)) == 1
     assert _read_backfill(bf)[0]["venue"] == NEW_NAME
+
+
+def _write_snapshot(path, rows):
+    cols = ["date", "venue", "venue_id", "city", "country", "lat", "lng", "category"]
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=cols)
+        w.writeheader()
+        for r in rows:
+            w.writerow({c: r.get(c, "") for c in cols})
+
+
+def _row(ts, name, **kw):
+    base = {"date": str(ts), "venue": name, "venue_id": VID, "city": "Chișinău",
+            "country": "Moldova", "lat": "47.05", "lng": "28.87", "category": "Trail"}
+    base.update(kw)
+    return base
+
+
+def test_rename_detected_when_only_the_newest_row_was_updated(tmp_path):
+    """The freshest old row can already carry the new name — a mid-month rename.
+
+    load_csv_by_venue keeps only that row, so a freshest-to-freshest compare sees
+    nothing and tips/backfill/ratings/comments keep the stale name forever.
+    """
+    old_p, new_p = tmp_path / "old.csv", tmp_path / "new.csv"
+    _write_snapshot(old_p, [_row(100, OLD_NAME), _row(200, OLD_NAME), _row(300, NEW_NAME)])
+    _write_snapshot(new_p, [_row(100, NEW_NAME), _row(200, NEW_NAME), _row(300, NEW_NAME)])
+
+    old, new = load_csv_by_venue(old_p), load_csv_by_venue(new_p)
+    assert detect_changes(old, new) == []                       # the old behaviour
+
+    changes = detect_changes(old, new, load_name_variants(old_p))
+    assert len(changes) == 1
+    assert changes[0]["fields"] == {"venue": (OLD_NAME, NEW_NAME)}
+
+
+def test_variants_report_the_most_common_stale_spelling(tmp_path):
+    old_p, new_p = tmp_path / "old.csv", tmp_path / "new.csv"
+    _write_snapshot(old_p, [_row(100, "Rare old"), _row(200, OLD_NAME),
+                            _row(300, OLD_NAME), _row(400, NEW_NAME)])
+    _write_snapshot(new_p, [_row(400, NEW_NAME)])
+
+    changes = detect_changes(load_csv_by_venue(old_p), load_csv_by_venue(new_p),
+                             load_name_variants(old_p))
+
+    assert changes[0]["fields"]["venue"] == (OLD_NAME, NEW_NAME)
+
+
+def test_no_false_rename_when_the_snapshot_is_uniform(tmp_path):
+    old_p, new_p = tmp_path / "old.csv", tmp_path / "new.csv"
+    _write_snapshot(old_p, [_row(100, NEW_NAME), _row(200, NEW_NAME)])
+    _write_snapshot(new_p, [_row(100, NEW_NAME), _row(200, NEW_NAME)])
+
+    assert detect_changes(load_csv_by_venue(old_p), load_csv_by_venue(new_p),
+                          load_name_variants(old_p)) == []
+
+
+def test_variants_do_not_widen_non_name_fields(tmp_path):
+    """Older rows legitimately carry stale coords — only the name check widens."""
+    old_p, new_p = tmp_path / "old.csv", tmp_path / "new.csv"
+    _write_snapshot(old_p, [_row(100, NEW_NAME, lat="1.0"), _row(200, NEW_NAME, lat="47.05")])
+    _write_snapshot(new_p, [_row(200, NEW_NAME, lat="47.05")])
+
+    assert detect_changes(load_csv_by_venue(old_p), load_csv_by_venue(new_p),
+                          load_name_variants(old_p)) == []

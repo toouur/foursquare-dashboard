@@ -198,10 +198,18 @@ jobs:
           if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
           LISTS_ARG=""
           if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
+          # --backfill is NOT optional here. The venue table is reconciled against
+          # the rows this run loads, and 31 reconstructed venues (Gin Do & Contrabass,
+          # Biblioteca Lomonosov, Zatoka, …) have no real check-in at all. Without the
+          # flag they read as orphans and get DELETEd every month, then re-inserted by
+          # the next hourly run — /api/search loses them in between. The same omission
+          # made the drift check compare D1 (real + rf) against checkins.csv alone.
+          BACKFILL_ARG=""
+          if [ -f private-data/backfill.csv ]; then BACKFILL_ARG="--backfill private-data/backfill.csv"; fi
           python scripts/sync_to_d1.py \
             --csv   private-data/checkins.csv \
             --tips  private-data/tips.json \
             --trips trips_meta.json \
-            $RATINGS_ARG $LISTS_ARG \
+            $RATINGS_ARG $LISTS_ARG $BACKFILL_ARG \
             --tips-changed true \
             $VENUE_CHANGES_ARG

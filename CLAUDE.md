@@ -195,7 +195,20 @@ gets re-seeded each run. `archive-checkins.yml` passes all four automatically.
 snapshots `checkins.csv` at the START of its run and only then does the `--full`
 re-fetch. Correcting the name in the CSV yourself makes both sides identical, the diff
 comes out empty, and D1 keeps the stale name forever (the check-in sync is append-only).
-Let the workflow see the old name and do the rename itself.
+Let the workflow see the old name and do the rename itself. **A PARTIAL pre-fix is just
+as fatal**: `load_csv_by_venue()` keeps only the freshest row per venue, so one row left
+on the new name defeats the whole comparison. `load_name_variants()` now widens the NAME
+check to every spelling the old snapshot uses (coords stay freshest-vs-freshest — older
+rows legitimately carry stale coordinates), which also fixes the real-world case of a
+venue renamed mid-month and re-visited before the archive run.
+
+**`archive-checkins.yml` MUST pass `--backfill` to `sync_to_d1.py`.** The venues table is
+reconciled against the rows the run loads, and 31 reconstructed venues (Gin Do &
+Contrabass, Biblioteca M. V. Lomonosov, Zatoka, Leogrand, …) have NO real check-in at
+all. Without the flag they read as orphans and are DELETEd every month, then re-inserted
+by the next hourly run — `/api/search` loses those places in between, and the drift
+warning compares D1 (real + `rf*`) against `checkins.csv` alone, inflating the reported
+gap by the whole backfill (681 vs the 3 genuinely stale rows on 1 Aug 2026).
 ```bash
 # 1. Diff old vs new snapshot, patch tips/backfill/ratings/comments, write diffs JSON
 python scripts/sync_venue_changes.py \

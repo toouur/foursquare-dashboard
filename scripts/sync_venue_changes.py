@@ -33,6 +33,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import collections
 import csv
 import json
 import logging
@@ -116,13 +117,39 @@ def detect_merges(
     return merges
 
 
+def load_name_variants(path: Path) -> dict[str, collections.Counter]:
+    """Return {venue_id: Counter(name -> rows)} — every name the snapshot spells.
+
+    load_csv_by_venue() keeps only the freshest row per venue, which is right for
+    coordinates (older rows carry whatever the API said when they were fetched)
+    but wrong for the name: if a venue is renamed mid-month and you check in again
+    afterwards, the freshest row already holds the NEW name while the older rows —
+    and tips.json / backfill.csv / venueRatings.json / comments.json — still hold
+    the old one. Comparing freshest-to-freshest reports no change and the rename
+    never reaches those files.
+    """
+    variants: dict[str, collections.Counter] = {}
+    with open(path, encoding="utf-8", newline="") as fh:
+        for row in csv.DictReader(fh):
+            vid = (row.get("venue_id") or "").strip()
+            name = (row.get("venue") or "").strip()
+            if vid and name:
+                variants.setdefault(vid, collections.Counter())[name] += 1
+    return variants
+
+
 def detect_changes(
-    old: dict[str, dict], new: dict[str, dict]
+    old: dict[str, dict], new: dict[str, dict],
+    old_names: dict[str, collections.Counter] | None = None,
 ) -> list[dict]:
     """
     Return a list of change records for venue_ids that exist in both snapshots
     but have at least one differing TRACKED field.
     Each record: {venue_id, venue_name, fields: {field: (old_val, new_val)}}
+
+    `old_names` (from load_name_variants) widens the name check to EVERY spelling
+    the old snapshot used, so a venue left half-renamed there is still detected.
+    The reported old value is the most common stale spelling.
     """
     changes = []
     for vid, new_row in new.items():
@@ -133,6 +160,10 @@ def detect_changes(
         for field in TRACKED:
             ov = (old_row.get(field) or "").strip()
             nv = (new_row.get(field) or "").strip()
+            if field == "venue" and old_names and ov == nv:
+                stale = [(n, c) for n, c in (old_names.get(vid) or {}).items() if n != nv]
+                if stale:
+                    ov = max(stale, key=lambda x: x[1])[0]
             if ov != nv:
                 # Skip city changes that are blank-city inference fills (city_inferred=1).
                 # A real Foursquare correction always comes with city_inferred=0 from the
@@ -408,7 +439,7 @@ def main() -> None:
     log.info("Old snapshot: %d unique venue_ids", len(old))
     log.info("New snapshot: %d unique venue_ids", len(new))
 
-    changes = detect_changes(old, new)
+    changes = detect_changes(old, new, load_name_variants(args.old))
     merges = detect_merges(old, old_path, new_path)
 
     if not changes:
