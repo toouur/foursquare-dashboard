@@ -1,0 +1,133 @@
+# .github/workflows/d1-sql.yml
+#
+# Manual workflow: run a SQL file from ops/sql/ against the D1 database, or list
+# the check-in rows D1 holds that no longer exist in the data repo.
+#
+# Exists because the D1 credentials only live in GitHub secrets — there is no
+# other way to inspect or repair the database without pasting a token locally.
+# It goes through scripts/d1_client.py (the REST API), so no wrangler install.
+#
+# Usage: Actions -> "D1: inspect / repair" -> Run workflow
+#   - action = list-stale : report checkin ids in D1 but absent from
+#                           checkins.csv + backfill.csv. Read-only.
+#   - action = run-sql    : execute ops/sql/<sql_file>, statement by statement.
+#
+# Required secrets: CF_D1_TOKEN, CF_ACCOUNT_ID, CF_D1_DATABASE_ID, DATA_REPO_PAT
+
+name: "D1: inspect / repair"
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to do"
+        type: choice
+        options: [list-stale, run-sql]
+        default: list-stale
+      sql_file:
+        description: "File under ops/sql/ to execute (run-sql only)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  d1:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: List stale check-ins
+        if: ${{ inputs.action == 'list-stale' }}
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+        run: |
+          python - <<'PY'
+          import csv, os, sys
+          sys.path.insert(0, "scripts")
+          import d1_client as d1
+
+          d1.configure(os.environ["CF_D1_TOKEN"])
+
+          def ids(path, col="checkin_id"):
+              try:
+                  with open(path, encoding="utf-8", newline="") as fh:
+                      return {(r.get(col) or "").strip() for r in csv.DictReader(fh)} - {""}
+              except FileNotFoundError:
+                  return set()
+
+          source = ids("private-data/checkins.csv") | ids("private-data/backfill.csv")
+          rows = d1.query("SELECT id FROM checkins")
+          in_d1 = {r["id"] for r in rows}
+          stale = sorted(in_d1 - source)
+
+          print(f"D1: {len(in_d1)} distinct ids | source: {len(source)} | stale: {len(stale)}")
+          if not stale:
+              print("Nothing stale — D1 and the data repo agree.")
+              raise SystemExit(0)
+
+          # Show what each stale row actually is, so the fix is an informed one.
+          ph = ",".join("?" * len(stale))
+          detail = d1.query(
+              f"SELECT id, date, venue_id, venue, city, country, source_app "
+              f"FROM checkins WHERE id IN ({ph}) ORDER BY date", stale)
+          import datetime
+          for r in detail or []:
+              ts = r.get("date") or 0
+              when = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else "?"
+              print(f"  {r['id']}  {when}  {r.get('venue') or ''!s:<44.44} "
+                    f"{r.get('city') or ''!s:<16.16} {r.get('source_app') or ''}")
+          PY
+
+      - name: Run SQL file
+        if: ${{ inputs.action == 'run-sql' && inputs.sql_file != '' }}
+        env:
+          CF_D1_TOKEN:       ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID:     ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+          SQL_FILE:          ${{ inputs.sql_file }}
+        run: |
+          python - <<'PY'
+          import os, sys
+          from pathlib import Path
+          sys.path.insert(0, "scripts")
+          import d1_client as d1
+
+          d1.configure(os.environ["CF_D1_TOKEN"])
+          # Confined to ops/sql/ on purpose: the input names a reviewed, committed
+          # file rather than carrying SQL of its own.
+          name = os.environ["SQL_FILE"].strip()
+          path = (Path("ops/sql") / name).resolve()
+          root = Path("ops/sql").resolve()
+          if root not in path.parents or not path.is_file():
+              raise SystemExit(f"refusing: {name!r} is not a file under ops/sql/")
+
+          print(f"Executing {path.name}\n")
+          for stmt in path.read_text(encoding="utf-8").split(";"):
+              stmt = "\n".join(ln for ln in stmt.splitlines()
+                               if not ln.strip().startswith("--")).strip()
+              if not stmt:
+                  continue
+              print(f"--- {stmt.splitlines()[0][:100]}")
+              for row in d1.query(stmt) or []:
+                  print(f"    {row}")
+          print("\nDone.")
+          PY

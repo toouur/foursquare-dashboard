@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import logging
 import os
 import re
@@ -132,8 +133,27 @@ def search_venue(token: str, venue_id: str, name: str, ll: str) -> dict | None:
     return None
 
 
+def _load_country_aliases() -> dict:
+    """Native country name -> English canonical (config/country_aliases.json)."""
+    cfg = Path(__file__).resolve().parent.parent / "config" / "country_aliases.json"
+    try:
+        return json.loads(cfg.read_text(encoding="utf-8"))
+    except Exception as exc:
+        log.warning("country_aliases.json unreadable (%s) — country left as-is", exc)
+        return {}
+
+
+CTRY_NORM = _load_country_aliases()
+
+
 def venue_to_patch(venue: dict) -> dict:
-    """Foursquare venue object -> dict of backfill.csv fields to write."""
+    """Foursquare venue object -> dict of backfill.csv fields to write.
+
+    The country is normalized through config/country_aliases.json: /venues/search
+    answers in the venue's own language ('Republica Moldova') where /venues/{id}
+    answered in English ('Moldova'), and an un-normalized value shows up on the
+    dashboard as a whole extra country sitting next to the real one.
+    """
     loc = venue.get("location") or {}
     cats = venue.get("categories") or []
     primary = next((c for c in cats if c.get("primary")), cats[0] if cats else {})
@@ -142,7 +162,8 @@ def venue_to_patch(venue: dict) -> dict:
         "venue":        (venue.get("name") or "").strip(),
         "city":         (loc.get("city") or "").strip(),
         "state":        (loc.get("state") or "").strip(),
-        "country":      (loc.get("country") or "").strip(),
+        "country":      CTRY_NORM.get((loc.get("country") or "").strip(),
+                                      (loc.get("country") or "").strip()),
         "neighborhood": (loc.get("neighborhood") or "").strip(),
         "lat":          str(lat) if lat is not None else "",
         "lng":          str(lng) if lng is not None else "",

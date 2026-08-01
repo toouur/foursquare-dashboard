@@ -104,3 +104,24 @@ def test_fetch_venue_402_returns_none_so_the_fallback_runs(monkeypatch):
     _patch_get(monkeypatch, _Resp({"meta": {"code": 402}}, status=402))
 
     assert rbv.fetch_venue("tok", VID) is None
+
+
+def test_country_is_normalized_to_the_english_canonical():
+    """/venues/search answers in the venue's language; /venues/{id} answered in
+    English. An un-normalized value becomes a whole extra country on the
+    dashboard, sitting next to the real one."""
+    venue = _venue(VID, "Stadionul UTM", 47.06, 28.86)
+    venue["location"]["country"] = "Republica Moldova"
+
+    assert rbv.venue_to_patch(venue)["country"] == "Moldova"
+
+
+def test_unknown_country_passes_through_untouched():
+    venue = _venue(VID, "Somewhere", 1.0, 2.0)
+    venue["location"]["country"] = "Kingdom of Nowhere"
+
+    assert rbv.venue_to_patch(venue)["country"] == "Kingdom of Nowhere"
+
+
+def test_country_aliases_config_is_readable_and_covers_moldova():
+    assert rbv.CTRY_NORM.get("Republica Moldova") == "Moldova"
