@@ -422,6 +422,34 @@ def _sync_lists_diff(list_rows: list, lv_rows: list) -> None:
 
 # -- Main ---------------------------------------------------------------------
 
+def dedupe_against_d1(candidates: list, source_rows: list, d1_counts: dict) -> list:
+    """Keep only as many copies of each check-in id as D1 is still missing.
+
+    checkins carries no UNIQUE on id — seq is the PK, so the CSV's own duplicate
+    rows survive the sync, and INSERT OR IGNORE therefore cannot reject a repeat.
+    Two syncs that both read "D1 has not got this id yet" before either commits
+    will each insert it (update-dashboard runs hourly and recheck-enrich syncs D1
+    as well, so their windows overlap). That is how four July 2026 rows ended up
+    stored twice.
+
+    Counting, not existence, is what makes this safe: a check-in the source lists
+    twice is still inserted twice, while a row D1 already holds is skipped. So
+    `WHERE NOT EXISTS` semantics would be wrong here — it would silently collapse
+    the twelve legitimately duplicated ids down to one copy each.
+    """
+    src: dict = {}
+    for r in source_rows:
+        src[r[0]] = src.get(r[0], 0) + 1
+    out, taken = [], {}
+    for r in candidates:
+        cid = r[0]
+        allowed = max(0, src.get(cid, 0) - d1_counts.get(cid, 0))
+        if taken.get(cid, 0) < allowed:
+            out.append(r)
+            taken[cid] = taken.get(cid, 0) + 1
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Incremental D1 sync for CI")
     ap.add_argument("--csv",        required=True)
@@ -669,6 +697,27 @@ def main() -> None:
             existing = d1.query("SELECT id FROM checkins")
             existing_ids = {row["id"] for row in existing} if existing else set()
             new_checkin_rows = [r for r in real_rows if r[0] not in existing_ids]
+
+        # Final guard against the double-insert race described in
+        # dedupe_against_d1. Only worth it for an incremental batch: on a cold
+        # start D1 is empty (nothing to collide with) and a bulk load would cost
+        # one IN-query per chunk for no benefit.
+        if new_checkin_rows and d1_count and len(new_checkin_rows) <= 1000:
+            cand_ids = sorted({r[0] for r in new_checkin_rows})
+            d1_counts: dict = {}
+            for i in range(0, len(cand_ids), 200):
+                chunk = cand_ids[i:i + 200]
+                ph = ",".join("?" * len(chunk))
+                for row in d1.query(
+                        f"SELECT id, COUNT(*) AS n FROM checkins "
+                        f"WHERE id IN ({ph}) GROUP BY id", chunk) or []:
+                    d1_counts[row["id"]] = row.get("n") or 0
+            if d1_counts:
+                before = len(new_checkin_rows)
+                new_checkin_rows = dedupe_against_d1(new_checkin_rows, real_rows, d1_counts)
+                if len(new_checkin_rows) != before:
+                    print(f"D1 sync: skipping {before - len(new_checkin_rows)} check-in row(s) "
+                          f"already present in D1 (concurrent-sync guard)", flush=True)
 
         new_venue_ids    = {r[2] for r in new_checkin_rows if r[2]}
 
