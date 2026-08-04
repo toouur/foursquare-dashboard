@@ -91,17 +91,22 @@ def fetch_venue(token: str, venue_id: str) -> dict | None:
 
 
 def search_venue(token: str, venue_id: str, name: str, ll: str) -> dict | None:
-    """Free fallback: GET /v2/venues/search and pick the result whose id matches.
+    """Fallback: GET /v2/venues/search and pick the result whose id matches.
 
     /v2/venues/{id} is a premium endpoint and 402s once the monthly budget is
     spent — or permanently, for tokens that lost premium access entirely.
-    /v2/venues/search is a *regular* endpoint, and its result objects carry the
-    same `location` / `categories` blocks venue_to_patch() needs. We already know
-    the id, so the search is only used to locate that venue among the results:
-    a name match alone is never trusted.
+    /v2/venues/search returns the same `location` / `categories` blocks
+    venue_to_patch() needs. We already know the id, so the search is only used to
+    locate that venue among the results: a name match alone is never trusted.
 
-    Limitation: search hides most closed venues, so a defunct place still needs
-    the premium endpoint.
+    Search is NOT reliably free either. It has been observed answering
+    `402 credits_exhausted` once the account's monthly call budget is spent, so
+    both paths can be shut at the same time — that is a quota wall to wait out
+    (it resets on the 1st), not a missing venue. The two are reported
+    differently below so a run that fetched nothing says which one it hit.
+
+    Limitation: search also hides most closed venues, so a defunct place can
+    come back empty even with budget left.
     """
     if not (name and ll):
         return None
@@ -114,6 +119,12 @@ def search_venue(token: str, venue_id: str, name: str, ll: str) -> dict | None:
         )
     except Exception as exc:
         log.warning("venue %s: search request failed: %s", venue_id, exc)
+        return None
+    if resp.status_code == 402:
+        log.error("venue %s: search is ALSO 402 (credits exhausted) — the monthly call "
+                  "budget is spent, so no endpoint can resolve this venue right now. "
+                  "The row keeps its %s marker; retry after the quota resets on the 1st.",
+                  venue_id, PENDING_MARKER)
         return None
     if resp.status_code != 200:
         log.warning("venue %s: search HTTP %d — %s", venue_id, resp.status_code, resp.text[:200])

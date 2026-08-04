@@ -146,3 +146,16 @@ def test_unknown_city_passes_through_untouched():
 
 def test_city_merge_config_is_readable_and_covers_minsk():
     assert rbv.CITY_NORM.get("Мінск") == "Minsk"
+
+
+def test_search_402_is_reported_as_a_quota_wall(monkeypatch, caplog):
+    """Search used to be the free fallback. It now 402s too once the monthly
+    budget is spent, which is a wait-for-the-1st condition — not a venue that
+    stopped existing. The two must not read the same in the log."""
+    _patch_get(monkeypatch, _Resp({"meta": {"code": 402, "errorType": "credits_exhausted"}}, status=402))
+
+    with caplog.at_level("ERROR"):
+        assert rbv.search_venue("tok", VID, "Jazz Cafe", LL) is None
+
+    assert "credits exhausted" in caplog.text.lower()
+    assert rbv.PENDING_MARKER in caplog.text
