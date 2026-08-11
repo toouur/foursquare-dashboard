@@ -149,6 +149,12 @@ def build_blank_city_resolver(review_csv_path: str | Path):
 
 # ── Config loader ──────────────────────────────────────────────────────────────
 
+#: Columns a companion_fixes.json entry may override, in the same order
+#: metrics.collect_companions() reads them. sync_to_d1.py imports this so the
+#: D1 reconcile patches exactly the same set.
+COMPANION_FIX_FIELDS = ("with_name", "with_id", "overlaps_name", "overlaps_id")
+
+
 def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
     """Load city_merge (YAML), country_fixes and categories (JSON) from config/."""
 
@@ -171,6 +177,7 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
     country_fixes = _load_file("country_fixes.json")
     city_fixes    = _load_file("city_fixes.json")   # per-timestamp city overrides
     venue_fixes   = _load_file("venue_fixes.json")  # per-venue_id city/country overrides
+    companion_fixes = _load_file("companion_fixes.json")  # per-checkin_id companion overrides
     city_merge    = _load_file("city_merge.yaml")
     cats_raw      = _load_file("categories.json")
 
@@ -178,6 +185,7 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
         "country_fixes":   country_fixes,
         "city_fixes":      city_fixes,
         "venue_fixes":     venue_fixes,
+        "companion_fixes": companion_fixes,
         "city_merge":      city_merge,
         "category_groups": cats_raw.get("category_groups", {}),
         "explorer_groups": cats_raw.get("explorer_groups", {}),
@@ -201,6 +209,7 @@ def apply_transforms(
     country_fixes = mappings.get("country_fixes", {})
     city_fixes    = mappings.get("city_fixes", {})
     venue_fixes   = mappings.get("venue_fixes", {})
+    companion_fixes = mappings.get("companion_fixes", {})
     city_merge    = mappings.get("city_merge", {})
 
     blank_filled  = 0
@@ -208,6 +217,21 @@ def apply_transforms(
 
     for row in rows:
         ts = row.get("date", "").strip()
+
+        # Per-check-in companion override (companion_fixes.json), keyed by
+        # checkin_id. Foursquare lets a friend be tagged onto a check-in AFTER
+        # we snapshotted it, and nothing re-reads `with`/`shout` for an existing
+        # row: the incremental fetch only appends new rows, enrich_overlaps reads
+        # only `overlaps`, and the archive full re-fetch replaces each row with
+        # the API version (so hand-editing checkins.csv is undone next month).
+        # Fixing it here instead keeps the CSV a faithful API snapshot and makes
+        # the correction survive every re-fetch. Applied FIRST — it is an
+        # independent field set, and the venue_fixes branch below can `continue`.
+        cfix = companion_fixes.get(row.get("checkin_id", "").strip())
+        if isinstance(cfix, dict):
+            for _f in COMPANION_FIX_FIELDS:
+                if cfix.get(_f):
+                    row[_f] = cfix[_f]
 
         # Per-venue override (venue_fixes.json) — HIGHEST priority. A single
         # venue_id entry pins city/country for every check-in at that venue,

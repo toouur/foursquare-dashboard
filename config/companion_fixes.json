@@ -1,0 +1,9 @@
+{
+  "_comment": "Per-checkin_id companion overrides, applied in transform.apply_transforms() and reconciled into D1 by sync_to_d1.py on every sync. Use when Foursquare shows a companion that our snapshot missed - typically a `with` tag added to a check-in AFTER we first fetched it, which no re-fetch path ever recovers (see CLAUDE.md, 'Late companion tags'). Keys are 24-char hex check-in ids; recognised fields are with_name, with_id, overlaps_name, overlaps_id. Comma-separate for several people, keeping name and id order aligned. Keys starting with _ are ignored.",
+
+  "6a78cbfb0ed66f3afd084001": {
+    "with_name": "Ghennadi Rips",
+    "with_id": "1416805649",
+    "_note": "Taproom by Litra & Friends, 2026-08-10. Tagged on Swarm after our fetch; row has empty shout+with_name and overlaps_id='-' (Ghennadi did not check in separately)."
+  }
+}

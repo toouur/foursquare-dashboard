@@ -346,6 +346,7 @@ python -m http.server 8000 --directory _site
     `"2024-07": "<filename or checkin_id>"` pins that month's timeline photo (claimed up front so the auto-picker can't reuse it, honored even on empty months);
     `"2024-07-note": "text"` replaces that month's auto narrative with hand-written text (plain text, HTML-escaped).
     Without a pin, year covers use a deterministic signature score (shout + companions + photo count, earliest-ts tie-break) so covers are stable across builds. Unresolvable pin values are reported at build and ignored.
+  - `config/companion_fixes.json` — per-`checkin_id` companion override (`with_name`/`with_id`/`overlaps_name`/`overlaps_id`), for a Swarm `with` tag added after our snapshot; applied in `transform.apply_transforms()` and reconciled into D1 on every sync. See "Late companion tags" below.
 - Config (other): `config/city_merge.yaml`, `config/city_fixes.json`, `config/venue_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
 
 ## Home is a TIMELINE, not a constant
@@ -410,8 +411,9 @@ gate is `check_city_count.py` (see below).
 (km-bucket override), `thresholds`, `skip_set`, `skip_patterns`.
 `scripts/check_city_config.py` is a CI gate verifying canonical_map values and
 thresholds keys all exist in `valid_canonical`, city_fixes.json keys are
-numeric ts or 24-char hex ids, and venue_fixes.json keys are 24-char hex with a
-non-empty city/country.
+numeric ts or 24-char hex ids, venue_fixes.json keys are 24-char hex with a
+non-empty city/country, and companion_fixes.json keys are 24-char hex check-in
+ids setting at least one companion column (see "Late companion tags" below).
 
 ### City NFC normalization + count-drift gate
 
@@ -481,6 +483,51 @@ python scripts/check_city_config.py
 ```
 To accept a new raw nearest-city name, add it to `canonical_map` in
 `city_canonical.yaml` — do not edit `extract_blank_fixes.py`.
+
+## Late companion tags (`config/companion_fixes.json`)
+
+Swarm lets a friend be tagged onto a check-in **after** we already snapshotted it,
+and **no fetch path ever re-reads `with`/`shout` for a row we already hold**:
+
+- the hourly `fetch_checkins.py` is append-only (`added = [r for r in new_rows if
+  row_key(r) not in existing_keys]`) — existing rows are never refreshed;
+- `--recheck-recent-hours` only runs `enrich_overlaps`, which reads the `overlaps`
+  field. **A `with` tag is a different field from an `overlaps` record** — a friend
+  who was *tagged* but did not check in separately produces no overlap at all, so
+  no recheck window (48 h or 4 weeks) can ever recover them;
+- the monthly `archive-checkins.yml` `--full` re-fetch **replaces** each existing
+  row with the API version (`fetch_checkins.py:511`), carrying over only
+  `overlaps_*`. So hand-editing `checkins.csv` is silently undone next month.
+
+`config/companion_fixes.json` is the durable fix — a per-`checkin_id` override
+applied in `transform.apply_transforms()`, i.e. at the chokepoint both `build.py`
+and `sync_to_d1.py` run rows through. `checkins.csv` stays a faithful API mirror
+with nothing to preserve across a re-fetch.
+
+```json
+{ "6a78cbfb0ed66f3afd084001": { "with_name": "Ghennadi Rips", "with_id": "1416805649" } }
+```
+
+- Recognised fields: `with_name`, `with_id`, `overlaps_name`, `overlaps_id`
+  (`transform.COMPANION_FIX_FIELDS`). Comma-separate for several people, keeping
+  name and id order aligned. Only **non-empty** values override, so a partial entry
+  can't blank a real value. Keys starting with `_` are ignored (comments).
+- Applied **before** the `venue_fixes` branch in the row loop — that branch
+  `continue`s once it sets a city, which would otherwise skip the companion fix on
+  any venue carrying a city override.
+- **D1 needs its own reconcile.** The check-in sync is append-only
+  (`INSERT OR IGNORE`), so a row already in D1 keeps whatever it was first inserted
+  with and `/api/feed` would never show the companion. `sync_to_d1.py` therefore
+  runs an **always-on, un-windowed** companion-fixes pass (unlike the 48 h
+  `--fix-overlaps-hours`): one `SELECT` over the handful of ids + targeted
+  `UPDATE`s. Cheap, idempotent, self-healing — it also repairs a row reset by a
+  force resync or the wrangler bulk-dump path. It deliberately does **not** set
+  `changed` (checkins carry no FTS index).
+- `check_city_config.py` validates the file (24-char hex keys, at least one known
+  field, trimmed non-empty strings, matching `with_name`/`with_id` counts) — a
+  typo'd key would otherwise silently match nothing.
+- Coverage: `tests/test_transform.py::TestCompanionFixes` (incl. a test that the
+  shipped config itself loads and validates).
 
 ## Stable Implementation Notes
 
