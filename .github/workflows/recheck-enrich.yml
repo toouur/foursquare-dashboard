@@ -37,6 +37,15 @@ on:
     - cron: "15 4 * * *"   # daily 04:15 UTC — after warm-routes (03:00), offset
                            # from the top-of-hour hourly runs to ease push contention
   workflow_dispatch:       # manual trigger button in GitHub UI
+    inputs:
+      recheck_hours:
+        description: "Overlap re-scan window in hours (48 = default daily; 264 ≈ back to 1 Aug). One individual API call per check-in in the window."
+        required: false
+        default: "48"
+      recheck_ids:
+        description: "Optional comma/space-separated check-in IDs to force-recheck regardless of window (overrides nothing, runs in addition)."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -70,17 +79,27 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # ── 4. Recheck check-ins (historic overlap re-scan, last 48h) ────────────
+      # ── 4. Recheck check-ins (historic overlap re-scan) ──────────────────────
+      #   Window defaults to 48h (the scheduled run); a manual dispatch can widen
+      #   it to backfill overlaps that were added long after the check-in posted.
+      #   Cost is one individual API call per check-in in the window (~0.35s each),
+      #   so even a multi-week window is a couple of minutes.
       - name: Recheck recent check-in overlaps
         id: fetch
         env:
           FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+          RECHECK_HOURS: ${{ inputs.recheck_hours || '48' }}
+          RECHECK_IDS: ${{ inputs.recheck_ids || '' }}
         run: |
           if [ -z "$FOURSQUARE_TOKEN" ]; then
             echo "⚠️  FOURSQUARE_TOKEN secret is not set — skipping recheck."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
-            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv --recheck-recent-hours 48 >> "$GITHUB_OUTPUT"
+            IDS_ARG=""
+            if [ -n "$RECHECK_IDS" ]; then IDS_ARG="--recheck-ids $RECHECK_IDS"; fi
+            echo "Overlap re-scan window: ${RECHECK_HOURS}h"
+            python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv \
+              --recheck-recent-hours "$RECHECK_HOURS" $IDS_ARG >> "$GITHUB_OUTPUT"
           fi
 
       # ── 4b. Recheck photos (already-indexed recent check-ins, last 2 days) ───
@@ -238,6 +257,11 @@ jobs:
           CLOUDFLARE_API_TOKEN:  ${{ secrets.CF_D1_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           RUN_D1: ${{ steps.fetch.outputs.CHANGED == 'true' }}
+          # Must MATCH the re-scan window above: the D1 checkin sync is append-only,
+          # so an overlap restored onto an already-synced row only reaches /api/feed
+          # through this targeted UPDATE pass. A 48h fix window against a 264h
+          # re-scan would repair the CSV but leave the feed stale.
+          FIX_OVERLAPS_HOURS: ${{ inputs.recheck_hours || '48' }}
         run: |
           # ── Kick off the D1 sync in the background (overlaps the deploy) ──
           D1_PID=""
@@ -256,7 +280,7 @@ jobs:
                 --ratings-changed false \
                 --lists-changed   false \
                 --trips-changed   ${{ steps.fetch.outputs.CHANGED || 'false' }} \
-                --fix-overlaps-hours 48 \
+                --fix-overlaps-hours "$FIX_OVERLAPS_HOURS" \
                 $RATINGS_ARG $LISTS_ARG; echo $? > /tmp/d1_rc ) &
             D1_PID=$!
             echo "D1 sync started in background (pid $D1_PID) — overlapping deploy."
