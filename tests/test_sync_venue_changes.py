@@ -30,7 +30,7 @@ OLD_NAME = "Aleea bd. Mircea cel Bătrân"
 NEW_NAME = "Aleea de pe Bulevardul Mircea cel Bătrân"
 
 COLUMNS = ["date", "venue", "venue_id", "venue_url", "city", "country",
-           "lat", "lng", "category", "source_app", "checkin_id"]
+           "lat", "lng", "category", "shout", "source_app", "checkin_id"]
 
 
 def _write_backfill(path: Path, rows: list[dict]) -> None:
@@ -126,6 +126,57 @@ def test_patch_backfill_applies_all_tracked_fields(tmp_path):
     assert row["lat"] == "47.0501"
     assert row["category"] == "Museum"
     assert row["lng"] == "28.835"  # not in the diff → untouched
+
+
+def _move_change() -> list[dict]:
+    """A Foursquare card that both got renamed and moved to new coordinates."""
+    return [{
+        "venue_id": VID,
+        "venue_name": NEW_NAME,
+        "fields": {
+            "venue": (OLD_NAME, NEW_NAME),
+            "city":  ("Vadul lui Vodă", "Chișinău"),
+            "lat":   ("47.1023", "47.0250"),
+            "lng":   ("29.1535", "28.8350"),
+        },
+    }]
+
+
+def test_patch_backfill_geo_pinned_keeps_hand_set_geography(tmp_path):
+    """A [geo_pinned] row localises a venue on purpose — its geo must survive."""
+    bf = tmp_path / "backfill.csv"
+    _write_backfill(bf, [{
+        "venue": OLD_NAME, "venue_id": VID, "checkin_id": "rf1008",
+        "city": "Dubăsari", "lat": "47.2783", "lng": "29.1251",
+        "shout": "Днестр у плотины — [geo_pinned] точка выставлена вручную",
+    }])
+
+    records = patch_backfill(bf, _move_change())
+
+    row = _read_backfill(bf)[0]
+    assert row["venue"] == NEW_NAME          # rename still applies
+    assert row["city"] == "Dubăsari"         # geography untouched
+    assert row["lat"] == "47.2783"
+    assert row["lng"] == "29.1251"
+    assert set(records[0]["fields"]) == {"venue"}
+
+
+def test_patch_backfill_unpinned_row_follows_the_move(tmp_path):
+    """Without the marker a reconstructed row tracks the card, geo included."""
+    bf = tmp_path / "backfill.csv"
+    _write_backfill(bf, [{
+        "venue": OLD_NAME, "venue_id": VID, "checkin_id": "rf1009",
+        "city": "Vadul lui Vodă", "lat": "47.1023", "lng": "29.1535",
+        "shout": "обычная реконструированная строка",
+    }])
+
+    patch_backfill(bf, _move_change())
+
+    row = _read_backfill(bf)[0]
+    assert row["venue"] == NEW_NAME
+    assert row["city"] == "Chișinău"
+    assert row["lat"] == "47.0250"
+    assert row["lng"] == "28.8350"
 
 
 def _write_ratings(path: Path) -> None:

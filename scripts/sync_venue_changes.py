@@ -47,6 +47,15 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 # venue_id is the key; these are the values we track.
 TRACKED = ["venue", "city", "country", "lat", "lng", "category"]
 
+# Marker a reconstructed row can carry in its `shout` to opt out of geo syncing.
+# Some backfill rows deliberately localise a venue that Foursquare pins to ONE
+# coordinate: a river checked in at a different point along it, a country row
+# placed at the actual border crossing rather than the capital. Those rows must
+# keep their hand-set geography when the Foursquare card moves — but they still
+# have to follow a RENAME, or one venue_id ends up carrying two display names.
+GEO_PINNED = "[geo_pinned]"
+GEO_FIELDS = ("city", "country", "lat", "lng")
+
 
 def load_csv_by_venue(path: Path) -> dict[str, dict]:
     """
@@ -248,6 +257,10 @@ def patch_backfill(
     same rename/move as the real check-ins. Rows with a blank venue_id (places
     that have no Foursquare venue) are untouched.
 
+    A row whose `shout` carries the GEO_PINNED marker keeps its hand-set
+    geography: city/country/lat/lng are left alone, everything else (notably the
+    display name) still syncs.
+
     Returns a list of {checkin_id, venue, venue_id, fields: {field: (old, new)}}.
     """
     patches: dict[str, dict] = {}
@@ -266,9 +279,12 @@ def patch_backfill(
         vid = (row.get("venue_id") or "").strip()
         if not vid or vid not in patches:
             continue
+        pinned = GEO_PINNED in (row.get("shout") or "")
         changed_fields = {}
         for field, new_val in patches[vid].items():
             if field not in fieldnames:
+                continue
+            if pinned and field in GEO_FIELDS:
                 continue
             old_val = row.get(field) or ""
             if old_val == new_val:

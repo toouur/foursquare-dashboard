@@ -191,6 +191,17 @@ reconstructed `rf*` rows reuse the SAME real venue_ids, so a rename that lands i
 `/api/feed` permanently, since rf* rows are reconciled on every sync and the stale name
 gets re-seeded each run. `archive-checkins.yml` passes all four automatically.
 
+**`[geo_pinned]` opts a reconstructed row out of GEO syncing.** `TRACKED` is
+`venue, city, country, lat, lng, category`, and `patch_backfill()` pushes all of them
+into every `rf*` row sharing the venue_id — which silently clobbers geography that was
+localised on purpose. Foursquare pins one coordinate per venue, but a reconstructed row
+may sit elsewhere: a river checked in upstream of the card's point (`Râul Nistru` is
+pinned at Vadul lui Vodă, rf1008 stands at the Dubăsari dam), or a country row placed at
+the actual border crossing instead of the capital. Put the literal marker `[geo_pinned]`
+anywhere in that row's `shout` and `city/country/lat/lng` survive the sync; `venue` and
+`category` still follow, because one venue_id must never carry two display names. Rows
+with a blank `venue_id` are already immune — the patcher skips them entirely.
+
 **The diff is snapshot-vs-refetch, so never "pre-fix" a rename by hand.** The workflow
 snapshots `checkins.csv` at the START of its run and only then does the `--full`
 re-fetch. Correcting the name in the CSV yourself makes both sides identical, the diff
