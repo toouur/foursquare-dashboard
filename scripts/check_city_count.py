@@ -163,6 +163,21 @@ def load_canonical(config_dir: str) -> tuple[set[str], set[str]]:
             values |= set(cd.get("valid_canonical", []))
         except Exception:
             pass
+    # venue_fixes.json pins a city per venue_id and outranks every other rule
+    # (transform.py applies it first). A label chosen there — e.g. the M1 border
+    # post deliberately assigned to "Vitebsk Region" on the Belarusian side — is
+    # as vouched as a city_merge target and must not read as an unvouched shape.
+    vf = cfg / "venue_fixes.json"
+    if vf.exists():
+        try:
+            import json as _json
+            for entry in (_json.loads(vf.read_text(encoding="utf-8")) or {}).values():
+                if isinstance(entry, dict):
+                    city = (entry.get("city") or "").strip()
+                    if city:
+                        values.add(city)
+        except Exception:
+            pass
     return keys, values
 
 

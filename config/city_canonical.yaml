@@ -193,6 +193,7 @@ large_canonical:
 thresholds: {}
 
 valid_canonical:
+  - Almaty Region   # осознанный региональный ярлык: Кольсай/Чарын, точки за 100 км, единого села нет
   # Belarus — primary cities
   - "Minsk"
   - "Grodno"
