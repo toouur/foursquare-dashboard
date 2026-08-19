@@ -201,6 +201,12 @@ the actual border crossing instead of the capital. Put the literal marker `[geo_
 anywhere in that row's `shout` and `city/country/lat/lng` survive the sync; `venue` and
 `category` still follow, because one venue_id must never carry two display names. Rows
 with a blank `venue_id` are already immune — the patcher skips them entirely.
+`refresh_backfill_venue.py` honors the same marker (its `GEO_FIELDS` also covers
+`state`, `neighborhood` and `address`, because it writes those too — a row pinned to the
+Otaci crossing must not keep its city while inheriting the country card's state). All 41
+`Country` rows in `backfill.csv` carry the marker: Foursquare pins a country to its
+capital or centroid, so an unpinned refresh would drag every border crossing back to
+Kyiv/Moscow — see `country_checkins_audit.md` in the data repo.
 
 **The diff is snapshot-vs-refetch, so never "pre-fix" a rename by hand.** The workflow
 snapshots `checkins.csv` at the START of its run and only then does the `--full`

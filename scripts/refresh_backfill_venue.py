@@ -57,6 +57,14 @@ SEARCH_API = "https://api.foursquare.com/v2/venues/search"
 API_V = "20231201"
 PENDING_MARKER = "[coords_approx:pending_api]"
 
+# Same opt-out marker as sync_venue_changes.GEO_PINNED (canonical definition and
+# rationale live there). That patcher only writes city/country/lat/lng; this one
+# also writes state, neighborhood and address, so the pinned set is widened —
+# otherwise a row hand-pinned to the Otaci crossing would keep its city but pick
+# up the country card's state and neighborhood, which is worse than either.
+GEO_PINNED = "[geo_pinned]"
+GEO_FIELDS = ("city", "state", "country", "neighborhood", "lat", "lng", "address")
+
 # Location fields patched from Foursquare (venue_id / venue_url handled separately).
 LOC_FIELDS = ("city", "state", "country", "neighborhood", "lat", "lng", "address", "category")
 
@@ -289,8 +297,14 @@ def main() -> None:
             matched += 1
             row["venue"] = patch["venue"]
             row["venue_url"] = f"https://foursquare.com/v/{vid}"
+            pinned = GEO_PINNED in (row.get("shout") or "")
             for f in LOC_FIELDS:
+                if pinned and f in GEO_FIELDS:
+                    continue
                 row[f] = patch[f]
+            if pinned:
+                log.info("  %s carries %s — geography kept",
+                         row.get("checkin_id", "?"), GEO_PINNED)
             row["shout"] = strip_marker(row.get("shout") or "")
         if matched:
             ok += 1
