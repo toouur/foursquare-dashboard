@@ -641,6 +641,52 @@ def main() -> None:
         if ov_stmts:
             print(f"  fix-overlaps: {ov_sent}/{len(ov_stmts)} UPDATE(s) applied", flush=True)
 
+    # ── Per-check-in companion overrides (config/companion_fixes.json) ─────────
+    # Reconciled on EVERY sync and NOT time-windowed, unlike --fix-overlaps-hours.
+    # transform.apply_transforms() has already stamped the corrected names onto
+    # all_checkin_rows, but the checkin sync is append-only (INSERT OR IGNORE), so
+    # a row already in D1 keeps whatever it was first inserted with — /api/feed
+    # would never show the companion. The file holds a handful of ids, so one
+    # SELECT + targeted UPDATEs is cheap, idempotent and self-healing (it also
+    # repairs a row reset by a force resync or the wrangler bulk-dump path).
+    # Deliberately does NOT set `changed`: checkins carry no FTS index.
+    cfix_ids: set[str] = set()
+    cfix_path = Path(args.config_dir) / "companion_fixes.json" if args.config_dir else None
+    if cfix_path and cfix_path.exists():
+        try:
+            cfix_ids = {k for k in json.load(open(cfix_path, encoding="utf-8"))
+                        if not k.startswith("_")}
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"  companion-fixes: cannot read {cfix_path} — {exc}", flush=True)
+    if cfix_ids:
+        # Column positions in SQL_CHECKINS_NEW. Deriving the list from
+        # transform.COMPANION_FIX_FIELDS means a field added there without a
+        # position here fails loudly (KeyError) instead of silently not syncing.
+        _CF_POS = {"with_name": 16, "with_id": 17, "overlaps_name": 20, "overlaps_id": 21}
+        cf_cols = list(_transform.COMPANION_FIX_FIELDS)
+        cf_idx  = [_CF_POS[c] for c in cf_cols]
+        csv_cf = {row[0]: tuple(row[i] for i in cf_idx)
+                  for row in all_checkin_rows if row[0] in cfix_ids}
+        d1_cf: dict = {}
+        cf_ids = list(csv_cf.keys())
+        for i in range(0, len(cf_ids), 90):   # D1 caps ~100 bindings per statement
+            id_chunk = cf_ids[i:i + 90]
+            ph = ",".join("?" * len(id_chunk))
+            res = d1.query(
+                f"SELECT id,{','.join(cf_cols)} FROM checkins WHERE id IN ({ph})", id_chunk)
+            for r in (res or []):
+                d1_cf[r["id"]] = tuple(r.get(c) for c in cf_cols)
+        cf_stmts = []
+        for cid, cur in csv_cf.items():
+            if cid in d1_cf and cur != d1_cf[cid]:
+                sets = ",".join(f"{c}={d1._sql_val(v)}" for c, v in zip(cf_cols, cur))
+                cf_stmts.append(f"UPDATE checkins SET {sets} WHERE id={d1._sql_val(cid)}")
+        for i in range(0, len(cf_stmts), 50):
+            d1._raw_with_retry("; ".join(cf_stmts[i:i + 50]))
+        missing = len(cfix_ids) - len(csv_cf)
+        print(f"  companion-fixes: {len(cfix_ids)} override(s), {len(cf_stmts)} UPDATE(s) applied"
+              + (f", {missing} id(s) not in this CSV" if missing > 0 else ""), flush=True)
+
     if args.force_checkins:
         print("  checkins : FORCE full resync — wiping checkins + venues and reinserting", flush=True)
         d1.query("DELETE FROM checkins")

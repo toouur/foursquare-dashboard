@@ -5,7 +5,9 @@
 category grouping, config loading.
 
 Priority order under test (documented in CLAUDE.md):
-  0. venue_fixes.json  (per-venue_id, HIGHEST)
+  0. companion_fixes.json (per-checkin_id, independent field set — runs first
+     because the venue_fixes branch can short-circuit the loop)
+  0. venue_fixes.json  (per-venue_id, HIGHEST for city/country)
   1. country_fixes.json (per-ts)
   2. city_fixes.json    (per-ts)
   3. city_merge.yaml    (raw -> canonical, non-blank rows)
@@ -30,6 +32,7 @@ def mappings(**kw):
         "country_fixes": {},
         "city_fixes": {},
         "venue_fixes": {},
+        "companion_fixes": {},
         "city_merge": {},
     }
     base.update(kw)
@@ -93,6 +96,70 @@ class TestApplyTransformsPriority:
         apply_transforms([row], mappings())
         assert row["city"] == "Novelty"
         assert row["city_inferred"] == "0"
+
+
+class TestCompanionFixes:
+    """config/companion_fixes.json — recovers a `with` tag added on Swarm AFTER
+    we snapshotted the check-in. No fetch path re-reads `with` for an existing
+    row, and the archive full re-fetch overwrites the row from the API, so the
+    correction has to live in config and be re-applied on every build."""
+
+    CID = "6a78cbfb0ed66f3afd084001"
+
+    def test_sets_with_name_and_id(self):
+        row = make_row(700, city="Chișinău", country="Moldova", checkin_id=self.CID,
+                       with_name="", with_id="")
+        m = mappings(companion_fixes={
+            self.CID: {"with_name": "Ghennadi Rips", "with_id": "1416805649"}})
+        apply_transforms([row], m)
+        assert row["with_name"] == "Ghennadi Rips"
+        assert row["with_id"] == "1416805649"
+
+    def test_applies_even_when_venue_fix_short_circuits(self):
+        # The venue_fixes branch `continue`s once it sets a city; the companion
+        # override runs before it, so both must land on the same row.
+        row = make_row(701, city="Raw", country="Moldova", venue_id="c" * 24,
+                       checkin_id=self.CID, with_name="")
+        m = mappings(
+            venue_fixes={"c" * 24: {"city": "Chișinău", "country": "Moldova"}},
+            companion_fixes={self.CID: {"with_name": "Ghennadi Rips"}},
+        )
+        apply_transforms([row], m)
+        assert row["city"] == "Chișinău"
+        assert row["with_name"] == "Ghennadi Rips"
+
+    def test_overrides_overlaps_sentinel(self):
+        row = make_row(702, checkin_id=self.CID, overlaps_name="", overlaps_id="-")
+        m = mappings(companion_fixes={
+            self.CID: {"overlaps_name": "Ghennadi Rips", "overlaps_id": "1416805649"}})
+        apply_transforms([row], m)
+        assert row["overlaps_name"] == "Ghennadi Rips"
+        assert row["overlaps_id"] == "1416805649"
+
+    def test_other_rows_untouched(self):
+        row = make_row(703, checkin_id="d" * 24, with_name="")
+        m = mappings(companion_fixes={self.CID: {"with_name": "Ghennadi Rips"}})
+        apply_transforms([row], m)
+        assert row["with_name"] == ""
+
+    def test_empty_values_do_not_blank_existing(self):
+        row = make_row(704, checkin_id=self.CID, with_name="Real Person", with_id="1")
+        m = mappings(companion_fixes={self.CID: {"with_name": "", "overlaps_name": "X"}})
+        apply_transforms([row], m)
+        assert row["with_name"] == "Real Person"
+        assert row["overlaps_name"] == "X"
+
+    def test_shipped_config_is_valid(self):
+        """The real config/companion_fixes.json must load and apply cleanly."""
+        from pathlib import Path
+        cfg = Path(__file__).resolve().parent.parent / "config" / "companion_fixes.json"
+        raw = json.loads(cfg.read_text(encoding="utf-8"))
+        entries = {k: v for k, v in raw.items() if not k.startswith("_")}
+        assert entries, "companion_fixes.json has no entries"
+        for k, v in entries.items():
+            assert len(k) == 24 and all(c in "0123456789abcdef" for c in k)
+            assert any(v.get(f) for f in
+                       ("with_name", "with_id", "overlaps_name", "overlaps_id"))
 
 
 class TestApostropheNormalisation:

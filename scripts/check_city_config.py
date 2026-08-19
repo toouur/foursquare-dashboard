@@ -7,7 +7,9 @@ Validates:
   3. city_canonical.yaml: every threshold key is in valid_canonical
   4. city_fixes.json:     keys (timestamps) are unique numeric ids; values
                           look like reasonable city names (no leading/trailing space).
-  5. city_merge.yaml:     every raw key has a non-empty canonical value.
+  5. companion_fixes.json: keys are 24-char hex check-in ids; each value sets at
+                          least one known companion column, trimmed and non-empty.
+  6. city_merge.yaml:     every raw key has a non-empty canonical value.
 
 Exits non-zero on failure so CI can gate merges.
 """
@@ -22,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CANONICAL = ROOT / 'config' / 'city_canonical.yaml'
 CITY_FIXES = ROOT / 'config' / 'city_fixes.json'
 VENUE_FIXES = ROOT / 'config' / 'venue_fixes.json'
+COMPANION_FIXES = ROOT / 'config' / 'companion_fixes.json'
 CITY_MERGE = ROOT / 'config' / 'city_merge.yaml'
 
 errors: list[str] = []
@@ -91,6 +94,37 @@ def check_venue_fixes():
                 errors.append(f'venue_fixes.json: {k!r} {fld} must be a non-empty trimmed string')
 
 
+def check_companion_fixes():
+    """companion_fixes.json: keys are 24-char hex check-in ids, values objects
+    carrying at least one of the four companion columns. A typo'd key silently
+    matches nothing, so validate it here rather than letting the override
+    quietly not apply."""
+    if not COMPANION_FIXES.exists():
+        return
+    raw = json.loads(COMPANION_FIXES.read_text(encoding='utf-8'))
+    hex_re = re.compile(r'^[0-9a-f]{24}$')
+    fields = ('with_name', 'with_id', 'overlaps_name', 'overlaps_id')
+    for k, v in raw.items():
+        if k.startswith('_'):
+            continue
+        if not hex_re.match(k):
+            errors.append(f'companion_fixes.json: key is not a 24-char hex checkin_id: {k!r}')
+            continue
+        if not isinstance(v, dict):
+            errors.append(f'companion_fixes.json: value for {k!r} must be an object')
+            continue
+        if not any(v.get(f) for f in fields):
+            errors.append(f'companion_fixes.json: {k!r} sets none of {fields}')
+        for fld in fields:
+            val = v.get(fld)
+            if val is not None and (not isinstance(val, str) or not val or val != val.strip()):
+                errors.append(f'companion_fixes.json: {k!r} {fld} must be a non-empty trimmed string')
+        names, ids = v.get('with_name', ''), v.get('with_id', '')
+        if isinstance(names, str) and isinstance(ids, str) and names and ids:
+            if len(names.split(',')) != len(ids.split(',')):
+                errors.append(f'companion_fixes.json: {k!r} with_name/with_id have different counts')
+
+
 def check_city_merge():
     cm = yaml.safe_load(CITY_MERGE.read_text(encoding='utf-8'))
     if not isinstance(cm, dict):
@@ -105,6 +139,7 @@ def main() -> int:
     check_canonical()
     check_city_fixes()
     check_venue_fixes()
+    check_companion_fixes()
     check_city_merge()
 
     for w in warnings:
