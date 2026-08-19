@@ -441,6 +441,11 @@ non-empty city/country.
   (e.g. traditional `北京市海淀區` needed its own entry alongside simplified `区`).
 - `scripts/check_city_count.py` runs the real transform pipeline and compares the
   distinct normalized {city:count} set to `config/city_count_baseline.json`.
+  **Pass `--backfill` — the site's city list is checkins.csv AND backfill.csv.**
+  `build.py` merges the reconstructed rows before `apply_transforms`, so they reach the
+  display through the same normalisation; checking checkins.csv alone under-reports the
+  count and cannot see a duplicate that lives only in the backfill (`Затока` sitting next
+  to `Zatoka`). Both CI callers pass it, and the baseline counts the merged set.
   HARD-fails (exit 1) on invariant bugs — a displayed city that is non-NFC or
   a fold-collision (two spellings/encodings of one place) — and on a NEW displayed
   name that is not a settlement at all: an administrative unit, a pair of places or
