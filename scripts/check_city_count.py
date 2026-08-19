@@ -78,13 +78,26 @@ def _fold(s: str) -> str:
     return s.casefold().strip()
 
 
-def compute_city_counts(csv_path: str, config_dir: str) -> Counter:
-    """Run the real transform pipeline and count displayed cities."""
+def compute_city_counts(csv_path: str, config_dir: str,
+                        backfill_path: str | None = None) -> Counter:
+    """Run the real transform pipeline and count displayed cities.
+
+    build.py merges backfill.csv into `rows` BEFORE apply_transforms, so the
+    reconstructed rows reach the site through the same normalisation and show up
+    in the same city list. Checking checkins.csv alone therefore under-reports
+    what the dashboard displays — and a duplicate spelling that lives only in the
+    backfill (Затока next to Zatoka) is invisible. Pass --backfill to mirror the
+    build.
+    """
     sys.path.insert(0, str(Path(__file__).parent))
     from transform import load_mappings, apply_transforms, build_blank_city_resolver
 
     with open(csv_path, encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
+    if backfill_path and Path(backfill_path).exists():
+        with open(backfill_path, encoding="utf-8") as f:
+            rows += list(csv.DictReader(f))
+        rows.sort(key=lambda r: int(r.get("date") or 0))
     mappings = load_mappings(config_dir)
     # Mirror build.py: the blank-city resolver reads the review CSV beside config/.
     review_csv = Path(config_dir) / "city_merge_normalized_review.csv"
@@ -267,6 +280,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", required=True)
     ap.add_argument("--config-dir", default="config")
+    ap.add_argument("--backfill", default=None,
+                    help="Also count backfill.csv — build.py merges it before "
+                         "transform, so the site shows both sets as one city list")
     ap.add_argument("--baseline", help="Path to city_count_baseline.json")
     ap.add_argument("--update-baseline", action="store_true",
                     help="Write the current snapshot to --baseline and exit 0")
@@ -285,7 +301,7 @@ def main() -> int:
         print("ERROR: pyyaml required (pip install pyyaml)", file=sys.stderr)
         return 2
 
-    counts = compute_city_counts(args.csv, args.config_dir)
+    counts = compute_city_counts(args.csv, args.config_dir, args.backfill)
     _, canonical_values = load_canonical(args.config_dir)
     total_cities = len(counts)
     total_checkins = sum(counts.values())
@@ -317,7 +333,7 @@ def main() -> int:
             for variant, keep in sorted(merges.items()):
                 print(f"AUTO-MERGE: {variant!r} → {keep!r}")
             print(f"Wrote {written} rule(s) to {args.config_dir}/city_merge.yaml")
-            counts = compute_city_counts(args.csv, args.config_dir)
+            counts = compute_city_counts(args.csv, args.config_dir, args.backfill)
             _, canonical_values = load_canonical(args.config_dir)
             total_cities = len(counts)
             total_checkins = sum(counts.values())

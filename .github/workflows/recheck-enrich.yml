@@ -191,6 +191,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           python scripts/check_city_count.py \
             --csv private-data/checkins.csv \
+            --backfill private-data/backfill.csv \
             --config-dir config \
             --auto-merge \
             --baseline config/city_count_baseline.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"

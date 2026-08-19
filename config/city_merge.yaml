@@ -129,6 +129,8 @@
   "Гонолес": "Gonoles"  # ok — village
   "Хотислав": "Khotislav"  # ok — village
   "Скарынічы": "Skarynichy"  # ok — village south of Minsk (53.80,27.48); venue "Скариничи"
+  "Затока": "Zatoka"  # ok — то же место, что Zatoka (rf0408 против 8 строк той же поездки)
+  "Павловка": "Pavlovka"  # ok — село у станции Кучурган; погранпост в 2.5 км это Kuchurhan
   "Kamyanyetski Rayon": "Kamyanyuki"  # ok — Беловежская пуща, 4 чек-ина у деревни Каменюки
   "Dzyarzhynski Rayon": "Dzyarzhynsk"  # ok — Негорелое/Гарбузы/Полоневичи, райцентр в ~10 км
   "Новая Гута": "Novaya Guta"  # ok — BY-UA border village (Пункт пропуска «Новая Гута»), Cyrillic → Latin
