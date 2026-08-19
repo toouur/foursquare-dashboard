@@ -93,6 +93,54 @@ def compute_city_counts(csv_path: str, config_dir: str) -> Counter:
     return Counter(r["city"] for r in rows if (r.get("city") or "").strip())
 
 
+def load_shape_patterns(config_dir: str) -> list:
+    """Patterns that mark a string as NOT a settlement name.
+
+    `city_canonical.yaml: skip_patterns` already lists the administrative-unit
+    shapes the blank-city resolver refuses to adopt ("… район", "… область",
+    "д. X"). The same shapes must never reach a DISPLAYED city either — a
+    `city_fixes` value bypasses city_merge entirely (transform.py returns early),
+    so nothing downstream would catch them. Reusing that list keeps one source of
+    truth; the extras below cover shapes the resolver never sees because they
+    arrive as explicit overrides.
+    """
+    import re
+    import yaml
+    pats: list = []
+    canon = Path(config_dir) / "city_canonical.yaml"
+    if canon.exists():
+        try:
+            cd = yaml.safe_load(canon.read_text(encoding="utf-8")) or {}
+            pats += [re.compile(p) for p in (cd.get("skip_patterns") or [])]
+        except Exception:
+            pass
+    pats += [
+        re.compile(r"\s[-—]\s"),          # "Sejny - Lazdijai" — a pair of places
+        re.compile(r"/"),                  # "РФ / РБ" — a border label
+        re.compile(r"\bProvince\b", re.I),
+        re.compile(r"^(stancyja|станция|ст\.)\s", re.I),
+        re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]"),   # CJK from a localised card
+    ]
+    return pats
+
+
+def is_not_a_city(city: str, shape_patterns: list,
+                  canonical_values: set[str] | None = None) -> bool:
+    """True when the displayed name looks like an administrative unit, a pair of
+    places or a station label rather than a settlement.
+
+    A name that is the TARGET of a city_merge mapping (or whitelisted in
+    valid_canonical) is approved by construction: the house style deliberately
+    keeps region labels such as "Smolensk Region" when the check-in genuinely
+    happened in the region with no finer settlement, and real names can carry an
+    odd shape (the bilingual Swiss city "Biel/Bienne"). Only unvouched names are
+    flagged.
+    """
+    if canonical_values and city in canonical_values:
+        return False
+    return any(p.search(city) for p in shape_patterns)
+
+
 def load_canonical(config_dir: str) -> tuple[set[str], set[str]]:
     """Return (merge_keys, canonical_values) — the strings that are legitimately
     allowed to appear non-ASCII (targets of a mapping / whitelisted canonicals)."""
@@ -185,9 +233,12 @@ def apply_auto_merge(merges: dict[str, str], config_dir: str) -> int:
 
 
 def judge_added(city: str, count: int, removed: dict[str, int],
-                invariant_cities: set[str], canonical_values: set[str]) -> str:
+                invariant_cities: set[str], canonical_values: set[str],
+                shape_patterns: list | None = None) -> str:
     if city in invariant_cities:
         return "MISS"
+    if shape_patterns and is_not_a_city(city, shape_patterns, canonical_values):
+        return "NOT-A-CITY (administrative unit / pair / station, needs a city_merge rule)"
     # rename: a removed city carried the same check-in count
     for rc, rn in removed.items():
         if rn == count:
@@ -263,6 +314,12 @@ def main() -> int:
     # ── invariant checks (always) ────────────────────────────────────────────
     invariant_hits = find_invariant_hits(counts, canonical_values)
     invariant_cities = {c for c, _ in invariant_hits}
+    shape_patterns = load_shape_patterns(args.config_dir)
+
+    # A non-settlement name must be caught even when it was ALREADY displayed:
+    # the baseline can predate the mistake, and then it never shows as "added".
+    shape_all = sorted((c, n) for c, n in counts.items()
+                       if is_not_a_city(c, shape_patterns, canonical_values))
 
     print(f"Cities displayed: {total_cities}  (from {total_checkins} check-ins)")
 
@@ -276,6 +333,7 @@ def main() -> int:
 
     # ── baseline diff (optional) ─────────────────────────────────────────────
     verdicts: list[tuple[str, str]] = []
+    base_counts: dict[str, int] = {}
     if args.baseline and Path(args.baseline).exists():
         base = json.loads(Path(args.baseline).read_text(encoding="utf-8"))
         base_counts = base.get("counts", {})
@@ -288,7 +346,8 @@ def main() -> int:
         if added:
             print(f"\n  Added ({len(added)}):")
             for city, n in sorted(added.items(), key=lambda kv: -kv[1]):
-                v = judge_added(city, n, removed, invariant_cities, canonical_values)
+                v = judge_added(city, n, removed, invariant_cities,
+                                canonical_values, shape_patterns)
                 verdicts.append((city, v))
                 print(f"    {n:5} × {city!r}  → {v}")
         if removed:
@@ -299,10 +358,32 @@ def main() -> int:
         print(f"\n(no baseline at {args.baseline} yet — "
               f"run with --update-baseline to create one)")
 
+    # Split by baseline: a name already displayed when the baseline was taken is
+    # existing debt, not a regression, so it reports without failing the run. A
+    # name that appeared since is exactly what this check exists to stop.
+    shape_new = [(c, n) for c, n in shape_all if c not in base_counts]
+    shape_old = [(c, n) for c, n in shape_all if c in base_counts]
+
+    if shape_new:
+        print(f"\nNOT A CITY — {len(shape_new)} NEW displayed name(s) are administrative "
+              f"units, pairs of places or station labels:")
+        for c, n in shape_new:
+            print(f"    {n:5} × {c!r}")
+        print("\nFix: add a mapping to config/city_merge.yaml. NOTE: a city_fixes.json "
+              "value bypasses city_merge (transform.py returns early), so such a value "
+              "must be written already-canonical.")
+    if shape_old:
+        print(f"\nNot-a-city debt — {len(shape_old)} name(s) already in the baseline "
+              f"(reported, not blocking):")
+        for c, n in shape_old:
+            print(f"    {n:5} × {c!r}")
+
     # ── verdict ──────────────────────────────────────────────────────────────
     # HARD: invariant hits (or an added city that trips one). SOFT: RENAME?/REVIEW.
-    hard = bool(invariant_hits) or any(v == "MISS" for _, v in verdicts)
-    soft = any(v.startswith("RENAME") or v.startswith("REVIEW") for _, v in verdicts)
+    hard = (bool(invariant_hits) or bool(shape_new)
+            or any(v == "MISS" or v.startswith("NOT-A-CITY") for _, v in verdicts))
+    soft = (bool(shape_old)
+            or any(v.startswith("RENAME") or v.startswith("REVIEW") for _, v in verdicts))
 
     if not hard and not soft:
         print("\nOK — no normalization misses.")

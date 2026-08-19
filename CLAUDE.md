@@ -441,8 +441,19 @@ non-empty city/country.
   (e.g. traditional `北京市海淀區` needed its own entry alongside simplified `区`).
 - `scripts/check_city_count.py` runs the real transform pipeline and compares the
   distinct normalized {city:count} set to `config/city_count_baseline.json`.
-  HARD-fails (exit 1) only on invariant bugs — a displayed city that is non-NFC or
-  a fold-collision (two spellings/encodings of one place). SOFT findings (exit 0,
+  HARD-fails (exit 1) on invariant bugs — a displayed city that is non-NFC or
+  a fold-collision (two spellings/encodings of one place) — and on a NEW displayed
+  name that is not a settlement at all: an administrative unit, a pair of places or
+  a station label (`Antwerp Province`, `РФ / РБ`, `Sejny - Lazdijai`,
+  `stancyja Hudahaj`). That shape check reuses `city_canonical.yaml: skip_patterns`
+  so there is one source of truth, and it exempts names that are TARGETS of a
+  city_merge mapping — the house style deliberately keeps `Smolensk Region` when a
+  check-in genuinely happened in the region, and real names can carry an odd shape
+  (`Biel/Bienne`). A non-settlement already present in the baseline reports as debt
+  without blocking, so the gate guards against regressions rather than failing on
+  history. **This check exists because `city_fixes.json` bypasses `city_merge`**:
+  `transform.py` sets the city from it and returns early, so a raw value written
+  there reaches the display verbatim and no other rule sees it. SOFT findings (exit 0,
   reported): an added city that count-pairs with a removed one (`RENAME?`, likely a
   Foursquare city rename that now needs a mapping) or a non-ASCII non-canonical
   addition (`REVIEW`). `--strict` makes SOFT block too; `--warn-only` never blocks.
