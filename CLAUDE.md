@@ -463,7 +463,14 @@ ids setting at least one companion column (see "Late companion tags" below).
   there reaches the display verbatim and no other rule sees it. SOFT findings (exit 0,
   reported): an added city that count-pairs with a removed one (`RENAME?`, likely a
   Foursquare city rename that now needs a mapping) or a non-ASCII non-canonical
-  addition (`REVIEW`). `--strict` makes SOFT block too; `--warn-only` never blocks.
+  addition (`REVIEW`), or a new name whose check-ins land within 5 km of an established
+  city holding 20x more of them (`DISTRICT?`). That last one is pure geography and
+  exists because a district reads as an ordinary city name: `Buiucani` is a sector of
+  Chișinău and `Tirane` is Tirana without the final vowel — neither trips a
+  fold-collision or a shape rule, and the plain `new` verdict printed nothing at all.
+  It stays soft on purpose: a sweep over the whole set gave 10 hits, 8 of them real
+  neighbouring settlements (Varnița by Bender, Geldrop by Eindhoven, Maltese Pietà and
+  Swieqi). `--strict` makes SOFT block too; `--warn-only` never blocks.
   The fold key strips case, apostrophe variants **and diacritics**, so an ASCII
   spelling collides with its accented twin (`Dusseldorf` vs `Düsseldorf`) — without
   that they passed as two separate cities.
