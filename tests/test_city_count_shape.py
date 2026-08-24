@@ -98,3 +98,48 @@ def test_deliberate_canonical_label_is_not_flagged(city, tmp_path):
     result = _run(csv_path, config_dir, baseline)
 
     assert "NOT A CITY" not in result.stdout, result.stdout
+
+
+DISTRICT_CITY = "Buiucani"          # a sector of Chișinău, not a city
+HOST_CITY = "Chișinău"
+
+
+def test_new_name_inside_an_established_city_is_flagged_as_district(tmp_path):
+    """'Buiucani' reads as an ordinary city name — only geography gives it away.
+
+    No fold-collision (it shares no spelling with Chișinău), no shape pattern
+    (no 'район'/'Province' suffix), pure ASCII — every textual rule passes it.
+    The check-in lands 2.8 km from a city with thousands of its own, which is
+    what the proximity verdict is for.
+    """
+    config_dir = tmp_path / "config"
+    shutil.copytree(ROOT / "config", config_dir)
+
+    csv_path, ts0 = tmp_path / "checkins.csv", 1500000000
+    with csv_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=COLUMNS)
+        writer.writeheader()
+        # one check-in in the district …
+        writer.writerow({"date": str(ts0), "venue": "Brun", "venue_id": "v0",
+                         "city": DISTRICT_CITY, "country": "Moldova",
+                         "lat": "47.020862", "lng": "28.820293",
+                         "category": "Coffee Shop", "checkin_id": "c0",
+                         "source_app": "Swarm"})
+        # … against a host city that dwarfs it
+        for i in range(40):
+            writer.writerow({"date": str(ts0 + 100 + i), "venue": f"V{i}",
+                             "venue_id": f"v{i + 1}", "city": HOST_CITY,
+                             "country": "Moldova", "lat": "47.024500",
+                             "lng": "28.832300", "category": "Park",
+                             "checkin_id": f"c{i + 1}", "source_app": "Swarm"})
+
+    baseline = tmp_path / "baseline.json"
+    _run(csv_path, config_dir, baseline, "--update-baseline")
+    _drop_from_baseline(baseline, [DISTRICT_CITY])
+
+    result = _run(csv_path, config_dir, baseline)
+
+    assert "DISTRICT?" in result.stdout, result.stdout
+    assert HOST_CITY in result.stdout
+    # Reported, not blocking: real settlements do sit beside bigger neighbours.
+    assert result.returncode == 0, result.stdout

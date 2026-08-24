@@ -103,7 +103,22 @@ def compute_city_counts(csv_path: str, config_dir: str,
     review_csv = Path(config_dir) / "city_merge_normalized_review.csv"
     resolver = build_blank_city_resolver(review_csv)
     rows = apply_transforms(rows, mappings, blank_city_resolver=resolver)
-    return Counter(r["city"] for r in rows if (r.get("city") or "").strip())
+    counts = Counter(r["city"] for r in rows if (r.get("city") or "").strip())
+    acc: dict[str, list] = {}
+    for r in rows:
+        city = (r.get("city") or "").strip()
+        if not city:
+            continue
+        try:
+            lat, lng = float(r["lat"]), float(r["lng"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        a = acc.setdefault(city, [0.0, 0.0, 0])
+        a[0] += lat
+        a[1] += lng
+        a[2] += 1
+    centroids = {c: (a[0] / a[2], a[1] / a[2]) for c, a in acc.items() if a[2]}
+    return counts, centroids
 
 
 def load_shape_patterns(config_dir: str) -> list:
@@ -260,9 +275,48 @@ def apply_auto_merge(merges: dict[str, str], config_dir: str) -> int:
     return len(new)
 
 
+def _km(a: tuple[float, float], b: tuple[float, float]) -> float:
+    import math
+    r, (p1, l1), (p2, l2) = 6371.0, a, b
+    f1, f2 = math.radians(p1), math.radians(p2)
+    h = (math.sin((f2 - f1) / 2) ** 2
+         + math.cos(f1) * math.cos(f2) * math.sin(math.radians(l2 - l1) / 2) ** 2)
+    return 2 * r * math.asin(math.sqrt(h))
+
+
+def looks_like_a_district(city: str, count: int, centroids: dict, counts: Counter,
+                          baseline: dict) -> str | None:
+    """A new name sitting inside an established city is usually its district.
+
+    'Buiucani' is a sector of Chișinău, 'Tirane' is Tirana spelled without the
+    final vowel — neither trips a fold-collision or a name-shape rule, because
+    both read as ordinary city names. What gives them away is geography: their
+    check-ins land a couple of km from a city that already has orders of
+    magnitude more. Reported, never blocking — real settlements do sit next to
+    bigger neighbours (Varnița by Bender, Geldrop by Eindhoven).
+    """
+    here = centroids.get(city)
+    if not here:
+        return None
+    best = None
+    for other, there in centroids.items():
+        if other == city or other not in baseline:
+            continue
+        if counts.get(other, 0) < 20 * count:
+            continue
+        d = _km(here, there)
+        if d <= 5.0 and (best is None or d < best[0]):
+            best = (d, other)
+    if not best:
+        return None
+    return f"DISTRICT? {best[0]:.1f} km from {best[1]!r} (x{counts[best[1]]}) — a sector or a spelling of it?"
+
+
 def judge_added(city: str, count: int, removed: dict[str, int],
                 invariant_cities: set[str], canonical_values: set[str],
-                shape_patterns: list | None = None) -> str:
+                shape_patterns: list | None = None,
+                centroids: dict | None = None, counts: Counter | None = None,
+                baseline: dict | None = None) -> str:
     if city in invariant_cities:
         return "MISS"
     if shape_patterns and is_not_a_city(city, shape_patterns, canonical_values):
@@ -271,6 +325,10 @@ def judge_added(city: str, count: int, removed: dict[str, int],
     for rc, rn in removed.items():
         if rn == count:
             return f"RENAME? (was {rc!r}, {rn} check-ins)"
+    if centroids is not None and counts is not None and baseline is not None:
+        verdict = looks_like_a_district(city, count, centroids, counts, baseline)
+        if verdict:
+            return verdict
     if not city.isascii() and city not in canonical_values:
         return "REVIEW (non-ASCII, not a known canonical)"
     return "new"
@@ -301,7 +359,7 @@ def main() -> int:
         print("ERROR: pyyaml required (pip install pyyaml)", file=sys.stderr)
         return 2
 
-    counts = compute_city_counts(args.csv, args.config_dir, args.backfill)
+    counts, centroids = compute_city_counts(args.csv, args.config_dir, args.backfill)
     _, canonical_values = load_canonical(args.config_dir)
     total_cities = len(counts)
     total_checkins = sum(counts.values())
@@ -333,7 +391,7 @@ def main() -> int:
             for variant, keep in sorted(merges.items()):
                 print(f"AUTO-MERGE: {variant!r} → {keep!r}")
             print(f"Wrote {written} rule(s) to {args.config_dir}/city_merge.yaml")
-            counts = compute_city_counts(args.csv, args.config_dir, args.backfill)
+            counts, centroids = compute_city_counts(args.csv, args.config_dir, args.backfill)
             _, canonical_values = load_canonical(args.config_dir)
             total_cities = len(counts)
             total_checkins = sum(counts.values())
@@ -378,7 +436,8 @@ def main() -> int:
             print(f"\n  Added ({len(added)}):")
             for city, n in sorted(added.items(), key=lambda kv: -kv[1]):
                 v = judge_added(city, n, removed, invariant_cities,
-                                canonical_values, shape_patterns)
+                                canonical_values, shape_patterns,
+                                centroids, counts, base_counts)
                 verdicts.append((city, v))
                 print(f"    {n:5} × {city!r}  → {v}")
         if removed:
@@ -414,7 +473,7 @@ def main() -> int:
     hard = (bool(invariant_hits) or bool(shape_new)
             or any(v == "MISS" or v.startswith("NOT-A-CITY") for _, v in verdicts))
     soft = (bool(shape_old)
-            or any(v.startswith("RENAME") or v.startswith("REVIEW") for _, v in verdicts))
+            or any(v.startswith(("RENAME", "REVIEW", "DISTRICT")) for _, v in verdicts))
 
     if not hard and not soft:
         print("\nOK — no normalization misses.")

@@ -1,6 +1,6 @@
 {
- "total_cities": 851,
- "total_checkins": 70359,
+ "total_cities": 850,
+ "total_checkins": 70446,
  "counts": {
   "Aachen": 115,
   "Abadeh": 2,
@@ -141,7 +141,7 @@
   "Chernyshevskoye": 5,
   "Chervyen": 2,
   "Chiki": 6,
-  "Chișinău": 4943,
+  "Chișinău": 5030,
   "Chkalovsk": 1,
   "Cholpon-Ata": 1,
   "Chornomorsk": 24,
@@ -720,8 +720,7 @@
   "Terespol": 60,
   "Ternopil": 40,
   "Tillé": 5,
-  "Tirana": 116,
-  "Tirane": 1,
+  "Tirana": 117,
   "Tiraspol": 96,
   "Toledo": 1,
   "Tolmin": 13,

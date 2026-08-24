@@ -129,6 +129,8 @@
   "Гонолес": "Gonoles"  # ok — village
   "Хотислав": "Khotislav"  # ok — village
   "Скарынічы": "Skarynichy"  # ok — village south of Minsk (53.80,27.48); venue "Скариничи"
+  "Buiucani": "Chișinău"  # ok — сектор Кишинёва, не город (Foursquare отдал сектор для кофейни Brun)
+  "Tirane": "Tirana"  # ok — то же место, албанское написание без конечной -a (900 м, 1 против 116)
   "Затока": "Zatoka"  # ok — то же место, что Zatoka (rf0408 против 8 строк той же поездки)
   "Павловка": "Pavlovka"  # ok — село у станции Кучурган; погранпост в 2.5 км это Kuchurhan
   "Kamyanyetski Rayon": "Kamyanyuki"  # ok — Беловежская пуща, 4 чек-ина у деревни Каменюки
