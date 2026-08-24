@@ -536,12 +536,19 @@ def main() -> None:
     _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues", "trips", "venue_changes")
     counts_before: dict[str, int] = {}
     for tbl in _TABLES:
+        # `checkins` is deliberately NOT counted here -- the check-in pass below
+        # fills it in. D1 bills reads as rows SCANNED, so COUNT(*) over the 70k-row
+        # checkins table costs 70k rows read, and the incremental path already asks
+        # for `COUNT(*), MAX(date)` because it needs the watermark anyway. Counting
+        # it twice burned ~70k rows/sync (~630k/day) for a duplicate number.
+        if tbl == "checkins":
+            continue
         try:
             res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
             counts_before[tbl] = res[0].get("n", 0) if res else 0
         except Exception:
             counts_before[tbl] = 0
-    print(f"D1 sync: counts before = {counts_before}", flush=True)
+    print(f"D1 sync: counts before = {counts_before} (checkins counted below)", flush=True)
 
     # Parse CSV (always needed) — apply full transform pipeline so D1 gets resolved cities/countries
     _cfg = args.config_dir if args.config_dir else None
@@ -687,8 +694,19 @@ def main() -> None:
         print(f"  companion-fixes: {len(cfix_ids)} override(s), {len(cf_stmts)} UPDATE(s) applied"
               + (f", {missing} id(s) not in this CSV" if missing > 0 else ""), flush=True)
 
+    # Per-table FTS dirtiness. `changed` is the coarse CI-facing "something
+    # happened" signal (it drives the CHANGED= line workflows read) but it is the
+    # WRONG gate for an FTS rebuild: only venues/tips/trips carry an index, and a
+    # rebuild reinserts the WHOLE index. Driving all three off `changed` meant one
+    # new check-in -- which invalidates no index at all, checkins have none --
+    # rebuilt venues_fts (~20k rows), tips_fts and trips_fts on every hourly sync.
+    # Each write site below marks only the index it can actually invalidate.
+    fts_dirty = {"venues_fts": False, "tips_fts": False, "trips_fts": False}
+
     if args.force_checkins:
         print("  checkins : FORCE full resync — wiping checkins + venues and reinserting", flush=True)
+        res = d1.query("SELECT COUNT(*) AS n FROM checkins")
+        counts_before["checkins"] = (res[0].get("n") or 0) if res else 0
         d1.query("DELETE FROM checkins")
         d1.query("DELETE FROM venues")
         d1.batch_upsert(SQL_CHECKINS_NEW, all_checkin_rows, label="checkins ")
@@ -699,6 +717,7 @@ def main() -> None:
         ]
         d1.batch_upsert(SQL_VENUES, all_venue_rows, label="venues   ")
         changed = True
+        fts_dirty["venues_fts"] = True
         new_checkin_rows = []   # skip incremental path below
         new_venue_ids: set = set()
     else:
@@ -706,6 +725,7 @@ def main() -> None:
         result = d1.query("SELECT COUNT(*) AS n, MAX(date) AS max_date FROM checkins")
         d1_count = (result[0].get("n") or 0) if result else 0
         max_date = (result[0].get("max_date") or 0) if result else 0
+        counts_before["checkins"] = d1_count   # the pre-sync count, free of a 2nd COUNT(*)
         print(f"D1 sync: {d1_count} existing check-ins, last known timestamp = {max_date}",
               flush=True)
 
@@ -716,8 +736,8 @@ def main() -> None:
         # set-difference) only ever INSERTS a missing id — it never UPDATES an id
         # already in D1 — so an edited backfill row is served stale forever (rf0026
         # kept showing the old venue after the CSV reassigned it to another place).
-        # The rf* set is tiny (dozens of rows), so it's reconciled by delete-and-
-        # reinsert further down: cheap, idempotent, self-healing. The feed reads
+        # The rf* set is reconciled by delete-and-reinsert further down, but only
+        # when its CONTENT actually changed (see the sync_state gate there). The feed reads
         # venue/category straight off the checkins row (no venues join), so
         # refreshing these rows is what fixes /api/feed.
         backfill_rows = [r for r in all_checkin_rows if str(r[0]).startswith("rf")]
@@ -733,7 +753,12 @@ def main() -> None:
         # genuinely new). d1_count includes the rf* rows already in D1, so compare the
         # REAL-row count against D1's real-row count (total minus the rf* subset that
         # the content reconcile below owns) — otherwise the rf* rows skew the guard.
-        rf_d1        = d1.query("SELECT COUNT(*) AS n FROM checkins WHERE id LIKE 'rf%'")
+        # Range predicate, not LIKE: SQLite's default case-insensitive LIKE cannot
+        # use the BINARY-collated idx_checkins_id, so `id LIKE 'rf%'` was a full
+        # 70k-row scan. Real check-in ids are 24-char hex, so nothing real can start
+        # with 'r' -- ['rf','rg') is exactly the reconstructed subset.
+        rf_d1        = d1.query("SELECT COUNT(*) AS n FROM checkins "
+                                "WHERE id >= 'rf' AND id < 'rg'")
         rf_d1_count  = (rf_d1[0].get("n") or 0) if rf_d1 else 0
         real_d1_count = d1_count - rf_d1_count
         if len(real_rows) > real_d1_count + len(new_checkin_rows):
@@ -782,15 +807,29 @@ def main() -> None:
 
         # Reconcile reconstructed backfill rows by CONTENT: delete the whole rf*
         # subset and reinsert the current CSV's backfill rows, refreshing any that
-        # changed behind a reused id. Runs every sync (like the FTS empty-check) so a
-        # stale row self-heals with no manual step; the write is trivial (~dozens of
-        # rows) next to the 65k real check-ins. `changed` is intentionally NOT set
-        # here — checkins carry no FTS index, so this must not trigger an FTS rebuild.
+        # changed behind a reused id. `changed` is intentionally NOT set here —
+        # checkins carry no FTS index, so this must not trigger an FTS rebuild.
+        #
+        # GATED on a sync_state content hash. This block used to run unconditionally
+        # every sync, and the rf* set is no longer "a few dozen rows": at ~1.4k rows
+        # × (1 + 4 indexes) that is ~7k rows written per delete and ~7k per reinsert,
+        # ~14k/sync — over ~9 syncs/day ~125k rows written, i.e. this one block blew
+        # the entire 100k/day free-tier write cap on its own. The backfill changes a
+        # few times a month, so the hash skips the write on every other run.
+        # `rf_d1_count` keeps it self-healing: a hash match with the wrong number of
+        # rows actually in D1 (force resync, wrangler bulk dump, partial write) still
+        # reconciles.
         if backfill_rows:
-            print(f"D1 sync: reconciling {len(backfill_rows)} backfill row(s) by "
-                  f"content (delete + reinsert rf*)", flush=True)
-            d1.query("DELETE FROM checkins WHERE id LIKE 'rf%'")
-            d1.batch_upsert(SQL_CHECKINS_NEW, backfill_rows, label="checkins (backfill)")
+            bf_hash = _rows_hash(backfill_rows)
+            if bf_hash == sync_hashes.get("backfill") and rf_d1_count == len(backfill_rows):
+                print(f"  checkins (backfill): unchanged ({len(backfill_rows)} rf* rows) "
+                      f"— skipped", flush=True)
+            else:
+                print(f"D1 sync: reconciling {len(backfill_rows)} backfill row(s) by "
+                      f"content (delete + reinsert rf*)", flush=True)
+                d1.query("DELETE FROM checkins WHERE id >= 'rf' AND id < 'rg'")
+                d1.batch_upsert(SQL_CHECKINS_NEW, backfill_rows, label="checkins (backfill)")
+                _save_sync_hash("backfill", bf_hash)
 
         # Opt-in: prune checkin rows whose id is no longer in the CSV (D1>CSV
         # drift). Checkins are append-only by design — a bad/truncated CSV fetch
@@ -839,8 +878,14 @@ def main() -> None:
         #   D1 > CSV — a venue orphaned by a merge / reassignment / archive dedup
         #     lingers (check-in deletion is handled by delete_checkin.py).
         # Query the D1 id set once and drive both add + prune from it.
-        existing_venues = d1.query("SELECT id FROM venues")
-        existing_venue_ids = {row["id"] for row in existing_venues} if existing_venues else set()
+        # Select the FTS-indexed columns too: D1 bills rows SCANNED, not columns,
+        # so widening this SELECT is free — and it lets us notice a venue whose
+        # indexed text changed (a rename), which the id-only version could not.
+        existing_venues = d1.query("SELECT id, name, category, city, country FROM venues")
+        existing_venue_meta = {row["id"]: (row.get("name"), row.get("category"),
+                                           row.get("city"), row.get("country"))
+                               for row in (existing_venues or [])}
+        existing_venue_ids = set(existing_venue_meta)
         meta_ids = set(venue_meta.keys())
         # Upsert new-checkin venues plus any CSV venue missing from D1.
         to_upsert = new_venue_ids | (meta_ids - existing_venue_ids)
@@ -857,6 +902,13 @@ def main() -> None:
             d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
             if missing_only:
                 changed = True
+            # Dirty venues_fts only if an indexed column actually moved: a brand-new
+            # venue, or an existing one whose name/category/city/country changed
+            # (a venue rename — previously missed entirely, leaving a stale index).
+            for r in venue_rows:
+                if existing_venue_meta.get(r[0]) != (r[1], r[2], r[5], r[6]):
+                    fts_dirty["venues_fts"] = True
+                    break
         # Prune orphans absent from the CSV aggregation.
         orphan_ids = sorted(existing_venue_ids - meta_ids)
         if orphan_ids:
@@ -877,6 +929,7 @@ def main() -> None:
                 d1.batch_upsert(SQL_VENUE_CHANGES, audit_rows,
                                 label="venue_changes(deleted venues)")
             changed = True
+            fts_dirty["venues_fts"] = True
 
     # Tips
     if args.force_tips:
@@ -886,6 +939,7 @@ def main() -> None:
         d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
         _save_sync_hash("tips", _rows_hash(tip_rows))
         changed = True
+        fts_dirty["tips_fts"] = True
     elif args.tips_changed == "true":
         tip_rows = parse_tips(args.tips)
         h = _rows_hash(tip_rows)
@@ -895,6 +949,7 @@ def main() -> None:
             d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
             _save_sync_hash("tips", h)
             changed = True
+            fts_dirty["tips_fts"] = True
     else:
         print("  tips     : skipped (no new tips this run)", flush=True)
 
@@ -934,6 +989,7 @@ def main() -> None:
         d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
         _save_sync_hash("trips", _rows_hash(trip_rows))
         changed = True
+        fts_dirty["trips_fts"] = True
     elif args.trips_changed == "true" and args.trips:
         if Path(args.trips).exists():
             trip_rows = parse_trips(args.trips)
@@ -944,6 +1000,7 @@ def main() -> None:
                 d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
                 _save_sync_hash("trips", h)
                 changed = True
+                fts_dirty["trips_fts"] = True
         else:
             print(f"  trips    : file not found: {args.trips}", flush=True)
     else:
@@ -1086,6 +1143,10 @@ def main() -> None:
             ]
             d1.batch_upsert(SQL_VENUE_CHANGES, vc_rows, label="venue_changes")
             changed = True
+            # A venue diff rewrites venues.name/category/city/country AND the
+            # denormalized tips.venue/city/country — both are FTS-indexed columns.
+            fts_dirty["venues_fts"] = True
+            fts_dirty["tips_fts"] = True
         else:
             print("  venue_changes: no valid diffs found", flush=True)
     elif args.venue_changes:
@@ -1119,6 +1180,8 @@ def main() -> None:
                 print(f"    pruned venue {vid} (no remaining check-ins)", flush=True)
         print(f"  venues   : pruned {pruned} orphaned venue(s)", flush=True)
         changed = True
+        if pruned:
+            fts_dirty["venues_fts"] = True
     elif args.delete_checkin_rows:
         print(f"  delete_checkin_rows: file not found: {args.delete_checkin_rows}", flush=True)
 
@@ -1160,12 +1223,14 @@ def main() -> None:
 
     in_gha = os.environ.get("GITHUB_ACTIONS") == "true"
     alerts: list[str] = []
+    counts_after: dict[str, int] = {}
     for tbl in _TABLES:
         try:
             res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
             after = res[0].get("n", 0) if res else 0
         except Exception:
             after = counts_before.get(tbl, 0)
+        counts_after[tbl] = after
         before = counts_before.get(tbl, 0)
         delta = after - before
         status = f"+{delta}" if delta >= 0 else str(delta)
@@ -1188,10 +1253,10 @@ def main() -> None:
     # the final D1 counts against the source aggregation and warn on any gap.
     source_expected = {"checkins": len(all_checkin_rows), "venues": len(venue_meta)}
     for tbl, expected in source_expected.items():
-        try:
-            res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
-            after = res[0].get("n", 0) if res else 0
-        except Exception:
+        # Reuse the count taken moments ago rather than re-scanning: COUNT(*) over
+        # checkins+venues is ~90k rows read, and nothing writes in between.
+        after = counts_after.get(tbl)
+        if after is None:
             continue
         if after != expected:
             drift = after - expected
@@ -1233,9 +1298,25 @@ def main() -> None:
     def _warn(msg: str) -> None:
         print(f"::warning::{msg}" if in_gha else f"WARNING: {msg}", flush=True)
 
+    def _is_empty(table: str) -> bool:
+        """Cheap emptiness probe: ~1 row read, where COUNT(*) scans the whole index.
+
+        The self-heal only needs a yes/no here, but it asks on EVERY sync for all
+        three indexes — as COUNT(*) that was ~20k rows read per run (~200k/day)
+        spent on a question a single row answers.
+        """
+        try:
+            res = d1.query(f"SELECT rowid FROM {table} LIMIT 1")
+        except Exception:
+            return True    # unknown → treat as "may be empty" and rebuild
+        return not res
+
     for fts_table, base_table, cols in FTS_TABLES:
-        fts_n = _count(fts_table)
-        if not (changed or fts_n <= 0):
+        # `changed` is true for ANY write this sync — new check-ins included — but
+        # checkins has NO FTS table, so the hourly "3 new check-ins" run used to
+        # rebuild all three indexes for nothing. Rebuild only an index whose own
+        # base table was written this run (or one that is actually empty).
+        if not (fts_dirty[fts_table] or _is_empty(fts_table)):
             continue
         try:
             d1.query(f"INSERT INTO {fts_table}({fts_table}) VALUES('rebuild')")
