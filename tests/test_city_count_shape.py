@@ -67,6 +67,22 @@ def _drop_from_baseline(baseline: Path, cities: list[str]) -> None:
     baseline.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
+def _unmap(config_dir: Path, city: str) -> None:
+    """Drop `city` from the copied city_merge.yaml.
+
+    The detector exists to catch a district BEFORE anyone writes the mapping —
+    and once it has fired for real, the mapping gets written (Buiucani was
+    added to city_merge.yaml the day this check first flagged it). Copying the
+    live config would then merge the fixture away before the detector ever
+    sees it, so the test quietly stopped testing anything. Removing the entry
+    restores the state the check is meant to police, whatever config says now.
+    """
+    path = config_dir / "city_merge.yaml"
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    kept = [ln for ln in lines if not ln.lstrip().startswith(f'"{city}":')]
+    path.write_text("".join(kept), encoding="utf-8")
+
+
 def test_new_non_settlement_name_blocks(tmp_path):
     csv_path, config_dir, baseline = _fixture(tmp_path, NOT_CITIES)
     _drop_from_baseline(baseline, NOT_CITIES)
@@ -114,6 +130,7 @@ def test_new_name_inside_an_established_city_is_flagged_as_district(tmp_path):
     """
     config_dir = tmp_path / "config"
     shutil.copytree(ROOT / "config", config_dir)
+    _unmap(config_dir, DISTRICT_CITY)
 
     csv_path, ts0 = tmp_path / "checkins.csv", 1500000000
     with csv_path.open("w", newline="", encoding="utf-8") as fh:

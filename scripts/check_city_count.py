@@ -79,8 +79,9 @@ def _fold(s: str) -> str:
 
 
 def compute_city_counts(csv_path: str, config_dir: str,
-                        backfill_path: str | None = None) -> Counter:
-    """Run the real transform pipeline and count displayed cities.
+                        backfill_path: str | None = None,
+                        ) -> tuple[Counter, dict[str, tuple[float, float]]]:
+    """Run the real transform pipeline: displayed city counts + their centroids.
 
     build.py merges backfill.csv into `rows` BEFORE apply_transforms, so the
     reconstructed rows reach the site through the same normalisation and show up
