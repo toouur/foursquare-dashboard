@@ -219,7 +219,7 @@ body.light .result-card{box-shadow:0 2px 6px rgba(0,0,0,.08);}
   let debounce;
   inp.addEventListener('input',function(){
     clearTimeout(debounce);
-    debounce=setTimeout(()=>run(inp.value),120);
+    debounce=setTimeout(()=>run(inp.value),250);
   });
   inp.addEventListener('keydown',function(e){
     if(e.key==='Enter'){clearTimeout(debounce);run(inp.value);}

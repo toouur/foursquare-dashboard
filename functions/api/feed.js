@@ -217,13 +217,46 @@ export async function onRequestGet({ request, env }) {
   if (wantSearch !== null) {
     const term = wantSearch.trim();
     if (!term) return jsonResp({ items: [], total: 0 });
+    // D1 bills rows SCANNED. The old form was a bare `venue/city/country/category
+    // LIKE '%q%'` over all ~70k check-ins — no index can serve a leading-wildcard
+    // LIKE, so every call scanned the whole table (~70k rows read). Instead go
+    // through venues_fts, which indexes exactly those four columns, and reach the
+    // check-ins by an equality seek on idx_checkins_venue_id.
+    //
+    // Two deterministic statements rather than one with a top-level OR: SQLite's
+    // multi-index OR optimisation is not guaranteed, and a degraded plan would
+    // silently restore the full scan. Their predicates are disjoint, so the merge
+    // needs no dedup.
+    const COLS = 'date, venue, city, country, category, venue_id, lat, lng, id, ' +
+                 'with_name, created_by_name, overlaps_name, source_app';
+    // FTS5 MATCH: each word prefix-matched and AND-ed (same builder as search.js).
+    // unicode61 case-folds Cyrillic, so no lowercasing dance is needed here.
+    const ftsTokens = term.toLowerCase().split(/\s+/)
+      .map(w => w.replace(/"/g, ' ').trim())
+      .filter(w => /[\p{L}\p{N}]/u.test(w));
+    const ftsMatch = ftsTokens.map(w => `"${w}"*`).join(' AND ');
+    // Arm B covers the 55 reconstructed rows that carry a blank venue_id and so
+    // have no venues/FTS row at all. `venue_id = ''` is an equality seek, so the
+    // LIKE inside it only ever sees those rows.
     const like = `%${term}%`;
-    const dataRes = await env.DB.prepare(
-      'SELECT date, venue, city, country, category, venue_id, lat, lng, id, with_name, created_by_name, overlaps_name, source_app ' +
-      'FROM checkins WHERE venue LIKE ?1 OR city LIKE ?1 OR country LIKE ?1 OR category LIKE ?1 ' +
-      'ORDER BY date DESC LIMIT 500'
-    ).bind(like).all();
-    const rows = dataRes.results || [];
+    const [vRes, bRes] = await Promise.all([
+      ftsMatch
+        ? env.DB.prepare(
+            `SELECT ${COLS} FROM checkins ` +
+            'WHERE venue_id IN (SELECT id FROM venues WHERE rowid IN ' +
+            '  (SELECT rowid FROM venues_fts WHERE venues_fts MATCH ?1)) ' +
+            'ORDER BY date DESC LIMIT 500'
+          ).bind(ftsMatch).all()
+        : Promise.resolve({ results: [] }),
+      env.DB.prepare(
+        `SELECT ${COLS} FROM checkins ` +
+        "WHERE venue_id = '' AND (venue LIKE ?1 OR city LIKE ?1 OR country LIKE ?1 OR category LIKE ?1) " +
+        'ORDER BY date DESC LIMIT 500'
+      ).bind(like).all()
+    ]);
+    const rows = [...(vRes.results || []), ...(bRes.results || [])]
+      .sort((a, b) => b.date - a.date)
+      .slice(0, 500);
     const items = mapRows(rows, {});
     return jsonResp({ items, total: items.length });
   }

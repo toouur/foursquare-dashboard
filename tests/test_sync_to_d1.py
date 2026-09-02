@@ -224,6 +224,18 @@ def test_orphan_venue_pruned_with_audit_row(env):
     env.fake.conn.commit()
     assert "orphanX" in env.fake.ids("venues")
 
+    # A second sync in the same UTC day is deliberately NON-census: _sync_base()
+    # already cached daily_counts in sync_state, and the full venues reconcile
+    # (a whole-table scan, ~20k rows read on real data) is contracted to run once
+    # per day, not on every sync. So the orphan survives this run untouched.
+    _run(env, csv_path)
+    assert "orphanX" in env.fake.ids("venues")
+
+    # Dropping the cached census row is what the next UTC day does; the reconcile
+    # then runs and prunes the orphan.
+    env.fake.conn.execute("DELETE FROM sync_state WHERE key='daily_counts'")
+    env.fake.conn.commit()
+
     _run(env, csv_path)   # same CSV → orphanX is not in venue_meta
     assert env.fake.ids("venues") == {"vA", "vB", "vC"}
     audit = env.fake.conn.execute(
@@ -240,6 +252,17 @@ def test_missing_venue_reinserted(env):
     env.fake.conn.execute("DELETE FROM venues WHERE id='vB'")
     env.fake.conn.commit()
     assert "vB" not in env.fake.ids("venues")
+
+    # Same contract as the orphan prune: the missing-from-D1 arm needs the FULL
+    # venue id set, so it only runs on the daily census. A second sync in the
+    # same UTC day reuses the cached counts and probes only the venues its own
+    # new check-ins touched — vB is not among them, so it stays missing.
+    _run(env, csv_path)
+    assert "vB" not in env.fake.ids("venues")
+
+    # Next UTC day (cached census dropped) → full reconcile → vB comes back.
+    env.fake.conn.execute("DELETE FROM sync_state WHERE key='daily_counts'")
+    env.fake.conn.commit()
 
     _run(env, csv_path)
     assert "vB" in env.fake.ids("venues")

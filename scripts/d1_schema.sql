@@ -160,6 +160,18 @@ CREATE TABLE IF NOT EXISTS sync_state (
 -- and would shred a BEGIN..END trigger body). search.js queries these via MATCH
 -- + bm25(). Each is a single statement with no internal ';' so it survives the
 -- split-on-';' parser in d1_client.apply_schema().
+-- Companion name -> check-in count, precomputed by sync_to_d1.build_companion_rows().
+-- /api/search used to answer a companion query with three unindexed LIKE scans of the
+-- 70k-row checkins table (~210k rows READ per keystroke-debounced request, on an
+-- endpoint that is Cache-Control: no-store). This table is a few hundred rows, so the
+-- same lookup scans a few hundred. No secondary index on name_lc on purpose: a
+-- leading-wildcard LIKE cannot use one, and every index costs rows WRITTEN on sync.
+CREATE TABLE IF NOT EXISTS companions (
+    name    TEXT PRIMARY KEY,
+    name_lc TEXT    NOT NULL,
+    cnt     INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS venues_fts USING fts5(name, category, city, country, content='venues', content_rowid='rowid');
 CREATE VIRTUAL TABLE IF NOT EXISTS tips_fts USING fts5(venue, text, city, country, content='tips', content_rowid='rowid');
 CREATE VIRTUAL TABLE IF NOT EXISTS trips_fts USING fts5(name, countries, cities, content='trips', content_rowid='rowid');

@@ -46,6 +46,7 @@ from pathlib import Path
 
 import d1_client as d1
 import transform as _transform
+from metrics import collect_companions
 
 HERE = Path(__file__).parent
 
@@ -111,6 +112,10 @@ SQL_VENUES = (
     "(id,name,category,lat,lng,city,country,checkin_count,first_checkin_at,last_checkin_at) "
     "VALUES (?,?,?,?,?,?,?,?,?,?)"
 )
+SQL_COMPANIONS = (
+    "INSERT INTO companions (name,name_lc,cnt) VALUES (?,?,?)"
+)
+
 SQL_TIPS = (
     "INSERT OR REPLACE INTO tips "
     "(id,ts,text,venue,venue_id,city,country,lat,lng,category,"
@@ -422,6 +427,31 @@ def _sync_lists_diff(list_rows: list, lv_rows: list) -> None:
 
 # -- Main ---------------------------------------------------------------------
 
+def build_companion_rows(rows: list) -> list:
+    """Aggregate companion display name -> number of check-ins, from parsed rows.
+
+    Reuses metrics.collect_companions (the same splitter the static pages and
+    feed.js collectCompanions use) so a person is named identically everywhere:
+    the comma lists are split, the Foursquare "-" overlaps sentinel dropped, and
+    duplicates within one check-in counted once. Row indexes follow
+    SQL_CHECKINS_NEW: 16=with_name, 18=created_by_name, 20=overlaps_name.
+
+    Precomputing this is what lets /api/search answer a companion query with a
+    few-hundred-row scan instead of three full scans of the 70k checkins table.
+    """
+    counts: dict[str, int] = {}
+    casing: dict[str, str] = {}
+    for r in rows:
+        for name in collect_companions({"with_name": r[16],
+                                        "created_by_name": r[18],
+                                        "overlaps_name": r[20]}):
+            k = name.lower()
+            casing.setdefault(k, name)
+            counts[k] = counts.get(k, 0) + 1
+    return [[casing[k], k, n]
+            for k, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
 def dedupe_against_d1(candidates: list, source_rows: list, d1_counts: dict) -> list:
     """Keep only as many copies of each check-in id as D1 is still missing.
 
@@ -532,6 +562,30 @@ def main() -> None:
     # skip the D1 write when their parsed content is byte-identical to last run.
     sync_hashes = _load_sync_hashes()
 
+    # Daily count census. D1 bills reads as rows SCANNED, so the COUNT(*) pair
+    # this script needs (checkins ~70k, venues ~20k) costs ~180k rows read per
+    # sync across the five sites that ask for them -- ~1.6M/day against a 5M cap,
+    # to re-derive numbers that only move by the handful of rows we write here.
+    # Take the real census once per UTC day, cache it in sync_state, and on every
+    # other run derive the after-counts from what this run actually inserted.
+    # Any opt-in flag whose row delta is unknowable (deletes by id / by
+    # (venue_id, date), force resync) forces a fresh census.
+    _today_utc = time.strftime("%Y-%m-%d", time.gmtime())
+    _cached_counts: dict = {}
+    try:
+        _cc = json.loads(sync_hashes.get("daily_counts") or "{}")
+        if (isinstance(_cc, dict) and _cc.get("date") == _today_utc
+                and isinstance(_cc.get("checkins"), int)
+                and isinstance(_cc.get("venues"), int)):
+            _cached_counts = _cc
+    except (ValueError, TypeError):
+        _cached_counts = {}
+    census = bool(not _cached_counts or args.force_checkins or args.prune_stale_checkins
+                  or args.venue_changes or args.delete_checkin_rows)
+    print("D1 sync: count census = "
+          + ("YES (fresh COUNT(*))" if census else f"no (cached for {_today_utc})"),
+          flush=True)
+
     # Snapshot counts before sync -- used to detect unexpected shrinkage
     _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues", "trips", "venue_changes")
     counts_before: dict[str, int] = {}
@@ -542,6 +596,11 @@ def main() -> None:
         # for `COUNT(*), MAX(date)` because it needs the watermark anyway. Counting
         # it twice burned ~70k rows/sync (~630k/day) for a duplicate number.
         if tbl == "checkins":
+            continue
+        # `venues` is the other 20k-row COUNT(*); on a non-census run reuse the
+        # cached number instead of re-scanning the table.
+        if tbl == "venues" and not census:
+            counts_before[tbl] = int(_cached_counts["venues"])
             continue
         try:
             res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
@@ -703,6 +762,12 @@ def main() -> None:
     # Each write site below marks only the index it can actually invalidate.
     fts_dirty = {"venues_fts": False, "tips_fts": False, "trips_fts": False}
 
+    # Running row counts, maintained as this sync writes. Only READ on a
+    # non-census run -- and a non-census run has, by construction, none of the
+    # flags that can delete rows, so "before + what we inserted" is exact.
+    checkin_count_after = 0
+    venue_count_after = 0
+
     if args.force_checkins:
         print("  checkins : FORCE full resync — wiping checkins + venues and reinserting", flush=True)
         res = d1.query("SELECT COUNT(*) AS n FROM checkins")
@@ -720,12 +785,24 @@ def main() -> None:
         fts_dirty["venues_fts"] = True
         new_checkin_rows = []   # skip incremental path below
         new_venue_ids: set = set()
+        checkin_count_after = len(all_checkin_rows)
+        venue_count_after = len(venue_meta)
     else:
         # Get current count + max checkin date from D1
-        result = d1.query("SELECT COUNT(*) AS n, MAX(date) AS max_date FROM checkins")
-        d1_count = (result[0].get("n") or 0) if result else 0
-        max_date = (result[0].get("max_date") or 0) if result else 0
+        # MAX(date) alone is an index seek on idx_checkins_date (~1 row read);
+        # pairing it with COUNT(*) in one statement forces a full 70k-row scan.
+        # The watermark must never be stale, so it is always read live -- only the
+        # count comes from the daily census cache.
+        if census:
+            result = d1.query("SELECT COUNT(*) AS n, MAX(date) AS max_date FROM checkins")
+            d1_count = (result[0].get("n") or 0) if result else 0
+            max_date = (result[0].get("max_date") or 0) if result else 0
+        else:
+            result = d1.query("SELECT MAX(date) AS max_date FROM checkins")
+            max_date = (result[0].get("max_date") or 0) if result else 0
+            d1_count = int(_cached_counts["checkins"])
         counts_before["checkins"] = d1_count   # the pre-sync count, free of a 2nd COUNT(*)
+        checkin_count_after = d1_count
         print(f"D1 sync: {d1_count} existing check-ins, last known timestamp = {max_date}",
               flush=True)
 
@@ -804,6 +881,7 @@ def main() -> None:
         # Upsert checkins (INSERT OR IGNORE -- safe to re-run)
         if new_checkin_rows:
             d1.batch_upsert(SQL_CHECKINS_NEW, new_checkin_rows, label="checkins (new)")
+            checkin_count_after += len(new_checkin_rows)
 
         # Reconcile reconstructed backfill rows by CONTENT: delete the whole rf*
         # subset and reinsert the current CSV's backfill rows, refreshing any that
@@ -829,6 +907,7 @@ def main() -> None:
                       f"content (delete + reinsert rf*)", flush=True)
                 d1.query("DELETE FROM checkins WHERE id >= 'rf' AND id < 'rg'")
                 d1.batch_upsert(SQL_CHECKINS_NEW, backfill_rows, label="checkins (backfill)")
+                checkin_count_after += len(backfill_rows) - rf_d1_count
                 _save_sync_hash("backfill", bf_hash)
 
         # Opt-in: prune checkin rows whose id is no longer in the CSV (D1>CSV
@@ -881,16 +960,36 @@ def main() -> None:
         # Select the FTS-indexed columns too: D1 bills rows SCANNED, not columns,
         # so widening this SELECT is free — and it lets us notice a venue whose
         # indexed text changed (a rename), which the id-only version could not.
-        existing_venues = d1.query("SELECT id, name, category, city, country FROM venues")
+        # The full scan IS the reconcile, and it costs ~20k rows read. Run it on
+        # the daily census; on every other sync look up only the venue ids this
+        # run actually touched (chunked IN (...) over the PK -- a few hundred rows
+        # read), which is enough to upsert them and to spot a rename, but NOT
+        # enough to judge orphans or missing-from-D1 (see below).
+        meta_ids = set(venue_meta.keys())
+        if census:
+            existing_venues = d1.query("SELECT id, name, category, city, country FROM venues")
+        else:
+            existing_venues = []
+            probe_ids = sorted(new_venue_ids)
+            for i in range(0, len(probe_ids), 200):
+                chunk = probe_ids[i:i + 200]
+                ph = ",".join("?" * len(chunk))
+                existing_venues += d1.query(
+                    f"SELECT id, name, category, city, country FROM venues "
+                    f"WHERE id IN ({ph})", chunk) or []
         existing_venue_meta = {row["id"]: (row.get("name"), row.get("category"),
                                            row.get("city"), row.get("country"))
                                for row in (existing_venues or [])}
         existing_venue_ids = set(existing_venue_meta)
-        meta_ids = set(venue_meta.keys())
-        # Upsert new-checkin venues plus any CSV venue missing from D1.
-        to_upsert = new_venue_ids | (meta_ids - existing_venue_ids)
+        # Upsert new-checkin venues plus any CSV venue missing from D1. That second
+        # arm needs the FULL D1 id set, so it only runs on a census: with a partial
+        # set every untouched venue would read as missing and be re-upserted.
+        to_upsert = (new_venue_ids | (meta_ids - existing_venue_ids)) if census else set(new_venue_ids)
+        venue_count_after = (len(meta_ids) if census
+                             else int(_cached_counts["venues"])
+                             + len(new_venue_ids - existing_venue_ids))
         if to_upsert:
-            missing_only = (meta_ids - existing_venue_ids) - new_venue_ids
+            missing_only = ((meta_ids - existing_venue_ids) - new_venue_ids) if census else set()
             if missing_only:
                 print(f"D1 sync: {len(missing_only)} venue(s) present in CSV but missing "
                       f"from D1 — inserting", flush=True)
@@ -910,7 +1009,10 @@ def main() -> None:
                     fts_dirty["venues_fts"] = True
                     break
         # Prune orphans absent from the CSV aggregation.
-        orphan_ids = sorted(existing_venue_ids - meta_ids)
+        # Orphan detection needs the complete D1 id set: on a non-census run
+        # existing_venue_ids holds only the probed subset, so this difference
+        # would read as ~20k orphans and delete the table. Census runs only.
+        orphan_ids = sorted(existing_venue_ids - meta_ids) if census else []
         if orphan_ids:
             print(f"D1 sync: removing {len(orphan_ids)} orphaned venue(s) "
                   f"absent from check-in data", flush=True)
@@ -930,6 +1032,21 @@ def main() -> None:
                                 label="venue_changes(deleted venues)")
             changed = True
             fts_dirty["venues_fts"] = True
+
+    # Companions (precomputed name -> check-in count, for /api/search)
+    companion_rows = build_companion_rows(all_checkin_rows)
+    comp_hash = _rows_hash(companion_rows)
+    if comp_hash == sync_hashes.get("companions"):
+        print(f"  companions: unchanged ({len(companion_rows)} names) - skipped",
+              flush=True)
+    else:
+        print(f"D1 sync: rebuilding companions table ({len(companion_rows)} names)",
+              flush=True)
+        d1.query("DELETE FROM companions")
+        if companion_rows:
+            d1.batch_upsert(SQL_COMPANIONS, companion_rows, label="companions")
+        _save_sync_hash("companions", comp_hash)
+    # No `changed` / fts_dirty: this table has no FTS index and nothing else reads it.
 
     # Tips
     if args.force_tips:
@@ -1224,12 +1341,18 @@ def main() -> None:
     in_gha = os.environ.get("GITHUB_ACTIONS") == "true"
     alerts: list[str] = []
     counts_after: dict[str, int] = {}
+    # The two big tables come from the running accumulators on a non-census run
+    # (~90k rows read saved); the small ones are cheap to count either way.
+    _derived_after = {"checkins": checkin_count_after, "venues": venue_count_after}
     for tbl in _TABLES:
-        try:
-            res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
-            after = res[0].get("n", 0) if res else 0
-        except Exception:
-            after = counts_before.get(tbl, 0)
+        if not census and tbl in _derived_after:
+            after = _derived_after[tbl]
+        else:
+            try:
+                res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
+                after = res[0].get("n", 0) if res else 0
+            except Exception:
+                after = counts_before.get(tbl, 0)
         counts_after[tbl] = after
         before = counts_before.get(tbl, 0)
         delta = after - before
@@ -1270,6 +1393,17 @@ def main() -> None:
 
     if not alerts:
         print("D1 sync: all counts stable or growing", flush=True)
+
+    # Persist the day's counts so the rest of this UTC day can skip the COUNT(*)s.
+    # A stale-LOW checkins count trips the mismatch guard above and falls back to
+    # the exact GROUP BY id scan (correct, merely expensive); a stale-HIGH one only
+    # means that fallback is not attempted, and the live MAX(date) watermark still
+    # carries every genuinely new row. Both self-correct at the next census.
+    _cc_ck = counts_after.get("checkins")
+    _cc_vn = counts_after.get("venues")
+    if isinstance(_cc_ck, int) and isinstance(_cc_vn, int) and _cc_ck > 0 and _cc_vn > 0:
+        _save_sync_hash("daily_counts", json.dumps(
+            {"date": _today_utc, "checkins": _cc_ck, "venues": _cc_vn}))
 
     # ── Rebuild FTS5 search indexes ──────────────────────────────────────────
     # venues_fts / tips_fts / trips_fts are external-content FTS5 tables (see
