@@ -35,6 +35,12 @@ const HEADERS = {
   'Cache-Control': 'public, max-age=60, s-maxage=3600, stale-while-revalidate=600',
 };
 
+// Error responses reuse the same content type but must not be cached anywhere.
+const HEADERS_NOSTORE = {
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store',
+};
+
 // Country → IANA timezone (same as original)
 const COUNTRY_TZ = {
   'Belarus':'Europe/Minsk','Moldova':'Europe/Chisinau','Poland':'Europe/Warsaw',
@@ -184,7 +190,31 @@ function mapRows(rows, tzCache) {
   });
 }
 
-export async function onRequestGet({ request, env }) {
+// Every branch below is one D1 query away from an unhandled rejection, which a
+// Pages Function surfaces as a bare HTTP 500 "error code: 1101" whose body is not
+// JSON at all — so the caller's `await res.json()` throws too and the feed dies
+// with a console error instead of an empty state. That is exactly what happened
+// when the D1 free-tier daily row-read limit was reached: every query on the
+// database started failing at once. Wrap the handler so any D1 failure becomes a
+// well-formed 503 the frontend can read.
+export async function onRequestGet(ctx) {
+  try {
+    return await handleGet(ctx);
+  } catch (err) {
+    console.error(`/api/feed: query failed — ${(err && err.message) || err}`);
+    // Shape-compatible with every branch's success payload, so a caller that
+    // destructures `items` / `has_more` / `cursor` keeps working and simply
+    // renders nothing. Never cached (see jsonResp) — the feed must recover the
+    // moment D1 does.
+    return jsonResp({
+      error: 'D1 unavailable',
+      items: [], total: 0, has_more: false,
+      next_cursor: null, next_cursor_id: null, cursor: null,
+    }, 503);
+  }
+}
+
+async function handleGet({ request, env }) {
   if (!env.DB) {
     return jsonResp({ error: 'DB binding not configured' }, 503);
   }
@@ -434,6 +464,12 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: HEADERS });
 }
 
+// Only a 200 carries the long edge-cache header. A 4xx/5xx must never be cached:
+// an hour of `s-maxage` on a 503 would pin an outage — or a bad-request answer —
+// long after the cause was fixed.
 function jsonResp(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: HEADERS });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: status === 200 ? HEADERS : HEADERS_NOSTORE,
+  });
 }

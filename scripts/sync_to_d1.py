@@ -482,7 +482,7 @@ def dedupe_against_d1(candidates: list, source_rows: list, d1_counts: dict) -> l
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Incremental D1 sync for CI")
-    ap.add_argument("--csv",        required=True)
+    ap.add_argument("--csv",        default=None)
     ap.add_argument("--backfill",   default=None,
                     help="Optional reconstructed pre-2012 check-in CSV (backfill.csv, "
                          "source_app=refurbished, blank venue_id, rf* ids). Merged into the "
@@ -492,7 +492,7 @@ def main() -> None:
                          "(default: <repo>/config). Pass empty string to skip transforms.")
     ap.add_argument("--city-review", dest="city_review", default=str(HERE.parent / "city_review.csv"),
                     help="Path to city_review.csv for blank-city resolver (default: <repo>/city_review.csv)")
-    ap.add_argument("--tips",    required=True)
+    ap.add_argument("--tips",    default=None)
     ap.add_argument("--ratings", default=None,
                     help="Path to venueRatings.json (optional; required if --ratings-changed or --force-ratings)")
     ap.add_argument("--lists",   default=None,
@@ -500,6 +500,11 @@ def main() -> None:
     ap.add_argument("--trips",   default=None,
                     help="Path to trips_meta.json (written by build.py --trips-out)")
     ap.add_argument("--schema",  default=str(HERE / "d1_schema.sql"))
+    ap.add_argument("--schema-only", dest="schema_only", action="store_true",
+                    help="Apply the schema (idempotent DDL) and exit -- no data sync, no "
+                         "row reads. Lets a deploy guarantee that every table its Pages "
+                         "Functions query already exists, even on a run whose full sync is "
+                         "gated off (see update-dashboard.yml).")
     ap.add_argument("--token",   help="CF_D1_TOKEN override")
     ap.add_argument("--tips-changed",    dest="tips_changed",
                     default="false", choices=("true", "false"),
@@ -549,6 +554,14 @@ def main() -> None:
                          "also prunes orphaned venue_ids from venues table")
     args = ap.parse_args()
 
+    # --csv/--tips are required for every mode EXCEPT --schema-only, which needs
+    # no source data at all. Reported through ap.error() so the message and the
+    # exit code match argparse's own required-argument handling.
+    if not args.schema_only:
+        missing = [flag for flag, val in (("--csv", args.csv), ("--tips", args.tips)) if not val]
+        if missing:
+            ap.error("the following arguments are required: " + ", ".join(missing))
+
     token = args.token or os.environ.get("CF_D1_TOKEN", "")
     if not token:
         sys.exit("Set CF_D1_TOKEN env var or pass --token")
@@ -557,6 +570,10 @@ def main() -> None:
     # Schema (idempotent -- CREATE IF NOT EXISTS, no drops)
     print("D1 sync: applying schema ...", flush=True)
     d1.apply_schema(args.schema)
+
+    if args.schema_only:
+        print("D1 sync: --schema-only -- schema applied, nothing else to do.", flush=True)
+        return
 
     # Content-hash gate state (sync_state table): lets trips/lists/tips/ratings
     # skip the D1 write when their parsed content is byte-identical to last run.

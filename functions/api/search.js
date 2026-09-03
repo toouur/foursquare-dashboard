@@ -71,11 +71,32 @@ export async function onRequestGet({ request, env, waitUntil }) {
   // City search restricts the same tokens to the city/country columns of venues_fts.
   const ftsCity   = ftsTokens.map(w => `{city country} : "${w}"*`).join(' AND ');
 
+  // One failing table must not take out the whole endpoint. Two real cases:
+  //   - `companions` is created by sync_to_d1.py, but the deploy step in
+  //     update-dashboard.yml runs on ANY change while the D1 sync has a stricter
+  //     gate (RUN_D1 excludes a photos-only run), so a deploy can reach
+  //     production before the first sync that creates the table;
+  //   - D1 itself refuses every query once the free-tier daily row-read limit is
+  //     spent, which used to surface as an unhandled rejection, i.e. a bare
+  //     HTTP 500 "error code: 1101" whose body is not even JSON.
+  // Each query therefore degrades to an empty result set on its own, and we
+  // count the failures so the response can say what actually happened.
+  let attempted = 0;
+  let failed    = 0;
+  const safe = (promise, label) => {
+    attempted++;
+    return promise.catch(err => {
+      failed++;
+      console.error(`/api/search: ${label} query failed — ${(err && err.message) || err}`);
+      return { results: [] };
+    });
+  };
+
   // Empty MATCH (query was all punctuation) → skip the FTS-backed queries but
   // still run the LIKE-based companion lookup below.
   const noFts = { results: [] };
-  const runFts = (sql, param) =>
-    ftsMatch ? env.DB.prepare(sql).bind(param).all() : Promise.resolve(noFts);
+  const runFts = (sql, param, label) =>
+    ftsMatch ? safe(env.DB.prepare(sql).bind(param).all(), label) : Promise.resolve(noFts);
 
   // Run all D1 queries in parallel
   const [venueRes, cityRes, tipRes, compRes, tripRes] = await Promise.all([
@@ -84,20 +105,20 @@ export async function onRequestGet({ request, env, waitUntil }) {
       'FROM venues_fts JOIN venues ON venues.rowid = venues_fts.rowid ' +
       'WHERE venues_fts MATCH ?1 ' +
       'ORDER BY bm25(venues_fts), venues.checkin_count DESC LIMIT 60',
-      ftsMatch),
+      ftsMatch, 'venues'),
 
     runFts(
       'SELECT venues.city, venues.country, COUNT(*) AS cnt ' +
       'FROM venues_fts JOIN venues ON venues.rowid = venues_fts.rowid ' +
       'WHERE venues_fts MATCH ?1 AND venues.city IS NOT NULL ' +
       'GROUP BY venues.city, venues.country ORDER BY cnt DESC LIMIT 40',
-      ftsCity),
+      ftsCity, 'cities'),
 
     runFts(
       'SELECT tips.venue, tips.text, tips.city, tips.country ' +
       'FROM tips_fts JOIN tips ON tips.rowid = tips_fts.rowid ' +
       'WHERE tips_fts MATCH ?1 ORDER BY bm25(tips_fts) LIMIT 60',
-      ftsMatch),
+      ftsMatch, 'tips'),
 
     // Companions come from the precomputed `companions` table (sync_to_d1.py
     // build_companion_rows), NOT from three LIKE scans of the 70k-row checkins
@@ -108,17 +129,17 @@ export async function onRequestGet({ request, env, waitUntil }) {
     // check-in, so `cnt` is check-ins-with-this-person exactly as before.
     // name_lc is pre-lowercased so the match works for Cyrillic too (SQLite's
     // LIKE only folds case for ASCII).
-    env.DB.prepare(
+    safe(env.DB.prepare(
       'SELECT name, cnt FROM companions WHERE name_lc LIKE ?1 ' +
       'ORDER BY cnt DESC LIMIT 20'
-    ).bind(likeLc).all(),
+    ).bind(likeLc).all(), 'companions'),
 
     runFts(
       'SELECT trips.id, trips.name, trips.start_date, trips.end_date, ' +
       'trips.checkin_count, trips.countries, trips.cities ' +
       'FROM trips_fts JOIN trips ON trips.rowid = trips_fts.rowid ' +
       'WHERE trips_fts MATCH ?1 ORDER BY trips.start_ts DESC LIMIT 20',
-      ftsMatch),
+      ftsMatch, 'trips'),
   ]);
 
   const compMap = new Map();
@@ -128,7 +149,7 @@ export async function onRequestGet({ request, env, waitUntil }) {
     compMap.set(name, (compMap.get(name) || 0) + (c.cnt || 0));
   }
 
-  const resp = jsonResp({
+  const payload = {
     venue: (venueRes.results || []).map(v => ({
       t:   'venue',
       n:   v.name,
@@ -167,10 +188,29 @@ export async function onRequestGet({ request, env, waitUntil }) {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([name, cnt]) => ({ t: 'companion', n: name, cnt })),
-  }, 200, HEADERS_OK);
+  };
 
-  // Store only this 200. cache.put() also refuses a `no-store` response, so the
-  // two early returns above could not be cached even by accident.
+  // EVERY query failed => D1 is refusing the whole database (in practice: the
+  // free-tier daily row-read limit is spent), which is not the same thing as
+  // "nothing matched". Answer 503 so the caller can tell an outage from an
+  // empty result set — search.html already renders "Search unavailable" on a
+  // non-ok status — and never cache it, so the endpoint recovers the moment D1
+  // does rather than serving a pinned empty answer for CACHE_TTL.
+  if (attempted > 0 && failed === attempted) {
+    return jsonResp({ error: 'D1 unavailable', ...EMPTY, degraded: true }, 503);
+  }
+
+  // Some (not all) queries failed — e.g. `companions` not yet created by the
+  // first sync. Return what we do have, flagged, but do NOT cache it: a partial
+  // answer pinned at the edge would outlive the cause by up to CACHE_TTL.
+  if (failed > 0) {
+    return jsonResp({ ...payload, degraded: true }, 200);
+  }
+
+  const resp = jsonResp(payload, 200, HEADERS_OK);
+
+  // Store only a complete 200. cache.put() also refuses a `no-store` response,
+  // so the early returns above could not be cached even by accident.
   if (waitUntil) waitUntil(cache.put(request, resp.clone()));
   return resp;
 }

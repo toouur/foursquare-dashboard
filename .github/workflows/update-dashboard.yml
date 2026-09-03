@@ -441,6 +441,20 @@ jobs:
           # rebuild (photos don't touch D1). Evaluated to 'true'/'false' by Actions.
           RUN_D1: ${{ github.event_name == 'workflow_dispatch' || steps.fetch.outputs.CHANGED == 'true' || steps.fetch_tips.outputs.CHANGED == 'true' || steps.fetch_ratings.outputs.CHANGED == 'true' }}
         run: |
+          # ── Apply the D1 schema SYNCHRONOUSLY, before anything is deployed ──
+          #   The assemble+deploy below runs on ANY change, while the full sync is
+          #   gated by RUN_D1 (a photos-only run deploys without syncing at all),
+          #   and even when it does run it is backgrounded and races the upload.
+          #   So a Pages Function could reach production ahead of a table it
+          #   queries — how a `companions` query would meet a database with no
+          #   such table. This is DDL only (CREATE ... IF NOT EXISTS): no row
+          #   reads, and no writes once everything exists. Never fatal: the
+          #   functions degrade on a missing table rather than 500.
+          if [ -n "$CF_D1_TOKEN" ]; then
+            python scripts/sync_to_d1.py --schema-only \
+              || echo "::warning title=D1 schema::--schema-only failed; deploying anyway"
+          fi
+
           # ── Kick off the D1 sync in the background (overlaps the deploy) ──
           D1_PID=""
           if [ "$RUN_D1" = "true" ] && [ -n "$CF_D1_TOKEN" ]; then

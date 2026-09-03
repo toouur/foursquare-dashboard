@@ -368,3 +368,28 @@ def test_parse_trips_shape(tmp_path):
     assert row[0] == 1 and row[1] == "Warsaw"
     assert json.loads(row[9]) == ["Poland"]    # countries serialized as JSON
     assert json.loads(row[12]) == [["Park", 2]]  # top_cats
+
+
+# ── --schema-only ───────────────────────────────────────────────────────────
+# The deploy step in update-dashboard.yml calls this before uploading, so a
+# Pages Function never reaches production ahead of a table it queries (the full
+# sync is gated by RUN_D1 and skipped entirely on a photos-only run). It must
+# create the schema, touch no data, and not demand the source files.
+
+def test_schema_only_creates_tables_without_syncing_data(env):
+    env.monkeypatch.setattr(
+        sys, "argv", ["sync_to_d1.py", "--token", "test", "--schema-only"])
+    sync_to_d1.main()
+
+    tables = {r["name"] for r in env.fake.query(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    # `companions` is the table whose absence used to take out all of /api/search.
+    assert {"checkins", "venues", "companions"} <= tables
+    assert env.fake.query("SELECT COUNT(*) AS n FROM checkins")[0]["n"] == 0
+
+
+def test_csv_and_tips_still_required_without_schema_only(env):
+    env.monkeypatch.setattr(sys, "argv", ["sync_to_d1.py", "--token", "test"])
+    with pytest.raises(SystemExit) as exc:
+        sync_to_d1.main()
+    assert exc.value.code == 2   # argparse usage error, as before the flag existed
