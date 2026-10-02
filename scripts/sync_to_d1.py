@@ -1008,10 +1008,30 @@ def main() -> None:
                                            row.get("city"), row.get("country"))
                                for row in (existing_venues or [])}
         existing_venue_ids = set(existing_venue_meta)
+        # A venue already in D1 that gets no new check-in falls into NEITHER arm
+        # below, so a change originating in CONFIG rather than in a check-in — a
+        # new city_merge rule, a venue_fixes entry — never reached this table.
+        # `checkins` carries the normalized value (build.py and sync_to_d1 both
+        # push rows through apply_transforms), while `venues.city` keeps whatever
+        # it was first inserted with, permanently. That is why /api/search kept
+        # offering 北京市朝陽區 and Seville Province as cities long after both were
+        # mapped away: the feed was right and the search facet was not.
+        # The census already SELECTs the indexed columns for exactly this
+        # comparison — it just stopped at setting the FTS flag. Drive the upsert
+        # from it too. Census-only (the incremental probe sees just the touched
+        # ids, so every untouched venue would read as drifted) and limited to rows
+        # that genuinely differ, so the write cost is the size of the drift.
+        drifted: set = set()
+        if census:
+            for vid, m in venue_meta.items():
+                prev = existing_venue_meta.get(vid)
+                if prev is not None and prev != (m["name"] or None, m["category"] or None,
+                                                 m["city"] or None, m["country"] or None):
+                    drifted.add(vid)
         # Upsert new-checkin venues plus any CSV venue missing from D1. That second
         # arm needs the FULL D1 id set, so it only runs on a census: with a partial
         # set every untouched venue would read as missing and be re-upserted.
-        to_upsert = (new_venue_ids | (meta_ids - existing_venue_ids)) if census else set(new_venue_ids)
+        to_upsert = (new_venue_ids | (meta_ids - existing_venue_ids) | drifted) if census else set(new_venue_ids)
         venue_count_after = (len(meta_ids) if census
                              else int(_cached_counts["venues"])
                              + len(new_venue_ids - existing_venue_ids))
@@ -1026,7 +1046,10 @@ def main() -> None:
                 for vid, m in venue_meta.items() if vid in to_upsert
             ]
             d1.batch_upsert(SQL_VENUES, venue_rows, label="venues   ")
-            if missing_only:
+            if drifted:
+                print(f"D1 sync: {len(drifted)} venue(s) whose indexed text drifted from the "
+                      f"source (config-driven rename) — re-upserting", flush=True)
+            if missing_only or drifted:
                 changed = True
             # Dirty venues_fts only if an indexed column actually moved: a brand-new
             # venue, or an existing one whose name/category/city/country changed

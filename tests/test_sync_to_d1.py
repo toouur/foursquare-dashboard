@@ -433,3 +433,34 @@ def test_bind_chunk_is_under_the_d1_cap():
     assert sync_to_d1.D1_BIND_CHUNK <= FakeD1.D1_MAX_BOUND_PARAMS - 1, (
         "D1_BIND_CHUNK must leave room for the extra bindings some statements "
         "carry (e.g. `WHERE list_id = ? AND venue_id IN (...)`)")
+
+
+# ── config-driven venue drift ───────────────────────────────────────────────
+
+def test_census_reupserts_venue_whose_indexed_text_drifted(env):
+    """A rename that comes from CONFIG must still reach the venues table.
+
+    `checkins` always carries the normalized value — build.py and sync_to_d1 both
+    push rows through apply_transforms — but a venue already in D1 that gets no
+    new check-in is neither "new" nor "missing from D1", so the upsert used to
+    skip it forever. A city_merge rule added after the venue was first inserted
+    therefore never landed, and /api/search kept offering the pre-merge spelling
+    as a city while the feed showed the merged one (seen in production on
+    2026-10-02 with 'Seville Province' and '北京市朝陽區').
+    """
+    csv_path = _sync_base(env)
+    assert env.fake.query("SELECT city FROM venues WHERE id='vA'")[0]["city"] == "Minsk"
+
+    # Same check-ins, same venue — only the normalized city changes.
+    renamed = [dict(r, city="Minsk City") if r["venue_id"] == "vA" else r
+               for r in BASE_ROWS]
+    _write_csv(csv_path, renamed)
+    # Drop the cached daily counts → next run takes a fresh census, as it would
+    # on the next UTC day.
+    env.fake.conn.execute("DELETE FROM sync_state WHERE key = 'daily_counts'")
+    env.fake.conn.commit()
+    _run(env, csv_path)
+
+    assert env.fake.query("SELECT city FROM venues WHERE id='vA'")[0]["city"] == "Minsk City"
+    # Untouched venues must not be rewritten along the way.
+    assert env.fake.query("SELECT city FROM venues WHERE id='vB'")[0]["city"] == "Minsk"
