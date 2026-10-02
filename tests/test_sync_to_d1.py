@@ -72,7 +72,20 @@ class FakeD1:
                 raise
         self.conn.commit()
 
+    # D1 refuses a statement carrying more than ~100 bound parameters with
+    # error 7500 "too many SQL variables". sqlite3's own cap is ~999, so without
+    # this the fake happily runs a query production rejects — which is exactly
+    # how four `WHERE id IN (...)` call sites sat at a chunk size of 200 until a
+    # 128-check-in backlog finally reached them (2026-10-02). Enforcing D1's cap
+    # here makes that class of regression fail in the offline suite instead.
+    D1_MAX_BOUND_PARAMS = 100
+
     def query(self, sql, params=None, silent=False):  # noqa: ARG002
+        if params is not None and len(params) > self.D1_MAX_BOUND_PARAMS:
+            raise RuntimeError(
+                f"D1 would reject this statement: {len(params)} bound parameters > "
+                f"{self.D1_MAX_BOUND_PARAMS} (error 7500 'too many SQL variables'). "
+                f"Chunk the id list with D1_BIND_CHUNK. SQL: {sql[:80]}...")
         cur = self.conn.execute(sql, params or [])
         if cur.description is None:      # non-SELECT (INSERT/UPDATE/DELETE/DDL)
             self.conn.commit()
@@ -393,3 +406,30 @@ def test_csv_and_tips_still_required_without_schema_only(env):
     with pytest.raises(SystemExit) as exc:
         sync_to_d1.main()
     assert exc.value.code == 2   # argparse usage error, as before the flag existed
+
+
+# ── D1 bound-parameter cap ──────────────────────────────────────────────────
+
+def test_backlog_larger_than_one_chunk_still_syncs(env):
+    """A batch bigger than one chunk must not exceed D1's bound-parameter cap.
+
+    Reproduces the 2026-10-02 production failure. The city-count gate had been
+    blocking the deploy for two days, so 128 unsynced check-ins piled up; the
+    dedupe guard then asked `SELECT id, COUNT(*) FROM checkins WHERE id IN (...)`
+    with every candidate id in one statement. At the chunk size of 200 that site
+    used, D1 answered 400 / error 7500 and the whole sync died — the bug was
+    latent for months because an ordinary hourly run carries only a few new rows.
+    """
+    csv_path = _sync_base(env)
+    backlog = [_crow(f"{i:024x}", 6000 + i, f"vbig{i}") for i in range(150)]
+    _write_csv(csv_path, list(BASE_ROWS) + backlog)
+    _run(env, csv_path)
+
+    assert env.fake.count("checkins") == len(BASE_ROWS) + len(backlog)
+
+
+def test_bind_chunk_is_under_the_d1_cap():
+    """The constant every id-list call site shares must stay below D1's limit."""
+    assert sync_to_d1.D1_BIND_CHUNK <= FakeD1.D1_MAX_BOUND_PARAMS - 1, (
+        "D1_BIND_CHUNK must leave room for the extra bindings some statements "
+        "carry (e.g. `WHERE list_id = ? AND venue_id IN (...)`)")

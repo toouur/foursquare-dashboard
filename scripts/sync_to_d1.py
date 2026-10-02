@@ -116,6 +116,16 @@ SQL_COMPANIONS = (
     "INSERT INTO companions (name,name_lc,cnt) VALUES (?,?,?)"
 )
 
+# D1 rejects a statement with more than ~100 bound parameters
+# (error 7500 "too many SQL variables"), so every `WHERE id IN (...)` built from
+# a Python list MUST be chunked below that. 90 leaves room for the handful of
+# extra bindings some of these statements carry (e.g. the `list_id = ?` in the
+# list_venues delete). This is a HARD API limit, not a tuning knob — raising it
+# breaks the sync only once a batch actually grows past the cap, which is why
+# four call sites sat at 200 for months and blew up the first time a backlog of
+# 128 unsynced check-ins went through them (the city-gate outage of 2026-10-01).
+D1_BIND_CHUNK = 90
+
 SQL_TIPS = (
     "INSERT OR REPLACE INTO tips "
     "(id,ts,text,venue,venue_id,city,country,lat,lng,category,"
@@ -331,7 +341,7 @@ def _sync_lists_diff(list_rows: list, lv_rows: list) -> None:
     - For each list, inserts new venues, deletes removed venues,
       and updates visited status for existing venues.
     """
-    CHUNK_SIZE = 90
+    CHUNK_SIZE = D1_BIND_CHUNK
 
     # ---- 1. Sync lists table (handles new & deleted lists) ----
     new_list_ids = {row[0] for row in list_rows}
@@ -689,8 +699,8 @@ def main() -> None:
                   if row[0] and _int(row[1]) >= ov_cutoff}
         d1_ov: dict = {}
         ov_ids = list(csv_ov.keys())
-        for i in range(0, len(ov_ids), 90):  # D1 caps ~100 bindings per statement
-            id_chunk = ov_ids[i:i + 90]
+        for i in range(0, len(ov_ids), D1_BIND_CHUNK):
+            id_chunk = ov_ids[i:i + D1_BIND_CHUNK]
             ph = ",".join("?" * len(id_chunk))
             res = d1.query(
                 f"SELECT id, overlaps_name, overlaps_id FROM checkins WHERE id IN ({ph})",
@@ -752,8 +762,8 @@ def main() -> None:
                   for row in all_checkin_rows if row[0] in cfix_ids}
         d1_cf: dict = {}
         cf_ids = list(csv_cf.keys())
-        for i in range(0, len(cf_ids), 90):   # D1 caps ~100 bindings per statement
-            id_chunk = cf_ids[i:i + 90]
+        for i in range(0, len(cf_ids), D1_BIND_CHUNK):
+            id_chunk = cf_ids[i:i + D1_BIND_CHUNK]
             ph = ",".join("?" * len(id_chunk))
             res = d1.query(
                 f"SELECT id,{','.join(cf_cols)} FROM checkins WHERE id IN ({ph})", id_chunk)
@@ -874,8 +884,8 @@ def main() -> None:
         if new_checkin_rows and d1_count and len(new_checkin_rows) <= 1000:
             cand_ids = sorted({r[0] for r in new_checkin_rows})
             d1_counts: dict = {}
-            for i in range(0, len(cand_ids), 200):
-                chunk = cand_ids[i:i + 200]
+            for i in range(0, len(cand_ids), D1_BIND_CHUNK):
+                chunk = cand_ids[i:i + D1_BIND_CHUNK]
                 ph = ",".join("?" * len(chunk))
                 for row in d1.query(
                         f"SELECT id, COUNT(*) AS n FROM checkins "
@@ -947,8 +957,8 @@ def main() -> None:
                       flush=True)
                 now_ts = int(time.time())
                 audit_rows = []
-                for i in range(0, len(stale_ids), 200):
-                    chunk = stale_ids[i:i + 200]
+                for i in range(0, len(stale_ids), D1_BIND_CHUNK):
+                    chunk = stale_ids[i:i + D1_BIND_CHUNK]
                     ph = ",".join("?" * len(chunk))
                     # Capture venue context for the audit trail BEFORE deleting.
                     doomed = d1.query(
@@ -988,8 +998,8 @@ def main() -> None:
         else:
             existing_venues = []
             probe_ids = sorted(new_venue_ids)
-            for i in range(0, len(probe_ids), 200):
-                chunk = probe_ids[i:i + 200]
+            for i in range(0, len(probe_ids), D1_BIND_CHUNK):
+                chunk = probe_ids[i:i + D1_BIND_CHUNK]
                 ph = ",".join("?" * len(chunk))
                 existing_venues += d1.query(
                     f"SELECT id, name, category, city, country FROM venues "
@@ -1035,8 +1045,8 @@ def main() -> None:
                   f"absent from check-in data", flush=True)
             now_ts = int(time.time())
             audit_rows = []
-            for i in range(0, len(orphan_ids), 200):
-                chunk = orphan_ids[i:i + 200]
+            for i in range(0, len(orphan_ids), D1_BIND_CHUNK):
+                chunk = orphan_ids[i:i + D1_BIND_CHUNK]
                 ph = ",".join("?" * len(chunk))
                 # Capture names for the audit trail BEFORE deleting.
                 doomed = d1.query(f"SELECT id, name FROM venues WHERE id IN ({ph})", chunk)
