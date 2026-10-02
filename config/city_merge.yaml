@@ -284,6 +284,7 @@
   "Dongcheng": "Beijing"  # ok — central district of Beijing
   "Dōngchéng": "Beijing"  # ok — pinyin with tones
   "Xicheng Qu": "Beijing"  # ok — district of Beijing
+  "北京市": "Beijing"  # ok — bare municipality name (市 = city); heads the 北京市<district> family below
   "北京市朝陽區": "Beijing"  # ok — Chinese characters, Chaoyang district
   "北京市海淀區": "Beijing"  # ok — Chinese characters (traditional 區), Haidian district
   "北京市海淀区": "Beijing"  # ok — Chinese characters (simplified 区), Haidian district
@@ -1063,6 +1064,9 @@
   "Maltepe": "Istanbul"  # ok — district
   "Eminönü": "Istanbul"  # ok — historic district
   "Sultanahmet": "Istanbul"  # ok — historic area
+  "Balat": "Istanbul"  # ok — historic neighbourhood of the Fatih district
+  "Yeşilköy": "Istanbul"  # ok — neighbourhood of the Bakırköy district (Atatürk Airport area)
+  "Miklagard": "Istanbul"  # ok — Old Norse name for Constantinople; a venue label that leaked into the city field
   "Kağıthane": "Istanbul"  # ok — district
   "Sarıyer": "Istanbul"  # ok — district
   "Arnavutköy": "Istanbul"  # ok — district
@@ -1078,6 +1082,8 @@
   "Sancaktepe": "Istanbul"  # ok — district
   "Sultangazi": "Istanbul"  # ok — district
   "Eyüp": "Istanbul"  # ok — district
+  "Eyüpsultan": "Istanbul"  # ok — current official name of the Eyüp district (renamed 2019)
+  "Edirnekapı": "Istanbul"  # ok — historic gate / neighbourhood of the Fatih district
   "Zeytinburnu": "Istanbul"  # ok — district
   "Avcılar": "Istanbul"  # ok — district
   "Esenyurt": "Istanbul"  # ok — district
@@ -1571,6 +1577,7 @@
 
   # ══ SPAIN ══
   "Sevilla": "Seville"  # ok — Spanish name for Seville
+  "Seville Province": "Seville"  # ok — province = city here, same as Istanbul Province
 
   # ══ GERMANY ══
   "Ostseebad Nienhagen": "Nienhagen"  # ok — "Ostseebad" prefix for the same beach resort
