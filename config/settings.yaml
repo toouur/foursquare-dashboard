@@ -26,6 +26,15 @@ trip_detection:
       # 2026-07-28 at this address instead of running into 07-29).
       venues:
         - 50fbc23ae4b0afd6fe382f57   # Str. Alecu Russo, 55 (Chișinău home)
+      # Same Chișinău rules as the current era below — this IS a Moldova era,
+      # and it flies out of the same airport. Without them the 31.05.2012
+      # Moscow run began at Domodedovo on landing, with the four Chișinău rows
+      # that precede it (RMO → security → passport control → waiting hall) cut
+      # off. See the current-era entry for what each flag does.
+      air_departure: true
+      arrival_transit: true
+      arrival_neighborhoods:
+        - Ciocana (Sectorul Ciocana)
     - city: Minsk
       until: "2026-07-29"
       # No arrival/departure flags: the Minsk years are FROZEN on the original
