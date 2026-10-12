@@ -257,3 +257,54 @@ class TestOverrides:
         assert len(trips) == 2
         assert trips[0]["checkin_count"] == 3
         assert trips[1]["checkin_count"] == 3
+
+
+class TestAirDepartureAndHomecoming:
+    """Air travel from the current home — the asymmetry found on 2026-10-12.
+
+    Foursquare almost never uses the bare "Airport" category (28 of ~1000
+    airport check-ins; Chișinău's RMO has none — it is always "International
+    Airport"). Minsk hid this: the airport there is reached by the airport bus
+    or train, so all 37 Minsk flight trips opened at a "Bus Station" /
+    "Rail Station" that the hub scan already covered. Flying out of Chișinău,
+    the whole leg — taxi, RMO, security, gate, plane — was cut off and the trip
+    began only on landing abroad.
+    """
+
+    HOME_VID = "c" * 24
+
+    def _rows(self):
+        # Depart: airport in the home city, then abroad for five days.
+        rows = [home(T0)]
+        rows.append(home(T0 + 10 * HOUR, category="International Airport",
+                         venue="Home International Airport", venue_id="apt00000000000000000000a"))
+        rows.append(home(T0 + 11 * HOUR, category="Airport Gate", venue="Gate 4",
+                        venue_id="gate0000000000000000000a"))
+        rows += [away(T0 + DAY + i * HOUR) for i in range(6)]
+        return rows
+
+    def test_departure_starts_at_the_home_airport(self):
+        trips = detect_trips(self._rows(), min_checkins=5)
+        assert len(trips) == 1
+        first = trips[0]["checkins"][0]
+        assert first["category"] == "International Airport", (
+            "the trip must open at the home airport, not on landing abroad")
+
+    def test_arrival_survives_a_transit_town_and_ends_at_the_home_venue(self):
+        # Coming back: land at the home airport, then an airport bus geotagged
+        # to a NEIGHBOURING town (the RMO bus comes back as "Ialoveni"), then
+        # the home address. The transit row used to end the scan outright.
+        rows = self._rows()
+        back = T0 + DAY + 10 * HOUR
+        rows.append(home(back, category="International Airport",
+                         venue="Home International Airport", venue_id="apt00000000000000000000a"))
+        rows.append({"date": str(back + 600), "city": "Ialoveni", "country": "Belarus",
+                     "category": "Moving Target", "venue": "Airport bus",
+                     "venue_id": "bus00000000000000000000a", "lat": "53.8",
+                     "lng": "27.5", "checkin_id": ""})
+        rows.append(home(back + 2 * HOUR, category="Apartment or Condo",
+                         venue="Home address", venue_id=self.HOME_VID))
+        trips = detect_trips(rows, min_checkins=5, home_venue_ids={self.HOME_VID})
+        assert len(trips) == 1
+        assert trips[0]["checkins"][-1]["venue_id"] == self.HOME_VID, (
+            "the trip must reach the home address past the transit town")

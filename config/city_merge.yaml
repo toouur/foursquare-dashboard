@@ -1062,6 +1062,7 @@
   "Şişli": "Istanbul"  # ok — district
   "Bakırköy": "Istanbul"  # ok — district
   "Maltepe": "Istanbul"  # ok — district
+  "Küçükyalı Maltepe": "Istanbul"  # ok — Küçükyalı neighbourhood of the Maltepe district
   "Eminönü": "Istanbul"  # ok — historic district
   "Sultanahmet": "Istanbul"  # ok — historic area
   "Balat": "Istanbul"  # ok — historic neighbourhood of the Fatih district

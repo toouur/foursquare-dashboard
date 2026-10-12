@@ -126,6 +126,28 @@ _TRANSPORT_CATEGORIES: frozenset[str] = frozenset({
     "Bus Station", "Bus Terminal", "Ferry Terminal",
 })
 
+# The airport complex.  Foursquare almost never uses the bare "Airport"
+# category: of ~1000 airport check-ins only 28 carry it, and Chișinău's RMO has
+# ZERO — it is always "International Airport".  So an air departure from the
+# current home was invisible to the departure scan, and the whole leg (taxi →
+# RMO → security → gate → plane) was cut off the trip, which then began only
+# on landing abroad.  Minsk hid the bug: from there the airport is reached by
+# the airport bus or train, so all 37 Minsk flight trips opened at a
+# "Bus Station" / "Rail Station" that was already covered.
+#
+# DEPARTURE ONLY.  The arrival scan deliberately keeps to _TRANSPORT_CATEGORIES:
+# it stops at the NEAREST home hub, which is right for a bus/rail arrival (one
+# station check-in, then home) but wrong for an airport, where passport control
+# is merely the first of a long chain that ends hours later at the front door.
+# Treating these as arrival hubs truncated the Serbia 2019 trip at Minsk
+# passport control and threw away the rest of the way home, "Home (private)
+# Лермонтова 43" included — exactly the homecoming this is meant to preserve.
+_AIRPORT_DEPARTURE_CATEGORIES: frozenset[str] = frozenset({
+    "International Airport", "Airport Terminal", "Airport Gate",
+    "Airport Service", "Airport Lounge", "Airport Ticket Counter",
+    "Airport Tram Station", "Baggage Claim",
+})
+
 # Categories that, when a bicycle trip is in progress, should NOT act as a
 # home signal.  On departure-day, blank-city check-ins at bike paths, roads,
 # parks etc. GPS-resolve to the home city — but they belong to the ride, not
@@ -140,6 +162,18 @@ def _is_home_transport(row: dict, home_city: str) -> bool:
     return (
         row.get("city", "").strip() == home_city
         and row.get("category", "").strip() in _TRANSPORT_CATEGORIES
+    )
+
+
+def _is_home_departure_hub(row: dict, home_city: str) -> bool:
+    """Departure-side hub test: transport hubs PLUS the airport complex.
+
+    See _AIRPORT_DEPARTURE_CATEGORIES for why the airport half is departure-only.
+    """
+    return (
+        row.get("city", "").strip() == home_city
+        and row.get("category", "").strip()
+        in (_TRANSPORT_CATEGORIES | _AIRPORT_DEPARTURE_CATEGORIES)
     )
 
 
@@ -295,7 +329,7 @@ def detect_trips(
             # 2013, not in whatever `home_city` happens to be today.
             row_home = _home_at(int(valid[i]["date"]), home_city, home_history)
             if row_city == row_home:
-                if _is_home_transport(valid[i], row_home):
+                if _is_home_departure_hub(valid[i], row_home):
                     if dep_hub is None:
                         dep_hub = i  # first hub found (nearest to trip start)
                     else:
@@ -403,21 +437,44 @@ def detect_trips(
             # Abort if a "Home (private)" check-in is found first — already
             # home, no need to extend.  Also stop at any non-home, non-blank
             # city to avoid absorbing the start of a subsequent trip.
+            # Transit tolerance: the ride in from the airport can be geotagged to
+            # a neighbouring town — the RMO airport bus comes back as "Ialoveni",
+            # not "Chișinău" — and breaking on it stranded the trip at the plane
+            # while the actual homecoming sat 2 h further on. The hub scan above
+            # already tolerates intermediate cities by design; this scan now does
+            # too, but only briefly: past the window a different city means a new
+            # outing, not the way home.
+            _ARRIVAL_TRANSIT_WINDOW = 6 * 3600
             i = lp + 1
             while i < len(valid):
-                if int(valid[i]["date"]) - trip_end_ts > _24H:
+                row_ts = int(valid[i]["date"])
+                if row_ts - trip_end_ts > _24H:
                     break
                 row_city = valid[i].get("city", "").strip()
-                row_home = _home_at(int(valid[i]["date"]), home_city, home_history)
+                row_home = _home_at(row_ts, home_city, home_history)
+                cat = valid[i].get("category", "").strip()
+                vid = valid[i].get("venue_id", "").strip()
+                # The homecoming itself — a check-in at the configured home
+                # venue, whatever its category (Str. Alecu Russo, 55 comes back
+                # as "Apartment or Condo", so the Neighborhood test below never
+                # matched it). Include it: this is the arrival the extension is
+                # reaching for.
+                if home_venue_ids and vid in (home_venue_ids or ()):
+                    arr_hub = i
+                    break
+                # A generic "Home (private)" still ENDS the scan without
+                # extending, as before. Making it a target instead dragged a
+                # day-trip's whole evening at home into the trip — enough Minsk
+                # rows that Haradzki/Zaslawye/Zhodzina outings were renamed
+                # "Minsk, Belarus", a trip to the city being lived in.
+                if row_city == row_home and cat == "Home (private)":
+                    break
+                if row_city == row_home and cat == "Neighborhood":
+                    arr_hub = i
+                    break
                 if row_city not in ("", row_home):
-                    break  # hit a different city — stop
-                if row_city == row_home:
-                    cat = valid[i].get("category", "").strip()
-                    if cat == "Home (private)":
-                        break  # already home — no Neighborhood extension needed
-                    if cat == "Neighborhood":
-                        arr_hub = i
-                        break
+                    if row_ts - trip_end_ts > _ARRIVAL_TRANSIT_WINDOW:
+                        break  # too late to be the way home — a new outing
                 i += 1
             if arr_hub is not None:
                 ext = ext + valid[lp + 1 : arr_hub + 1]
