@@ -385,9 +385,24 @@ if __name__ == "__main__":
     # ── Auto-populate trip_names.json with new trips ──────────────────────────
     # Any trip whose _name_ts is not yet in trip_names.json gets added with its
     # auto-generated name + inferred transport icon.
+    # The airport family below matters because Foursquare almost never emits the
+    # bare "Airport" category — 28 of ~1000 airport check-ins carry it, Chișinău's
+    # RMO none at all ("International Airport"). Without these every flight out
+    # of Chișinău got the 🚗 fallback, and flight trips had to be fixed to ✈️ by
+    # hand in trip_names.json. Only NEW trips are affected: an existing entry
+    # that already has an icon is never rewritten (see _needs_update).
     _ICON_MAP = {
-        "Airport":            "✈️",
-        "Light Rail Station": "✈️",
+        "Airport":                "✈️",
+        "International Airport":  "✈️",
+        "Airport Terminal":       "✈️",
+        "Airport Gate":           "✈️",
+        "Airport Service":        "✈️",
+        "Airport Lounge":         "✈️",
+        "Airport Ticket Counter": "✈️",
+        "Airport Tram Station":   "✈️",
+        "Baggage Claim":          "✈️",
+        "Plane":                  "✈️",
+        "Light Rail Station":     "✈️",
         "Rail Station":       "🚂",
         "Train Station":      "🚂",
         "Bus Station":        "🚌",
