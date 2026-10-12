@@ -35,6 +35,8 @@ trip_detection:
       arrival_transit: true
       arrival_neighborhoods:
         - Ciocana (Sectorul Ciocana)
+      departure_ride_categories: [Taxi]
+      arrival_stop_at_home: true
     - city: Minsk
       until: "2026-07-29"
       # No arrival/departure flags: the Minsk years are FROZEN on the original
@@ -67,6 +69,14 @@ trip_detection:
       #   address.
       arrival_neighborhoods:
         - Ciocana (Sectorul Ciocana)
+      # departure_ride_categories: the ride TO the departure hub opens the trip
+      #   (the taxi to RMO), if it is within 90 min before the hub.
+      departure_ride_categories: [Taxi]
+      # arrival_stop_at_home: on the way back, the first sign of being home ends
+      #   the trip — `venues`, `arrival_neighborhoods`, or a "City" check-in in
+      #   the home city ("back in Chișinău"). Without it the arrival scan walked
+      #   past the front door to the next day's bus station.
+      arrival_stop_at_home: true
   # Optional: path to a hand-curated trips YAML override file.
   # When set, the automatic detection is skipped and these dates are used instead.
   # trips_override_file: trips_manual.yaml

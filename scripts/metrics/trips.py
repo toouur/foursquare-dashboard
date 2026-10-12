@@ -168,7 +168,11 @@ def _is_home_transport(row: dict, home_city: str) -> bool:
 _EMPTY_ERA: dict = {
     "venues": frozenset(), "air_departure": False,
     "arrival_transit": False, "arrival_neighborhoods": frozenset(),
+    "departure_ride_categories": frozenset(), "arrival_stop_at_home": False,
 }
+
+# How far before the departure hub the ride TO it may sit (taxi → airport).
+_DEPARTURE_RIDE_WINDOW = 90 * 60
 
 
 def _era_at(ts: int, home_eras: list[tuple[int, dict]] | None) -> dict:
@@ -377,6 +381,25 @@ def detect_trips(
                 break  # different non-blank city → stop (avoid previous trips)
             i -= 1
         if dep_hub is not None:
+            # The ride TO the hub — the taxi to RMO — opens the trip, when the era
+            # in force asks for it (`departure_ride_categories`). Looked for only
+            # just before the hub, only through home-city / blank rows, and never
+            # into rows the previous trip already owns.
+            dep_era = _era_at(int(valid[dep_hub]["date"]), home_eras)
+            ride_cats = dep_era.get("departure_ride_categories") or ()
+            if ride_cats:
+                hub_ts = int(valid[dep_hub]["date"])
+                j = dep_hub - 1
+                while j >= 0 and j > prev_end_idx:
+                    rts = int(valid[j]["date"])
+                    if hub_ts - rts > _DEPARTURE_RIDE_WINDOW:
+                        break
+                    rcity = valid[j].get("city", "").strip()
+                    if rcity not in ("", _home_at(rts, home_city, home_history)):
+                        break
+                    if valid[j].get("category", "").strip() in ride_cats:
+                        dep_hub = j  # keep going — the earliest ride wins
+                    j -= 1
             # Include hub + all rows between hub and trip start
             ext = valid[dep_hub:fp] + ext
 
@@ -443,6 +466,10 @@ def detect_trips(
         # border crossing and home.  The 24 h cap and "nearest hub" (break on
         # first found) prevent accidentally absorbing a subsequent departure hub.
         trip_end_ts = int(trip_rows[-1]["date"])
+        arr_era = _era_at(trip_end_ts, home_eras)
+        era_venues = arr_era.get("venues") or ()
+        era_hoods = arr_era.get("arrival_neighborhoods") or ()
+        stop_at_home = bool(arr_era.get("arrival_stop_at_home"))
         arr_hub: int | None = None
         i = lp + 1
         while i < len(valid) and not ends_at_home:
@@ -450,6 +477,21 @@ def detect_trips(
                 break
             row_city = valid[i].get("city", "").strip()
             row_home = _home_at(int(valid[i]["date"]), home_city, home_history)
+            # `arrival_stop_at_home`: the first sign of being back ends the trip
+            # — the home address, the home district, or the home-city "City"
+            # check-in that marks "back in Chișinău". Without it this scan walked
+            # straight past the front door to the NEXT day's bus station: the
+            # 10.10 Bender/Tiraspol day trip ran on through Str. Alecu Russo at
+            # 20:47 and all of 11.10 morning, ended at the Vasile Alecsandri bus
+            # station at 12:10 and got renamed "Chișinău, Moldova" — and that
+            # station, swallowed as its arrival, could no longer open the Cricova
+            # trip that actually left from it.
+            if stop_at_home and row_city == row_home and (
+                    valid[i].get("venue_id", "").strip() in era_venues
+                    or valid[i].get("venue", "").strip() in era_hoods
+                    or valid[i].get("category", "").strip() == "City"):
+                arr_hub = i
+                break
             if row_city == row_home and _is_home_transport(valid[i], row_home):
                 arr_hub = i  # nearest hub — stop here
                 break
@@ -472,9 +514,6 @@ def detect_trips(
             # too, but only briefly: past the window a different city means a new
             # outing, not the way home.
             _ARRIVAL_TRANSIT_WINDOW = 6 * 3600
-            arr_era = _era_at(trip_end_ts, home_eras)
-            era_venues = arr_era.get("venues") or ()
-            era_hoods = arr_era.get("arrival_neighborhoods") or ()
             i = lp + 1
             while i < len(valid):
                 row_ts = int(valid[i]["date"])

@@ -266,10 +266,12 @@ HOME_VID = "c" * 24
 CHISINAU_ERA = [(_FUTURE, {
     "city": "Minsk", "venues": {HOME_VID}, "air_departure": True,
     "arrival_transit": True, "arrival_neighborhoods": {"Ciocana"},
+    "departure_ride_categories": {"Taxi"}, "arrival_stop_at_home": True,
 })]
 FROZEN_ERA = [(_FUTURE, {
     "city": "Minsk", "venues": {HOME_VID}, "air_departure": False,
     "arrival_transit": False, "arrival_neighborhoods": set(),
+    "departure_ride_categories": set(), "arrival_stop_at_home": False,
 })]
 
 
@@ -350,3 +352,59 @@ class TestAirDepartureAndHomecoming:
         trips = detect_trips(rows, min_checkins=5, home_eras=FROZEN_ERA)
         assert trips[0]["checkins"][-1]["venue_id"] != HOME_VID, (
             "without arrival_transit the scan must still stop at the other city")
+
+
+class TestRideAndHomecomingBoundaries:
+    """The two trip edges asked for on 2026-10-12, scoped to the Chișinău eras."""
+
+    def _taxi_then_airport(self):
+        rows = [home(T0)]
+        rows.append(home(T0 + 10 * HOUR, category="Taxi", venue="Letz",
+                         venue_id="taxi0000000000000000000a"))
+        rows.append(home(T0 + 10 * HOUR + 20 * 60, category="International Airport",
+                         venue="Home International Airport",
+                         venue_id="apt00000000000000000000a"))
+        rows += [away(T0 + DAY + i * HOUR) for i in range(6)]
+        return rows
+
+    def test_trip_opens_with_the_taxi_to_the_airport(self):
+        trips = detect_trips(self._taxi_then_airport(), min_checkins=5,
+                             home_eras=CHISINAU_ERA)
+        assert trips[0]["checkins"][0]["category"] == "Taxi"
+
+    def test_frozen_era_does_not_take_the_taxi(self):
+        trips = detect_trips(self._taxi_then_airport(), min_checkins=5,
+                             home_eras=FROZEN_ERA)
+        assert trips[0]["checkins"][0]["category"] != "Taxi"
+
+    def _day_trip_then_next_morning_bus_station(self):
+        # Day trip, back home in the evening, and the next morning a home-city
+        # bus station — the start of the NEXT outing. The arrival scan used to
+        # walk past the front door to that station (10.10.2026 Bender/Tiraspol
+        # ran on into 11.10 and swallowed the station the Cricova trip left from).
+        rows = [home(T0)]
+        rows += [away(T0 + 2 * HOUR + i * HOUR, city="Bender") for i in range(5)]
+        rows.append(home(T0 + 8 * HOUR, category="City", venue="Minsk",
+                         venue_id="city0000000000000000000a"))
+        rows.append(home(T0 + 10 * HOUR, category="Apartment or Condo",
+                         venue="Home address", venue_id=HOME_VID))
+        rows.append(home(T0 + 20 * HOUR, category="Bus Station",
+                         venue="Suburban bus station", venue_id="bus00000000000000000000b"))
+        return rows
+
+    def test_arrival_stops_at_the_first_sign_of_home(self):
+        trips = detect_trips(self._day_trip_then_next_morning_bus_station(),
+                             min_checkins=5, home_eras=CHISINAU_ERA)
+        assert len(trips) == 1
+        last = trips[0]["checkins"][-1]
+        assert last["category"] == "City", (
+            "the 'back in the home city' check-in must end the trip")
+        assert all(c["category"] != "Bus Station" for c in trips[0]["checkins"]), (
+            "the next morning's bus station belongs to the next outing")
+
+    def test_frozen_era_keeps_the_old_arrival(self):
+        trips = detect_trips(self._day_trip_then_next_morning_bus_station(),
+                             min_checkins=5, home_eras=FROZEN_ERA)
+        assert trips[0]["checkins"][-1]["category"] == "Bus Station", (
+            "an era without arrival_stop_at_home must keep its original boundaries")
+

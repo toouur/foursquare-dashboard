@@ -240,6 +240,10 @@ if __name__ == "__main__":
             "arrival_neighborhoods": {
                 str(_n).strip() for _n in (_hh.get("arrival_neighborhoods") or []) if str(_n).strip()
             },
+            "departure_ride_categories": {
+                str(_c).strip() for _c in (_hh.get("departure_ride_categories") or []) if str(_c).strip()
+            },
+            "arrival_stop_at_home": bool(_hh.get("arrival_stop_at_home")),
         }))
     home_eras.sort(key=lambda e: e[0])
     home_history.sort(key=lambda p: p[0])
