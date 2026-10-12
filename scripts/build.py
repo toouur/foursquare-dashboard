@@ -209,20 +209,39 @@ if __name__ == "__main__":
     # home_venue_ids: venue_ids flagged as a home across any era (from each
     # home_history entry's optional `venues:`). A check-in at one is treated as
     # the homecoming by detect_trips' arrival extension regardless of category.
+    # home_eras carries the SAME entries with their per-era trip rules attached
+    # (air_departure / arrival_transit / arrival_neighborhoods / venues), so
+    # detect_trips can branch by date instead of applying one rule to twenty
+    # years. An era that sets no flags keeps the original behaviour exactly —
+    # which is how the Minsk years stay frozen while the Chișinău era gets the
+    # airport rules. See config/settings.yaml trip_detection.home_history.
     home_history: list[tuple[int, str]] = []
     home_venue_ids: set[str] = set()
+    home_eras: list[tuple[int, dict]] = []
     for _hh in trip_cfg.get("home_history", []) or []:
         _city = str(_hh.get("city", "")).strip()
         _until = str(_hh.get("until", "")).strip()
+        _era_venues: set[str] = set()
         for _hv in _hh.get("venues", []) or []:
             _hv = str(_hv).strip()
             if _hv:
                 home_venue_ids.add(_hv)
+                _era_venues.add(_hv)
         if not _city or not _until:
             continue
         _until_ts = int(datetime.strptime(_until, "%Y-%m-%d")
                         .replace(tzinfo=timezone.utc).timestamp())
         home_history.append((_until_ts, _city))
+        home_eras.append((_until_ts, {
+            "city": _city,
+            "venues": _era_venues,
+            "air_departure": bool(_hh.get("air_departure")),
+            "arrival_transit": bool(_hh.get("arrival_transit")),
+            "arrival_neighborhoods": {
+                str(_n).strip() for _n in (_hh.get("arrival_neighborhoods") or []) if str(_n).strip()
+            },
+        }))
+    home_eras.sort(key=lambda e: e[0])
     home_history.sort(key=lambda p: p[0])
 
     log.info("Loading mappings from %s …", config_dir)
@@ -320,7 +339,7 @@ if __name__ == "__main__":
             log.warning("flights.csv load for metrics failed: %s", _mfe)
 
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
-    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides, flights=_metrics_flights, home_history=home_history, home_venue_ids=home_venue_ids)
+    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides, flights=_metrics_flights, home_history=home_history, home_venue_ids=home_venue_ids, home_eras=home_eras)
 
     # ── Flights: parse FR24 flight-diary CSV if present ─────────────────────
     # data/flights.csv lives next to checkins.csv in the private data repo.

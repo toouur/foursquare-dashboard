@@ -28,6 +28,36 @@ trip_detection:
         - 50fbc23ae4b0afd6fe382f57   # Str. Alecu Russo, 55 (Chișinău home)
     - city: Minsk
       until: "2026-07-29"
+      # No arrival/departure flags: the Minsk years are FROZEN on the original
+      # behaviour on purpose. From Minsk the airport is reached by the airport
+      # bus or train, so all 37 Minsk flight trips already opened at a
+      # "Bus Station" / "Rail Station"; switching them to the airport rules
+      # would re-cut 13 years of settled trips for no gain.
+    - city: Chișinău
+      until: "2099-01-01"          # current era — an explicit, bounded entry so
+                                   # the rules below can be scoped to it alone
+      venues:
+        - 50fbc23ae4b0afd6fe382f57   # Str. Alecu Russo, 55 (Chișinău home)
+      # ── Era-scoped trip rules (omitted ⇒ the original behaviour) ───────────
+      # air_departure: the airport complex counts as a departure hub. Needed
+      #   because Foursquare almost never emits the bare "Airport" category —
+      #   28 of ~1000 airport check-ins — and Chișinău's RMO has none at all,
+      #   it is always "International Airport". Without this the whole outbound
+      #   leg (taxi → RMO → security → gate → plane) was cut off and the trip
+      #   started only on landing abroad. DEPARTURE only: on arrival the scan
+      #   stops at the nearest hub, which is right for a bus/rail arrival but
+      #   would truncate a flight home at passport control.
+      air_departure: true
+      # arrival_transit: tolerate a neighbouring town on the ride in from the
+      #   airport. The RMO airport bus is geotagged "Ialoveni", not "Chișinău"
+      #   (RMO sits on the municipal boundary), and that row used to end the
+      #   arrival scan two hours short of the front door.
+      arrival_transit: true
+      # arrival_neighborhoods: accepted as the homecoming when the trip does
+      #   NOT end at one of `venues` above — the district stood in for the
+      #   address.
+      arrival_neighborhoods:
+        - Ciocana (Sectorul Ciocana)
   # Optional: path to a hand-curated trips YAML override file.
   # When set, the automatic detection is skipped and these dates are used instead.
   # trips_override_file: trips_manual.yaml

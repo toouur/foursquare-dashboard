@@ -165,16 +165,41 @@ def _is_home_transport(row: dict, home_city: str) -> bool:
     )
 
 
-def _is_home_departure_hub(row: dict, home_city: str) -> bool:
-    """Departure-side hub test: transport hubs PLUS the airport complex.
+_EMPTY_ERA: dict = {
+    "venues": frozenset(), "air_departure": False,
+    "arrival_transit": False, "arrival_neighborhoods": frozenset(),
+}
+
+
+def _era_at(ts: int, home_eras: list[tuple[int, dict]] | None) -> dict:
+    """The home-era rules in force at `ts`.
+
+    Eras are (until_ts, cfg) sorted ascending; an entry governs every ts
+    strictly BEFORE its `until`, mirroring _home_at. An era with no rules — or
+    no home_eras at all — yields _EMPTY_ERA, i.e. the original behaviour. That
+    default is what keeps the Minsk years byte-identical while the Chișinău era
+    opts into the airport rules.
+    """
+    if not home_eras:
+        return _EMPTY_ERA
+    for until_ts, cfg in home_eras:
+        if ts < until_ts:
+            return cfg
+    return _EMPTY_ERA
+
+
+def _is_home_departure_hub(row: dict, home_city: str, era: dict) -> bool:
+    """Departure-side hub test: transport hubs, plus the airport complex when
+    the era in force opts in (`air_departure`).
 
     See _AIRPORT_DEPARTURE_CATEGORIES for why the airport half is departure-only.
     """
-    return (
-        row.get("city", "").strip() == home_city
-        and row.get("category", "").strip()
-        in (_TRANSPORT_CATEGORIES | _AIRPORT_DEPARTURE_CATEGORIES)
-    )
+    if row.get("city", "").strip() != home_city:
+        return False
+    cat = row.get("category", "").strip()
+    if cat in _TRANSPORT_CATEGORIES:
+        return True
+    return bool(era.get("air_departure")) and cat in _AIRPORT_DEPARTURE_CATEGORIES
 
 
 def _home_at(
@@ -207,6 +232,7 @@ def detect_trips(
     trip_tags: dict[int, list[str]] | None = None,
     home_history: list[tuple[int, str]] | None = None,
     home_venue_ids: set[str] | None = None,
+    home_eras: list[tuple[int, dict]] | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
@@ -329,7 +355,8 @@ def detect_trips(
             # 2013, not in whatever `home_city` happens to be today.
             row_home = _home_at(int(valid[i]["date"]), home_city, home_history)
             if row_city == row_home:
-                if _is_home_departure_hub(valid[i], row_home):
+                if _is_home_departure_hub(valid[i], row_home,
+                                          _era_at(int(valid[i]["date"]), home_eras)):
                     if dep_hub is None:
                         dep_hub = i  # first hub found (nearest to trip start)
                     else:
@@ -445,6 +472,9 @@ def detect_trips(
             # too, but only briefly: past the window a different city means a new
             # outing, not the way home.
             _ARRIVAL_TRANSIT_WINDOW = 6 * 3600
+            arr_era = _era_at(trip_end_ts, home_eras)
+            era_venues = arr_era.get("venues") or ()
+            era_hoods = arr_era.get("arrival_neighborhoods") or ()
             i = lp + 1
             while i < len(valid):
                 row_ts = int(valid[i]["date"])
@@ -459,7 +489,16 @@ def detect_trips(
                 # as "Apartment or Condo", so the Neighborhood test below never
                 # matched it). Include it: this is the arrival the extension is
                 # reaching for.
-                if home_venue_ids and vid in (home_venue_ids or ()):
+                # The homecoming: this era's own home address, whatever its
+                # category (Str. Alecu Russo, 55 comes back as "Apartment or
+                # Condo", so the Neighborhood test below never matched it), or
+                # one of the districts configured to stand in for it when the
+                # trip does not end at the address itself.
+                if era_venues and vid in era_venues:
+                    arr_hub = i
+                    break
+                if era_hoods and row_city == row_home \
+                        and (valid[i].get("venue", "").strip() in era_hoods):
                     arr_hub = i
                     break
                 # A generic "Home (private)" still ENDS the scan without
@@ -473,6 +512,10 @@ def detect_trips(
                     arr_hub = i
                     break
                 if row_city not in ("", row_home):
+                    # Eras that did not opt into arrival_transit keep the old
+                    # rule: a different city ends the scan at once.
+                    if not arr_era.get("arrival_transit"):
+                        break
                     if row_ts - trip_end_ts > _ARRIVAL_TRANSIT_WINDOW:
                         break  # too late to be the way home — a new outing
                 i += 1

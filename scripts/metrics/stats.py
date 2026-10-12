@@ -100,6 +100,7 @@ def process(
     flights: list[dict] | None = None,
     home_history: list[tuple[int, str]] | None = None,
     home_venue_ids: set[str] | None = None,
+    home_eras: list[tuple[int, dict]] | None = None,
 ) -> tuple[dict, list[dict]]:
     """
     Compute all dashboard metrics from pre-transformed rows.
@@ -670,7 +671,7 @@ def process(
     ])
 
     # ── Trips ─────────────────────────────────────────────────────────────────
-    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, home_history=home_history, home_venue_ids=home_venue_ids)
+    trips = detect_trips(rows, home_city=home_city, min_checkins=min_trip_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, home_history=home_history, home_venue_ids=home_venue_ids, home_eras=home_eras)
 
     # ── Trip analytics (Group 3) ───────────────────────────────────────────────
     if trips:
