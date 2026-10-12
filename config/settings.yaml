@@ -37,6 +37,7 @@ trip_detection:
         - Ciocana (Sectorul Ciocana)
       departure_ride_categories: [Taxi]
       arrival_stop_at_home: true
+      arrival_max_city_checkins: 3
     - city: Minsk
       until: "2026-07-29"
       # No arrival/departure flags: the Minsk years are FROZEN on the original
@@ -77,6 +78,12 @@ trip_detection:
       #   the home city ("back in Chișinău"). Without it the arrival scan walked
       #   past the front door to the next day's bus station.
       arrival_stop_at_home: true
+      # arrival_max_city_checkins: safety net for when there is no "City"
+      #   check-in or bar to end the trip. More than this many home-city stops
+      #   that are not part of the ride home (transport, roads, City /
+      #   Neighborhood check-ins don't count) before reaching home ⇒ the trip
+      #   ended on arriving in the city; the rest was a separate outing.
+      arrival_max_city_checkins: 3
   # Optional: path to a hand-curated trips YAML override file.
   # When set, the automatic detection is skipped and these dates are used instead.
   # trips_override_file: trips_manual.yaml

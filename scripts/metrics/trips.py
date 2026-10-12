@@ -169,10 +169,53 @@ _EMPTY_ERA: dict = {
     "venues": frozenset(), "air_departure": False,
     "arrival_transit": False, "arrival_neighborhoods": frozenset(),
     "departure_ride_categories": frozenset(), "arrival_stop_at_home": False,
+    "arrival_max_city_checkins": 0,
 }
 
 # How far before the departure hub the ride TO it may sit (taxi → airport).
 _DEPARTURE_RIDE_WINDOW = 90 * 60
+
+# Check-ins that are part of GETTING home, not of being out in the home city.
+# They never count towards `arrival_max_city_checkins`. Home markers (the home
+# venue, "Home (private)") are the scan targets themselves and are not counted
+# either, since they sit at the end of the span being checked.
+_ARRIVAL_TRANSIT_CATS: frozenset[str] = frozenset({
+    "Bus Line", "Bus Stop", "Taxi", "Road", "Highway", "Moving Target",
+    "Transportation Service", "Parking", "Fuel Station", "Gas Station",
+    "Platform", "Metro Station", "Tram Station", "Train", "Bus", "Plane",
+    "Border Crossing", "Country", "City", "Neighborhood", "Police Station",
+}) | _TRANSPORT_CATEGORIES | _AIRPORT_DEPARTURE_CATEGORIES
+
+
+def _cap_city_walk(
+    valid: list[dict], start: int, end: int, home_city: str,
+    home_history: list[tuple[int, str]] | None, era: dict,
+) -> int | None:
+    """Last index an arrival extension over valid[start..end] may reach.
+
+    `arrival_max_city_checkins` (era rule): when more than that many home-city
+    check-ins that are NOT part of the ride home sit before the target, the
+    trip had already ended on arriving in the city and the rest was a separate
+    outing — so the extension stops just before the first such check-in.
+    Returns `end` unchanged when the rule is off or not exceeded, the cut
+    index otherwise, or None when nothing at all may be added.
+    """
+    limit = era.get("arrival_max_city_checkins")
+    if not limit:
+        return end
+    stops = 0
+    first_stop: int | None = None
+    for k in range(start, end):  # rows strictly before the target
+        r = valid[k]
+        ts = int(r["date"])
+        if r.get("city", "").strip() == _home_at(ts, home_city, home_history) \
+                and r.get("category", "").strip() not in _ARRIVAL_TRANSIT_CATS:
+            stops += 1
+            if first_stop is None:
+                first_stop = k
+    if stops <= int(limit) or first_stop is None:
+        return end
+    return first_stop - 1 if first_stop - 1 >= start else None
 
 
 def _era_at(ts: int, home_eras: list[tuple[int, dict]] | None) -> dict:
@@ -497,6 +540,9 @@ def detect_trips(
                 break
             i += 1
         if arr_hub is not None:
+            arr_hub = _cap_city_walk(valid, lp + 1, arr_hub, home_city,
+                                     home_history, arr_era)
+        if arr_hub is not None:
             # Include all rows between trip end and hub (inclusive)
             ext = ext + valid[lp + 1 : arr_hub + 1]
         elif not ends_at_home:
@@ -558,6 +604,9 @@ def detect_trips(
                     if row_ts - trip_end_ts > _ARRIVAL_TRANSIT_WINDOW:
                         break  # too late to be the way home — a new outing
                 i += 1
+            if arr_hub is not None:
+                arr_hub = _cap_city_walk(valid, lp + 1, arr_hub, home_city,
+                                         home_history, arr_era)
             if arr_hub is not None:
                 ext = ext + valid[lp + 1 : arr_hub + 1]
 
@@ -696,6 +745,9 @@ def detect_trips(
                 home_idx = j
                 break
             j += 1
+        if home_idx is not None:
+            home_idx = _cap_city_walk(valid, cur_end_idx + 1, home_idx, home_city,
+                                      home_history, _era_at(cur_end_ts, home_eras))
         if home_idx is not None:
             ext = ext + valid[cur_end_idx + 1 : home_idx + 1]
 

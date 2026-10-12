@@ -267,6 +267,7 @@ CHISINAU_ERA = [(_FUTURE, {
     "city": "Minsk", "venues": {HOME_VID}, "air_departure": True,
     "arrival_transit": True, "arrival_neighborhoods": {"Ciocana"},
     "departure_ride_categories": {"Taxi"}, "arrival_stop_at_home": True,
+    "arrival_max_city_checkins": 3,
 })]
 FROZEN_ERA = [(_FUTURE, {
     "city": "Minsk", "venues": {HOME_VID}, "air_departure": False,
@@ -407,4 +408,44 @@ class TestRideAndHomecomingBoundaries:
                              min_checkins=5, home_eras=FROZEN_ERA)
         assert trips[0]["checkins"][-1]["category"] == "Bus Station", (
             "an era without arrival_stop_at_home must keep its original boundaries")
+
+
+class TestCityWalkSafetyNet:
+    """`arrival_max_city_checkins`: when there is no "City" check-in or bar to
+    end the trip, more than N home-city stops on the way to the front door mean
+    the trip ended on arriving in the city and the rest was a separate outing.
+    """
+
+    def _back_then_a_walk_then_home(self, stops):
+        rows = [home(T0)]
+        rows += [away(T0 + 2 * HOUR + i * HOUR, city="Bender") for i in range(5)]
+        back = T0 + 7 * HOUR
+        rows.append(home(back, category="Bus Line", venue="Bus home",
+                         venue_id="line0000000000000000000a"))
+        rows += [home(back + (k + 1) * 30 * 60, category="Coffee Shop",
+                      venue=f"Cafe {k}", venue_id=f"cafe{k:020d}")
+                 for k in range(stops)]
+        rows.append(home(back + (stops + 1) * 30 * 60, category="Apartment or Condo",
+                         venue="Home address", venue_id=HOME_VID))
+        return rows
+
+    def test_a_long_walk_home_is_cut_at_the_arrival(self):
+        trips = detect_trips(self._back_then_a_walk_then_home(5), min_checkins=5,
+                             home_eras=CHISINAU_ERA)
+        ci = trips[0]["checkins"]
+        assert ci[-1]["category"] == "Bus Line", (
+            "the trip must end on arriving in the city, before the walk")
+        assert not any(c["category"] == "Coffee Shop" for c in ci)
+
+    def test_a_short_way_home_still_reaches_the_door(self):
+        # At or under the limit the stops are just the way home.
+        trips = detect_trips(self._back_then_a_walk_then_home(3), min_checkins=5,
+                             home_eras=CHISINAU_ERA)
+        assert trips[0]["checkins"][-1]["venue_id"] == HOME_VID
+
+    def test_frozen_era_is_not_capped(self):
+        trips = detect_trips(self._back_then_a_walk_then_home(5), min_checkins=5,
+                             home_eras=FROZEN_ERA)
+        assert any(c["category"] == "Coffee Shop" for c in trips[0]["checkins"]), (
+            "an era without the rule must keep its original arrival")
 

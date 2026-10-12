@@ -244,6 +244,7 @@ if __name__ == "__main__":
                 str(_c).strip() for _c in (_hh.get("departure_ride_categories") or []) if str(_c).strip()
             },
             "arrival_stop_at_home": bool(_hh.get("arrival_stop_at_home")),
+            "arrival_max_city_checkins": int(_hh.get("arrival_max_city_checkins") or 0),
         }))
     home_eras.sort(key=lambda e: e[0])
     home_history.sort(key=lambda p: p[0])
