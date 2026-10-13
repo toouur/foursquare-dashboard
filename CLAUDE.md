@@ -342,6 +342,12 @@ python -m http.server 8000 --directory _site
   8-pass extension pipeline, `_home_at`, `_COUNTRY_TZ`), `companions.py`
   (`collect_companions`), `shouts.py` (`shout_records`, `shout_analysis`,
   `merge_comments_into_shouts`).
+  `trip_insights.py` (`trip_insights` — read-only views over the finished trip list for the
+  trips.html analytics block: `trip_eras` (per home era: trips, days-away %, avg/median
+  trip, top abroad country + gateway; an era owns the trips that START in it),
+  `trip_gateways` (stations/airports that open/close trips — rides, roads and border
+  crossings are not gateways), `trip_seasonality` (days away per year×month). Nothing
+  here feeds back into detection or names.)
 - Tips generation: `scripts/gen_tips.py` (also exports `CTRY_NORM`, loaded from `config/country_aliases.json`)
 - Photos generation: `scripts/gen_photos.py`
 - Shouts page: `scripts/gen_shouts.py` (free-text shout archive, ~4.5k entries — 3.8k shouts analyzed + ~650 comment-only check-ins; ~980 carry comment threads)

@@ -30,6 +30,29 @@ _BASE = (
 
 _TOKEN: str = ""
 
+# What D1 billed THIS process for, summed from the `meta` block every response
+# carries. The free tier is metered on rows read / written per day, and nothing
+# else in CI shows what one sync costs — the Cloudflare dashboard only has the
+# daily total. sync_to_d1.py prints it at the end of each run.
+USAGE: dict[str, int] = {"requests": 0, "rows_read": 0, "rows_written": 0}
+
+
+def _tally(d: dict) -> None:
+    """Add one successful response's meta to USAGE. Never raises."""
+    try:
+        USAGE["requests"] += 1
+        for res in d.get("result") or []:
+            meta = (res or {}).get("meta") or {}
+            USAGE["rows_read"] += int(meta.get("rows_read") or 0)
+            USAGE["rows_written"] += int(meta.get("rows_written") or 0)
+    except Exception:
+        pass
+
+
+def usage_summary() -> str:
+    return (f"D1 usage this run: {USAGE['requests']} requests, "
+            f"{USAGE['rows_read']:,} rows read, {USAGE['rows_written']:,} rows written")
+
 def configure(token: str) -> None:
     global _TOKEN
     _TOKEN = token
@@ -71,6 +94,7 @@ def query(sql: str, params: list | None = None, silent: bool = False) -> list:
             log("D1 query failed (success=false): %s", error_details)
             raise RuntimeError(f"D1 query failed: {error_details}")
 
+        _tally(d)
         logger.debug("Query executed successfully")
         return (d.get("result") or [{}])[0].get("results", [])
     except requests.exceptions.HTTPError as http_err:
@@ -180,6 +204,7 @@ def _raw_with_retry(sql: str, retries: int = 5) -> list:
                 logger.error("D1 raw failed (success=false): %s", error_msg)
                 raise RuntimeError(f"D1 raw failed: {error_msg}")
             
+            _tally(d)
             logger.debug("Raw query executed successfully")
             return (d.get("result") or [{}])[0].get("results", [])
             
@@ -270,6 +295,7 @@ def _query_with_retry(sql: str, params: list, retries: int = 5, silent: bool = F
                 (logger.debug if silent else logger.error)("D1 query failed (success=false): %s", error_msg)
                 raise RuntimeError(f"D1 query failed: {error_msg}")
 
+            _tally(d)
             logger.debug("Query with retry executed successfully")
             return (d.get("result") or [{}])[0].get("results", [])
 

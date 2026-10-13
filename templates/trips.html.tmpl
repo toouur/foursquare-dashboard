@@ -191,6 +191,49 @@ a{color:inherit;}
 .nc-flag-item{display:flex;align-items:center;gap:3px;font-size:0.68rem;color:var(--text2);white-space:nowrap;}
 .nc-count{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--teal);flex-shrink:0;}
 .nc-list{max-height:420px;overflow-y:auto;padding-right:4px;}
+/* ── Home eras / gateways / seasons ── */
+.era-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;}
+.era-col{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.era-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.era-city{font-size:1rem;font-weight:600;color:var(--text);}
+.era-span{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.06em;width:100%;}
+.era-refurb{font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:2px 6px;white-space:nowrap;}
+.era-away{display:flex;flex-direction:column;gap:4px;}
+.era-away-num{font-family:'DM Mono',monospace;font-size:1.35rem;color:var(--teal);line-height:1;}
+.era-away-lbl{font-size:.6rem;color:var(--muted);}
+.era-bar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;}
+.era-bar>i{display:block;height:100%;background:var(--teal);border-radius:3px;}
+.era-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;}
+.era-stat .v{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--text);}
+.era-stat .l{font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.era-fav{font-size:.68rem;color:var(--text2);display:flex;align-items:center;gap:5px;min-width:0;}
+.era-fav span.t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.era-fav b{font-family:'DM Mono',monospace;font-weight:400;font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0;}
+.gw-list{display:flex;flex-direction:column;gap:5px;}
+.gw-row{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(90px,320px);align-items:center;gap:10px;padding:8px 10px;background:var(--card2);border:1px solid var(--border);border-radius:7px;}
+.gw-mode{font-size:1rem;text-align:center;}
+.gw-name{font-size:.78rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gw-sub{font-size:.6rem;color:var(--muted);margin-top:1px;display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;}
+.gw-bars{display:flex;flex-direction:column;gap:3px;}
+.gw-bar{display:grid;grid-template-columns:minmax(0,1fr) 26px;align-items:center;gap:6px;}
+.gw-track{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;}
+.gw-track>i{display:block;height:100%;border-radius:3px;}
+.gw-bar.o .gw-track>i{background:var(--teal);}
+.gw-bar.c .gw-track>i{background:var(--gold);}
+.gw-n{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text2);text-align:right;}
+.gw-legend{display:flex;gap:14px;font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:-6px 0 12px;}
+.gw-legend i{display:inline-block;width:10px;height:5px;border-radius:2px;margin-right:5px;vertical-align:middle;}
+.ts-wrap{overflow-x:auto;}
+.ts-grid{display:grid;grid-template-columns:38px repeat(12,minmax(18px,1fr));gap:3px;min-width:300px;}
+.ts-h,.ts-y{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);display:flex;align-items:center;}
+.ts-h{justify-content:center;padding-bottom:2px;}
+.ts-h.peak{color:var(--gold);}
+.ts-cell{height:18px;border-radius:3px;background:rgba(78,205,196,var(--a));}
+.ts-cell.z{background:var(--card2);}
+body.light .ts-cell{background:rgba(21,92,88,var(--a));}
+body.light .ts-cell.z{background:var(--card2);}
+.ts-tot{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--text2);text-align:center;padding-top:4px;}
+.ts-note{font-size:.66rem;color:var(--muted);margin-top:12px;line-height:1.5;}
 .nc-list::-webkit-scrollbar{width:3px;}
 .nc-list::-webkit-scrollbar-thumb{background:var(--border);}
 @media(max-width:900px){
@@ -211,6 +254,9 @@ a{color:inherit;}
   .ltrip-row{grid-template-columns:20px 1fr 40px;gap:5px;}
   .ltrip-year{display:none;}
   .ltrip-name{font-size:.72rem;}
+  .gw-row{grid-template-columns:22px minmax(0,1fr) 84px;gap:7px;padding:7px 8px;}
+  .ts-grid{grid-template-columns:30px repeat(12,minmax(16px,1fr));gap:2px;}
+  .ts-cell{height:15px;}
 }
 
 @media(max-width:900px){
@@ -670,6 +716,23 @@ handleHash();
       <div class="card-title">New Countries by Year <em>&middot; first visit per country</em></div>
       <div class="nc-list" id="newCountryList"></div>
     </div>
+
+    <div class="card full" id="eraCard" hidden>
+      <div class="card-title">Home Eras <em>&middot; how you travelled from each home</em></div>
+      <div class="era-grid" id="eraGrid"></div>
+    </div>
+
+    <div class="card full" id="gwCard" hidden>
+      <div class="card-title">Gateways <em>&middot; stations &amp; airports that open and close trips</em></div>
+      <div class="gw-legend"><span><i style="background:var(--teal)"></i>trip starts</span><span><i style="background:var(--gold)"></i>trip ends</span></div>
+      <div class="gw-list" id="gwList"></div>
+    </div>
+
+    <div class="card full" id="tsCard" hidden>
+      <div class="card-title">Travel Seasons <em>&middot; days away per month</em></div>
+      <div class="ts-wrap"><div class="ts-grid" id="tsGrid"></div></div>
+      <div class="ts-note" id="tsNote"></div>
+    </div>
   </div>
 </div>
 
@@ -748,6 +811,76 @@ const S={{STATS}};
         <div class="ltrip-year">${year}</div>
       </div>`;
     }).join('')+'</div>';
+  }
+
+  // ── Home Eras ─────────────────────────────────────────────────────────────
+  const eras=S.trip_eras||[];
+  const eraGrid=document.getElementById('eraGrid');
+  if(eraGrid&&eras.length){
+    const yr=d=>String(d||'').slice(0,4);
+    eraGrid.innerHTML=eras.map(e=>{
+      const span=yr(e.from)===yr(e.to)?yr(e.from):yr(e.from)+' – '+yr(e.to);
+      const days=e.days>=365?(e.days/365.25).toFixed(1)+' yrs':e.days+' days';
+      const refurb=e.reconstructed_pct>=50?'<span class="era-refurb" title="Pre-2012 travel is reconstructed from diaries and memory at day granularity">↺ reconstructed</span>':'';
+      const dest=e.top_dest?`<div class="era-fav"><b>Top abroad</b>${flagHtml(e.top_dest[0],'.95em')}<span class="t">${esc2(e.top_dest[0])} · ${e.top_dest[1]} trip${e.top_dest[1]===1?'':'s'}</span></div>`:'';
+      const gw=e.top_gateway?`<div class="era-fav"><b>Gateway</b>${e.top_gateway.mode}<span class="t" title="${esc2(e.top_gateway.venue)}">${esc2(e.top_gateway.venue)}</span></div>`:'';
+      return `<div class="era-col">
+        <div class="era-head">${flagHtml(e.country,'1.1em')}<span class="era-city">${esc2(e.city)}</span>${refurb}<div class="era-span">${span} · ${days}</div></div>
+        <div class="era-away"><div class="era-away-num">${e.away_pct}%</div><div class="era-away-lbl">of days away · ${e.days_away.toLocaleString()} days</div><div class="era-bar"><i style="width:${Math.min(100,e.away_pct)}%"></i></div></div>
+        <div class="era-stats">
+          <div class="era-stat"><div class="v">${e.trips}</div><div class="l">trips</div></div>
+          <div class="era-stat"><div class="v">${e.trips_per_year==null?'—':e.trips_per_year}</div><div class="l">per year</div></div>
+          <div class="era-stat"><div class="v">${e.avg_days}d</div><div class="l">avg trip</div></div>
+          <div class="era-stat"><div class="v">${e.median_days}d</div><div class="l">median trip</div></div>
+          <div class="era-stat"><div class="v">${e.countries}</div><div class="l">countries abroad</div></div>
+        </div>
+        ${dest}${gw}
+      </div>`;
+    }).join('');
+    document.getElementById('eraCard').hidden=false;
+  }
+
+  // ── Gateways ──────────────────────────────────────────────────────────────
+  const gws=S.trip_gateways||[];
+  const gwList=document.getElementById('gwList');
+  if(gwList&&gws.length){
+    const mx=Math.max(...gws.map(g=>Math.max(g.opened,g.closed)),1);
+    gwList.innerHTML=gws.map(g=>{
+      const yrs=g.first===g.last?g.first:g.first+'–'+g.last;
+      return `<div class="gw-row">
+        <div class="gw-mode">${g.mode}</div>
+        <div style="min-width:0"><div class="gw-name" title="${esc2(g.venue)}">${esc2(g.venue)}</div>
+          <div class="gw-sub">${flagHtml(g.country,'.9em')}<span>${esc2(g.city)} · ${yrs}</span></div></div>
+        <div class="gw-bars">
+          <div class="gw-bar o" title="${g.opened} trips started here"><div class="gw-track"><i style="width:${100*g.opened/mx}%"></i></div><div class="gw-n">${g.opened}</div></div>
+          <div class="gw-bar c" title="${g.closed} trips ended here"><div class="gw-track"><i style="width:${100*g.closed/mx}%"></i></div><div class="gw-n">${g.closed}</div></div>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('gwCard').hidden=false;
+  }
+
+  // ── Travel Seasons heatmap ────────────────────────────────────────────────
+  const ts=S.trip_seasonality||{};
+  const tsGrid=document.getElementById('tsGrid');
+  if(tsGrid&&ts.years&&ts.years.length){
+    const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const DIM=[31,29,31,30,31,30,31,31,30,31,30,31];
+    let h='<div></div>'+MON.map((m,i)=>`<div class="ts-h${i===ts.peak_month?' peak':''}">${m[0]}</div>`).join('');
+    ts.years.slice().reverse().forEach(y=>{
+      const row=ts.days[ts.years.indexOf(y)];
+      h+=`<div class="ts-y">${y}</div>`+row.map((d,m)=>{
+        const a=d?(0.18+0.82*Math.min(1,d/DIM[m])).toFixed(2):0;
+        return `<div class="ts-cell${d?'':' z'}" style="--a:${a}" title="${MON[m]} ${y} · ${d} day${d===1?'':'s'} away"></div>`;
+      }).join('');
+    });
+    h+='<div class="ts-y">Σ</div>'+ts.month_days.map((d,m)=>`<div class="ts-tot" title="${MON[m]}: ${d} days away in total, ${ts.starts[m]} trips started">${d}</div>`).join('');
+    tsGrid.innerHTML=h;
+    const startPeak=ts.starts.indexOf(Math.max(...ts.starts));
+    document.getElementById('tsNote').textContent=
+      `Most days away fall in ${MON[ts.peak_month]} (${ts.month_days[ts.peak_month]} days in total); `+
+      `most trips start in ${MON[startPeak]} (${ts.starts[startPeak]} trips). The stronger the colour, the more of that month was spent travelling.`;
+    document.getElementById('tsCard').hidden=false;
   }
 
   // ── New Countries Timeline ────────────────────────────────────────────────

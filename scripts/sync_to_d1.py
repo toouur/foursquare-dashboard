@@ -583,6 +583,7 @@ def main() -> None:
 
     if args.schema_only:
         print("D1 sync: --schema-only -- schema applied, nothing else to do.", flush=True)
+        print(d1.usage_summary(), flush=True)
         return
 
     # Content-hash gate state (sync_state table): lets trips/lists/tips/ratings
@@ -1531,6 +1532,7 @@ def main() -> None:
             print(f"  {fts_table}: rebuilt from {base_table} ({fts_n} rows)", flush=True)
 
     print(f"CHANGED={'true' if changed else 'false'}", flush=True)
+    print(d1.usage_summary(), flush=True)
     print("D1 sync: done", flush=True)
 
 

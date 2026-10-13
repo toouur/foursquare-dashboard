@@ -464,3 +464,18 @@ def test_census_reupserts_venue_whose_indexed_text_drifted(env):
     assert env.fake.query("SELECT city FROM venues WHERE id='vA'")[0]["city"] == "Minsk City"
     # Untouched venues must not be rewritten along the way.
     assert env.fake.query("SELECT city FROM venues WHERE id='vB'")[0]["city"] == "Minsk"
+
+
+def test_d1_usage_tally_sums_every_result_meta(monkeypatch):
+    """d1_client.USAGE adds up rows_read/rows_written across a response's results."""
+    import importlib
+    real = importlib.reload(d1_client)   # undo any fake installed by other tests
+    monkeypatch.setattr(real, "USAGE", {"requests": 0, "rows_read": 0, "rows_written": 0})
+    real._tally({"success": True, "result": [
+        {"results": [], "meta": {"rows_read": 70000, "rows_written": 0}},
+        {"results": [], "meta": {"rows_read": 5, "rows_written": 12}},
+    ]})
+    real._tally({"success": True, "result": [{"results": []}]})   # no meta: counted, no rows
+    real._tally({"success": True})                                # malformed: must not raise
+    assert real.USAGE == {"requests": 3, "rows_read": 70005, "rows_written": 12}
+    assert "70,005 rows read" in real.usage_summary()

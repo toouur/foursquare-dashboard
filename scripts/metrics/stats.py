@@ -14,6 +14,7 @@ from transform import build_categorize_fn
 
 from .companions import collect_companions
 from .shouts import shout_analysis, shout_records
+from .trip_insights import trip_insights
 from .trips import _COUNTRY_TZ, _localise, _parse_ts, _tz_at, detect_trips
 
 log = logging.getLogger(__name__)
@@ -740,6 +741,9 @@ def process(
         trip_countries_dist = []
         trip_top_longest = []
         trip_kpis = {}
+
+    # ── Trip insights: home eras, gateways, seasonality ─────────────────────
+    _trip_insights = trip_insights(trips, rows, home_city, home_history, city_primary_country)
 
     def _trip_km(t: dict) -> int:
         cks = sorted(t["checkins"], key=lambda c: c.get("date", 0))
@@ -1839,6 +1843,9 @@ def process(
         "trip_countries_dist":trip_countries_dist,
         "trip_top_longest":   trip_top_longest,
         "trip_kpis":          trip_kpis,
+        "trip_eras":          _trip_insights["trip_eras"],
+        "trip_gateways":      _trip_insights["trip_gateways"],
+        "trip_seasonality":   _trip_insights["trip_seasonality"],
         "shout_stats":        shout_stats,
         "cross_dim":          cross_dim,
         # ── New tier-1/2/3/5/6 analytics ──
