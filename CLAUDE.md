@@ -474,7 +474,7 @@ check-in mid-trip (a forest on the way back geotagged "Minsk") splits the raw se
 the first part's arrival extension swallows the second, and the second used to survive
 as its own trip — the same check-ins shown twice. That was 21.10.2018 "Zaslawye,
 Belarus" inside the Veloby bike trip, hidden by hand with exclude key `1540131430`,
-which is now redundant (build identical with and without it).
+removed 2026-10-13 as redundant (build identical with and without it).
 Auto-name icon (`build._infer_icon`): ✈️ only for a REAL flight
 (`metrics.trip_insights.trip_used_plane` — a "Plane" check-in, or an airport visit
 spanning 100+ km; same city on both sides = seeing someone off, never ✈️), otherwise
