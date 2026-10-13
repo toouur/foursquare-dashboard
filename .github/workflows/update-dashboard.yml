@@ -260,6 +260,7 @@ jobs:
 
       # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
+        id: build
         if: |
           github.event_name == 'workflow_dispatch' ||
           steps.fetch.outputs.CHANGED == 'true' ||
@@ -298,7 +299,40 @@ jobs:
             --output-dir . \
             --routes-cache private-data/routes_cache.json \
             --routes-max-fetch 0 \
+            --trip-names-healed-out "$RUNNER_TEMP/trip_names_healed.json" \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
+
+      # ── 7b-trip. trip_names.json self-heal gate ──────────────────────────────
+      #   A trip's name is keyed by its start ts, so any rule that moves a start
+      #   orphans the key. The build already rendered the healed names; this
+      #   commits the heal (orphans migrated to the new start / dead keys
+      #   removed — see scripts/metrics/trip_names.py) so the next build starts
+      #   clean. The healed file carries NO auto-added names: those stay
+      #   build-time only, as before. Keys whose shift could not be trusted
+      #   (merge, >24 h move) are kept and raised as a warning instead.
+      - name: Commit healed trip names
+        if: steps.build.outputs.TRIP_NAMES_HEALED != '' && steps.build.outputs.TRIP_NAMES_HEALED != '0'
+        run: |
+          cp "$RUNNER_TEMP/trip_names_healed.json" config/trip_names.json
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/trip_names.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "fix(trips): self-heal ${{ steps.build.outputs.TRIP_NAMES_HEALED }} orphaned trip_names key(s)"
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase --autostash origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
+          fi
+
+      - name: Warn on suspicious trip_names keys
+        if: steps.build.outputs.TRIP_NAMES_SUSPICIOUS != '' && steps.build.outputs.TRIP_NAMES_SUSPICIOUS != '0'
+        run: |
+          echo "::warning::${{ steps.build.outputs.TRIP_NAMES_SUSPICIOUS }} trip_names key(s) look like an untrustworthy shift — kept as-is; see 'trip_names: SUSPICIOUS' in the Rebuild dashboard log"
 
       # ── 7c. Persist warmed route-geometry cache to the data repo ─────────────
       #   With --routes-max-fetch 0 the hourly build no longer fetches routes, so

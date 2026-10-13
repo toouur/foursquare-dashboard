@@ -8,6 +8,8 @@ import logging
 from collections import Counter
 from datetime import datetime, timezone
 
+from .trip_names import TripSpan, heal_trip_names
+
 log = logging.getLogger(__name__)
 
 # ── Date helpers ───────────────────────────────────────────────────────────────
@@ -280,9 +282,14 @@ def detect_trips(
     home_history: list[tuple[int, str]] | None = None,
     home_venue_ids: set[str] | None = None,
     home_eras: list[tuple[int, dict]] | None = None,
+    name_report: dict | None = None,
 ) -> list[dict]:
     """
     Detect trips as consecutive non-home sequences of check-ins.
+
+    Orphaned trip_names keys (a rule moved a trip's start) are healed before
+    naming — see metrics.trip_names. Pass a dict as `name_report` to receive
+    the HealResult under "heal".
 
     trip_names: optional dict mapping str(start_ts) → custom trip name.
     Each trip is extended by one check-in on each side if the immediately
@@ -757,6 +764,23 @@ def detect_trips(
             ext = ext + valid[cur_end_idx + 1 : home_idx + 1]
 
         extended.append((ext, current_tags, current_start_ts))
+
+    # Heal orphaned trip_names keys against the trips as they are now, so a
+    # moved start keeps its hand-written name in this very build.
+    if trip_names:
+        spans: list[TripSpan] = []
+        prev_last: int | None = None
+        for trip_rows, _t, _nts in extended:
+            if len(trip_rows) < min_checkins:
+                continue
+            ts_all = [int(r["date"]) for r in trip_rows]
+            spans.append(TripSpan(key=_nts, first=min(ts_all), last=max(ts_all),
+                                  checkin_ts=frozenset(ts_all), prev_last=prev_last))
+            prev_last = max(ts_all)
+        heal = heal_trip_names(spans, trip_names)
+        trip_names = heal.names
+        if name_report is not None:
+            name_report["heal"] = heal
 
     result: list[dict] = []
     for trip_rows, _resolved_tags, _name_ts in extended:

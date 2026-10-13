@@ -180,6 +180,11 @@ if __name__ == "__main__":
                         help="Write slim trips metadata JSON to this path "
                              "(used by sync_to_d1.py; excludes checkins/coords arrays). "
                              "Defaults to trips_meta.json in the current directory.")
+    parser.add_argument("--trip-names-healed-out", default=None,
+                        help="When orphaned trip_names keys were healed (a trip start "
+                             "moved), also write the healed trip_names.json here — "
+                             "WITHOUT this build's auto-added names, so CI can commit "
+                             "just the heal. Emits TRIP_NAMES_HEALED=<n>.")
     parser.add_argument("--routes-cache", default=None,
                         help="Path to routes_cache.json (persistent OSRM/BRouter "
                              "route-geometry cache, lives in the private data repo). "
@@ -348,7 +353,33 @@ if __name__ == "__main__":
             log.warning("flights.csv load for metrics failed: %s", _mfe)
 
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
-    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides, flights=_metrics_flights, home_history=home_history, home_venue_ids=home_venue_ids, home_eras=home_eras)
+    _name_report: dict = {}
+    data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides, flights=_metrics_flights, home_history=home_history, home_venue_ids=home_venue_ids, home_eras=home_eras, trip_name_report=_name_report)
+
+    # ── trip_names.json self-heal (see metrics/trip_names.py) ─────────────────
+    # detect_trips already rendered the healed names; here the heal is logged,
+    # adopted for the auto-populate write below, and — for CI — written on its
+    # own (no auto-added names) so only the heal itself gets committed.
+    _heal = _name_report.get("heal")
+    _healed_n = 0
+    if _heal is not None:
+        from metrics.trip_names import describe as _describe_heal
+        for _line in _describe_heal(_heal):
+            log.warning("trip_names: %s", _line)
+        _healed_n = _heal.changed
+        if _healed_n:
+            trip_names = dict(_heal.names)
+            if args.trip_names_healed_out:
+                Path(args.trip_names_healed_out).write_text(json.dumps(
+                    dict(sorted(trip_names.items(), key=lambda kv: int(kv[0]))),
+                    ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"TRIP_NAMES_HEALED={_healed_n}")
+    print(f"TRIP_NAMES_SUSPICIOUS={len(_heal.suspicious) if _heal else 0}")
+    _gho = os.environ.get("GITHUB_OUTPUT")
+    if _gho:
+        with open(_gho, "a", encoding="utf-8") as _fh:
+            _fh.write(f"TRIP_NAMES_HEALED={_healed_n}\n")
+            _fh.write(f"TRIP_NAMES_SUSPICIOUS={len(_heal.suspicious) if _heal else 0}\n")
 
     # ── Flights: parse FR24 flight-diary CSV if present ─────────────────────
     # data/flights.csv lives next to checkins.csv in the private data repo.
@@ -473,7 +504,7 @@ if __name__ == "__main__":
         for t in trips
         if _needs_update(str(t["_name_ts"]), t)
     }
-    if new_name_entries:
+    if new_name_entries or _healed_n:
         trip_names.update(new_name_entries)
         trip_names_sorted = dict(sorted(trip_names.items(), key=lambda kv: int(kv[0])))
         trip_names_path.write_text(

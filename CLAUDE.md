@@ -448,6 +448,29 @@ Each entry names the home for every ts strictly BEFORE its `until`; at/after the
 - **Known remaining consumer**: `gen_guide.py` still derives `home_country`/`is_home` from
   the flat `home_city` — correct for the current era only.
 
+## Trip names self-heal (`config/trip_names.json`)
+
+A trip's name is keyed by its start ts (`_name_ts`), so ANY rule that moves a start
+(new departure hub, taxi before the airport, a platform counted as a station) orphans
+the key: the hand-written name silently falls back to an auto-name. `scripts/metrics/
+trip_names.py:heal_trip_names` runs inside `detect_trips` (before naming) and decides
+per orphan key:
+- **MIGRATED** — the old start is still a check-in of the trip, or sits ≤24 h before
+  its new start, and no other key competes: the name moves to the new key.
+- **REMOVED** — no trip at that time any more, the covering trip is already named, or
+  a competing key explained the shift better ("superseded").
+- **SUSPICIOUS** — shift >24 h, two named trips now one (merge), or an unexplained
+  shift: the key is KEPT untouched and reported. Never guess a name onto a trip.
+The same build renders the healed names. `build.py --trip-names-healed-out PATH` also
+writes the heal-only file (no auto-added names) and emits `TRIP_NAMES_HEALED` /
+`TRIP_NAMES_SUSPICIOUS`; `update-dashboard.yml` commits it ("Commit healed trip
+names") and raises a `::warning::` on suspicious keys. Tests:
+`tests/test_trip_names_heal.py`.
+Auto-name icon (`build._infer_icon`): ✈️ only for a REAL flight
+(`metrics.trip_insights.trip_used_plane` — a "Plane" check-in, or an airport visit
+spanning 100+ km; same city on both sides = seeing someone off, never ✈️), otherwise
+the first/last-5 hub probe.
+
 ## City normalization pipeline (priority order)
 
 0. `venue_fixes.json` — per-venue_id `{city, country}` override (HIGHEST priority).
