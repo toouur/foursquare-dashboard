@@ -501,6 +501,11 @@ jobs:
             # build.py auto-merge of the same sibling CSV. See scripts/build_backfill.py.
             BACKFILL_ARG=""
             if [ -f private-data/backfill.csv ]; then BACKFILL_ARG="--backfill private-data/backfill.csv"; fi
+            # --trips-changed is ALWAYS true: trip names and boundaries also move
+            # on a config-only change (trip_names.json, era rules), which the
+            # fetch CHANGED flag never sees — "Istanbul - sahils & cats" never
+            # reached /api/search that way. Cheap: the trips sync is hash-gated
+            # through sync_state and writes nothing when the content is unchanged.
             # `set +e` inside the subshell so a non-zero sync still reaches the
             # `echo $? > /tmp/d1_rc` line — otherwise the step's errexit kills the
             # subshell at python and the reaper reads a missing file as failure.
@@ -511,7 +516,7 @@ jobs:
                 --tips-changed    ${{ steps.fetch_tips.outputs.CHANGED    || 'false' }} \
                 --ratings-changed ${{ steps.fetch_ratings.outputs.CHANGED || 'false' }} \
                 --lists-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
-                --trips-changed   ${{ steps.fetch.outputs.CHANGED         || 'false' }} \
+                --trips-changed   true \
                 $RATINGS_ARG $LISTS_ARG $BACKFILL_ARG; echo $? > /tmp/d1_rc ) &
             D1_PID=$!
             echo "D1 sync started in background (pid $D1_PID) — overlapping deploy."

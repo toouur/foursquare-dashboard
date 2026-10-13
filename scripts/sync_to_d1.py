@@ -1166,6 +1166,10 @@ def main() -> None:
                 print("  trips    : skipped (content hash unchanged)", flush=True)
             else:
                 d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
+                # ids are 1..N in trips.html order, so the upsert above replaces
+                # every row that still exists; a trip that vanished (merge, rule
+                # change) leaves its id at the tail — drop that tail too.
+                d1.query("DELETE FROM trips WHERE id > ?", [max((r[0] for r in trip_rows), default=0)])
                 _save_sync_hash("trips", h)
                 changed = True
                 fts_dirty["trips_fts"] = True

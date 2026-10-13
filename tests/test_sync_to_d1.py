@@ -479,3 +479,37 @@ def test_d1_usage_tally_sums_every_result_meta(monkeypatch):
     real._tally({"success": True})                                # malformed: must not raise
     assert real.USAGE == {"requests": 3, "rows_read": 70005, "rows_written": 12}
     assert "70,005 rows read" in real.usage_summary()
+
+
+def _write_trips(path, names):
+    path.write_text(json.dumps([
+        {"id": i + 1, "name": n, "start_date": "2019-07-10", "end_date": "2019-07-11",
+         "start_ts": 100 + i, "start_year": 2019, "duration": 2, "checkin_count": 5,
+         "unique_places": 5, "countries": ["Poland"], "cities": ["Warsaw"],
+         "tags": [], "top_cats": []}
+        for i, n in enumerate(names)
+    ]), encoding="utf-8")
+
+
+def test_trips_rename_reaches_d1_and_vanished_tail_is_dropped(env):
+    """A config-only rename must land in D1, and a trip that disappeared must
+    not linger as a stale tail row (ids are 1..N, upserted in place)."""
+    csv_path = _sync_base(env)
+    trips = env.tmp_path / "trips_meta.json"
+    _write_trips(trips, ["A", "B", "C"])
+    _run(env, csv_path, "--trips", str(trips), "--trips-changed", "true")
+    _write_trips(trips, ["A renamed", "B"])
+    _run(env, csv_path, "--trips", str(trips), "--trips-changed", "true")
+    got = [tuple(r) for r in env.fake.conn.execute("SELECT id, name FROM trips ORDER BY id")]
+    assert got == [(1, "A renamed"), (2, "B")]
+
+
+def test_unchanged_trips_write_nothing(env):
+    csv_path = _sync_base(env)
+    trips = env.tmp_path / "trips_meta.json"
+    _write_trips(trips, ["A"])
+    _run(env, csv_path, "--trips", str(trips), "--trips-changed", "true")
+    env.fake.conn.execute("UPDATE trips SET name='sentinel'")
+    _run(env, csv_path, "--trips", str(trips), "--trips-changed", "true")
+    assert env.fake.conn.execute("SELECT name FROM trips").fetchone()[0] == "sentinel", (
+        "hash-gated: the same trips_meta must not be re-written")
