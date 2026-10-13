@@ -13,6 +13,7 @@ detection, names or any other metric, so adding them cannot move a trip.
 """
 from __future__ import annotations
 
+import math
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from statistics import median
@@ -40,6 +41,59 @@ _GATEWAY_MODE: dict[str, str] = {
 # How deep into each end of a trip to look for its gateway: the first hub
 # usually sits behind a taxi / a coffee / a "City" check-in, never much deeper.
 _GATEWAY_PROBE = 6
+
+
+# The airport complex plus the flight itself ("Plane" — a check-in on board).
+_AIR_CATEGORIES = frozenset(
+    {c for c, m in _GATEWAY_MODE.items() if m == "✈️"} | {"Airport Tram Station", "Plane"}
+)
+
+# An airport visit is a flight only if it moves you: seeing someone off or
+# meeting them leaves you in the same city on both sides of the terminal.
+_FLIGHT_MIN_KM = 100
+
+
+def _km(a: dict, b: dict) -> float | None:
+    try:
+        p1, l1, p2, l2 = (math.radians(float(v)) for v in (a["lat"], a["lng"], b["lat"], b["lng"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+    h = (math.sin((p2 - p1) / 2) ** 2
+         + math.cos(p1) * math.cos(p2) * math.sin((l2 - l1) / 2) ** 2)
+    return 6371.0 * 2 * math.asin(math.sqrt(h))
+
+
+def trip_used_plane(checkins: list[dict]) -> bool:
+    """True when the trip actually flew somewhere.
+
+    Each run of consecutive airport check-ins is one airport visit. It counts
+    as a flight when it holds a "Plane" check-in, or when it spans 100+ km —
+    to the check-in just before it, to the one just after it, or between two
+    of its own rows (RMO's waiting hall straight to Domodedovo). A visit with
+    the same city on both sides — seeing someone off at Vnukovo and taking
+    the bus home — is not a flight.
+    """
+    n = len(checkins)
+    i = 0
+    while i < n:
+        if checkins[i].get("category", "") not in _AIR_CATEGORIES:
+            i += 1
+            continue
+        j = i
+        while j + 1 < n and checkins[j + 1].get("category", "") in _AIR_CATEGORIES:
+            j += 1
+        visit = checkins[i:j + 1]
+        if any(c.get("category") == "Plane" for c in visit):
+            return True
+        pairs = list(zip(visit, visit[1:]))
+        if i > 0:
+            pairs.append((checkins[i - 1], visit[0]))
+        if j + 1 < n:
+            pairs.append((visit[-1], checkins[j + 1]))
+        if any((d := _km(a, b)) is not None and d >= _FLIGHT_MIN_KM for a, b in pairs):
+            return True
+        i = j + 1
+    return False
 
 
 def _day(ts: int) -> date:
@@ -225,4 +279,5 @@ def trip_insights(
     }
 
 
-__all__ = ["trip_insights", "era_comparison", "trip_gateways", "trip_seasonality"]
+__all__ = ["trip_insights", "era_comparison", "trip_gateways", "trip_seasonality",
+           "trip_used_plane"]

@@ -11,6 +11,7 @@ from metrics.trip_insights import (
     trip_gateways,
     trip_insights,
     trip_seasonality,
+    trip_used_plane,
 )
 
 
@@ -129,3 +130,36 @@ class TestEraComparison:
 def test_trip_insights_empty_trips():
     assert trip_insights([], [], "Minsk", None, {}) == {
         "trip_eras": [], "trip_gateways": [], "trip_seasonality": {}}
+
+
+class TestTripUsedPlane:
+    """Plane beats every other mode, but only when a flight actually happened."""
+
+    @staticmethod
+    def _at(venue, category, lat, lng, city):
+        return {"venue": venue, "category": category, "lat": lat, "lng": lng, "city": city}
+
+    RMO = staticmethod(lambda cat="International Airport": TestTripUsedPlane._at(
+        "RMO", cat, 46.93, 28.93, "Chișinău"))
+    HOME = staticmethod(lambda: TestTripUsedPlane._at("Home", "Apartment or Condo", 47.02, 28.83, "Chișinău"))
+    DME = staticmethod(lambda: TestTripUsedPlane._at("DME", "International Airport", 55.41, 37.90, "Moscow"))
+    MOSCOW = staticmethod(lambda: TestTripUsedPlane._at("Red Square", "Plaza", 55.75, 37.62, "Moscow"))
+
+    def test_departure_and_arrival_airports_back_to_back(self):
+        # RMO's waiting hall straight to Domodedovo: the jump is inside the visit.
+        assert trip_used_plane([self.HOME(), self.RMO(), self.RMO("Airport Service"),
+                                self.DME(), self.MOSCOW()])
+
+    def test_plane_check_in(self):
+        plane = self._at("BT 959", "Plane", 54.63, 25.28, "Vilnius")
+        assert trip_used_plane([self.MOSCOW(), plane, self.MOSCOW()])
+
+    def test_landing_far_from_the_previous_check_in(self):
+        assert trip_used_plane([self.MOSCOW(), self.RMO(), self.HOME()])
+
+    def test_seeing_someone_off_is_not_a_flight(self):
+        # Same city on both sides of the terminal.
+        assert not trip_used_plane([self.HOME(), self.RMO(), self.HOME()])
+
+    def test_no_airport(self):
+        assert not trip_used_plane([self.HOME(), self.MOSCOW()])

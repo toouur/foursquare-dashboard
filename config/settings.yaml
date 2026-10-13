@@ -38,6 +38,7 @@ trip_detection:
       departure_ride_categories: [Taxi]
       arrival_stop_at_home: true
       arrival_max_city_checkins: 3
+      hub_categories: [Platform]
     - city: Minsk
       until: "2026-07-29"
       # No arrival/departure flags: the Minsk years are FROZEN on the original
@@ -84,6 +85,12 @@ trip_detection:
       #   Neighborhood check-ins don't count) before reaching home ⇒ the trip
       #   ended on arriving in the city; the rest was a separate outing.
       arrival_max_city_checkins: 3
+      # hub_categories: extra categories that count as a home transport hub on
+      #   BOTH legs. Chișinău's suburban rail ("Gara Feroviară Chișinău
+      #   Suburban") is a "Platform", not a "Rail Station", so the Bender /
+      #   Călărași trains that left from it began only on arrival. Minsk has
+      #   35 platform check-ins at its main station and stays frozen without it.
+      hub_categories: [Platform]
   # Optional: path to a hand-curated trips YAML override file.
   # When set, the automatic detection is skipped and these dates are used instead.
   # trips_override_file: trips_manual.yaml

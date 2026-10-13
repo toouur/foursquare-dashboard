@@ -449,3 +449,33 @@ class TestCityWalkSafetyNet:
         assert any(c["category"] == "Coffee Shop" for c in trips[0]["checkins"]), (
             "an era without the rule must keep its original arrival")
 
+
+
+class TestHubCategories:
+    """`hub_categories` (era rule): Chișinău's suburban rail is a "Platform",
+    not a "Rail Station", so the Bender trains that left from it began only on
+    arrival in Bender. The era rule makes it a hub on both legs; an era without
+    it (Minsk, 35 platform check-ins at its main station) is untouched.
+    """
+
+    PLATFORM_ERA = [(_FUTURE, {**CHISINAU_ERA[0][1], "hub_categories": {"Platform"}})]
+
+    def _platform_day_trip(self):
+        rows = [home(T0)]
+        rows.append(home(T0 + 2 * HOUR, category="Platform", venue="Suburban platform",
+                         venue_id="plat000000000000000000aa"))
+        rows += [away(T0 + 4 * HOUR + i * HOUR, city="Bender") for i in range(5)]
+        rows.append(home(T0 + 11 * HOUR, category="Platform", venue="Suburban platform",
+                         venue_id="plat000000000000000000aa"))
+        rows.append(home(T0 + 14 * HOUR))
+        return rows
+
+    def test_platform_opens_and_closes_the_trip(self):
+        ci = detect_trips(self._platform_day_trip(), min_checkins=5,
+                          home_eras=self.PLATFORM_ERA)[0]["checkins"]
+        assert ci[0]["category"] == "Platform" and ci[-1]["category"] == "Platform"
+
+    def test_era_without_the_rule_ignores_platforms(self):
+        ci = detect_trips(self._platform_day_trip(), min_checkins=5,
+                          home_eras=FROZEN_ERA)[0]["checkins"]
+        assert not any(c["category"] == "Platform" for c in ci)

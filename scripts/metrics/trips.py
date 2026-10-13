@@ -169,7 +169,7 @@ _EMPTY_ERA: dict = {
     "venues": frozenset(), "air_departure": False,
     "arrival_transit": False, "arrival_neighborhoods": frozenset(),
     "departure_ride_categories": frozenset(), "arrival_stop_at_home": False,
-    "arrival_max_city_checkins": 0,
+    "arrival_max_city_checkins": 0, "hub_categories": frozenset(),
 }
 
 # How far before the departure hub the ride TO it may sit (taxi → airport).
@@ -244,7 +244,7 @@ def _is_home_departure_hub(row: dict, home_city: str, era: dict) -> bool:
     if row.get("city", "").strip() != home_city:
         return False
     cat = row.get("category", "").strip()
-    if cat in _TRANSPORT_CATEGORIES:
+    if cat in _TRANSPORT_CATEGORIES or cat in (era.get("hub_categories") or ()):
         return True
     return bool(era.get("air_departure")) and cat in _AIRPORT_DEPARTURE_CATEGORIES
 
@@ -512,6 +512,9 @@ def detect_trips(
         arr_era = _era_at(trip_end_ts, home_eras)
         era_venues = arr_era.get("venues") or ()
         era_hoods = arr_era.get("arrival_neighborhoods") or ()
+        # `hub_categories` (era rule): extra categories that count as a home
+        # transport hub on both legs — Chișinău's suburban rail platform.
+        era_hubs = arr_era.get("hub_categories") or ()
         stop_at_home = bool(arr_era.get("arrival_stop_at_home"))
         arr_hub: int | None = None
         i = lp + 1
@@ -535,7 +538,9 @@ def detect_trips(
                     or valid[i].get("category", "").strip() == "City"):
                 arr_hub = i
                 break
-            if row_city == row_home and _is_home_transport(valid[i], row_home):
+            if row_city == row_home and (
+                    _is_home_transport(valid[i], row_home)
+                    or valid[i].get("category", "").strip() in era_hubs):
                 arr_hub = i  # nearest hub — stop here
                 break
             i += 1

@@ -19,6 +19,7 @@ import yaml
 
 from transform import load_mappings, apply_transforms, build_blank_city_resolver
 from metrics import process
+from metrics.trip_insights import trip_used_plane
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -245,6 +246,9 @@ if __name__ == "__main__":
             },
             "arrival_stop_at_home": bool(_hh.get("arrival_stop_at_home")),
             "arrival_max_city_checkins": int(_hh.get("arrival_max_city_checkins") or 0),
+            "hub_categories": {
+                str(_c).strip() for _c in (_hh.get("hub_categories") or []) if str(_c).strip()
+            },
         }))
     home_eras.sort(key=lambda e: e[0])
     home_history.sort(key=lambda p: p[0])
@@ -420,12 +424,20 @@ if __name__ == "__main__":
     _ICON_PRIORITY = {"✈️": 4, "🚂": 3, "⛴️": 2, "🚌": 1, "🚗": 0}
 
     def _infer_icon(trip: dict) -> str:
-        # Probe first 5 and last 5 check-ins — transport hubs appended by extension
         checkins = trip.get("checkins", [])
+        # A flight anywhere in the trip wins — the mode that took you furthest.
+        # Only a real flight counts: an airport visit with the same city on
+        # both sides (seeing someone off) does not, and it never earns ✈️
+        # from the probe below either.
+        if trip_used_plane(checkins):
+            return "✈️"
+        # Probe first 5 and last 5 check-ins — transport hubs appended by extension
         probe = checkins[:5] + checkins[-5:]
         best = ""
         for ci in probe:
             icon = _ICON_MAP.get(ci.get("category", ""), "")
+            if icon == "✈️":
+                continue
             if icon and _ICON_PRIORITY.get(icon, -1) > _ICON_PRIORITY.get(best, -1):
                 best = icon
         return best
