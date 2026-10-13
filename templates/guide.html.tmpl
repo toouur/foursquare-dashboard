@@ -524,8 +524,10 @@ function initMap() {
   if (_map || !state.anchor) return;
   const a = state.anchor;
   _map = L.map('nbMap', { zoomControl: true, attributionControl: false }).setView([a.lat, a.lng], 15);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    { subdomains: 'abcd', maxZoom: 19 }).addTo(_map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    {maxNativeZoom:16,maxZoom: 19,attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}).addTo(_map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    {maxNativeZoom:16,maxZoom: 19}).addTo(_map);
   _anchorMarker = L.marker([a.lat, a.lng], {
     icon: L.divIcon({
       className: '',

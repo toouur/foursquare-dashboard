@@ -1517,8 +1517,8 @@ function loadMapData(){
 function initMap(){
   if(map)return _mapDataP||Promise.resolve(map);
   map=L.map('map',{preferCanvas:true}).setView([30,15],2);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19}).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:19,attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}).addTo(map);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:19}).addTo(map);
   return loadMapData().then(d=>{
     heatLayer=L.heatLayer(d.venues_heatmap,{
       radius:14, blur:10, maxZoom:18, max:1.0, minOpacity:0.3,
@@ -1645,8 +1645,7 @@ let countriesMapInst=null;
 function buildCountriesMap(){
   if(countriesMapInst) return;
   countriesMapInst=L.map('countriesMap',{preferCanvas:false,zoomControl:true}).setView([25,20],2);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:10}).addTo(countriesMapInst);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:10,attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}).addTo(countriesMapInst);
 
   const centroids=MAP.country_centroids;
   const counts=Object.values(centroids).map(v=>v[2]);
@@ -1956,8 +1955,7 @@ let cityMapInst=null;
 function buildCityMap(){
   if(cityMapInst) return;
   cityMapInst=L.map('cityMap',{preferCanvas:true,zoomControl:false,attributionControl:false}).setView([25,20],2);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:18}).addTo(cityMapInst);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:16,maxZoom:18,attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}).addTo(cityMapInst);
 
   // Draw all visited cities with ≥5 check-ins using S.city_centroids for coords
   const centroids=S.city_centroids||{};

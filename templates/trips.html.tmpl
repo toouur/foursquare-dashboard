@@ -537,8 +537,10 @@ function _renderTrip(t){
   if(activeMap){ activeMap.remove(); activeMap=null; }
   setTimeout(()=>{
     activeMap = L.map('detailMap',{preferCanvas:true});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      {attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}).addTo(activeMap);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      {maxNativeZoom:16,maxZoom:19,attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'}).addTo(activeMap);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+      {maxNativeZoom:16,maxZoom:19}).addTo(activeMap);
     const coords = t.checkins.filter(c=>c.lat&&c.lng).map(c=>[c.lat,c.lng]);
     if(coords.length){
       const heat = L.heatLayer(coords,{radius:14,blur:16,maxZoom:18,

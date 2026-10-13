@@ -684,6 +684,7 @@ with nothing to preserve across a re-fetch.
 - Chart/config brace balance errors break pages silently; validate after edits.
 - Companion name overrides require exact `with_name` string matches.
 - Building locally without `--photos` and `--pix-url` will emit `const photos=[]` in `index.html`, wiping the recent photos feed. Always pass both args when rebuilding. (Generated HTML is no longer committed, so a bad local build can't leak into git — but it would still deploy if you ran `wrangler pages deploy` from it.)
+- **Basemap tiles are Esri, not CARTO.** `basemaps.cartocdn.com` started stamping every tile "API KEY REQUIRED" (Oct 2026). All Leaflet maps use Esri's keyless Dark Gray Canvas: `.../Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}` (note **y before x**) plus `World_Dark_Gray_Reference` as the labels overlay, `maxNativeZoom:16` (Esri has no deeper tiles; Leaflet upscales). Stadia needs a per-domain key. Guarded by `tests/test_basemap_tiles.py`.
 - The D1 binding (`DB`) must be configured in the Cloudflare Pages dashboard (Settings → Functions → D1 database bindings). Without it, `/api/search` returns 503.
 
 ## Deployment Notes
