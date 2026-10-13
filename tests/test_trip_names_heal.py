@@ -90,3 +90,18 @@ def test_detect_trips_renders_the_healed_name():
     assert trips[0]["name"] == "Warsaw weekend"
     assert str(trips[0]["_name_ts"]) in report["heal"].names
     assert old_key not in report["heal"].names
+
+
+def test_mass_removal_aborts_the_heal():
+    """A heal that would drop dozens of keys is looking at the wrong data."""
+    from metrics.trip_names import MAX_REMOVALS
+    names = {str(5000 * H + i): f"T{i}" for i in range(MAX_REMOVALS + 1)}
+    res = heal_trip_names([span(1000 * H, 1010 * H)], names)
+    assert res.names == names and not res.changed
+    assert len(res.suspicious) == MAX_REMOVALS + 1
+
+
+def test_integration_build_never_writes_the_real_config():
+    import pathlib
+    src = (pathlib.Path(__file__).parent / "test_build_integration.py").read_text(encoding="utf-8")
+    assert '"--config-dir", str(CONFIG_DIR)' not in src

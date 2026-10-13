@@ -26,6 +26,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# Mass-removal guard. Real drift orphans a handful of keys at a time; a heal
+# that wants to drop more than this is looking at the wrong data (a test
+# fixture, a truncated checkins.csv) and must not touch the file at all.
+MAX_REMOVALS = 15
+
 # How far a trip start may move and still count as the same trip. Every rule
 # that shifted a start so far moved it by minutes to a few hours (taxi before
 # the airport, the platform before the train); a day is generous.
@@ -119,6 +124,13 @@ def heal_trip_names(spans: list[TripSpan], trip_names: dict[str, str]) -> HealRe
             for k in keys:
                 res.suspicious.append((k, trip_names[k], str(why_not(k))))
 
+    if len(res.removed) > MAX_REMOVALS:
+        return HealResult(
+            names=dict(trip_names),
+            suspicious=[(k, n, f"heal aborted: it would remove {len(res.removed)} keys "
+                               f"(> {MAX_REMOVALS}) — wrong or truncated data?")
+                        for k, n, _ in res.removed],
+        )
     for k, _, _ in res.removed:
         names.pop(k, None)
     return res

@@ -141,10 +141,18 @@ def built_site(tmp_path_factory):
     (data_dir / "tips.json").write_text(
         _json.dumps(tips, ensure_ascii=False), encoding="utf-8")
 
+    # build.py WRITES into --config-dir (trip_names.json: auto-added names and
+    # the self-heal, which on this tiny fixture would drop every real key).
+    # Never point it at the repo's own config/ — that once wiped
+    # config/trip_names.json to a single fixture entry and got committed.
+    import shutil as _shutil
+    cfg_copy = work / "config"
+    _shutil.copytree(CONFIG_DIR, cfg_copy)
+
     proc = subprocess.run(
         [sys.executable, "-X", "utf8", str(BUILD),
          "--input", str(csv_path),
-         "--config-dir", str(CONFIG_DIR),
+         "--config-dir", str(cfg_copy),
          "--output-dir", str(out_dir),
          "--home-city", "Minsk",
          "--min-checkins", "5",
