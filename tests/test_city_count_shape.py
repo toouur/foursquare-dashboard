@@ -29,7 +29,7 @@ def _run(csv_path: Path, config_dir: Path, baseline: Path, *extra: str):
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--csv", str(csv_path),
          "--config-dir", str(config_dir), "--baseline", str(baseline), *extra],
-        capture_output=True, text=True)
+        capture_output=True, text=True, encoding="utf-8")
 
 
 def _fixture(tmp_path: Path, cities: list[str]) -> tuple[Path, Path, Path]:

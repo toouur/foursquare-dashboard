@@ -103,5 +103,11 @@ def test_mass_removal_aborts_the_heal():
 
 def test_integration_build_never_writes_the_real_config():
     import pathlib
-    src = (pathlib.Path(__file__).parent / "test_build_integration.py").read_text(encoding="utf-8")
-    assert '"--config-dir", str(CONFIG_DIR)' not in src
+    # Every test that shells out to build.py, not just the integration one —
+    # test_layout_overflow.py once leaked an auto-name into config/trip_names.json.
+    me = pathlib.Path(__file__)
+    for path in me.parent.glob("test_*.py"):
+        if path == me:
+            continue
+        src = path.read_text(encoding="utf-8")
+        assert '"--config-dir", str(CONFIG_DIR)' not in src, path.name

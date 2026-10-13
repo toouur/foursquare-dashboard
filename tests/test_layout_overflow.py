@@ -25,6 +25,7 @@ job never hard-fails on a missing browser binary.
 """
 import csv
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -104,10 +105,15 @@ def built_site(tmp_path_factory):
     (data_dir / "tips.json").write_text(
         json.dumps(tips, ensure_ascii=False), encoding="utf-8")
 
+    # build.py WRITES into --config-dir (trip_names.json auto-names + self-heal);
+    # point it at a throwaway copy, never the repo's own config/.
+    cfg_copy = work / "config"
+    shutil.copytree(CONFIG_DIR, cfg_copy)
+
     proc = subprocess.run(
         [sys.executable, "-X", "utf8", str(BUILD),
          "--input", str(csv_path),
-         "--config-dir", str(CONFIG_DIR),
+         "--config-dir", str(cfg_copy),
          "--output-dir", str(out_dir),
          "--home-city", "Minsk",
          "--min-checkins", "5",

@@ -871,7 +871,7 @@ new Chart(document.getElementById('catChart'),{
     '<div class="streak-stat"><div class="s-num">'+totalShouts.toLocaleString()+'</div><div class="s-lbl">Shouts</div></div>'
    +'<div class="streak-stat"><div class="s-num">'+totalWords.toLocaleString()+'</div><div class="s-lbl">Total Words</div></div>'
    +'<div class="streak-stat"><div class="s-num">'+avgWords+'</div><div class="s-lbl">Avg Words / Shout</div></div>'
-   +'<div class="streak-stat"><div class="s-num">'+emojiTypes+'</div><div class="s-lbl">Unique Emojis</div></div>';
+   +(emojiTypes?'<div class="streak-stat"><div class="s-num">'+emojiTypes+'</div><div class="s-lbl">Unique Emojis</div></div>':'');
   document.getElementById('shoutKpiCard').style.display='';
 
   // Top emojis — display as a flowing list of large emoji with counts

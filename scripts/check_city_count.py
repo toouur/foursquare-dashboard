@@ -336,6 +336,10 @@ def judge_added(city: str, count: int, removed: dict[str, int],
 
 
 def main() -> int:
+    # Output carries → / Δ and non-Latin city names; a cp1252 Windows console
+    # would raise UnicodeEncodeError mid-report.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", required=True)
     ap.add_argument("--config-dir", default="config")
