@@ -469,7 +469,7 @@ names") and raises a `::warning::` on suspicious keys. Tests:
 NOT healed: `trip_exclude.json` / `trip_tags.json` / `trip_start|end_overrides.json` are
 keyed by start ts too. To audit an exclude key, build once without it and see whether a
 trip appears (on 2026-10-13: `1540131430` still removes a duplicate "Zaslawye" sub-trip;
-`1767065128` has no effect either way).
+the dead `1767065128` — no effect either way — was removed).
 Auto-name icon (`build._infer_icon`): ✈️ only for a REAL flight
 (`metrics.trip_insights.trip_used_plane` — a "Plane" check-in, or an airport visit
 spanning 100+ km; same city on both sides = seeing someone off, never ✈️), otherwise
