@@ -270,6 +270,30 @@ def _home_at(
     return home_city
 
 
+def _drop_contained_trips(trips: list[dict]) -> list[dict]:
+    """Drop a trip whose every check-in already belongs to another trip.
+
+    A home-city check-in in the middle of a trip splits the raw sequence in two
+    (e.g. a forest on the way back geotagged "Minsk"); the first part's arrival
+    extension then runs on to the real homecoming and swallows the second part
+    — which is still detected on its own. Without this the same check-ins are
+    shown twice: 21.10.2018 "Zaslawye, Belarus" (7 check-ins) sat entirely
+    inside the Veloby bike trip and had to be hidden by hand in trip_exclude.
+    """
+    keys = [frozenset((c.get("ts"), c.get("checkin_id") or c.get("venue"))
+                      for c in t.get("checkins") or []) for t in trips]
+    keep = []
+    for i, t in enumerate(trips):
+        host = next((j for j, k in enumerate(keys)
+                     if j != i and keys[i] and keys[i] < k), None)
+        if host is not None:
+            log.info("trips: dropped %r (%d check-ins) — all inside %r",
+                     t.get("name"), len(keys[i]), trips[host].get("name"))
+            continue
+        keep.append(t)
+    return keep
+
+
 def detect_trips(
     rows: list[dict],
     home_city: str = "Minsk",
@@ -899,6 +923,7 @@ def detect_trips(
         )
 
     result.sort(key=lambda t: t["start_ts"])
+    result = _drop_contained_trips(result)
     if trip_exclude:
         result = [t for t in result if t["start_ts"] not in trip_exclude]
     for i, t in enumerate(result):

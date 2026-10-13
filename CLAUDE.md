@@ -468,8 +468,13 @@ names") and raises a `::warning::` on suspicious keys. Tests:
 `tests/test_trip_names_heal.py`.
 NOT healed: `trip_exclude.json` / `trip_tags.json` / `trip_start|end_overrides.json` are
 keyed by start ts too. To audit an exclude key, build once without it and see whether a
-trip appears (on 2026-10-13: `1540131430` still removes a duplicate "Zaslawye" sub-trip;
-the dead `1767065128` — no effect either way — was removed).
+trip appears (the dead `1767065128` — no effect either way — was removed 2026-10-13).
+**Contained trips are dropped automatically** (`trips._drop_contained_trips`): a home-city
+check-in mid-trip (a forest on the way back geotagged "Minsk") splits the raw sequence,
+the first part's arrival extension swallows the second, and the second used to survive
+as its own trip — the same check-ins shown twice. That was 21.10.2018 "Zaslawye,
+Belarus" inside the Veloby bike trip, hidden by hand with exclude key `1540131430`,
+which is now redundant (build identical with and without it).
 Auto-name icon (`build._infer_icon`): ✈️ only for a REAL flight
 (`metrics.trip_insights.trip_used_plane` — a "Plane" check-in, or an airport visit
 spanning 100+ km; same city on both sides = seeing someone off, never ✈️), otherwise

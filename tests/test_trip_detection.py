@@ -479,3 +479,24 @@ class TestHubCategories:
         ci = detect_trips(self._platform_day_trip(), min_checkins=5,
                           home_eras=FROZEN_ERA)[0]["checkins"]
         assert not any(c["category"] == "Platform" for c in ci)
+
+
+class TestContainedTrips:
+    """A trip whose check-ins all sit inside another trip is a duplicate."""
+
+    def test_split_by_a_home_tagged_stop_is_not_shown_twice(self):
+        # Bike trip: away rows, a "Minsk"-tagged forest splits it, more away
+        # rows, then the ride home. The first part's homecoming extension
+        # swallows the second part, which must not survive as its own trip.
+        rows = [home(T0)]
+        rows += [away(T0 + HOUR + i * HOUR, city="Rakov") for i in range(6)]
+        rows.append(home(T0 + 8 * HOUR, category="Forest", venue="Magic forest",
+                         venue_id="f" * 24))
+        rows += [away(T0 + 9 * HOUR + i * 600, city="Zaslawye") for i in range(6)]
+        rows.append(home(T0 + 11 * HOUR, category="Home (private)", venue="Home",
+                         venue_id="z" * 24))
+        trips = detect_trips(rows, min_checkins=5,
+                             trip_tags={T0 + HOUR: ["bicycle"]},
+                             trip_end_overrides={T0 + HOUR: T0 + 11 * HOUR})
+        assert len(trips) == 1
+        assert {c["city"] for c in trips[0]["checkins"]} >= {"Rakov", "Zaslawye"}
