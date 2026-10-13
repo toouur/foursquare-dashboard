@@ -207,22 +207,25 @@ def build_page(
     # ── Home city / country (for foreign-country detection) ────────────────
     settings_path = config_dir / "settings.yaml"
     home_city = "Minsk"
+    # Home is a timeline (settings.yaml trip_detection.home_history): the guide
+    # describes the moment of the latest check-in, so the home that counts is
+    # the one in force THEN — resolved below once the anchor is known, the same
+    # way trip detection does it (metrics.trips._home_at).
+    home_history: list[tuple[int, str]] = []
     if settings_path.exists():
         try:
             import yaml
             stg = yaml.safe_load(settings_path.read_text(encoding="utf-8")) or {}
-            home_city = stg.get("trip_detection", {}).get("home_city", "Minsk")
+            td = stg.get("trip_detection", {}) or {}
+            home_city = td.get("home_city", "Minsk")
+            for e in td.get("home_history") or []:
+                if e.get("city") and e.get("until"):
+                    until_ts = int(datetime.strptime(str(e["until"]), "%Y-%m-%d")
+                                   .replace(tzinfo=timezone.utc).timestamp())
+                    home_history.append((until_ts, str(e["city"])))
+            home_history.sort()
         except Exception:
             pass
-
-    # Determine home_country = most-frequent country whose city matches home_city
-    home_country = ""
-    home_country_ctr: Counter = Counter()
-    for r in rows:
-        if norm_city(r.get("city", ""), r.get("date", "")) == home_city:
-            home_country_ctr[norm_country(r.get("country", ""))] += 1
-    if home_country_ctr:
-        home_country = home_country_ctr.most_common(1)[0][0]
 
     # ── Build counters in a single pass ─────────────────────────────────────
     rows_sorted = sorted(rows, key=lambda x: int(x.get("date", 0) or 0), reverse=True)
@@ -311,6 +314,20 @@ def build_page(
             if r.get("category", "") in TRANSPORT_CATS:
                 just_arrived = True
                 break
+
+    # Era-aware home at the anchor's moment (falls back to `home_city`).
+    if anchor and anchor.get("ts"):
+        from metrics.trips import _home_at
+        home_city = _home_at(int(anchor["ts"]), home_city, home_history)
+
+    # home_country = most-frequent country whose city matches that home
+    home_country = ""
+    home_country_ctr: Counter = Counter()
+    for r in rows:
+        if norm_city(r.get("city", ""), r.get("date", "")) == home_city:
+            home_country_ctr[norm_country(r.get("country", ""))] += 1
+    if home_country_ctr:
+        home_country = home_country_ctr.most_common(1)[0][0]
 
     in_foreign_country = bool(anchor and home_country and anchor["country"] != home_country)
     in_new_country = bool(

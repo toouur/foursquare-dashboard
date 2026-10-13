@@ -26,6 +26,7 @@ Runtime: well under a second. Unmarked, so it runs in `pytest -m "not live"`.
 """
 import csv
 import json
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -513,3 +514,37 @@ def test_unchanged_trips_write_nothing(env):
     _run(env, csv_path, "--trips", str(trips), "--trips-changed", "true")
     assert env.fake.conn.execute("SELECT name FROM trips").fetchone()[0] == "sentinel", (
         "hash-gated: the same trips_meta must not be re-written")
+
+
+def _count_queries(env):
+    """Record every SELECT COUNT(*) the sync issues, by table."""
+    seen: list[str] = []
+    real = env.fake.query
+
+    def spy(sql, params=None, silent=False):
+        m = re.match(r"\s*SELECT COUNT\(\*\) AS n FROM (\w+)\s*$", sql)
+        if m:
+            seen.append(m.group(1))
+        return real(sql, params, silent)
+    env.monkeypatch.setattr(d1_client, "query", spy)
+    return seen
+
+
+def test_non_census_sync_does_not_recount_untouched_tables(env):
+    """The day's census caches every table's count; a later sync re-counts only
+    what it wrote. list_venues/venue_changes/ratings/tips/... used to cost ~62k
+    rows read per sync for numbers that had not moved."""
+    csv_path = _sync_base(env)                       # census run: caches counts
+    trips = env.tmp_path / "trips_meta.json"
+    _write_trips(trips, ["A"])
+    seen = _count_queries(env)
+    # (FTS verification may count tips/trips and their *_fts indexes — the
+    # fixture's tips table is empty, so its index self-heals every run.)
+    untouched = ("venues", "ratings", "lists", "list_venues", "venue_changes")
+    _run(env, csv_path, "--trips", str(trips), "--trips-changed", "true")
+    assert "trips" in seen, "a written table must be re-counted"
+    assert not [t for t in seen if t in untouched], seen
+    seen.clear()
+    _run(env, csv_path, "--trips", str(trips), "--trips-changed", "true")
+    assert not [t for t in seen if t in untouched + ("trips",)], (
+        f"nothing written -> nothing re-counted, got {seen}")

@@ -617,6 +617,13 @@ def main() -> None:
     # Snapshot counts before sync -- used to detect unexpected shrinkage
     _TABLES = ("checkins", "venues", "tips", "ratings", "lists", "list_venues", "trips", "venue_changes")
     counts_before: dict[str, int] = {}
+    # Tables this run actually writes to. Only these are re-counted after the
+    # sync on a non-census run; the "small" tables are not small in rows READ —
+    # list_venues ~18.6k + venue_changes ~6k + ratings ~3.8k + tips ~1.9k + … ≈
+    # 31k rows per COUNT(*) pass, ~62k per sync (before + after) for counts that
+    # had not moved. Measured via d1_client.USAGE: 63,556 rows read on a sync
+    # that wrote 186 trip rows.
+    touched: set[str] = set()
     for tbl in _TABLES:
         # `checkins` is deliberately NOT counted here -- the check-in pass below
         # fills it in. D1 bills reads as rows SCANNED, so COUNT(*) over the 70k-row
@@ -626,9 +633,10 @@ def main() -> None:
         if tbl == "checkins":
             continue
         # `venues` is the other 20k-row COUNT(*); on a non-census run reuse the
-        # cached number instead of re-scanning the table.
-        if tbl == "venues" and not census:
-            counts_before[tbl] = int(_cached_counts["venues"])
+        # cached number instead of re-scanning the table. Same for every other
+        # table the day's census (and each later sync's after-counts) recorded.
+        if not census and isinstance(_cached_counts.get(tbl), int):
+            counts_before[tbl] = int(_cached_counts[tbl])
             continue
         try:
             res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
@@ -1106,6 +1114,7 @@ def main() -> None:
         tip_rows = parse_tips(args.tips)
         d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
         _save_sync_hash("tips", _rows_hash(tip_rows))
+        touched.update(('tips',))
         changed = True
         fts_dirty["tips_fts"] = True
     elif args.tips_changed == "true":
@@ -1116,6 +1125,7 @@ def main() -> None:
         else:
             d1.batch_upsert(SQL_TIPS, tip_rows, label="tips     ")
             _save_sync_hash("tips", h)
+            touched.update(('tips',))
             changed = True
             fts_dirty["tips_fts"] = True
     else:
@@ -1132,6 +1142,7 @@ def main() -> None:
         rating_rows = parse_ratings(args.ratings)
         d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
         _save_sync_hash("ratings", _rows_hash(rating_rows))
+        touched.update(('ratings',))
         changed = True
     elif args.ratings_changed == "true":
         if not args.ratings:
@@ -1143,6 +1154,7 @@ def main() -> None:
         else:
             d1.batch_upsert(SQL_RATINGS, rating_rows, label="ratings  ")
             _save_sync_hash("ratings", h)
+            touched.update(('ratings',))
             changed = True
     else:
         print("  ratings  : skipped (no new ratings this run)", flush=True)
@@ -1156,6 +1168,7 @@ def main() -> None:
         trip_rows = parse_trips(args.trips)
         d1.batch_upsert(SQL_TRIPS, trip_rows, label="trips    ")
         _save_sync_hash("trips", _rows_hash(trip_rows))
+        touched.update(('trips',))
         changed = True
         fts_dirty["trips_fts"] = True
     elif args.trips_changed == "true" and args.trips:
@@ -1171,6 +1184,7 @@ def main() -> None:
                 # change) leaves its id at the tail — drop that tail too.
                 d1.query("DELETE FROM trips WHERE id > ?", [max((r[0] for r in trip_rows), default=0)])
                 _save_sync_hash("trips", h)
+                touched.update(('trips',))
                 changed = True
                 fts_dirty["trips_fts"] = True
         else:
@@ -1370,6 +1384,7 @@ def main() -> None:
         d1.batch_upsert(SQL_LISTS,       list_rows, label="lists    ")
         d1.batch_upsert(SQL_LIST_VENUES, lv_rows,   label="list_venues")
         _save_sync_hash("lists", _rows_hash([list_rows, lv_rows]))
+        touched.update(('lists', 'list_venues'))
         changed = True
     elif args.lists_changed == "true":
         if not args.lists:
@@ -1381,6 +1396,7 @@ def main() -> None:
         else:
             _sync_lists_diff(list_rows, lv_rows)
             _save_sync_hash("lists", h)
+            touched.update(('lists', 'list_venues'))
             changed = True
     else:
         print("  lists    : skipped (no new check-ins this run)", flush=True)
@@ -1397,11 +1413,14 @@ def main() -> None:
     alerts: list[str] = []
     counts_after: dict[str, int] = {}
     # The two big tables come from the running accumulators on a non-census run
-    # (~90k rows read saved); the small ones are cheap to count either way.
+    # (~90k rows read saved). Every other table is re-counted only when this run
+    # wrote to it; untouched ones keep their (cached) before-count.
     _derived_after = {"checkins": checkin_count_after, "venues": venue_count_after}
     for tbl in _TABLES:
         if not census and tbl in _derived_after:
             after = _derived_after[tbl]
+        elif not census and tbl not in touched and tbl in counts_before:
+            after = counts_before[tbl]
         else:
             try:
                 res = d1.query(f"SELECT COUNT(*) AS n FROM {tbl}")
@@ -1458,7 +1477,7 @@ def main() -> None:
     _cc_vn = counts_after.get("venues")
     if isinstance(_cc_ck, int) and isinstance(_cc_vn, int) and _cc_ck > 0 and _cc_vn > 0:
         _save_sync_hash("daily_counts", json.dumps(
-            {"date": _today_utc, "checkins": _cc_ck, "venues": _cc_vn}))
+            {"date": _today_utc, **{t: int(n) for t, n in counts_after.items()}}))
 
     # ── Rebuild FTS5 search indexes ──────────────────────────────────────────
     # venues_fts / tips_fts / trips_fts are external-content FTS5 tables (see
