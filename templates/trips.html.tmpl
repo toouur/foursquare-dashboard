@@ -387,7 +387,7 @@ function renderGrid(trips){
         <div class="tc-stat"><div class="tc-stat-v">${t.countries.length}</div><div class="tc-stat-l">Countries</div></div>
         ${(t.km||0)>0?`<div class="tc-stat"><div class="tc-stat-v">${(t.km).toLocaleString()}</div><div class="tc-stat-l">km</div></div>`:''}
       </div>
-      ${t.photo_count>0?`<span class="tc-photos-link" onclick="event.stopPropagation();showTrip(${t.id}).then(()=>setTimeout(scrollToPhotos,300))">📸 ${t.photo_count.toLocaleString()} photos</span>`:''}
+      ${t.photo_count>0?`<span class="tc-photos-link" onclick="event.preventDefault();event.stopPropagation();showTrip(${t.id}).then(()=>setTimeout(scrollToPhotos,300))">📸 ${t.photo_count.toLocaleString()} photos</span>`:''}
     </a>`).join('');
 }
 renderGrid(TRIPS);
