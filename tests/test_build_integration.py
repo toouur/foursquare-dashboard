@@ -234,6 +234,42 @@ def test_map_data_split_out(built_site):
     assert "map_data.json" in index, "index no longer references map_data.json"
 
 
+def test_trip_checkins_sharded_out(built_site):
+    """Per-trip check-ins live in trip_checkins_<n>.json shards, not inline in
+    trips.html (the page was ~20 MB with them embedded)."""
+    import json
+    import re
+    html = (built_site / "trips.html").read_text(encoding="utf-8")
+    assert "{{TRIP_CK_VER}}" not in html and "trip_checkins_" in html
+    m = re.search(r"const TRIPS = (\[.*?\]);\n", html, re.S)
+    assert m, "inline TRIPS array not found"
+    trips = json.loads(m.group(1))
+    assert trips, "fixture produced no trips"
+    assert all("checkins" not in t for t in trips), "check-ins still inlined"
+
+    covered: dict[str, int] = {}
+    for shard in built_site.glob("trip_checkins_*.json"):
+        body = json.loads(shard.read_text(encoding="utf-8"))
+        assert "datetime" not in body["f"]
+        for tid, rows in body["t"].items():
+            assert all(len(r) == len(body["f"]) for r in rows)
+            covered[tid] = len(rows)
+    for t in trips:
+        assert str(t["id"]) in covered, f"trip {t['id']} has no shard entry"
+
+
+def test_companions_social_stats_slim(built_site):
+    """companions.html embeds only the social keys it reads, not the whole stats blob."""
+    import json
+    import re
+    html = (built_site / "companions.html").read_text(encoding="utf-8")
+    m = re.search(r"const SDATA=(\{.*?\});\n", html, re.S)
+    assert m, "SDATA payload not found"
+    sdata = json.loads(m.group(1))
+    assert "companions" in sdata
+    assert "unique_places" not in sdata and "venues_heatmap" not in sdata
+
+
 def test_country_pages_generated(built_site):
     """Per-country pages (audit #10): one country-<iso2>.html per country, with a
     flag, KPI stats and a slug that matches the index grid's link."""

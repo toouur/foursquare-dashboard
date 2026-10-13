@@ -387,7 +387,7 @@ function renderGrid(trips){
         <div class="tc-stat"><div class="tc-stat-v">${t.countries.length}</div><div class="tc-stat-l">Countries</div></div>
         ${(t.km||0)>0?`<div class="tc-stat"><div class="tc-stat-v">${(t.km).toLocaleString()}</div><div class="tc-stat-l">km</div></div>`:''}
       </div>
-      ${t.photo_count>0?`<span class="tc-photos-link" onclick="event.stopPropagation();showTrip(${t.id});setTimeout(scrollToPhotos,300)">📸 ${t.photo_count.toLocaleString()} photos</span>`:''}
+      ${t.photo_count>0?`<span class="tc-photos-link" onclick="event.stopPropagation();showTrip(${t.id}).then(()=>setTimeout(scrollToPhotos,300))">📸 ${t.photo_count.toLocaleString()} photos</span>`:''}
     </a>`).join('');
 }
 renderGrid(TRIPS);
@@ -440,9 +440,34 @@ function filterTrips(){
 }
 
 // ── Show detail ─────────────────────────────────────────────────────────────
+// Check-ins live in trip_checkins_<id/10>.json shards, fetched when a trip opens.
+const TRIP_CK_VER = '{{TRIP_CK_VER}}';
+const _ckShards = {};
+function loadTripCheckins(t){
+  if(t.checkins) return Promise.resolve();
+  const n = Math.floor(t.id/10);
+  if(!_ckShards[n]){
+    _ckShards[n] = fetch('trip_checkins_'+n+'.json?v='+TRIP_CK_VER)
+      .then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); })
+      .then(j=>{
+        const F = j.f;
+        TRIPS.forEach(x=>{
+          const rows = j.t[String(x.id)];
+          if(rows) x.checkins = rows.map(a=>{ const o={}; F.forEach((k,i)=>{ if(a[i]!=null) o[k]=a[i]; }); o.refurbished=!!o.refurbished; return o; });
+        });
+      })
+      .catch(e=>{ delete _ckShards[n]; throw e; });
+  }
+  return _ckShards[n];
+}
 function showTrip(id){
   const t = TRIPS.find(x=>x.id===id);
-  if(!t) return;
+  if(!t) return Promise.resolve();
+  return loadTripCheckins(t).catch(()=>{ t.checkins = t.checkins || []; })
+    .then(()=>_renderTrip(t));
+}
+function _renderTrip(t){
+  const id = t.id;
   // Build flat gallery array for this trip (all photos in timeline order)
   _gallery = [];
   const cidGalStart = {};

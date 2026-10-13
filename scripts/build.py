@@ -93,6 +93,45 @@ _TEMPLATES_DIR = _PROJECT_ROOT / "templates"
 TEMPLATE       = (_TEMPLATES_DIR / "index.html.tmpl").read_text(encoding="utf-8")
 TRIPS_TEMPLATE = (_TEMPLATES_DIR / "trips.html.tmpl").read_text(encoding="utf-8")
 
+# The only keys trips.html reads off its `const S` (all accessed as S.<key>).
+_TRIPS_STATS_KEYS = (
+    'new_country_by_year', 'total_km', 'trip_countries_dist', 'trip_duration_hist',
+    'trip_eras', 'trip_gateways', 'trip_kpis', 'trip_seasonality', 'trip_top_longest',
+    'trips_count',
+)
+# Check-in fields shipped in the trip shards, positionally. `datetime` is dropped
+# (the page never reads it); `refurbished` is stored as 1/0.
+_TRIP_CK_FIELDS = ('ts', 'date', 'time', 'venue', 'venue_id', 'city', 'country',
+                   'category', 'lat', 'lng', 'checkin_id', 'refurbished', 'photos', 'm')
+_TRIP_SHARD = 10
+
+
+def _write_trip_checkin_shards(trips, out_dir):
+    """Write trip_checkins_<id//10>.json; return (content version, trips without checkins)."""
+    import glob
+    import hashlib
+    for stale in glob.glob(os.path.join(out_dir, 'trip_checkins_*.json')):
+        os.remove(stale)
+    shards: dict = {}
+    inline = []
+    for t in trips:
+        rows = []
+        for c in t.get('checkins') or []:
+            row = [c.get(k) for k in _TRIP_CK_FIELDS]
+            row[_TRIP_CK_FIELDS.index('refurbished')] = 1 if c.get('refurbished') else 0
+            rows.append(row)
+        shards.setdefault(t['id'] // _TRIP_SHARD, {})[str(t['id'])] = rows
+        inline.append({k: v for k, v in t.items() if k != 'checkins'})
+    h = hashlib.sha1()
+    for n in sorted(shards):
+        body = json.dumps({'f': _TRIP_CK_FIELDS, 't': shards[n]},
+                          ensure_ascii=False, separators=(',', ':'))
+        h.update(body.encode('utf-8'))
+        with open(os.path.join(out_dir, f'trip_checkins_{n}.json'), 'w', encoding='utf-8') as f:
+            f.write(body)
+    return h.hexdigest()[:8], inline
+
+
 def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     import os
     # ── Externalize the heavy below-the-fold map payload ────────────────────
@@ -134,13 +173,20 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     print(f"Built ->{idx_path}  ({len(html)//1024:,} KB)")
 
     # ── trips.html ──────────────────────────────────────────────────────────
+    # The per-trip check-in lists (~18 MB of a ~21 MB page) are opened one trip
+    # at a time, so they ship as trip_checkins_<id//10>.json shards fetched on
+    # demand; the page inlines only trip metadata and the stats it charts.
+    tck_ver, trips_inline = _write_trip_checkin_shards(trips, out_dir)
+    trips_stats_json = json.dumps({k: data[k] for k in _TRIPS_STATS_KEYS if k in data},
+                                  ensure_ascii=False).replace('</', '<\\/')
     trips_html = TRIPS_TEMPLATE
-    trips_html = trips_html.replace('{{TRIPS_JSON}}', json.dumps(trips, ensure_ascii=False).replace('</', '<\\/'))
+    trips_html = trips_html.replace('{{TRIPS_JSON}}', json.dumps(trips_inline, ensure_ascii=False).replace('</', '<\\/'))
+    trips_html = trips_html.replace('{{TRIP_CK_VER}}', tck_ver)
     trips_html = trips_html.replace('{{TOTAL_TRIPS}}', str(len(trips)))
     trips_html = trips_html.replace('{{COUNTRIES}}', str(len(data['countries'])))
     trips_html = trips_html.replace('{{UPDATED}}', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC'))
     trips_html = trips_html.replace('{{PIX_DIR_JSON}}', pix_dir_json)
-    trips_html = trips_html.replace('{{STATS}}', stats_json)
+    trips_html = trips_html.replace('{{STATS}}', trips_stats_json)
     if extra_replacements:
         for key, val in extra_replacements.items():
             trips_html = trips_html.replace(key, val)

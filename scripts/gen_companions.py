@@ -9,6 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+SOCIAL_KEYS = ('solo_vs_group_totals', 'companions', 'solo_vs_group_by_year', 'companion_countries')
+
+
 def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None):
     TEMPLATE = Path(tmpl_path).read_text(encoding="utf-8")
     sys.path.insert(0, str(Path(__file__).parent))
@@ -61,6 +64,10 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None)
                        r.get('category',''), r.get('venue_id','')])
         comp_data.append([name, len(checkins), ci, name_to_uid.get(name, '')])
     comp_json = json.dumps(comp_data, ensure_ascii=False, separators=(',',':'))
+    # The page reads only these keys; the caller hands over the whole stats dict
+    # (unique_places + venues_heatmap alone were ~4.4 MB of dead weight inline).
+    if social_data is not None:
+        social_data = {k: social_data[k] for k in SOCIAL_KEYS if k in social_data}
     social_json = json.dumps(social_data, ensure_ascii=False, separators=(',',':')) if social_data is not None else 'null'
     html = TEMPLATE.replace('COMP_DATA_PLACEHOLDER', comp_json)
     html = html.replace('SOCIAL_STATS_PLACEHOLDER', social_json)

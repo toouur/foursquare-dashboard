@@ -24,6 +24,7 @@ trip-*.html
 trips_meta.json
 feed_meta.json
 map_data.json
+trip_checkins_*.json
 routes.json
 feed.xml
 feed.json
