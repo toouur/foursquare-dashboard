@@ -668,9 +668,8 @@ function greatCircle(la1, lo1, la2, lo2, steps) {{
 }}
 
 // ── Map ──
-const map = L.map('flMap', {{ zoomControl: true, attributionControl: false, worldCopyJump: true }}).setView([35, 20], 2);
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{{z}}/{{y}}/{{x}}', {{ maxNativeZoom: 16, maxZoom: 18 }}).addTo(map);
-L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{{z}}/{{y}}/{{x}}', {{ maxNativeZoom: 16, maxZoom: 18 }}).addTo(map);
+const map = L.map('flMap', {{ zoomControl: true, worldCopyJump: true }}).setView([35, 20], 2);
+L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png?key={{{{CARTO_KEY}}}}', {{ attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 18 }}).addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 const airportLayer = L.layerGroup().addTo(map);
 

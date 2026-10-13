@@ -1296,6 +1296,24 @@ if __name__ == "__main__":
     else:
         log.warning("assets/site.css not found — {{SITE_CSS_LINK}} left unsubstituted")
 
+    # ── CARTO basemap key ─────────────────────────────────────────────────────
+    # Since Sep 2026 basemaps.cartocdn.com answers keyless requests with an
+    # "API KEY REQUIRED" watermark tile. Every Leaflet tile URL carries
+    # ?key={{CARTO_KEY}}; fill it in every page (the key is public by design —
+    # it ships in the browser — and is domain-restricted on CARTO's side).
+    # env CARTO_API_KEY wins over settings.yaml basemap.carto_key.
+    _carto_key = (os.environ.get("CARTO_API_KEY")
+                  or (settings.get("basemap") or {}).get("carto_key") or "").strip()
+    if not _carto_key:
+        log.warning("No CARTO key (settings.yaml basemap.carto_key / env CARTO_API_KEY) — maps will show the CARTO watermark")
+    _n_keyed = 0
+    for _html in Path(args.output_dir).glob("*.html"):
+        _txt = _html.read_text(encoding="utf-8")
+        if "{{CARTO_KEY}}" in _txt:
+            _html.write_text(_txt.replace("{{CARTO_KEY}}", _carto_key), encoding="utf-8")
+            _n_keyed += 1
+    log.info("CARTO key injected into %d pages", _n_keyed)
+
     # ── PWA: manifest + service worker (versioned per build) ──────────────────
     # Render templates/{manifest.webmanifest,sw.js}.tmpl into the output root,
     # stamping the SW cache name with this build's UTC timestamp so every deploy

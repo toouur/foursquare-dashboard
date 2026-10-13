@@ -1,17 +1,21 @@
 # Copyright 2026 Andrei Patsiomkin
 # SPDX-License-Identifier: Apache-2.0
 
-"""Every map uses a keyless basemap.
+"""Every CARTO basemap tile URL carries the API key.
 
-CARTO's basemaps.cartocdn.com started answering every tile with an
-"API KEY REQUIRED" watermark (Oct 2026), which blanked all maps on the site.
-The maps now use Esri's keyless Dark Gray Canvas; this guards against a
-template or generator quietly bringing a key-gated provider back.
+Since Sep 2026 basemaps.cartocdn.com answers keyless requests with an
+"API KEY REQUIRED" watermark tile, which blanked every map on the site.
+Each tile URL therefore ends in ?key={{CARTO_KEY}}, which build.py fills in
+every generated page from settings.yaml basemap.carto_key (env CARTO_API_KEY
+overrides). A tile layer without it — or one without the CARTO attribution
+the free key's terms require — would quietly bring the watermark back.
 """
+import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-KEY_GATED = ("basemaps.cartocdn.com", "tiles.stadiamaps.com")
+# gen_flights.py renders through str.format(), so its braces are doubled.
+KEY_PARAM = re.compile(r"\?key=(\{\{CARTO_KEY\}\}|\{\{\{\{CARTO_KEY\}\}\}\})'")
 
 
 def _sources():
@@ -19,14 +23,32 @@ def _sources():
     yield from (REPO / "scripts").glob("*.py")
 
 
-def test_no_key_gated_basemap():
-    hits = [f"{p.name}: {host}" for p in _sources()
-            for host in KEY_GATED if host in p.read_text(encoding="utf-8")]
-    assert not hits, "key-gated tile provider referenced:\n  " + "\n  ".join(hits)
-
-
-def test_every_tile_layer_is_esri():
+def _tile_layers():
+    """(file, text of the L.tileLayer( call up to its closing `.addTo(`)."""
     for p in _sources():
-        for line in p.read_text(encoding="utf-8").splitlines():
-            if "L.tileLayer(" in line and "http" in line:
-                assert "server.arcgisonline.com" in line, f"{p.name}: {line.strip()[:120]}"
+        txt = p.read_text(encoding="utf-8")
+        for m in re.finditer(r"L\.tileLayer\(\s*'http", txt):
+            end = txt.find(".addTo(", m.start())
+            yield p.name, txt[m.start():end if end != -1 else m.start() + 400]
+
+
+def test_tile_layers_exist():
+    assert sum(1 for _ in _tile_layers()) >= 10
+
+
+def test_every_carto_url_carries_key():
+    bad = [f"{n}: {c[:110]}" for n, c in _tile_layers()
+           if "cartocdn.com" in c and not KEY_PARAM.search(c)]
+    assert not bad, "CARTO tile URL without ?key={{CARTO_KEY}}:\n  " + "\n  ".join(bad)
+
+
+def test_every_carto_layer_is_attributed():
+    bad = [f"{n}: {c[:110]}" for n, c in _tile_layers()
+           if "cartocdn.com" in c and "dark_only_labels" not in c and "CARTO" not in c.split("',", 1)[-1]]
+    assert not bad, "CARTO tile layer without attribution:\n  " + "\n  ".join(bad)
+
+
+def test_build_substitutes_carto_key():
+    src = (REPO / "scripts" / "build.py").read_text(encoding="utf-8")
+    assert 'replace("{{CARTO_KEY}}"' in src
+    assert "CARTO_API_KEY" in src

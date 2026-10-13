@@ -100,6 +100,12 @@ dashboard:
   subtitle_source: "Foursquare"
   foursquare_user_id: "29447180"   # used for Swarm checkin links
 
+# CARTO basemap key (free, non-commercial: https://carto.com/basemaps/apikey).
+# Public by design — it ships in every page — and domain-restricted at CARTO.
+# Substituted into {{CARTO_KEY}} in every tile URL; env CARTO_API_KEY overrides.
+basemap:
+  carto_key: ""
+
 output:
   index_html: index.html
   trips_html: trips.html
