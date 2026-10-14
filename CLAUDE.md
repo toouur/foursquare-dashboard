@@ -117,6 +117,23 @@ python scripts/build_backfill.py \
 python scripts/sync_to_d1.py --csv .../checkins.csv --backfill .../backfill.csv [other --* flags]
 ```
 
+### Travel atlas journal (standalone page, not part of the site build)
+One self-contained HTML (data + JS + CSS inlined, ~5 MB) that reads like a magazine:
+cover, world atlas (`#world-atlas`), a spread per country, a spread per trip, year
+chronicle, paged photo archive with lightbox, place explorer, next-trip ideas. Rows go
+through the site's own `apply_transforms` (+ sibling `backfill.csv`), so numbers match
+4sq.pages.dev. Pass the `trips_meta.json` a fresh `build.py` wrote (`--trips-out`) — the
+copy in the data repo lags. Hand-curated bits live in `config/travel_atlas.json`
+(ISO-numeric ids for the world-atlas topojson, the 58 "Избранное" check-ins, one checked
+landmark per country — keys are the CANONICAL English country names, e.g.
+`North Macedonia`, or the entry silently never shows). `Home (private)` venues and their
+photos are excluded. Not wired into `build.py`/CI. Tests: `tests/test_travel_atlas.py`.
+```bash
+python scripts/gen_travel_atlas.py \
+  --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --trips _site/trips_meta.json --out _site/travel-atlas.html
+```
+
 ### Fetch photos from export
 ```bash
 /c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe scripts/fetch_photos.py \
@@ -356,6 +373,7 @@ python -m http.server 8000 --directory _site
 - Guide page: `scripts/gen_guide.py` (live nearby suggestions, 48h session history)
 - Trip pages: `scripts/gen_trip_pages.py` (per-trip detail HTML)
 - Country pages: `scripts/gen_country_pages.py` (per-country `country-<slug>.html`; self-contained like year pages — flags via `_flag()` + flag-icons CDN, no `{{SITE_CSS_LINK}}`, computed from `rows`+`stats_data`+`trips`). Slug = ISO alpha-2 lowercased when known else ASCII name-slug; `country_slug()` MUST mirror `countrySlug()` in `templates/index.html.tmpl` (the index country grid links here). The per-country trip cards list **all** the country's trips (no `[:12]` cap) and deep-link to `/trips.html#trip-<id>` — NOT `/trip-<id>.html` (that page is never generated; `gen_trip_pages.py` is dead code). `trips.html` has a `handleHash()` that opens the matching trip modal on load. Output gitignored (`country-*.html`).
+- Travel atlas journal: `scripts/gen_travel_atlas.py` + `templates/travel_atlas.html.tmpl` + `config/travel_atlas.json` (standalone page, `{{ATLAS_DATA}}` placeholder; see Quick Commands)
 - Syndication feeds: `scripts/gen_feeds.py` (RSS 2.0 `feed.xml` + JSON Feed 1.1 `feed.json`, newest ≤30 `recent` items; index advertises both via autodiscovery `<link>`s). Both gitignored.
 - Check-in delete: `scripts/delete_checkin.py`
 - D1 SQL dump: `scripts/gen_d1_dump.py` (bulk resync path)

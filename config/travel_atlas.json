@@ -1,0 +1,581 @@
+{
+ "_comment": "Travel atlas journal (scripts/gen_travel_atlas.py). iso_numeric: English country -> ISO 3166-1 numeric (world-atlas topojson ids); a country missing here falls back to a name match, then to a dot. curated_checkins: check-in ids whose photos form the \"Избранное\" set + cover. landmark_audit: one hand-checked landmark per country (status visited|unknown).",
+ "iso_numeric": {
+  "Albania": "008",
+  "Argentina": "032",
+  "Armenia": "051",
+  "Austria": "040",
+  "Azerbaijan": "031",
+  "Belarus": "112",
+  "Belgium": "056",
+  "Bosnia and Herzegovina": "070",
+  "Brazil": "076",
+  "Bulgaria": "100",
+  "Cambodia": "116",
+  "Chile": "152",
+  "China": "156",
+  "Croatia": "191",
+  "Cyprus": "196",
+  "Czech Republic": "203",
+  "Denmark": "208",
+  "Egypt": "818",
+  "Estonia": "233",
+  "Finland": "246",
+  "France": "250",
+  "Georgia": "268",
+  "Germany": "276",
+  "Greece": "300",
+  "Holy See (Vatican City State)": "336",
+  "Hong Kong": "344",
+  "Hungary": "348",
+  "India": "356",
+  "Indonesia": "360",
+  "Iran": "364",
+  "Italy": "380",
+  "Kazakhstan": "398",
+  "Kyrgyzstan": "417",
+  "Latvia": "428",
+  "Liechtenstein": "438",
+  "Lithuania": "440",
+  "Luxembourg": "442",
+  "Macao": "446",
+  "Macau": "446",
+  "Malaysia": "458",
+  "Malta": "470",
+  "Moldova": "498",
+  "Montenegro": "499",
+  "Netherlands": "528",
+  "North Macedonia": "807",
+  "Norway": "578",
+  "Oman": "512",
+  "Poland": "616",
+  "Portugal": "620",
+  "Qatar": "634",
+  "Romania": "642",
+  "Russia": "643",
+  "Serbia": "688",
+  "Singapore": "702",
+  "Slovakia": "703",
+  "Slovenia": "705",
+  "Spain": "724",
+  "Sweden": "752",
+  "Switzerland": "756",
+  "Tajikistan": "762",
+  "Turkey": "792",
+  "UAE": "784",
+  "Ukraine": "804",
+  "United Arab Emirates": "784",
+  "Uzbekistan": "860",
+  "Vietnam": "704"
+ },
+ "curated_checkins": [
+  "5d7a34298244650007df47d1",
+  "5e342c34881d43000888d81e",
+  "60ec87c777d3706c937ab5df",
+  "61335aedc5bd91700769f822",
+  "614636b5cf138e1a80d9a3c8",
+  "61c84fa0d6ccda65de7c7863",
+  "61d741cde950677f23b41cec",
+  "62a3a0db0d41e613ba78fd51",
+  "62a9ebc7b5762a54bf4c3b95",
+  "62b741f24df5de2bb9c5c4fb",
+  "62b7f99d95832757bd3c0de5",
+  "62ee573e8f5b3a04b4d9946d",
+  "638b1d07f074e404a8455f39",
+  "638b2e7ad3dcd128ac248170",
+  "63a589b09352e34791a59d4f",
+  "6490044e171b471e70b2b797",
+  "64cbfc9da6d74b7fddb1dd6b",
+  "64ce3c561f787d19a30d770c",
+  "64fcbf17f9c19659d13fa168",
+  "652f9db378569835b0b9b059",
+  "655b2ff348be7c0637e6898b",
+  "656d9615be559a2d0a6c6ab1",
+  "656ec58cf96ec20a61d82cc7",
+  "657443b46a219a09dacda7b7",
+  "658bc313f062131c02dc5c9d",
+  "65ca18e251622474ee06b1ba",
+  "65e33654e289c869b21d29f3",
+  "66487710cc5c2205f33d890c",
+  "66ad11c8ca87b80caa6ae8c1",
+  "66b2fb801b5377765b2af546",
+  "66b4f8dd21fae1791fd4927e",
+  "66b5b36b7bbf3e07d6899a1c",
+  "66dca5d66d73e576855d3fb4",
+  "67014d9f9f59df07fe6d64f1",
+  "670154bca993940506774179",
+  "6708e5706250ac57b3d67e8b",
+  "670a224e4e2b8f3b554bae15",
+  "6744afc9b1140208f4d3580d",
+  "6748e3696ab4ef6954b74f25",
+  "67549e5def5f5c71f02acf33",
+  "67792f9119fc5f13c1706a00",
+  "67de883b39dfa43a76003fea",
+  "681e5452a91c1d1a06f74687",
+  "681fbdf80611fc26f39532e6",
+  "68566b2a1002432e48855bb4",
+  "6859296a65ab8e48bb1c83a5",
+  "685eff478da47b1a0b349c2d",
+  "68a1c2d0065b662569dbebfc",
+  "6921cf69ae385478128371bd",
+  "693eca16b302a27da5be67c2",
+  "694f7eb2812fb9529b93f736",
+  "69513a9ef94d933396b5989d",
+  "69a3039ab78231225099d254",
+  "69fb3fcc76d79e62f4ca20d2",
+  "6a2218911573780fb0ae14af",
+  "6a490ec9b5e7f90c80154409",
+  "6a687029f55ef538b7b662f6",
+  "6acb8d18e4b90c059e144cce"
+ ],
+ "landmark_audit": {
+  "Albania": {
+   "status": "visited",
+   "landmark": "Skanderbeg Square",
+   "city": "Тирана",
+   "evidence": "3 записей · 2024-08-02 — 2024-08-04. Пример: Skanderbeg Square (Sheshi Skënderbej) · Tirana.",
+   "next": "Берат и Гирокастра"
+  },
+  "Argentina": {
+   "status": "visited",
+   "landmark": "Obelisco – Plaza de la República",
+   "city": "Буэнос-Айрес",
+   "evidence": "3 записей · 2024-12-07 — 2024-12-13. Пример: Obelisco - Plaza de la República · Buenos Aires.",
+   "next": "Водопады Игуасу, если планировать возвращение"
+  },
+  "Armenia": {
+   "status": "visited",
+   "landmark": "Cascade Complex",
+   "city": "Ереван",
+   "evidence": "3 записей · 2021-09-04 — 2021-09-18. Пример: Cascade (Կասկադ) · Yerevan.",
+   "next": "Гарни и монастырь Гегард"
+  },
+  "Austria": {
+   "status": "visited",
+   "landmark": "Schönbrunn Palace",
+   "city": "Вена",
+   "evidence": "1 записей · 2019-09-12. Пример: Schönbrunn Palace (Schloss Schönbrunn) · Vienna.",
+   "next": "Музей истории искусств или долина Вахау"
+  },
+  "Azerbaijan": {
+   "status": "visited",
+   "landmark": "Flame Towers",
+   "city": "Баку",
+   "evidence": "1 записей · 2024-02-12. Пример: Flame Towers (Alov qüllələri) · Baku.",
+   "next": "Гобустан и грязевые вулканы"
+  },
+  "Belarus": {
+   "status": "visited",
+   "landmark": "Площадь Победы",
+   "city": "Витебск",
+   "evidence": "3 записей · 2017-03-25 — 2026-07-05. Пример: Victory Square (Площадь Победы / Victory square) · Vitebsk.",
+   "next": "National Library of Belarus, Минск"
+  },
+  "Belgium": {
+   "status": "visited",
+   "landmark": "Grand-Place",
+   "city": "Брюссель",
+   "evidence": "1 записей · 2024-10-12. Пример: Grand-Place (Grote Markt) · Brussels.",
+   "next": "Гент: Gravensteen и средневековый центр"
+  },
+  "Bosnia and Herzegovina": {
+   "status": "visited",
+   "landmark": "Old Bridge / Stari Most",
+   "city": "Мостар",
+   "evidence": "5 записей · 2024-08-07 — 2024-08-09. Пример: Old Bridge (Stari Most) · Mostar.",
+   "next": "Сараево: Baščaršija и туннель надежды"
+  },
+  "Brazil": {
+   "status": "visited",
+   "landmark": "Christ the Redeemer / Cristo Redentor",
+   "city": "Рио-де-Жанейро",
+   "evidence": "1 записей · 2024-11-25. Пример: Christ the Redeemer (Cristo Redentor) · Rio de Janeiro.",
+   "next": "Сахарная голова и исторический центр Салвадора"
+  },
+  "Bulgaria": {
+   "status": "visited",
+   "landmark": "Alexander Nevsky Cathedral",
+   "city": "София",
+   "evidence": "2 записей · 2023-08-03 — 2023-08-05. Пример: Alexander Nevsky Cathedral (Храм-паметник Св. Александър Невски) · Sofia.",
+   "next": "Рильский монастырь"
+  },
+  "Cambodia": {
+   "status": "visited",
+   "landmark": "Angkor Wat",
+   "city": "Сиемреап",
+   "evidence": "8 записей · 2024-01-13 — 2024-01-16. Пример: Bakan (Summit of Angkor Wat) · Krong Siem Reap.",
+   "next": "Бантей-Срей и удалённые храмы Ангкора"
+  },
+  "Chile": {
+   "status": "visited",
+   "landmark": "Cerro San Cristóbal",
+   "city": "Сантьяго",
+   "evidence": "5 записей · 2024-11-28 — 2024-11-29. Пример: Area Deportiva \"Cerro San Cristóbal\" · Recoleta.",
+   "next": "Атакама или национальный парк Торрес-дель-Пайне"
+  },
+  "China": {
+   "status": "visited",
+   "landmark": "Forbidden City / Palace Museum",
+   "city": "Пекин",
+   "evidence": "1 записей · 2023-12-27. Пример: Forbidden City (Palace Museum) (故宫（博物院）) · Beijing.",
+   "next": "Великая китайская стена — если ещё не было отдельного выезда"
+  },
+  "Croatia": {
+   "status": "visited",
+   "landmark": "Diocletian’s Palace",
+   "city": "Сплит",
+   "evidence": "1 записей · 2024-08-09. Пример: Diocletian's Palace (Dioklecijanova palača) · Split.",
+   "next": "Плитвицкие озёра"
+  },
+  "Cyprus": {
+   "status": "unknown",
+   "landmark": "Tombs of the Kings",
+   "city": "Пафос",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Археологический парк Пафоса"
+  },
+  "Czech Republic": {
+   "status": "visited",
+   "landmark": "Charles Bridge",
+   "city": "Прага",
+   "evidence": "3 записей · 2013-06-10 — 2014-04-24. Пример: Charles Bridge (Karlův most) · Prague.",
+   "next": "Кутна-Гора и костница в Седлеце"
+  },
+  "Denmark": {
+   "status": "visited",
+   "landmark": "Nyhavn",
+   "city": "Копенгаген",
+   "evidence": "2 записей · 2020-01-31 — 2020-02-01. Пример: Nyhavn · Copenhagen.",
+   "next": "Луизиана — музей современного искусства на берегу"
+  },
+  "Egypt": {
+   "status": "visited",
+   "landmark": "Great Pyramids of Giza",
+   "city": "Гиза",
+   "evidence": "1 записей · 2021-12-26. Пример: Great Pyramids of Giza (أهرامات الجيزة) · Giza.",
+   "next": "Луксор и Долина царей"
+  },
+  "Estonia": {
+   "status": "visited",
+   "landmark": "Tallinn Old Town / Old Town (Vanalinn)",
+   "city": "Таллин",
+   "evidence": "1 записей · 2018-02-19. Пример: Old Town (Vanalinn) · Tallinn.",
+   "next": "Раквере или национальный парк Лахемаа"
+  },
+  "Finland": {
+   "status": "unknown",
+   "landmark": "Suomenlinna",
+   "city": "Хельсинки",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Национальный парк Нууксио"
+  },
+  "France": {
+   "status": "visited",
+   "landmark": "Montmartre",
+   "city": "Париж",
+   "evidence": "6 записей · 2022-12-03 — 2024-10-05. Пример: Montmartre Funicular (Funiculaire de Montmartre) · Paris.",
+   "next": "Версаль или Musée d’Orsay"
+  },
+  "Georgia": {
+   "status": "visited",
+   "landmark": "Narikala Ropeway Station",
+   "city": "Тбилиси",
+   "evidence": "1 записей · 2023-10-18. Пример: Narikala Ropeway Station · Tbilisi.",
+   "next": "Мцхета и монастырь Джвари"
+  },
+  "Germany": {
+   "status": "visited",
+   "landmark": "Brandenburg Gate",
+   "city": "Берлин",
+   "evidence": "4 записей · 2013-05-31 — 2024-03-02. Пример: Brandenburg Gate (Brandenburger Tor) · Berlin.",
+   "next": "ZKM в Карлсруэ или Берлинская стена"
+  },
+  "Greece": {
+   "status": "visited",
+   "landmark": "Acropolis of Athens",
+   "city": "Афины",
+   "evidence": "1 записей · 2023-06-19. Пример: Acropolis of Athens (Ακρόπολη Αθηνών) · Athens.",
+   "next": "Метеоры — если хочется монастырей и ландшафтов"
+  },
+  "Holy See (Vatican City State)": {
+   "status": "visited",
+   "landmark": "St Peter’s Basilica",
+   "city": "Ватикан",
+   "evidence": "2 записей · 2020-02-07 — 2023-02-05. Пример: St. Peter's Basilica (Basilica Sancti Petri) · Vatican City.",
+   "next": "Сикстинская капелла — если не была в отдельной записи"
+  },
+  "Hong Kong": {
+   "status": "visited",
+   "landmark": "Victoria Peak",
+   "city": "Гонконг",
+   "evidence": "3 записей · 2024-01-06. Пример: Victoria Peak Garden (山頂公園) · The Peak.",
+   "next": "Dragon’s Back — городской хайкинг"
+  },
+  "Hungary": {
+   "status": "visited",
+   "landmark": "Buda Castle",
+   "city": "Будапешт",
+   "evidence": "3 записей · 2013-06-11 — 2019-09-11. Пример: Buda-Castle Funicular (Budavári Sikló) · Budapest.",
+   "next": "Купальни Сечени и Рыбацкий бастион"
+  },
+  "India": {
+   "status": "visited",
+   "landmark": "Taj Mahal",
+   "city": "Агра",
+   "evidence": "2 записей · 2023-11-20. Пример: Taj Mahal Museum · Āgra.",
+   "next": "Варанаси — совсем другой культурный слой"
+  },
+  "Indonesia": {
+   "status": "unknown",
+   "landmark": "Borobudur",
+   "city": "Центральная Ява",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Боробудур на рассвете и Прамбанан"
+  },
+  "Iran": {
+   "status": "visited",
+   "landmark": "Azadi Tower",
+   "city": "Тегеран",
+   "evidence": "2 записей · 2025-12-14. Пример: Azadi Tower Complex (مجموعه فرهنگی برج آزادی) · Tehran.",
+   "next": "Площадь Накш-е Джахан в Исфахане"
+  },
+  "Italy": {
+   "status": "visited",
+   "landmark": "Basilica di Sant’Antonio da Padova",
+   "city": "Падуя",
+   "evidence": "1 записей · 2025-08-17. Пример: Basilica di Sant'Antonio da Padova · Padua.",
+   "next": "Римский форум и Помпеи — если хочется проверить отдельно"
+  },
+  "Kazakhstan": {
+   "status": "visited",
+   "landmark": "Bayterek",
+   "city": "Астана",
+   "evidence": "5 записей · 2022-06-10 — 2022-06-28. Пример: Bayterek (Бәйтерек) · Astana.",
+   "next": "Чарынский каньон и горы Заилийского Алатау"
+  },
+  "Kyrgyzstan": {
+   "status": "visited",
+   "landmark": "Ala-Too Square",
+   "city": "Бишкек",
+   "evidence": "2 записей · 2022-06-25 — 2022-06-26. Пример: Ала-Тоо аянты / Площадь Ала-Тоо / Ala-Too Square · Bishkek.",
+   "next": "Иссык-Куль и ущелье Ала-Арча"
+  },
+  "Latvia": {
+   "status": "visited",
+   "landmark": "House of the Blackheads",
+   "city": "Рига",
+   "evidence": "4 записей · 2023-01-28 — 2025-11-22. Пример: House of Blackheads (Melngalvju Nams) · Riga.",
+   "next": "Кулдига и широкая природная Латвия"
+  },
+  "Liechtenstein": {
+   "status": "visited",
+   "landmark": "Vaduz Castle",
+   "city": "Вадуц",
+   "evidence": "1 записей · 2025-06-23. Пример: Vaduz Castle (Schloss Vaduz) · Vaduz.",
+   "next": "Тропа Fürstensteig и альпийские панорамы"
+  },
+  "Lithuania": {
+   "status": "visited",
+   "landmark": "Gediminas Tower",
+   "city": "Вильнюс",
+   "evidence": "2 записей · 2022-08-06 — 2025-03-22. Пример: Gediminas’ Tower of the Upper Castle (Gedimino Pilies Bokštas) · Vilnius.",
+   "next": "Тракайский замок"
+  },
+  "Luxembourg": {
+   "status": "unknown",
+   "landmark": "Casemates du Bock",
+   "city": "Люксембург",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Мюллерталь — пешие тропы и скалы"
+  },
+  "Macau": {
+   "status": "visited",
+   "landmark": "Ruins of St Paul’s",
+   "city": "Макао",
+   "evidence": "1 записей · 2024-01-05. Пример: Ruins of St. Paul's (大三巴牌坊) · Santo Antonio.",
+   "next": "A-Ma Temple и исторический центр"
+  },
+  "Malaysia": {
+   "status": "visited",
+   "landmark": "Petronas Twin Towers",
+   "city": "Куала-Лумпур",
+   "evidence": "3 записей · 2023-12-05 — 2023-12-09. Пример: PETRONAS Twin Towers · Kuala Lumpur.",
+   "next": "Пещеры Бату и Джорджтаун на Пенанге"
+  },
+  "Malta": {
+   "status": "visited",
+   "landmark": "Mdina Gate",
+   "city": "Мдина",
+   "evidence": "2 записей · 2022-12-23 — 2022-12-24. Пример: Mdina Gate · Mdina.",
+   "next": "Гипогей Хал-Сафлиени — бронировать заранее"
+  },
+  "Moldova": {
+   "status": "visited",
+   "landmark": "Wine cellars of Cricova",
+   "city": "Крикова",
+   "evidence": "1 записей · 2026-10-11. Пример: Wine cellars of Cricova (Combinatul de vinuri Cricova) · Cricova.",
+   "next": "Старый Орхей и Бутучены"
+  },
+  "Montenegro": {
+   "status": "unknown",
+   "landmark": "Kotor Old Town",
+   "city": "Котор",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Ловчен и Цетине"
+  },
+  "Netherlands": {
+   "status": "unknown",
+   "landmark": "Rijksmuseum",
+   "city": "Амстердам",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Роттердамская архитектура или Киндердейк"
+  },
+  "North Macedonia": {
+   "status": "visited",
+   "landmark": "Stone Bridge",
+   "city": "Скопье",
+   "evidence": "2 записей · 2024-07-29 — 2024-07-30. Пример: Stone Bridge (Камен мост) · Skopje.",
+   "next": "Охридское озеро и старый город Охрид"
+  },
+  "Norway": {
+   "status": "unknown",
+   "landmark": "Oslo Opera House",
+   "city": "Осло",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Берген и фьорды западного побережья"
+  },
+  "Oman": {
+   "status": "visited",
+   "landmark": "Sultan Qaboos Grand Mosque",
+   "city": "Маскат",
+   "evidence": "1 записей · 2025-12-27. Пример: Sultan Qaboos Grand Mosque · Muscat.",
+   "next": "Вади-Шаб и старый город Низвы"
+  },
+  "Poland": {
+   "status": "visited",
+   "landmark": "Palace of Culture and Science",
+   "city": "Варшава",
+   "evidence": "4 записей · 2014-04-16 — 2026-07-28. Пример: Palace of Culture and Science (Pałac Kultury i Nauki) · Warsaw.",
+   "next": "Музей Варшавского восстания"
+  },
+  "Portugal": {
+   "status": "visited",
+   "landmark": "Ponte Dom Luís I",
+   "city": "Порту",
+   "evidence": "2 записей · 2025-05-09 — 2025-05-10. Пример: Ponte Dom Luís I · Porto.",
+   "next": "Монастырь Жеронимуш и район Белен"
+  },
+  "Qatar": {
+   "status": "visited",
+   "landmark": "Museum of Islamic Art Park",
+   "city": "Доха",
+   "evidence": "1 записей · 2025-12-28. Пример: Museum of Islamic Art Park (حديقة متحف الفن الإسلامي) · Doha.",
+   "next": "Национальный музей Катара"
+  },
+  "Romania": {
+   "status": "visited",
+   "landmark": "Eiffel Bridge / Podul Eiffel",
+   "city": "Унгены (Румыния)",
+   "evidence": "8 записей · 2016-07-19 — 2023-08-19. Пример: Eiffel Bridge (Podul Eiffel) · Ungheni.",
+   "next": "Дельта Дуная — природный контраст к городам"
+  },
+  "Russia": {
+   "status": "visited",
+   "landmark": "Красная площадь",
+   "city": "Москва",
+   "evidence": "8 записей · 2018-05-20 — 2026-02-28. Пример: Red Square (Красная площадь) · Moscow.",
+   "next": "Коломенское и московское метро"
+  },
+  "Serbia": {
+   "status": "visited",
+   "landmark": "Belgrade Fortress / Kalemegdan",
+   "city": "Белград",
+   "evidence": "2 записей · 2019-12-03. Пример: Belgrade Fortress Kalemegdan (Калемегдан) · Belgrade.",
+   "next": "Нови-Сад и Петроварадинская крепость"
+  },
+  "Singapore": {
+   "status": "visited",
+   "landmark": "Marina Bay Sands Boardwalk",
+   "city": "Сингапур",
+   "evidence": "1 записей · 2023-12-04. Пример: Marina Bay Sands Boardwalk · Singapore.",
+   "next": "Gardens by the Bay и Southern Ridges"
+  },
+  "Slovakia": {
+   "status": "unknown",
+   "landmark": "Bratislava Castle",
+   "city": "Братислава",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Высокие Татры"
+  },
+  "Slovenia": {
+   "status": "visited",
+   "landmark": "Lake Bled",
+   "city": "Блед",
+   "evidence": "1 записей · 2025-08-06. Пример: Lake Bled (Blejsko jezero) · Bled.",
+   "next": "Ущелье Винтгар или долина Соча"
+  },
+  "Spain": {
+   "status": "unknown",
+   "landmark": "Sagrada Família",
+   "city": "Барселона",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Альгамбра в Гранаде"
+  },
+  "Sweden": {
+   "status": "unknown",
+   "landmark": "Vasa Museum",
+   "city": "Стокгольм",
+   "evidence": "точного совпадения с выбранной достопримечательностью не найдено. Это не доказывает, что ты там не был — только что в этой выгрузке нет уверенного совпадения.",
+   "next": "Метро Стокгольма как художественный маршрут"
+  },
+  "Switzerland": {
+   "status": "visited",
+   "landmark": "Bubenbergplatz",
+   "city": "Берн",
+   "evidence": "1 записей · 2025-06-27. Пример: Bubenbergplatz · Bern.",
+   "next": "Лаво или долина Лаутербруннен"
+  },
+  "Tajikistan": {
+   "status": "visited",
+   "landmark": "Rudaki Park",
+   "city": "Душанбе",
+   "evidence": "2 записей · 2026-05-06 — 2026-05-07. Пример: Парк Рудаки / Rudaki Park · Dushanbe.",
+   "next": "Памирский тракт — отдельная экспедиция"
+  },
+  "Turkey": {
+   "status": "visited",
+   "landmark": "Blue Mosque / Sultan Ahmet Camii",
+   "city": "Стамбул",
+   "evidence": "4 записей · 2020-12-12 — 2026-10-04. Пример: Blue Mosque (Sultan Ahmet Camii) · Fatih.",
+   "next": "Дворец Долмабахче или азиатская сторона Стамбула"
+  },
+  "UAE": {
+   "status": "visited",
+   "landmark": "Burj Khalifa",
+   "city": "Дубай",
+   "evidence": "3 записей · 2024-02-10. Пример: Burj Khalifa / Dubai Mall Metro Station (محطة برج خليفة / دبي مول) · Dubai.",
+   "next": "Абу-Даби: Louvre Abu Dhabi и мечеть шейха Зайда"
+  },
+  "Ukraine": {
+   "status": "visited",
+   "landmark": "Kyiv Pechersk Lavra",
+   "city": "Киев",
+   "evidence": "2 записей · 2013-08-30 — 2016-07-01. Пример: Kyiv Pechersk Lavra (Києво-Печерська Лавра) · Kyiv.",
+   "next": "Одесские катакомбы или Львовский исторический центр"
+  },
+  "Uzbekistan": {
+   "status": "visited",
+   "landmark": "Registan Street",
+   "city": "Самарканд",
+   "evidence": "4 записей · 2021-07-12 — 2026-05-05. Пример: Registan Street · Samarqand.",
+   "next": "Площадь Регистан и некрополь Шахи-Зинда — проверить отдельные чекины"
+  },
+  "Vietnam": {
+   "status": "visited",
+   "landmark": "Ho Chi Minh Mausoleum",
+   "city": "Ханой",
+   "evidence": "1 записей · 2023-12-21. Пример: Ho Chi Minh Mausoleum (Lăng Chủ Tịch Hồ Chí Minh) · Hanoi.",
+   "next": "Ха-Лонг или карстовые ландшафты Ниньбиня"
+  }
+ }
+}
