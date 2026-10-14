@@ -104,7 +104,7 @@ dashboard:
 # Public by design — it ships in every page — and domain-restricted at CARTO.
 # Substituted into {{CARTO_KEY}} in every tile URL; env CARTO_API_KEY overrides.
 basemap:
-  carto_key: ""
+  carto_key: "cb1_4jrw_1_42fc1bd62cab3196cc180c0b"
 
 output:
   index_html: index.html
