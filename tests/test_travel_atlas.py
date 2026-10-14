@@ -1,7 +1,11 @@
 # Copyright 2026 Andrei Patsiomkin
 # SPDX-License-Identifier: Apache-2.0
 
-"""gen_travel_atlas: the standalone travel-journal page (payload + render)."""
+"""gen_travel_atlas: the standalone travel-journal page.
+
+The journal must show the dashboard's numbers, so these tests feed it the same
+rows through the real metrics.process() and compare against its stats.
+"""
 import json
 import re
 from datetime import datetime, timezone
@@ -9,6 +13,7 @@ from pathlib import Path
 
 from conftest import make_row
 import gen_travel_atlas as ga
+from metrics import process
 
 ROOT = Path(__file__).resolve().parents[1]
 CFG = json.loads((ROOT / "config" / "travel_atlas.json").read_text(encoding="utf-8"))
@@ -20,7 +25,7 @@ def _ts(y, m, d, h=12):
 
 
 def _rows():
-    rows = [
+    return [
         make_row(_ts(2019, 6, 1), "Minsk", "Belarus", "Plaza", "Oktyabrskaya Square", "a" * 24,
                  "53.90", "27.56", "c1"),
         make_row(_ts(2019, 6, 2), "Minsk", "Belarus", "Home (private)", "My flat", "b" * 24,
@@ -29,60 +34,70 @@ def _rows():
                  "54.68", "25.29", "c3"),
         make_row(_ts(2019, 6, 4), "Vilnius", "Lithuania", "Church", "St. Anne's", "d" * 24,
                  "54.68", "25.29", "c4"),
-        make_row(_ts(2019, 6, 5), "Minsk", "Belarus", "Plaza", "Oktyabrskaya Square", "a" * 24,
+        make_row(_ts(2019, 6, 5), "Vilnius", "Lithuania", "Road", "A road", "",
+                 "54.70", "25.30", "c6"),
+        make_row(_ts(2019, 6, 6), "Minsk", "Belarus", "Plaza", "Oktyabrskaya Square", "a" * 24,
                  "53.90", "27.56", "c5"),
     ]
-    return ga._prepare(rows, {})
 
 
 PHOTOS = {"c1": ["29447180_aaa.jpg"], "c2": ["29447180_home.jpg"], "c3": ["backfill_x.jpg"]}
-TRIPS = [{"id": 1, "name": "Vilnius", "start_date": "2019-06-03", "end_date": "2019-06-04",
-          "start_ts": _ts(2019, 6, 3, 0), "duration": 2, "checkin_count": 2, "unique_places": 1,
-          "countries": ["Lithuania"], "cities": ["Vilnius"]}]
+TIPS = [{"id": "t1", "ts": _ts(2019, 6, 4), "venue": "Gate of Dawn", "venue_id": "e" * 24,
+         "city": "Vilnius", "country": "Lietuva", "category": "Gate", "photo": "29447180_tip.jpg"},
+        {"id": "t2", "ts": _ts(2019, 6, 4), "venue": "No photo", "venue_id": "f" * 24}]
 
 
 def _payload():
-    return ga.build_payload(_rows(), PHOTOS, TRIPS, CFG, FLAGS, n_backfill=0)
+    rows = _rows()
+    stats, trips = process(rows, {}, home_city="Minsk", min_trip_checkins=2)
+    return ga.build_payload(rows, stats, trips, PHOTOS, TIPS, CFG, FLAGS,
+                            ctry_norm={"Lietuva": "Lithuania"}), stats, trips
 
 
-def test_counts_and_countries():
-    p = _payload()
-    assert p["meta"]["checkins"] == 5
-    assert p["meta"]["countries"] == 2
-    assert p["C"] == ["Belarus", "Lithuania"]          # ordered by check-in count
-    by = p["countries"][0]
-    assert by["iso2"] == "by" and by["num"] == "112"
-    assert by["n"] == 3 and by["audit"]["landmark"]
+def test_headline_numbers_are_the_dashboards():
+    p, stats, trips = _payload()
+    m = p["meta"]
+    assert m["checkins"] == stats["total"] == 6
+    assert m["venues"] == stats["unique_places_count"] == len(p["places"])
+    assert m["countries"] == len(stats["countries"]) and m["cities"] == len(stats["cities"])
+    assert m["trips"] == len(trips)
+    assert p["C"] == [c for c, _ in stats["countries"]]
+    assert [(y["y"], y["n"]) for y in p["years"]] == [tuple(x) for x in stats["by_year"]]
 
 
-def test_private_home_never_surfaces():
-    p = _payload()
-    assert all(pl[0] != "My flat" for pl in p["places"])
-    assert all("home" not in ph[0] for ph in p["photos"])
-    assert p["meta"]["photos"] == 2
+def test_home_checkins_and_photos_are_included():
+    p, _, _ = _payload()
+    assert any(pl[0] == "My flat" for pl in p["places"])
+    assert "home.jpg" in [ph[0] for ph in p["photos"]]
+    assert p["countries"][0]["en"] == "Belarus" and p["countries"][0]["n"] == 3
+
+
+def test_photo_total_matches_build_formula():
+    """build.py: total_photos = all photos.json files + tip photos."""
+    p, _, _ = _payload()
+    assert p["meta"]["photos"] == sum(map(len, PHOTOS.values())) + 1
+    assert p["meta"]["tipPhotos"] == 1
+    tip = next(ph for ph in p["photos"] if ph[-1] == 1)
+    assert tip[0] == "tip.jpg" and tip[1] == -1 and tip[3][0] == "Gate of Dawn"
 
 
 def test_photo_keys_compact_and_reversible():
-    files = [ph[0] for ph in _payload()["photos"]]
+    files = [ph[0] for ph in _payload()[0]["photos"]]
     assert "aaa.jpg" in files                 # common prefix stripped
     assert "!backfill_x.jpg" in files         # other keys kept verbatim, flagged
 
 
-def test_trip_gets_its_own_photos_and_route_is_recorded():
-    p = _payload()
-    t = p["trips"][0]
-    assert t["phn"] == 1 and len(t["ph"]) == 1
-    assert p["places"][p["photos"][t["ph"][0]][1]][0] == "St. Anne's"
-    assert {(r[7], r[8]) for r in p["routes"]} == {("Minsk", "Vilnius"), ("Vilnius", "Minsk")}
-
-
-def test_years_track_first_visits():
-    (y,) = _payload()["years"]
-    assert y["y"] == "2019" and y["new"] == ["Belarus", "Lithuania"] and y["tr"] == 1
+def test_country_spread_uses_country_page_formulas():
+    p, _, _ = _payload()
+    lt = next(c for c in p["countries"] if c["en"] == "Lithuania")
+    # venues keyed by venue_id or name; cities/days by UTC date — gen_country_pages
+    assert (lt["n"], lt["v"], lt["c"], lt["d"]) == (3, 2, 1, 3)
+    assert lt["venues"][0] == ["St. Anne's", 2]
+    assert lt["iso2"] == "lt" and lt["num"] == "440"
 
 
 def test_render_inlines_json_safely():
-    p = _payload()
+    p, _, _ = _payload()
     p["places"][0][0] = "evil </script><script>alert(1)</script>"
     html = ga.render(p, ga.TEMPLATE.read_text(encoding="utf-8"))
     assert "{{ATLAS_DATA}}" not in html

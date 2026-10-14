@@ -363,7 +363,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 let REG=null;try{REG=new Intl.DisplayNames(['ru'],{type:'region'})}catch(e){}
 const RU_FIX={'Holy See (Vatican City State)':'Ватикан','Hong Kong':'Гонконг','Macao':'Макао'};
 const C=D.countries, byEn=new Map(C.map(c=>[c.en,c])), byIso=new Map(C.map(c=>[c.iso2,c]));
-function ruName(en){if(RU_FIX[en])return RU_FIX[en];const c=byEn.get(en);if(c&&c.iso2&&REG){try{const n=REG.of(c.iso2.toUpperCase());if(n&&n.length>1)return n}catch(e){}}return en}
+function ruName(en){if(!en)return '';if(RU_FIX[en])return RU_FIX[en];const c=byEn.get(en);if(c&&c.iso2&&REG){try{const n=REG.of(c.iso2.toUpperCase());if(n&&n.length>1)return n}catch(e){}}return en}
 C.forEach(c=>{c.ru=ruName(c.en)});
 const flag=en=>{const c=byEn.get(en);return c&&c.iso2?`<span class="fi fi-${c.iso2}" aria-hidden="true"></span>`:''};
 const EPOCH=Date.UTC(2000,0,1);
@@ -374,7 +374,9 @@ function hrange(a,b){if(a===b)return hd(a);const[ya,ma,da]=a.split('-'),[yb,mb,d
 function plural(n,a,b,c){const m=n%10,h=n%100;return m===1&&h!==11?a:(m>=2&&m<=4&&(h<12||h>14)?b:c)}
 const P=D.places, PH=D.photos, M=D.meta;
 const purl=i=>{const f=PH[i][0];return M.pix+(f[0]==='!'?f.slice(1):'29447180_'+f)};
-const pinfo=i=>{const p=P[PH[i][1]];return{name:p[0],city:p[1],country:D.C[p[2]],date:dstr(PH[i][2]),cat:D.K[p[8]]||'',vid:p[9]}};
+// photo -> [name, city, countryIdx, catIdx, venueId]: from its place, or inline when it has none
+const pp=i=>{const x=PH[i];if(x[1]>=0){const p=P[x[1]];return [p[0],p[1],p[2],p[8],p[9]]}return x[3]||['','',-1,-1,'']};
+const pinfo=i=>{const p=pp(i);return{name:p[0]||'Без названия',city:p[1],country:D.C[p[2]]||'',date:dstr(PH[i][2]),cat:D.K[p[3]]||'',vid:p[4],tip:PH[i][4]===1}};
 
 /* ---------- photo tile + lightbox ---------- */
 function tile(i,list,k,cap=true){
@@ -393,7 +395,7 @@ function showLb(){
   lbImg.src=purl(i);lbImg.alt=`${x.name}, ${x.city}`;
   $('#lbCount').textContent=`${lbPos+1} / ${lbList.length}`;
   const c=byEn.get(x.country);
-  $('#lbCap').innerHTML=`<div><h4>${esc(x.name)}</h4><p>${flag(x.country)} ${esc(x.city||'')}${x.city?', ':''}${esc(ruName(x.country))} · ${hd(x.date)}${x.cat?' · '+esc(x.cat):''}</p></div><div class="links">${c?`<a href="#country/${c.iso2}" data-close>Разворот страны</a>`:''}${x.vid?`<a href="https://foursquare.com/v/${x.vid}" target="_blank" rel="noopener">Foursquare ↗</a>`:''}<a href="${purl(i)}" target="_blank" rel="noopener">Оригинал ↗</a></div>`;
+  $('#lbCap').innerHTML=`<div><h4>${esc(x.name)}</h4><p>${flag(x.country)} ${esc(x.city||'')}${x.city?', ':''}${esc(ruName(x.country))} · ${hd(x.date)}${x.cat?' · '+esc(x.cat):''}${x.tip?' · фото к совету':''}</p></div><div class="links">${c?`<a href="#country/${c.iso2}" data-close>Разворот страны</a>`:''}${x.vid?`<a href="https://foursquare.com/v/${x.vid}" target="_blank" rel="noopener">Foursquare ↗</a>`:''}<a href="${purl(i)}" target="_blank" rel="noopener">Оригинал ↗</a></div>`;
   [lbPos-1,lbPos+1].forEach(k=>{if(k>=0&&k<lbList.length){const im=new Image();im.src=purl(lbList[k])}});
   $('#lbPrev').disabled=lbPos===0;$('#lbNext').disabled=lbPos===lbList.length-1;
 }
@@ -483,7 +485,7 @@ RENDER.cover=(sec,arg,first)=>{
   if(!first){return}
   const pool=D.curated.length?D.curated:PH.map((_,i)=>i);
   const seen=new Set(),pick=[];const sh=[...pool].sort(()=>Math.random()-.5);
-  for(const i of sh){const c=P[PH[i][1]][2];if(seen.has(c))continue;seen.add(c);pick.push(i);if(pick.length===5)break}
+  for(const i of sh){const c=pp(i)[2];if(seen.has(c))continue;seen.add(c);pick.push(i);if(pick.length===5)break}
   LISTS.cover=pick;
   const y0=M.first.slice(0,4),y1=M.last.slice(0,4);
   sec.innerHTML=`<div class="cover">
@@ -506,7 +508,7 @@ RENDER.cover=(sec,arg,first)=>{
   <nav class="toc" aria-label="Содержание">
     ${[['world-atlas','I','Атлас','Карта мира: где и сколько'],['country','II','Страны',`${M.countries} разворотов с фото и топ-местами`],['trip','III','Поездки',`${M.trips} ${plural(M.trips,'путешествие','путешествия','путешествий')} по одному на страницу`],['years','IV','Хроника','Год за годом: новые страны'],['photos','V','Фотоархив',`${fmt(M.photos)} снимков, постранично`],['places','VI','Места',`Поиск по ${fmt(M.venues)} точкам`],['next','VII','Дальше','Идеи и бюджет следующих поездок']].map(([h,n,t,p])=>`<a href="#${h}"><div class="n">${n}</div><h3>${t}</h3><p>${p}</p></a>`).join('')}
   </nav>
-  <p class="muted" style="font-size:12px;margin-top:22px">Данные: checkins.csv + ${fmt(M.refurb)} восстановленных записей до 2012 года, обработанные тем же конвейером, что и <a href="https://4sq.pages.dev/" target="_blank" rel="noopener">4sq.pages.dev</a>. Снимок от ${hd(M.built)}. Домашние адреса исключены.</p>`;
+  <p class="muted" style="font-size:12px;margin-top:22px">Данные: checkins.csv + ${fmt(M.refurb)} восстановленных записей до 2012 года, обработанные тем же конвейером, что и <a href="https://4sq.pages.dev/" target="_blank" rel="noopener">4sq.pages.dev</a>. Цифры — те же, что на дашборде. Снимок от ${hd(M.built)}.</p>`;
   hookImgs(sec);
 };
 
@@ -671,7 +673,7 @@ RENDER.trip=(sec,arg)=>{
   </article>`;
   hookImgs(sec);
   $('#tPrev').onclick=()=>PAGERS.trip(-1);$('#tNext').onclick=()=>PAGERS.trip(1);
-  if($('#tMore'))$('#tMore').onclick=()=>{const s=D.photos,lst=[];const a=t.s,b=t.e,tc=new Set(t.co);for(let i=0;i<s.length;i++){const d=dstr(s[i][2]);if(d<a)continue;if(d>b)break;if(tc.has(D.C[P[s[i][1]][2]]))lst.push(i)}LISTS['tall']=lst;openLb(lst,0)};
+  if($('#tMore'))$('#tMore').onclick=()=>{const s=D.photos,lst=[];const a=t.s,b=t.e,tc=new Set(t.co);for(let i=0;i<s.length;i++){const d=dstr(s[i][2]);if(d<a)continue;if(d>b)break;if(tc.has(D.C[pp(i)[2]]))lst.push(i)}LISTS['tall']=lst;openLb(lst,0)};
   sec.querySelector('.years').addEventListener('click',e=>{const b=e.target.closest('[data-y]');if(!b)return;const f=T.find(x=>x.s.startsWith(b.dataset.y));if(f)location.hash='trip/'+f.id});
   const cur=sec.querySelector('.years [aria-pressed="true"]');if(cur)cur.scrollIntoView({block:'nearest',inline:'center'});
   $('#tIdx').onclick=()=>openSheet('Оглавление поездок',q=>{const L=T.filter(x=>!q||x.name.toLowerCase().includes(q)||x.ci.join(' ').toLowerCase().includes(q)||x.co.some(c=>ruName(c).toLowerCase().includes(q)));if(!L.length)return'<div class="empty">Ничего не найдено</div>';let h='<div class="triplist">',y='';for(const x of [...L].reverse()){const yy=x.s.slice(0,4);if(yy!==y){h+=`<h4>${yy}</h4>`;y=yy}h+=`<button type="button" data-href="trip/${x.id}" aria-current="${x===t}"><span>${esc(x.name)}</span><small>${x.co.map(flag).join(' ')} · ${hrange(x.s,x.e)}</small></button>`}return h+'</div>'});
@@ -697,9 +699,9 @@ RENDER.photos=(sec,arg,first)=>{
   let page=1;
   if(arg){const [p,qs]=arg.split('?');page=Math.max(1,parseInt(p)||1);if(qs){const u=new URLSearchParams(qs);if(u.has('c')||u.has('y')){phState={...phState,mode:'all',c:u.get('c')||'',y:u.get('y')||'',q:''};history.replaceState(null,'','#photos/1');memo.photos='1';rendered.photos&&syncPhForm()}}}
   if(first){
-    const cs=[...new Set(PH.map(p=>P[p[1]][2]))].map(i=>D.C[i]).sort((a,b)=>ruName(a).localeCompare(ruName(b),'ru'));
+    const cs=[...new Set(PH.map((_,i)=>pp(i)[2]))].filter(i=>i>=0).map(i=>D.C[i]).sort((a,b)=>ruName(a).localeCompare(ruName(b),'ru'));
     const ys=[...new Set(PH.map(p=>dstr(p[2]).slice(0,4)))].sort().reverse();
-    sec.innerHTML=`<div class="ch-head"><div><div class="kicker">Глава V</div><h2>Фотоархив</h2><p>${fmt(M.photos)} снимков из ${fmt(M.photoCheckins)} чекинов, по ${PER} на страницу. Подпись — место и дата чекина. Нажми на фото, чтобы листать в полноэкранном режиме.</p></div>
+    sec.innerHTML=`<div class="ch-head"><div><div class="kicker">Глава V</div><h2>Фотоархив</h2><p>${fmt(M.photos)} снимков из ${fmt(M.photoCheckins)} чекинов${M.tipPhotos?` и ${M.tipPhotos} ${plural(M.tipPhotos,'совета','советов','советов')}`:''}, по ${PER} на страницу. Подпись — место и дата чекина. Нажми на фото, чтобы листать в полноэкранном режиме.</p></div>
       <div class="seg" role="group" aria-label="Подборка"><button type="button" data-mode="fav">Избранное</button><button type="button" data-mode="all">Все фото</button></div></div>
     <div class="toolbar"><input class="field" id="phQ" type="search" placeholder="Место, город, категория…" aria-label="Поиск по фото">
       <select class="field" id="phC" aria-label="Страна"><option value="">Все страны</option>${cs.map(c=>`<option value="${esc(c)}">${esc(ruName(c))}</option>`).join('')}</select>
@@ -723,7 +725,7 @@ function phApply(){syncPhForm();phFilter();if(memo.photos==='1'&&current==='phot
 function phFilter(){
   const s=phState;let L;
   if(s.mode==='fav'&&!s.q&&!s.c&&!s.y){const seen=new Set();L=D.curated.filter(i=>{const k=PH[i][1]+'|'+PH[i][2];if(seen.has(k))return false;seen.add(k);return true})}
-  else{L=[];for(let i=0;i<PH.length;i++){const p=P[PH[i][1]];if(s.c&&D.C[p[2]]!==s.c)continue;if(s.y&&dstr(PH[i][2]).slice(0,4)!==s.y)continue;if(s.q&&!(p[0].toLowerCase().includes(s.q)||(p[1]||'').toLowerCase().includes(s.q)||(D.K[p[8]]||'').toLowerCase().includes(s.q)||ruName(D.C[p[2]]).toLowerCase().includes(s.q)))continue;L.push(i)}}
+  else{L=[];for(let i=0;i<PH.length;i++){const p=pp(i);if(s.c&&D.C[p[2]]!==s.c)continue;if(s.y&&dstr(PH[i][2]).slice(0,4)!==s.y)continue;if(s.q&&!(p[0].toLowerCase().includes(s.q)||(p[1]||'').toLowerCase().includes(s.q)||(D.K[p[3]]||'').toLowerCase().includes(s.q)||ruName(D.C[p[2]]).toLowerCase().includes(s.q)))continue;L.push(i)}}
   L.sort((a,b)=>s.sort==='new'?PH[b][2]-PH[a][2]||b-a:PH[a][2]-PH[b][2]||a-b);
   phFiltered=L;LISTS.ph=L;
 }
@@ -748,7 +750,7 @@ const PL_PER=10;let plState={c:'',city:'',q:'',page:1,sel:null},plFiltered=[],pl
 RENDER.places=(sec,arg,first)=>{
   setWhere('');
   if(first){
-    const cs=[...new Set(P.map(p=>p[2]))].map(i=>D.C[i]).sort((a,b)=>ruName(a).localeCompare(ruName(b),'ru'));
+    const cs=[...new Set(P.map(p=>p[2]))].filter(i=>i>=0).map(i=>D.C[i]).sort((a,b)=>ruName(a).localeCompare(ruName(b),'ru'));
     sec.innerHTML=`<div class="ch-head"><div><div class="kicker">Глава VI</div><h2>Места</h2><p>Все ${fmt(P.length)} точек из истории. На карте — каждая точка выбранного фильтра; нажми на точку или карточку, чтобы увидеть детали и фото.</p></div></div>
     <div class="toolbar"><input class="field" id="plQ" type="search" placeholder="Кафе, станция, площадь…" aria-label="Поиск места">
       <select class="field" id="plC" aria-label="Страна"><option value="">Все страны</option>${cs.map(c=>`<option value="${esc(c)}">${esc(ruName(c))}</option>`).join('')}</select>

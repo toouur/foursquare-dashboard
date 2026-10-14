@@ -231,6 +231,10 @@ if __name__ == "__main__":
                              "moved), also write the healed trip_names.json here — "
                              "WITHOUT this build's auto-added names, so CI can commit "
                              "just the heal. Emits TRIP_NAMES_HEALED=<n>.")
+    parser.add_argument("--travel-atlas-out", default=None,
+                        help="Opt-in: also write the standalone travel-atlas journal "
+                             "(scripts/gen_travel_atlas.py) to this path, built from the "
+                             "same rows/stats/trips as the site. Needs --photos.")
     parser.add_argument("--routes-cache", default=None,
                         help="Path to routes_cache.json (persistent OSRM/BRouter "
                              "route-geometry cache, lives in the private data repo). "
@@ -1364,5 +1368,20 @@ if __name__ == "__main__":
             log.info("Syndication: feed.xml + feed.json written")
     except Exception as _fe:
         log.warning("gen_feeds failed: %s", _fe)
+
+    # ── Opt-in: standalone travel-atlas journal (gen_travel_atlas.py) ──────────
+    # Written last, after the PWA/placeholder passes, so the file stays a clean
+    # standalone page. Fed the exact rows/stats/trips the site rendered from.
+    if args.travel_atlas_out:
+        try:
+            from gen_tips import CTRY_NORM as _ta_ctry
+            import gen_travel_atlas as _ta
+            _ta_meta = _ta.write_page(args.travel_atlas_out, rows, data, trips, _photos_by_checkin,
+                                      all_tips, config_dir, ctry_norm=_ta_ctry, pix_url=_pix_dir_uri)
+            log.info("Travel atlas → %s (%d check-ins, %d countries, %d trips, %d photos)",
+                     args.travel_atlas_out, _ta_meta["checkins"], _ta_meta["countries"],
+                     _ta_meta["trips"], _ta_meta["photos"])
+        except Exception as _tae:
+            log.warning("gen_travel_atlas failed: %s", _tae)
 
     log.info("Done!")
