@@ -147,8 +147,6 @@ tr:hover td{background:rgba(255,255,255,.02);}
 <script>
 const COMP=COMP_DATA_PLACEHOLDER;
 
-const COMPANION_COUNTRIES={'Joanna K.':'Poland','Alex Potemkin':'Belarus','Bojan Bačević':'Serbia','Artemiy Nikitenko':'Belarus','Artemiy Nikitenko (Wellwod)':'Belarus','Tuğba Yoldaş':'Turkey','Тимур -':'Moldova'};
-
 // Country → flag emoji map (inline, no fetch needed)
 const F={
   'Albania':'🇦🇱','Andorra':'🇦🇩','Armenia':'🇦🇲','Australia':'🇦🇺','Austria':'🇦🇹',
@@ -182,12 +180,9 @@ function flag(c){return F[c]||'🌍';}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let cur=0;
 
-const compFlag=COMP.map(c=>{
-  if(COMPANION_COUNTRIES[c[0]])return flag(COMPANION_COUNTRIES[c[0]]);
-  const ci=c[2]||[];
-  for(const r of ci){const country=r[5];if(country)return flag(country);}
-  return '🌍';
-});
+// c[4] = home country: config/companion_countries.json, else the country most
+// shared check-ins are in (computed in gen_companions.companion_country).
+const compFlag=COMP.map(c=>c[4]?flag(c[4]):'🌍');
 document.getElementById('sidebar').innerHTML=COMP.map((c,i)=>
   `<div class="si" id="si${i}" onclick="show(${i})"><span class="si-flag" style="font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif;margin-right:5px">${compFlag[i]}</span>${c[3]?`<a class="si-name" href="https://foursquare.com/user/${c[3]}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${esc(c[0])}">${esc(c[0])}</a>`:`<span class="si-name" title="${esc(c[0])}">${esc(c[0])}</span>`}<span class="si-cnt">${c[1].toLocaleString()}</span></div>`
 ).join('');

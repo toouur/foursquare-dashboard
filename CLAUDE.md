@@ -432,6 +432,7 @@ python -m http.server 8000 --directory _site
     `"2024-07": "<filename or checkin_id>"` pins that month's timeline photo (claimed up front so the auto-picker can't reuse it, honored even on empty months);
     `"2024-07-note": "text"` replaces that month's auto narrative with hand-written text (plain text, HTML-escaped).
     Without a pin, year covers use a deterministic signature score (shout + companions + photo count, earliest-ts tie-break) so covers are stable across builds. Unresolvable pin values are reported at build and ignored.
+  - `config/companion_countries.json` — companion name → home country for the flag on companions.html (`gen_companions.companion_country`). Not listed ⇒ the country MOST shared check-ins are in — never the latest one, which flipped Darya/Nikita/the Bryksenkovs to Moldova after the 29.07.2026 move. The build logs every companion with ≥20 shared check-ins that has no entry. Tests: `tests/test_companion_countries.py`.
   - `config/companion_fixes.json` — per-`checkin_id` companion override (`with_name`/`with_id`/`overlaps_name`/`overlaps_id`), for a Swarm `with` tag added after our snapshot; applied in `transform.apply_transforms()` and reconciled into D1 on every sync. See "Late companion tags" below.
 - Config (other): `config/city_merge.yaml`, `config/city_fixes.json`, `config/venue_fixes.json`, `config/city_canonical.yaml`, `config/country_fixes.json`, `config/categories.json`, `config/settings.yaml`
 

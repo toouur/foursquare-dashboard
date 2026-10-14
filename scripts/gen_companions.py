@@ -3,13 +3,39 @@
 
 #!/usr/bin/env python3
 """Generate companions.html on every build."""
-import csv, json, sys
-from collections import defaultdict
+import csv, json, logging, sys
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
 
 SOCIAL_KEYS = ('solo_vs_group_totals', 'companions', 'solo_vs_group_by_year', 'companion_countries')
+
+log = logging.getLogger(__name__)
+
+
+def load_companion_countries(config_dir) -> dict:
+    """config/companion_countries.json: name -> home country (keys starting with _ ignored)."""
+    p = Path(config_dir) / "companion_countries.json"
+    if not p.exists():
+        return {}
+    data = json.loads(p.read_text(encoding="utf-8"))
+    return {k: str(v).strip() for k, v in data.items()
+            if not k.startswith("_") and str(v).strip()}
+
+
+def companion_country(name: str, rows: list, overrides: dict) -> str:
+    """The flag country for one companion.
+
+    The configured home country wins. Otherwise the country MOST of the shared
+    check-ins are in — not the latest one, which flipped Darya, Nikita and the
+    Bryksenkovs to Moldova the moment home moved to Chișinău (29.07.2026).
+    """
+    if name in overrides:
+        return overrides[name]
+    c = Counter((r.get('country') or '').strip() for r in rows)
+    c.pop('', None)
+    return c.most_common(1)[0][0] if c else ''
 
 
 def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None):
@@ -53,6 +79,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None)
                 seen_in_row.add(name)
     comp_sorted = sorted(comp_rows.items(), key=lambda x: -len(x[1]))
     comp_data = []
+    overrides = load_companion_countries(config_dir)
     for name, checkins in comp_sorted[:30]:
         ci = []
         for r in sorted(checkins, key=lambda x: int(x.get('date',0) or 0), reverse=True):
@@ -62,7 +89,12 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None)
             ci.append([ts, dt.strftime('%d %b %Y'), dt.strftime('%H:%M'),
                        r.get('venue',''), r.get('city',''), r.get('country',''),
                        r.get('category',''), r.get('venue_id','')])
-        comp_data.append([name, len(checkins), ci, name_to_uid.get(name, '')])
+        comp_data.append([name, len(checkins), ci, name_to_uid.get(name, ''),
+                          companion_country(name, checkins, overrides)])
+        if name not in overrides and len(checkins) >= 20:
+            log.info("companions: %r (%d shared) has no home country in "
+                     "companion_countries.json — flag from shared check-ins: %s",
+                     name, len(checkins), comp_data[-1][4])
     comp_json = json.dumps(comp_data, ensure_ascii=False, separators=(',',':'))
     # The page reads only these keys; the caller hands over the whole stats dict
     # (unique_places + venues_heatmap alone were ~4.4 MB of dead weight inline).

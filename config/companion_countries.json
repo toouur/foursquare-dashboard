@@ -1,0 +1,17 @@
+{
+  "_comment": "Companion name (exactly as on companions.html) -> home country (English canonical, as in country_flags.json). Sets the flag next to the name. Anyone not listed gets the country most of your shared check-ins are in.",
+  "Joanna K.": "Poland",
+  "Alex Potemkin": "Belarus",
+  "Bojan Bačević": "Serbia",
+  "Artemiy Nikitenko": "Belarus",
+  "Artemiy Nikitenko (Wellwod)": "Belarus",
+  "Tuğba Yoldaş": "Turkey",
+  "Тимур -": "Moldova",
+  "Darya": "Belarus",
+  "NIkita Boyko": "Russia",
+  "Marina Gandacova": "Moldova",
+  "Дмитрий Брыксенков": "Russia",
+  "Александр Брыксенков": "Russia",
+  "Anna Matiuhina": "Moldova",
+  "Rene": "Switzerland"
+}
