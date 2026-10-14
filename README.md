@@ -29,6 +29,8 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 - **Canonical data-normalization layer** — multilingual city/country resolution (Cyrillic, transliteration, blank-city centroid inference) driven by version-controlled config, validated by a CI merge gate.
 - **Installable PWA** — a generated `manifest.webmanifest` + service worker (cache-first static assets, network-first HTML, `/api/*` never cached) injected into every page, cache-busted on every deploy.
 - **Syndication + per-country pages** — RSS 2.0 (`feed.xml`) and JSON Feed 1.1 (`feed.json`) with autodiscovery, plus a `country-<slug>.html` for every country visited.
+- **Lean pages, lazy data** — heavy payloads are split out of the HTML and fetched on demand (index map layers → `map_data.json`, per-trip check-ins → `trip_checkins_<n>.json` shards): `trips.html` dropped from ~21 MB to ~190 KB, `companions.html` from ~7.6 MB to ~2.4 MB.
+- **Free-tier D1, run within budget** — after the database hit its daily row-read limit, the APIs were hardened to degrade instead of 500ing, and the sync was rewritten to measure and cut its own reads/writes (cached counts, hash-gated reconciles, FTS checks of a single row).
 - Deep analytics: activity heatmaps, Hour×Category / Day-of-Week×Category matrices in local time, country hour profiles, shout text-mining (per-year language mix), streaks, venue loyalty, revisit intervals, per-segment transport-mode inference, and a per-year "year in sound" from Last.fm scrobbles.
 
 ## Screenshots
@@ -45,9 +47,9 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 
 **Backend / data:** Python 3.9+ (pandas-free, stdlib `zoneinfo`), `requests`, `pyyaml`, `timezonefinder` · Foursquare API · FlightRadar24 diary · Last.fm API
 **Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed/health APIs), D1 (SQLite + FTS5 at the edge), R2 (photo storage), Workers (check-in poller)
-**Front-end (CDN):** Leaflet (maps), Chart.js, Twemoji · installable PWA (service worker + web manifest)
+**Front-end (CDN):** Leaflet (maps, CARTO basemaps with an API key), Chart.js, Twemoji · installable PWA (service worker + web manifest)
 **CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, a daily route-geometry warm and a daily enrichment re-scan, plus ~20 on-demand maintenance workflows
-**Quality:** ruff + mypy + a 224-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
+**Quality:** ruff + mypy + a 413-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
 
 ## Table of contents
 
@@ -71,6 +73,8 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 - [Music diary (Last.fm)](#music-diary-lastfm)
 - [Pre-2012 travel backfill](#pre-2012-travel-backfill)
 - [PWA, syndication feeds and country pages](#pwa-syndication-feeds-and-country-pages)
+- [Maps (CARTO basemaps)](#maps-carto-basemaps)
+- [Page weight: lazy data shards](#page-weight-lazy-data-shards)
 - [How trip detection works](#how-trip-detection-works)
   - [Home is a timeline, not a constant](#home-is-a-timeline-not-a-constant)
 
@@ -432,12 +436,12 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **303-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **413-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 259 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 369 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
 | Browser E2E smoke + accessibility | `live` + `e2e` | 22 | internet + Playwright chromium |
 
@@ -471,7 +475,7 @@ never block a code push.
 
 ### Test files
 
-#### `tests/test_transform.py` — city/country normalization (28 tests)
+#### `tests/test_transform.py` — city/country normalization (34 tests)
 
 - **Why:** the normalization pipeline is the most-edited part of the repo (one-line config
   additions land constantly), and a regression here silently mislabels thousands of
@@ -488,7 +492,7 @@ never block a code push.
 - **Tech stack:** pure pytest against `scripts/transform.py` functions; synthetic rows from
   the shared `make_row()` factory in `conftest.py`. No I/O except the real-config test.
 
-#### `tests/test_trip_detection.py` — trip detection (15 tests)
+#### `tests/test_trip_detection.py` — trip detection (33 tests)
 
 - **Why:** `metrics.detect_trips` drives `trips.html`, ~160 per-trip pages, and all trip
   analytics. Its classic failure mode is a timezone/DST shift moving a check-in across a
@@ -653,6 +657,26 @@ never block a code push.
 - **Tech stack:** Playwright (headless Chromium) + axe-core 4.10 injected from CDN;
   reuses `PAGES`/`goto` from the E2E smoke suite.
 
+#### Other test files
+
+Smaller suites, each pinning one subsystem or one real defect:
+
+| File | Tests | Pins |
+|------|-------|------|
+| `test_backfill.py` | 22 | pre-2012 `backfill.yaml` → `backfill.csv`: 23-col schema, `rf<seq>` ids, centroid geocode, same-venue-same-day collapse |
+| `test_basemap_tiles.py` | 4 | every CARTO tile URL carries `?key={{CARTO_KEY}}` + the required attribution; `build.py` substitutes the key |
+| `test_build_integration.py` | 10 | a real end-to-end build → `validate_html` gate, PWA, `map_data.json`, country pages, feeds, on-this-day |
+| `test_city_count_shape.py` | 5 | the city-count gate's non-settlement shape check and `DISTRICT?` finding |
+| `test_home_eras.py` / `test_guide_home_era.py` | 3 / 2 | distance-from-home resolves the home *of that day*; a flat config is shown to misread the other era |
+| `test_import_liveinternet.py` / `test_import_polarsteps.py` | 18 / 11 | backfill source adapters |
+| `test_lastfm.py` | 5 | Last.fm incremental fold + per-year aggregate |
+| `test_layout_overflow.py` | 2 | no horizontal page overflow at phone width |
+| `test_refresh_backfill_venue.py` | 13 | Foursquare metadata refresh for `rf*` rows, `[geo_pinned]` honoured |
+| `test_sync_to_d1.py` / `test_sync_dedupe.py` | 21 / 8 | D1 sync: copy-count insert cap, backfill hash gate, companion reconcile, id chunking under the bind limit |
+| `test_sync_venue_changes.py` | 18 | venue renames reach tips / backfill / ratings / comments and the D1 venues table |
+| `test_trip_insights.py` | 16 | trip eras, gateways, seasonality, the real-flight ✈️ rule |
+| `test_trip_names_heal.py` | 12 | trip-name self-heal: MIGRATED / REMOVED / SUSPICIOUS |
+
 #### `tests/conftest.py` — shared plumbing
 
 Registers the `live` and `e2e` markers, puts `scripts/` on `sys.path` so tests import
@@ -673,7 +697,7 @@ across the unit suites.
 - **mypy** — type-check gate over `scripts/` (config: `[mypy]` in [`setup.cfg`](setup.cfg);
   pragmatic settings for a gradually-typed codebase — `ignore_missing_imports`,
   `allow_redefinition`, `var-annotated` disabled — but annotated code is checked for
-  real, and the tree is currently clean across all 55 files). Runs in the same CI `lint`
+  real, and the tree is currently clean across all 67 files). Runs in the same CI `lint`
   job as ruff. Run locally: `python -m mypy`
 - **Lighthouse audit** — [`.github/workflows/lighthouse.yml`](.github/workflows/lighthouse.yml)
   runs weekly (Monday 07:00 UTC) + on dispatch: headless-Chrome Lighthouse against 4 live
@@ -688,10 +712,13 @@ across the unit suites.
   over `scripts/transform.py` with the offline suite as the killer, reporting how many
   injected bugs the tests actually catch. Config: `[mutmut]` in [`setup.cfg`](setup.cfg).
 - **`/api/health`** — [`functions/api/health.js`](functions/api/health.js), a Pages
-  Function returning JSON with the D1 check-in count, hours since the latest check-in,
-  and the static `feed_meta.json` total. Returns 200 `ok` / 503 `degraded` (`no-store`,
-  so always fresh) — an external uptime monitor can watch one URL and catch both a dead
-  D1 binding and a stalled hourly pipeline.
+  Function returning JSON with hours since the latest check-in (a single `MAX(date)` index
+  lookup — the old `COUNT(*)` scanned all 70k rows on every probe) and the total from the
+  static `feed_meta.json`. Returns 200 `ok` / 503 `degraded`. A 200 is edge-cached for 60 s
+  through the Cache API (a `Cache-Control` header alone does not edge-cache a Pages
+  Function); an outage is never cached, and any query string such as `?fresh=1` bypasses
+  the cache. An external uptime monitor can watch one URL and catch both a dead D1 binding
+  and a stalled hourly pipeline.
 - **Telegram failure alert** — the hourly `update-dashboard.yml` pings a Telegram chat
   when **two consecutive scheduled runs** fail (single failures are usually transient
   API hiccups). Needs the `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` secrets; the step
@@ -712,13 +739,28 @@ trip_detection:
       until: "2012-09-01"  # this city is home for every ts strictly BEFORE this date
       venues:
         - 50fbc23ae4b0afd6fe382f57   # home venue IDs (union across all eras)
+      air_departure: true  # same era-scoped trip rules as the current era below
+      # …
     - city: Minsk
-      until: "2026-07-29"
+      until: "2026-07-29"  # no flags: the Minsk years stay frozen
+    - city: Chișinău
+      until: "2099-01-01"  # current era, explicit so rules can be scoped to it
+      venues: [50fbc23ae4b0afd6fe382f57]
+      air_departure: true          # the airport complex counts as a departure hub
+      arrival_transit: true        # tolerate a neighbouring town on the ride in
+      arrival_neighborhoods: [Ciocana (Sectorul Ciocana)]
+      departure_ride_categories: [Taxi]   # the taxi to the airport opens the trip
+      arrival_stop_at_home: true   # the first sign of being home ends the trip
+      arrival_max_city_checkins: 3
+      hub_categories: [Platform]   # suburban rail platform = a transport hub
 
 dashboard:
   title: "Check-in Journal"
   subtitle_source: "Foursquare"
   foursquare_user_id: "29447180"
+
+basemap:
+  carto_key: "<your key>"   # free CARTO basemap key; env CARTO_API_KEY overrides
 
 output:
   index_html: index.html
@@ -731,6 +773,13 @@ new_country_year_overrides:   # pin the "first visited" year for renamed countri
 
 `home_history` is what makes every "distance from home" number honest across a
 20-year record — see [How trip detection works](#how-trip-detection-works).
+
+The per-era trip flags are **opt-in and scoped to one era**: an era that omits a flag keeps
+the original behaviour. That is how the Moldova eras got airport/taxi/platform rules while
+13 years of settled Minsk trips (whose flights all open at a bus or rail station on the way
+to the airport) stay exactly as they were. The live file documents each flag inline; see
+[Era-scoped rules](#era-scoped-rules). `basemap.carto_key` is described in
+[Maps (CARTO basemaps)](#maps-carto-basemaps).
 
 ### `config/city_merge.yaml`
 
@@ -863,14 +912,31 @@ traditional `北京市海淀區` needing its own entry next to the simplified fo
 `scripts/check_city_count.py` runs the real transform pipeline in CI and diffs the
 distinct `{city: count}` set against `config/city_count_baseline.json`:
 
-- **HARD fail** only on invariant bugs — a displayed city that isn't NFC, or a
+- **Pass `--backfill`.** The site's city list is `checkins.csv` *plus*
+  `backfill.csv` (`build.py` merges the reconstructed rows before normalization),
+  so checking the real rows alone under-counts and cannot see a duplicate that
+  lives only in the backfill (`Затока` next to `Zatoka`). Both CI callers pass it
+  and the baseline counts the merged set.
+- **HARD fail** on invariant bugs — a displayed city that isn't NFC, or a
   fold collision (two spellings of one place). The fold key strips case,
   apostrophe variants **and diacritics**, so `Dusseldorf` collides with
   `Düsseldorf`; without stripping diacritics those passed as two real cities.
+- **HARD fail** on a *new* displayed name that is not a settlement at all — an
+  administrative unit, a pair of places or a station label (`Antwerp Province`,
+  `РФ / РБ`, `Sejny - Lazdijai`, `stancyja Hudahaj`). The shape check reuses
+  `city_canonical.yaml: skip_patterns` and exempts names that are *targets* of a
+  `city_merge` mapping (the house style deliberately keeps `Smolensk Region` for
+  a check-in genuinely in the region). One already in the baseline is reported
+  as debt without blocking. This exists because `city_fixes.json` bypasses
+  `city_merge` entirely — a raw value written there reaches the display verbatim.
 - **SOFT findings** (reported, exit 0) — an added city that count-pairs with a
   removed one (`RENAME?`, usually a Foursquare rename that now needs a mapping),
-  or a non-ASCII non-canonical addition (`REVIEW`). `--strict` makes SOFT block
-  too; `--warn-only` never blocks.
+  a non-ASCII non-canonical addition (`REVIEW`), or a new name whose check-ins sit
+  within 5 km of an established city holding 20× more of them (`DISTRICT?` —
+  `Buiucani` is a sector of Chișinău, `Tirane` is Tirana minus a vowel; neither
+  trips a fold or shape rule). `DISTRICT?` stays soft because a full sweep gave 10
+  hits, 8 of them real neighbouring towns. `--strict` makes SOFT block too;
+  `--warn-only` never blocks.
 - **`--auto-merge` is the self-heal**: each fold collision is appended to
   `city_merge.yaml` as `variant: keeper` (keeper = canonical / highest count,
   ties toward the accented form) instead of failing the run, counts are
@@ -1071,12 +1137,20 @@ Search is powered by a **Cloudflare Pages Function** (`functions/api/search.js`)
 
 | Table | Contents | Sync strategy |
 |-------|----------|---------------|
-| `checkins` | All check-ins (all source columns) | Append-only — only new rows inserted |
+| `checkins` | All check-ins (all source columns) | Append-only, capped by copy count (`dedupe_against_d1`); reconstructed `rf*` rows reconciled by a hash-gated delete + reinsert |
 | `venues` | Venue metadata + visit counts | Updated only for venues touched by new check-ins |
 | `tips` | All tips with counts | Full upsert only when tips changed (`--tips-changed`) |
 | `ratings` | Venue likes (likes fetched every ~3 days; okays/dislikes return 402) | Full upsert only when ratings changed (`--ratings-changed`) |
 | `lists` / `list_venues` | Foursquare lists + visited status | Full upsert only when checkins changed (`--lists-changed`) |
-| `trips` | Trip metadata (name, dates, countries, cities) | Full upsert only when checkins changed (`--trips-changed`) |
+| `trips` | Trip metadata (name, dates, countries, cities) | Every sync (names/boundaries also move on config-only edits); hash-gated via `sync_state`, then the stale id tail is dropped (`DELETE FROM trips WHERE id > N`) |
+| `companions` | Precomputed `(name, name_lc, cnt)` for companion search | Rebuilt by `build_companion_rows`, hash-gated via `sync_state` |
+
+**Late companion tags** are reconciled on every sync too. Swarm lets a friend be tagged
+after the snapshot, and no fetch path re-reads `with` for a row already held, so
+[`config/companion_fixes.json`](config/companion_fixes.json) overrides `with_*` /
+`overlaps_*` per `checkin_id`. It applies in `transform.apply_transforms()` for the static
+build, and a one-`SELECT` pass patches the matching D1 rows, which the append-only insert
+would otherwise never update.
 
 ### Full-text index (FTS5) + self-healing rebuild
 
@@ -1084,12 +1158,14 @@ Venue, tip, and trip search is backed by three **external-content SQLite FTS5** 
 tables (`venues_fts` / `tips_fts` / `trips_fts`), ranked with `bm25()` — not `LIKE '%q%'`.
 They store only the inverted index; display columns are read from the base table by `rowid`.
 
-After any sync that changed data (or whenever an index is found empty), `sync_to_d1.py`
-repopulates each index with the canonical `INSERT INTO <t>_fts(<t>_fts) VALUES('rebuild')`.
+After a sync that wrote an index's **own base table** (a per-table `fts_dirty` map; `checkins`
+has no FTS index, so an ordinary "3 new check-ins" run no longer rebuilds all three), or
+whenever an index is found empty, `sync_to_d1.py` repopulates each index with the canonical `INSERT INTO <t>_fts(<t>_fts) VALUES('rebuild')`.
 That rebuild is then **verified, not trusted**: sync re-counts the index against its base
 table and, if the index is still empty while the base has rows, it hard-repopulates via
 `('delete-all')` + `INSERT INTO <t>_fts(rowid, …) SELECT rowid, … FROM <base>`. The
-empty-index check runs on every sync, so an index left stranded — e.g. by the wrangler
+empty-index check runs on every sync as `SELECT rowid FROM <t>_fts LIMIT 1` (about one row
+read; the old full count scanned ~20k rows per sync to answer a yes/no), so an index left stranded — e.g. by the wrangler
 bulk-resync path, which rewrites the base tables but never touches FTS — self-heals on the
 next run with no manual step. This is what prevents the "search silently returns nothing"
 failure where the base tables have data but the FTS indexes were emptied.
@@ -1111,7 +1187,47 @@ failure where the base tables have data but the FTS indexes were emptied.
 { "venue": [...], "city": [...], "trip": [], "tip": [...], "companion": [...] }
 ```
 
-Companion results aggregate all three source fields: `with_name`, `created_by_name`, and `overlaps_name` (comma-separated in the DB, split at query time).
+Companion results aggregate all three source fields: `with_name`, `created_by_name`, and
+`overlaps_name`. They are matched with `LIKE` over the small precomputed `companions` table.
+`name_lc` is lowercased in Python because SQLite's `LIKE` folds case for ASCII only, so a
+Cyrillic name would otherwise never match. This replaced three `LIKE '%q%'` scans of the
+70k-row `checkins` table (~210k rows read per keystroke), which had been the largest
+consumer of the daily read budget.
+
+### The APIs never throw
+
+An unhandled rejection in a Pages Function surfaces as a bare HTTP 500 (`error code: 1101`)
+with a non-JSON body, so the page's `await res.json()` throws too and the UI dies instead
+of showing an empty state. On 2026-09-03 the D1 free-tier daily row-read limit was reached
+and every query began failing at once. Now:
+
+- **`search.js`** wraps each of its five queries in `safe()`. If all fail it returns 503
+  `{error:'D1 unavailable', degraded:true}`. If only some fail it returns 200 with whatever
+  answered, plus `degraded:true`. Only a complete 200 is edge-cached; a partial answer
+  pinned for the cache TTL would outlive its cause.
+- **`feed.js`** wraps the whole handler. Its 503 keeps the success shape (`items: []`,
+  `has_more:false`, `next_cursor:null`), so the feed renders empty. Any non-200 is served
+  `no-store`.
+
+### D1 read/write budget
+
+Everything runs on the D1 free tier, so each sync is sized against the daily caps:
+
+| Fix | Saving |
+|-----|--------|
+| Row counts cached per UTC day for all tables (`daily_counts` in `sync_state`); a sync re-counts only the tables it wrote | ~62k rows read per sync |
+| Backfill reconcile hash-gated: runs only when the content hash moved or D1's `rf*` count disagrees | ~13.8k rows written per sync (~125k/day, over the whole daily write cap by itself) |
+| `rf` range as `id >= 'rf' AND id < 'rg'` instead of `LIKE 'rf%'` (case-insensitive `LIKE` can't use the BINARY index) | a 70k-row scan per query |
+| Companion search over the precomputed `companions` table | ~210k rows read per keystroke |
+| FTS empty check with `LIMIT 1`; FTS rebuild only for the table actually written | ~20k rows read per sync |
+| `/api/health` reads `MAX(date)` only, with a 60 s edge cache | a 70k-row `COUNT(*)` per probe |
+
+Inserts are also **capped by copy count** (`dedupe_against_d1`). `checkins` has no UNIQUE
+on `id`, so two overlapping syncs (the hourly job and the 04:15 recheck) each inserted the
+same rows. The cap is `source_count - d1_count` per id, which keeps the 12 check-ins that
+`checkins.csv` legitimately lists twice. Every sync ends with a `D1 usage this run: …` line
+(summed from `meta.rows_read/rows_written` in `d1_client.USAGE`), so a budget change can be
+measured.
 
 ### Feed API
 
@@ -1449,6 +1565,51 @@ Three things that fall out of the build for free:
 
 ---
 
+## Maps (CARTO basemaps)
+
+Every Leaflet map uses CARTO's dark basemap. Since September 2026
+`basemaps.cartocdn.com` answers keyless requests with an "API KEY REQUIRED"
+watermark tile, whatever the Referer — overnight every map on the site turned
+into a grid of watermarks. The fix keeps CARTO (its dark style beat the keyless
+alternatives tried) and adds a key:
+
+- Every tile URL ends in `?key={{CARTO_KEY}}` (`{{{{CARTO_KEY}}}}` in
+  `gen_flights.py`, which renders through `str.format`).
+- `build.py` fills the placeholder in every generated `*.html` from
+  `settings.yaml` → `basemap.carto_key`; the env var `CARTO_API_KEY` takes
+  precedence, and the build logs a warning when both are empty.
+- The key is a free non-commercial one (5M requests/month,
+  <https://carto.com/basemaps/apikey>). It ships in every page, so it is
+  **domain-restricted** at CARTO rather than secret. The allow-list takes bare
+  hostnames, and `*.x` does not cover the bare `x`. A local preview on
+  `localhost` needs its own key via `CARTO_API_KEY`.
+- The free terms require visible "© OpenStreetMap © CARTO" attribution, so no
+  CARTO map may set `attributionControl:false`.
+
+`tests/test_basemap_tiles.py` keeps it that way: every CARTO tile URL must carry
+the key parameter, every CARTO layer (bar the labels-only overlay) must be
+attributed, and `build.py` must still do the substitution.
+
+---
+
+## Page weight: lazy data shards
+
+Three pages used to inline everything they might ever show:
+
+| Page | Before | After | What moved out |
+|---|---|---|---|
+| `index.html` | ~5.6 MB | ~1.1 MB | map layers (`unique_places`, `venues_heatmap`, `explorer_groups`, `country_centroids`) → `map_data.json`, fetched when the map card scrolls near the viewport |
+| `trips.html` | ~21 MB | ~190 KB | per-trip check-ins → `trip_checkins_<id//10>.json` shards (positional rows under an `f` field header), fetched when a trip modal opens |
+| `companions.html` | ~7.6 MB | ~2.4 MB | stats cut to the keys the page reads (`gen_companions.SOCIAL_KEYS`) |
+
+`build._write_trip_checkin_shards` writes the shards, and `loadTripCheckins()` in
+`trips.html` fetches them with `?v={{TRIP_CK_VER}}` (a sha1 of the shard bodies),
+so a rebuild busts the cache only when trip data actually changed. `trips.html`'s
+stats are cut to `_TRIPS_STATS_KEYS` the same way. **These are whitelists**: a key
+a template starts reading must be added there, or it arrives `undefined`.
+
+---
+
 ## How trip detection works
 
 A **trip** is any consecutive sequence of check-ins where the city is not the
@@ -1472,6 +1633,8 @@ trip_detection:
       venues: [50fbc23ae4b0afd6fe382f57]   # home venue IDs for this era
     - city: Minsk
       until: "2026-07-29"
+    - city: Chișinău
+      until: "2099-01-01"      # current era, explicit so rules can be scoped to it
 ```
 
 Each entry names the home for every timestamp strictly **before** its `until`; at
@@ -1504,6 +1667,48 @@ After the raw sequence is found, several extension passes run in order:
 8. **Bicycle departure extension** — for trips tagged `"bicycle"` in `trip_tags.json`, scans backward up to 4h for outdoor/road check-ins (parks, trails, roads, etc.) belonging to the departure ride.
 
 Trip names and tags are looked up by `_name_ts` — the timestamp of the first extended check-in, evaluated after steps 1–7 but before step 8.
+
+### Era-scoped rules
+
+Some of the steps above behave differently per home era, set by flags on the
+`home_history` entry (see [`config/settings.yaml`](#configsettingsyaml)). The Moldova
+eras turn on:
+
+- **`air_departure`**: the airport complex is a departure hub. Foursquare almost never
+  emits the bare "Airport" category (28 of ~1000 airport check-ins), so without this the
+  outbound leg (taxi → airport → security → gate) was cut off and the trip began on landing.
+- **`departure_ride_categories: [Taxi]`**: the ride to the hub (within 90 min) opens the trip.
+- **`arrival_transit`**: a neighbouring town on the ride in from the airport does not end
+  the arrival scan.
+- **`arrival_stop_at_home`**, **`arrival_neighborhoods`**, **`arrival_max_city_checkins`**:
+  the first sign of being home ends the trip, instead of the scan running on to the next
+  day's bus station.
+- **`hub_categories: [Platform]`**: the suburban rail platform counts as a station.
+
+The Minsk era sets none of them and stays frozen on the original behaviour.
+
+### Clean-up and naming
+
+- **Contained trips are dropped** (`trips._drop_contained_trips`). A home-city check-in
+  mid-trip splits the raw sequence; the first part's arrival extension then swallows the
+  second, which used to survive as a duplicate trip showing the same check-ins twice.
+- **Trip names self-heal** (`metrics/trip_names.py:heal_trip_names`). Names in
+  `config/trip_names.json` are keyed by start timestamp, so any rule that moves a start
+  would silently drop the hand-written name. On each build every orphaned key is
+  classified: **MIGRATED** (the old start is still in the trip or ≤24 h before it, and no
+  other key competes), **REMOVED** (no trip there any more, or the trip is already named),
+  or **SUSPICIOUS** (a shift over 24 h, a merge, or no explanation). Suspicious keys are
+  kept untouched and reported; a name is never guessed onto a trip. CI commits the healed
+  file and raises a `::warning::` for suspicious keys.
+- **✈️ only for a real flight** (`trip_insights.trip_used_plane`): a "Plane" check-in, or
+  an airport visit spanning 100+ km. Seeing someone off at the airport is not a flight.
+
+### Trip analytics
+
+`metrics/trip_insights.py` adds read-only views over the finished trip list, shown on
+`trips.html`: **per-era** stats (trips, % of days away, average/median length, top country
+abroad and gateway), **gateways** (the stations and airports that open and close trips)
+and **seasonality** (days away per year × month). Nothing here feeds back into detection.
 
 ---
 

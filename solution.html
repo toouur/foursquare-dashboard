@@ -1645,6 +1645,8 @@ trip_detection:
       venues: [<span class="hl2">50fbc23ae4b0afd6fe382f57</span>]
     - city: <span class="hl">Minsk</span>
       until: <span class="hl2">"2026-07-29"</span>
+    - city: <span class="hl">Chișinău</span>
+      until: <span class="hl2">"2099-01-01"</span>     <span class="cm"># current era, explicit (see Challenge 27)</span>
         </div>
         <div class="cs-text">
           On the metrics side the eras are resolved <strong>once</strong> into a closure over the
@@ -1672,6 +1674,186 @@ trip_detection:
           each era measures against its own home, both-days-at-home yields zero nomad days, and —
           the regression guard — a deliberately flat configuration is asserted to <em>misread</em>
           the other era, so the bug cannot quietly return.
+        </div>
+      </div>
+    </div>
+
+    <!-- C23 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 23 — The Free Basemap Started Stamping "API KEY REQUIRED" on Every Map</div>
+        <div class="cs-text">
+          Every Leaflet map on the site (index heatmap, trip maps, country pages, flights, year pages) drew its dark basemap from <code>basemaps.cartocdn.com</code>, keyless. In September&nbsp;2026 CARTO began answering keyless requests with a 2.5&nbsp;KB watermark tile (ETag <code>wm-…</code>) whatever the Referer, so every map on the site was tiled with "API KEY REQUIRED".
+        </div>
+        <div class="cs-text">
+          A first fix swapped to Esri's keyless Dark Gray Canvas. It worked, but the maps looked noticeably worse, and the CARTO look was part of the site's identity.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — A Free, Domain-Restricted Key Substituted at Build Time</div>
+        <div class="cs-text">
+          CARTO offers a free non-commercial key (5M requests/month). Every tile URL in every template now ends in <code>?key={{CARTO_KEY}}</code>, and <code>build.py</code> fills it in across all <code>*.html</code> from <code>settings.yaml</code>, with the <code>CARTO_API_KEY</code> environment variable taking precedence. An empty key logs a warning instead of silently shipping watermarks.
+        </div>
+        <div class="code-block">
+<span class="cm"># config/settings.yaml</span>
+basemap:
+  carto_key: <span class="hl2">"&lt;your key&gt;"</span>   <span class="cm"># env CARTO_API_KEY overrides</span>
+
+<span class="cm">// every Leaflet tile layer</span>
+<span class="hl">https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png?key={{CARTO_KEY}}</span>
+        </div>
+        <div class="cs-text">
+          The key necessarily ships in every page, so its protection is the <strong>domain restriction</strong> set at CARTO, not secrecy: it only works from the site's own hostnames (listed bare, because <code>*.x</code> does not cover <code>x</code>), and a <code>localhost</code> preview needs its own key via the env var. The free terms require visible "© OpenStreetMap © CARTO" attribution, so no CARTO map may set <code>attributionControl:false</code>. <code>tests/test_basemap_tiles.py</code> guards both: every tile URL carries the placeholder, and attribution is never switched off.
+        </div>
+      </div>
+    </div>
+
+    <!-- C24 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 24 — trips.html Weighed 21&nbsp;MB</div>
+        <div class="cs-text">
+          The trips page inlined every trip <em>with every one of its check-ins</em> into a single <code>TRIPS</code> JSON blob, plus the full stats object. The page weighed about <strong>21&nbsp;MB</strong> before a single map tile loaded; companions.html carried <strong>7.6&nbsp;MB</strong> of stats it mostly never read; and index.html had already been through the same problem with its map layers.
+        </div>
+        <div class="cs-text">
+          Almost none of that data is needed up front. A visitor sees trip cards first and opens at most a handful of trip modals.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Shard Per-Trip Check-ins, Whitelist the Stats</div>
+        <div class="cs-text">
+          <code>build._write_trip_checkin_shards</code> writes the check-ins to <code>trip_checkins_&lt;id//10&gt;.json</code>: ten trips per file, positional rows under a single field header, no redundant <code>datetime</code>. <code>loadTripCheckins()</code> fetches the shard when a modal opens, cache-busted by <code>?v={{TRIP_CK_VER}}</code> (a sha1 of the shard bodies). The inline stats are cut to explicit whitelists (<code>_TRIPS_STATS_KEYS</code>, <code>gen_companions.SOCIAL_KEYS</code>).
+        </div>
+        <div class="code-block">
+<span class="cm"># page weight, before → after</span>
+<span class="hl">trips.html</span>        21 MB   →  <span class="hl2">190 KB</span>
+<span class="hl">companions.html</span>   7.6 MB  →  <span class="hl2">2.4 MB</span>
+<span class="hl">index.html</span>        5.6 MB  →  <span class="hl2">1.1 MB</span>   <span class="cm"># map layers → lazy map_data.json</span>
+        </div>
+        <div class="cs-text">
+          The whitelist is a deliberate trade-off: a key a template starts reading must be added to it, or it arrives <code>undefined</code>. The build-integration test catches that before a deploy.
+        </div>
+      </div>
+    </div>
+
+    <!-- C25 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 25 — One Busy Day Took Down Search and the Feed</div>
+        <div class="cs-text">
+          On 2026-09-03 the D1 free tier's daily row-read limit was reached and every query on the database started failing at once. <code>/api/search</code> and <code>/api/feed</code> threw, and an unhandled rejection in a Pages Function surfaces as a bare HTTP&nbsp;500 (<code>error code: 1101</code>) whose body is not JSON. The page's <code>await res.json()</code> then threw too, so the UI died with a console error instead of showing an empty state. Only <code>/api/health</code>, which already had a <code>try/catch</code>, could report the actual cause.
+        </div>
+        <div class="cs-text">
+          The outage was itself a symptom: routine syncs and ordinary searches were burning the read budget.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Endpoints That Degrade Instead of Throwing, and a Measured Row Budget</div>
+        <div class="cs-text">
+          <code>search.js</code> wraps each of its five queries in <code>safe()</code>: all failed ⇒ 503 <code>{error, degraded:true}</code>; some failed ⇒ 200 with whatever answered plus <code>degraded:true</code>. Only a complete 200 is edge-cached, because a partial answer pinned for the cache TTL would outlive its cause. <code>feed.js</code> wraps the whole handler and returns a 503 in the success shape (<code>items: []</code>), served <code>no-store</code>.
+        </div>
+        <div class="cs-text">
+          Then the budget itself. Every sync now prints <code>D1 usage this run: …</code>, summed from D1's own <code>meta.rows_read/rows_written</code>, so each fix could be measured:
+        </div>
+        <div class="code-block">
+<span class="cm"># the biggest consumers, and what replaced them</span>
+<span class="hl">companion search</span>   3× LIKE '%q%' over 70k rows   →  precomputed <span class="hl2">companions(name, name_lc, cnt)</span>   <span class="cm"># ~210k reads per keystroke</span>
+<span class="hl">row-count checks</span>   COUNT(*) every table, twice    →  <span class="hl2">daily_counts</span> cache per UTC day   <span class="cm"># ~62k reads per sync</span>
+<span class="hl">FTS empty check</span>    full count                     →  <span class="hl2">SELECT rowid … LIMIT 1</span>             <span class="cm"># ~20k reads per sync</span>
+<span class="hl">backfill reconcile</span> delete+reinsert every run      →  <span class="hl2">hash-gated</span> via sync_state         <span class="cm"># ~13.8k writes per sync</span>
+<span class="hl">rf* range</span>          LIKE 'rf%' (can't use index)   →  <span class="hl2">id &gt;= 'rf' AND id &lt; 'rg'</span>         <span class="cm"># no 70k-row scan</span>
+<span class="hl">/api/health</span>        COUNT(*) per probe             →  <span class="hl2">MAX(date)</span> + 60 s edge cache
+        </div>
+        <div class="cs-text">
+          <code>name_lc</code> is lowercased in Python because SQLite's <code>LIKE</code> only folds ASCII case, so a Cyrillic companion name would otherwise never match. The unchanged-backfill reconcile alone had been writing ~125k rows a day, more than the whole free-tier daily write cap.
+        </div>
+      </div>
+    </div>
+
+    <!-- C26 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 26 — Overlapping Syncs Stored Check-ins Twice</div>
+        <div class="cs-text">
+          The <code>checkins</code> table has no UNIQUE constraint on <code>id</code>: <code>seq</code> is the primary key, so the CSV's own duplicate rows survive. That means <code>INSERT OR IGNORE</code> cannot reject a repeat. The hourly job and the daily 04:15 recheck both sync D1, each read its own snapshot, each saw the same rows as new, and four July&nbsp;2026 check-ins ended up stored twice.
+        </div>
+        <div class="cs-text">
+          The obvious fix (<code>WHERE NOT EXISTS</code>) would have been wrong: <code>checkins.csv</code> legitimately lists <strong>12 check-ins twice</strong>, and an id-existence check would collapse each of them to one row.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Cap Inserts by Copy Count, Not by Existence</div>
+        <div class="cs-text">
+          <code>dedupe_against_d1</code> counts copies on both sides and inserts at most <code>source_count − d1_count</code> per id. A repeat sync inserts nothing, and the genuine duplicates keep both rows.
+        </div>
+        <div class="cs-text">
+          A related gap had the same root cause. Swarm lets a friend be tagged <em>after</em> a check-in was snapshotted, and no fetch path re-reads <code>with</code> for a row already held (the monthly full re-fetch would even undo a hand edit). <code>config/companion_fixes.json</code> overrides the companion columns per <code>checkin_id</code> in <code>transform.apply_transforms()</code>, and because the D1 insert is append-only, an always-on, un-windowed pass patches the handful of matching D1 rows on every sync. It is cheap, idempotent, and it also repairs rows reset by a force resync.
+        </div>
+        <div class="code-block">
+<span class="cm"># config/companion_fixes.json</span>
+{ <span class="hl2">"6a78cbfb0ed66f3afd084001"</span>: { <span class="hl2">"with_name"</span>: <span class="hl">"Ghennadi Rips"</span>, <span class="hl2">"with_id"</span>: <span class="hl">"1416805649"</span> } }
+        </div>
+      </div>
+    </div>
+
+    <!-- C27 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 27 — Fixing Trips in One City Without Re-Cutting Fourteen Years in Another</div>
+        <div class="cs-text">
+          After moving back to Chișinău, trip boundaries there came out wrong. Foursquare almost never emits the bare "Airport" category (28 of ~1000 airport check-ins), so the whole outbound leg (taxi → airport → security → gate) was cut off and trips began on landing abroad. The airport bus is geotagged in a neighbouring town, which ended the arrival scan hours short of home, and the suburban rail station is a "Platform", not a "Rail Station".
+        </div>
+        <div class="cs-text">
+          The fixes are right for Chișinău and wrong for Minsk. There, all 37 flight trips already open at the bus or rail station on the way to the airport, and the main station has 35 platform check-ins. Global rules would have re-cut 13 years of settled, hand-named trips.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Rules Scoped to a Home Era</div>
+        <div class="cs-text">
+          Each <code>home_history</code> entry can carry opt-in trip flags; an era that omits a flag keeps the original behaviour. The current era became an explicit bounded entry so rules can attach to it, and the first Chișinău era got the same flags, since it flew out of the same airport.
+        </div>
+        <div class="code-block">
+<span class="cm"># config/settings.yaml — trip_detection.home_history</span>
+    - city: <span class="hl">Minsk</span>
+      until: <span class="hl2">"2026-07-29"</span>      <span class="cm"># no flags: frozen on purpose</span>
+    - city: <span class="hl">Chișinău</span>
+      until: <span class="hl2">"2099-01-01"</span>      <span class="cm"># current era, explicit</span>
+      air_departure: <span class="hl2">true</span>             <span class="cm"># airport complex = departure hub</span>
+      departure_ride_categories: [<span class="hl2">Taxi</span>]  <span class="cm"># the ride to the hub opens the trip</span>
+      arrival_transit: <span class="hl2">true</span>           <span class="cm"># neighbouring town on the ride in is ok</span>
+      arrival_stop_at_home: <span class="hl2">true</span>      <span class="cm"># first sign of home ends the trip</span>
+      arrival_max_city_checkins: <span class="hl2">3</span>
+      hub_categories: [<span class="hl2">Platform</span>]       <span class="cm"># suburban rail counts as a station</span>
+        </div>
+        <div class="cs-text">
+          Two clean-ups landed alongside. <strong>Contained trips are dropped</strong>: a home-city check-in mid-trip (a forest on the way back geotagged "Minsk") split the sequence, the first part's arrival extension swallowed the second, and the second survived as a duplicate trip. And ✈️ is now shown only for a <strong>real flight</strong> (a "Plane" check-in, or an airport visit spanning 100+&nbsp;km), not for seeing someone off.
+        </div>
+      </div>
+    </div>
+
+    <!-- C28 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 28 — Every Boundary Fix Silently Erased Hand-Written Trip Names</div>
+        <div class="cs-text">
+          Trip names in <code>config/trip_names.json</code> are keyed by the trip's start timestamp. Any rule that moves a start (the taxi before the airport now opening the trip, a platform counted as a station) orphans the key, and the hand-written name quietly falls back to an auto-generated one. The era rules above moved dozens of starts at once.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Names That Self-Heal, With a Refusal to Guess</div>
+        <div class="cs-text">
+          <code>metrics/trip_names.py:heal_trip_names</code> runs inside trip detection, before naming, and classifies every orphaned key:
+        </div>
+        <div class="code-block">
+<span class="hl">MIGRATED</span>    old start is still a check-in of the trip, or ≤24 h before its new start,
+            and no other key competes  →  the name moves to the new key
+<span class="hl">REMOVED</span>     no trip there any more, the trip is already named, or a competing
+            key explains the shift better (<span class="hl2">superseded</span>)
+<span class="hl">SUSPICIOUS</span>  shift &gt; 24 h, two named trips merged, or unexplained
+            →  key KEPT untouched and reported, never guessed onto a trip
+        </div>
+        <div class="cs-text">
+          The same build renders the healed names. CI writes the heal-only file, commits it ("Commit healed trip names") and raises a <code>::warning::</code> for suspicious keys, so a human looks only at the cases that need judgement. <code>metrics/trip_insights.py</code> then adds read-only analytics over the finished trips (per-era days away, the gateways that open and close trips, seasonality by year × month) without feeding anything back into detection.
         </div>
       </div>
     </div>
@@ -1766,8 +1948,8 @@ python scripts/build.py \
     <div class="section-title">Testing &amp; CI Gates</div>
     <div class="section-body">
       <p>
-        The pipeline is protected by a <strong>303-test pytest suite</strong> organised into
-        three rings by what they need to run. The offline ring (259 tests, no network, no
+        The pipeline is protected by a <strong>413-test pytest suite</strong> organised into
+        three rings by what they need to run. The offline ring (369 tests, no network, no
         secrets, finishes in seconds) covers the highest-risk pure logic: the 5-layer
         city/country normalisation priority order, trip detection (synthetic timelines
         anchored at noon UTC so timezone localisation can never flake a test across a date
@@ -1799,7 +1981,7 @@ python scripts/build.py \
         documented baseline.
       </p>
       <p>
-        CI splits the rings deliberately: lint (ruff + mypy) and the offline suite gate every push and
+        CI splits the rings deliberately: lint (ruff + mypy, clean over all 67 script files) and the offline suite gate every push and
         pull request, while the live suite runs weekly and on demand — so a temporary site
         outage can never block a code change. Independently, a post-build HTML validator runs
         before <em>every</em> deploy, checking that all required pages exist, every
@@ -1844,7 +2026,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Maps</div>
         <div class="si-tech">Leaflet 1.9 + leaflet.heat</div>
-        <div class="si-role">Heatmap · dot map · trip maps · country flags</div>
+        <div class="si-role">CARTO dark basemap (keyed) · heatmap · trip maps · country flags</div>
       </div>
       <div class="stack-item">
         <div class="si-layer">Charts</div>
@@ -1879,7 +2061,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Testing &amp; QA</div>
         <div class="si-tech">pytest + Playwright + ruff</div>
-        <div class="si-role">303 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
+        <div class="si-role">413 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
       </div>
     </div>
   </div>
