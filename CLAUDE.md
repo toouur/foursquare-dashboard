@@ -291,6 +291,23 @@ python scripts/sync_to_d1.py \
   --venue-changes /tmp/venue_diffs.json
 ```
 
+### Monthly full re-fetch: what it mirrors from Swarm
+`archive-checkins.yml` (1st of the month) re-fetches the whole history with the
+`beforeTimestamp` walk and merges it into `checkins.csv`. **Renames, city/coords,
+category and venue merges** arrive as the API version of the row (a merge changes
+`venue_id` under the same `checkin_id`; the stale same-ts row is discarded, overlaps
+are carried over by id). **Deletions** are detected by `checkin_id`, never by
+`(venue_id, date)`, and only when ALL hold: the walk reached the server's own total
+(`fetch_full_timestamp` returns `completed=False` otherwise; the local offset walk is
+never "complete"), ≤ `MAX_AUTO_DELETE` (50) ids are absent, and `GET /v2/checkins/{id}`
+answers 400 "Invalid checkin id"/404 for that id (any other answer keeps the row).
+Confirmed ids go to `--deleted-out`; the workflow removes them through
+`delete_checkin.py` (CSV + D1 + orphan venues + photos.json) and drops the freed images
+from R2. `checkins_anomalies.json` `missing` is REWRITTEN on a complete fetch (it used to
+accumulate forever: the 14,148 rows of one truncated run on 2026-04-21 sat there as
+"missing" although Swarm still had them) and left untouched on an incomplete one.
+Tests: `tests/test_fetch_deletions.py`.
+
 ### Delete check-in(s) by ID
 Removes rows from CSV + D1, cleans orphaned venues. Use for deleted / accidental check-ins.
 Also available as `delete-checkin` workflow (Actions tab), which additionally deletes the

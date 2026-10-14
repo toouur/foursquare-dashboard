@@ -279,6 +279,14 @@ def fetch_full_timestamp(token: str) -> tuple[list[dict], bool]:
         before_ts = int(items[-1]["createdAt"]) - 1
         time.sleep(SLEEP)
 
+    # Complete only when the walk actually reached the server's own count: an
+    # empty page before that (a 500 nudged past a check-in, a page boundary
+    # splitting one second) means rows are missing, and missing must never be
+    # read as "deleted in Swarm".
+    got = len({r["checkin_id"] for r in rows if r.get("checkin_id")})
+    if total and got < total:
+        log.warning("Full fetch ended at %d of %d check-ins — treated as incomplete.", got, total)
+        return rows, False
     return rows, True
 
 
@@ -363,15 +371,85 @@ def save_rows(csv_path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
+# A real month deletes a handful of check-ins (a duplicate posted twice, one a
+# friend created for you). More than this at once is not housekeeping — it is
+# an API/pagination fault, and nothing is deleted until a human looks.
+MAX_AUTO_DELETE = 50
+
+
+def swarm_deletion_candidates(
+    existing_rows: list[dict], fetched_rows: list[dict], complete: bool,
+) -> tuple[list[dict], str]:
+    """Check-ins the CSV holds but a full fetch no longer returns.
+
+    Matched by checkin_id, never by (venue_id, date): a venue merge or rename
+    keeps the id but changes venue_id, and must update the row, not delete it.
+    Returns (candidates, skip_reason) — skip_reason is non-empty when the
+    candidates must NOT be acted on.
+    """
+    fetched_ids = {r.get("checkin_id", "") for r in fetched_rows} - {""}
+    seen: set[str] = set()
+    out: list[dict] = []
+    for r in existing_rows:
+        cid = r.get("checkin_id", "")
+        if not cid or cid in fetched_ids or cid in seen:
+            continue
+        seen.add(cid)
+        out.append(r)
+    out.sort(key=lambda r: int(r.get("date") or 0))
+    if not complete:
+        return out, "full fetch did not reach the server total"
+    if len(out) > MAX_AUTO_DELETE:
+        return out, f"{len(out)} candidates > {MAX_AUTO_DELETE} — looks like an API fault"
+    return out, ""
+
+
+def confirm_deleted(token: str, rows: list[dict], getter=None) -> list[dict]:
+    """Keep only the rows Swarm itself reports as gone.
+
+    Each id is asked for directly: a deleted check-in answers 400 "Invalid
+    checkin id" (or 404). Anything else — 200, an auth error, a timeout — keeps
+    the row, so a flaky API can only ever delay a deletion, never cause one.
+    """
+    get = getter or requests.get
+    gone: list[dict] = []
+    for r in rows:
+        cid = r["checkin_id"]
+        try:
+            resp = get(f"https://api.foursquare.com/v2/checkins/{cid}",
+                       params={"oauth_token": token, "v": API_V}, timeout=30)
+        except requests.RequestException as exc:
+            log.warning("  keep %s — probe failed: %s", cid, exc)
+            continue
+        detail = ""
+        try:
+            detail = str(resp.json().get("meta", {}).get("errorDetail", ""))
+        except ValueError:
+            pass
+        if resp.status_code == 404 or (
+                resp.status_code == 400 and "invalid checkin id" in detail.lower()):
+            log.info("  deleted in Swarm: %s  %s  %s", cid, r.get("date", ""), r.get("venue", ""))
+            gone.append(r)
+        else:
+            log.warning("  keep %s (%s) — probe answered %s %s",
+                        cid, r.get("venue", ""), resp.status_code, detail)
+        time.sleep(SLEEP)
+    return gone
+
+
 def update_anomalies(
     csv_path: Path,
     dup_rows: list[dict],
     dup_key_count: int,
     missing_rows: list[dict],
+    replace_missing: bool = False,
 ) -> None:
     """
     Merge duplicate and missing rows into <csv_dir>/checkins_anomalies.json.
     Existing entries are preserved; new ones are added (keyed by venue_id+date).
+    replace_missing=True (a verified-complete fetch) rewrites "missing" to this
+    run's list, so it states what Swarm lacks NOW instead of accumulating every
+    row a truncated run once failed to see.
     """
     anomaly_path = csv_path.parent / "checkins_anomalies.json"
     existing: dict = {}
@@ -391,7 +469,7 @@ def update_anomalies(
         dup_index[k] = r
 
     # Merge missing: accumulate by (venue_id, date) key
-    miss_index: dict[str, dict] = {
+    miss_index: dict[str, dict] = {} if replace_missing else {
         f"{r.get('venue_id','')}|{r.get('date','')}" : r
         for r in existing.get("missing", [])
     }
@@ -433,6 +511,9 @@ def main() -> None:
     parser.add_argument("--recheck-recent-hours", type=int, default=0,
                         help="Re-fetch overlaps for check-ins within the last N hours "
                              "(resets cached status so late companions are captured)")
+    parser.add_argument("--deleted-out", default="",
+                        help="Full mode: write the ids of check-ins confirmed deleted in "
+                             "Swarm here, one per line (removal is delete_checkin.py's job)")
     parser.add_argument("--recheck-ids", default="",
                         help="Comma/space-separated check-in IDs or Swarm URLs to force "
                              "overlap re-fetch regardless of cached status")
@@ -472,12 +553,14 @@ def main() -> None:
                 fetched_rows, completed = fetch_full_timestamp(token)
                 if not completed:
                     log.warning(
-                        "Full fetch incomplete (quota). Merging %d partial rows with existing %d.",
+                        "Full fetch incomplete. Merging %d partial rows with existing %d.",
                         len(fetched_rows), len(existing_rows),
                     )
             else:
                 fetched_rows = fetch_full_offset(token)
-                completed = True
+                # The offset walk is capped by the API (~2,500): never complete
+                # enough to infer deletions from.
+                completed = False
         except RuntimeError as exc:
             log.error("Full fetch failed: %s", exc)
             print("CHANGED=false")
@@ -557,11 +640,13 @@ def main() -> None:
         # Backfill overlaps from existing snapshot when the fresh fetch returned nothing.
         # The bulk checkins endpoint rarely includes overlaps; individual enrichment
         # calls ("-" sentinel) should not be lost on a full re-fetch.
+        existing_by_id = {r["checkin_id"]: r for r in existing_rows if r.get("checkin_id")}
         overlap_restored = 0
         for row in all_rows:
             if row.get("overlaps_name") or row.get("overlaps_id"):
                 continue  # fresh fetch returned overlap data — keep it
-            prev = existing_map.get(row_key(row))
+            # By id as well: a venue merge changes venue_id, hence row_key.
+            prev = existing_map.get(row_key(row)) or existing_by_id.get(row.get("checkin_id", ""))
             if prev and prev.get("overlaps_id"):  # non-empty incl. "-" sentinel
                 row["overlaps_name"] = prev.get("overlaps_name", "")
                 row["overlaps_id"] = prev.get("overlaps_id", "")
@@ -569,19 +654,30 @@ def main() -> None:
         if overlap_restored:
             log.info("Backfilled overlaps from previous snapshot for %d row(s).", overlap_restored)
 
-        # Detect missing: keys in existing that the API no longer returns
-        fetched_key_set = {row_key(r) for r in fetched_rows}
-        unique_existing: dict[tuple, dict] = {}
-        for r in existing_rows:
-            unique_existing.setdefault(row_key(r), r)
-        missing_rows = [r for k, r in unique_existing.items() if k not in fetched_key_set]
-        missing_rows.sort(key=lambda r: int(r.get("date") or 0))
+        # Detect check-ins Swarm no longer returns (by checkin_id — a merged or
+        # renamed venue keeps its id and was already updated above).
+        missing_rows, skip = swarm_deletion_candidates(existing_rows, fetched_rows, completed)
+        deleted_rows: list[dict] = []
         if missing_rows:
-            log.warning("%d row(s) in existing CSV not returned by API — recorded in anomalies file.", len(missing_rows))
+            log.warning("%d check-in(s) in existing CSV not returned by API.", len(missing_rows))
+            if skip:
+                log.warning("Not probing them for deletion: %s.", skip)
+            else:
+                deleted_rows = confirm_deleted(token, missing_rows)
+                log.info("%d of %d confirmed deleted in Swarm.", len(deleted_rows), len(missing_rows))
+        if args.deleted_out:
+            Path(args.deleted_out).write_text(
+                "".join(r["checkin_id"] + "\n" for r in deleted_rows), encoding="utf-8")
+        print(f"SWARM_DELETED={len(deleted_rows)}")
 
-        # Update anomalies file (duplicates + missing)
+        # Update anomalies file (duplicates + missing). Only a complete fetch
+        # may speak about missing rows: a truncated one would record every row
+        # it failed to reach (14k on 2026-04-21) and the list never shrank.
+        dead = {r["checkin_id"] for r in deleted_rows}
         dup_rows_for_anomaly = [r for r in existing_rows if row_key(r) in dup_keys] if dup_keys else []
-        update_anomalies(csv_path, dup_rows_for_anomaly, len(dup_keys), missing_rows)
+        update_anomalies(csv_path, dup_rows_for_anomaly, len(dup_keys),
+                         [r for r in missing_rows if r["checkin_id"] not in dead] if completed else [],
+                         replace_missing=completed)
 
         changed = all_rows != existing_rows
         if changed:
