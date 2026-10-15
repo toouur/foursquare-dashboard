@@ -33,6 +33,7 @@ RESOLVABLE = {"checkins.csv", "photos.json"}
 
 
 def merge_checkins(archive_csv: str, upstream_csv: str, deleted: set[str]) -> str:
+    archive_csv, upstream_csv = archive_csv.lstrip("\ufeff"), upstream_csv.lstrip("\ufeff")
     arch = list(csv.DictReader(io.StringIO(archive_csv)))
     up = list(csv.DictReader(io.StringIO(upstream_csv)))
     fields = list(csv.DictReader(io.StringIO(archive_csv)).fieldnames or [])
