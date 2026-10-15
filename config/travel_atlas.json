@@ -1,35 +1,23 @@
 {
- "_comment": "Travel atlas journal (scripts/gen_travel_atlas.py). iso_numeric: English country -> ISO 3166-1 numeric (world-atlas topojson ids); a country missing here falls back to a name match, then to a dot. curated_checkins: check-in ids whose photos form the \"Избранное\" set + cover. landmark_audit: one hand-checked landmark per country (status visited|unknown). site_url: the dashboard the journal links back to. next: chapter VII (ideas/budget/plan); omit it and the chapter is hidden. pix_url: public photo host used when build.py only has a local file:// pix dir.",
+ "_comment": "Travel atlas journal (scripts/gen_travel_atlas.py). iso_numeric: English country -> ISO 3166-1 numeric (world-atlas topojson ids); a country missing here falls back to a name match, then to a dot. curated_checkins: check-in ids whose photos form the \"Избранное\" set + cover. landmark_audit: one hand-checked landmark per country (status visited|unknown).",
  "iso_numeric": {
-  "Afghanistan": "004",
   "Albania": "008",
-  "Algeria": "012",
-  "Andorra": "020",
-  "Angola": "024",
   "Argentina": "032",
   "Armenia": "051",
-  "Australia": "036",
   "Austria": "040",
   "Azerbaijan": "031",
-  "Bangladesh": "050",
   "Belarus": "112",
   "Belgium": "056",
-  "Bolivia": "068",
   "Bosnia and Herzegovina": "070",
   "Brazil": "076",
   "Bulgaria": "100",
   "Cambodia": "116",
-  "Canada": "124",
   "Chile": "152",
   "China": "156",
-  "Colombia": "170",
   "Croatia": "191",
-  "Cuba": "192",
   "Cyprus": "196",
   "Czech Republic": "203",
-  "Czechia": "203",
   "Denmark": "208",
-  "Ecuador": "218",
   "Egypt": "818",
   "Estonia": "233",
   "Finland": "246",
@@ -40,20 +28,13 @@
   "Holy See (Vatican City State)": "336",
   "Hong Kong": "344",
   "Hungary": "348",
-  "Iceland": "352",
   "India": "356",
   "Indonesia": "360",
   "Iran": "364",
-  "Iraq": "368",
-  "Ireland": "372",
-  "Israel": "376",
   "Italy": "380",
-  "Japan": "392",
-  "Jordan": "400",
   "Kazakhstan": "398",
   "Kyrgyzstan": "417",
   "Latvia": "428",
-  "Lebanon": "422",
   "Liechtenstein": "438",
   "Lithuania": "440",
   "Luxembourg": "442",
@@ -61,56 +42,30 @@
   "Macau": "446",
   "Malaysia": "458",
   "Malta": "470",
-  "Mexico": "484",
   "Moldova": "498",
-  "Monaco": "492",
-  "Mongolia": "496",
   "Montenegro": "499",
-  "Morocco": "504",
-  "Myanmar": "104",
-  "Nepal": "524",
   "Netherlands": "528",
-  "New Zealand": "554",
-  "North Korea": "408",
   "North Macedonia": "807",
   "Norway": "578",
   "Oman": "512",
-  "Pakistan": "586",
-  "Peru": "604",
-  "Philippines": "608",
   "Poland": "616",
   "Portugal": "620",
   "Qatar": "634",
   "Romania": "642",
   "Russia": "643",
-  "San Marino": "674",
-  "Saudi Arabia": "682",
   "Serbia": "688",
   "Singapore": "702",
   "Slovakia": "703",
   "Slovenia": "705",
-  "South Africa": "710",
-  "South Korea": "410",
   "Spain": "724",
-  "Sri Lanka": "144",
   "Sweden": "752",
   "Switzerland": "756",
-  "Taiwan": "158",
   "Tajikistan": "762",
-  "Thailand": "764",
-  "Tunisia": "788",
   "Turkey": "792",
-  "Turkmenistan": "795",
-  "Türkiye": "792",
   "UAE": "784",
   "Ukraine": "804",
   "United Arab Emirates": "784",
-  "United Kingdom": "826",
-  "United States": "840",
-  "Uruguay": "858",
   "Uzbekistan": "860",
-  "Vatican City": "336",
-  "Venezuela": "862",
   "Vietnam": "704"
  },
  "curated_checkins": [
@@ -622,133 +577,5 @@
    "evidence": "1 записей · 2023-12-21. Пример: Ho Chi Minh Mausoleum (Lăng Chủ Tịch Hồ Chí Minh) · Hanoi.",
    "next": "Ха-Лонг или карстовые ландшафты Ниньбиня"
   }
- },
- "site_url": "https://4sq.pages.dev",
- "next": {
-  "intro": "Направления, которые добавят к плотной городской географии новый культурный и природный слой. Бюджеты — широкие ориентиры на человека из Кишинёва, не котировка.",
-  "budget_note": "Перелёт, жильё, еда, местный транспорт и базовые билеты; двухместное размещение.",
-  "ideas": [
-   {
-    "emoji": "🧿",
-    "title": "Тунис",
-    "sub": "7 дней · Северная Африка · античность и медины",
-    "items": [
-     "Тунисская медина и музей Бардо",
-     "Карфаген и Сиди-бу-Саид",
-     "Однодневный выезд в Эль-Джем",
-     "Природа — солёные озёра и юг отдельным маршрутом"
-    ],
-    "price": "€650–1 050",
-    "range": [
-     650,
-     1050
-    ],
-    "fly": "Кишинёв → Тунис (TUN) с одной пересадкой; иногда дешевле через Стамбул."
-   },
-   {
-    "emoji": "🕌",
-    "title": "Марокко",
-    "sub": "8 дней · медины, Атлантика и горы",
-    "items": [
-     "Марракеш: медина, дворцы и сады",
-     "Эс-Сувейра: океан и старый порт",
-     "Фес — историческая городская ткань",
-     "Не пытаться уместить Сахару, север и океан за неделю"
-    ],
-    "price": "€750–1 250",
-    "range": [
-     750,
-     1250
-    ],
-    "fly": "Кишинёв → Марракеш (RAK) или Касабланка (CMN); пересадки в Стамбуле или Европе."
-   },
-   {
-    "emoji": "🏔️",
-    "title": "Словения + север Италии",
-    "sub": "6–8 дней · природа к городам",
-    "items": [
-     "Любляна и старый центр",
-     "Блед и Бохинь: озёра и горы",
-     "Триест или Венеция как продолжение",
-     "Поезд/автобус + короткая аренда авто"
-    ],
-    "price": "€650–1 100",
-    "range": [
-     650,
-     1100
-    ],
-    "fly": "Часто удобно лететь в Венецию и ехать дальше по земле."
-   },
-   {
-    "emoji": "🏯",
-    "title": "Южная Корея",
-    "sub": "8–10 дней · Сеул и второй город",
-    "items": [
-     "Сеул: дворцы, рынки, районы, музеи",
-     "Пусан: побережье",
-     "Поезд KTX между городами",
-     "Акцент на современной культуре"
-    ],
-    "price": "€1 400–2 300",
-    "range": [
-     1400,
-     2300
-    ],
-    "fly": "Кишинёв → Сеул (ICN) с пересадкой; сравнить вылеты из Бухареста и Стамбула."
-   },
-   {
-    "emoji": "🗾",
-    "title": "Япония",
-    "sub": "10–12 дней · большой культурный контраст",
-    "items": [
-     "Токио: районы, рынки, музеи",
-     "Киото: храмы, сады, кварталы",
-     "Осака — еда и вечерняя жизнь",
-     "Один день на природу"
-    ],
-    "price": "€1 700–2 700",
-    "range": [
-     1700,
-     2700
-    ],
-    "fly": "Сравнить вылеты из Кишинёва, Бухареста и Стамбула с учётом дороги до аэропорта."
-   },
-   {
-    "emoji": "🌋",
-    "title": "Исландия",
-    "sub": "6–8 дней · пейзажи и водопады",
-    "items": [
-     "Рейкьявик и Золотое кольцо",
-     "Южное побережье, чёрные пляжи",
-     "Аренда авто для компании",
-     "Не гнаться за всей кольцевой"
-    ],
-    "price": "€1 200–2 000",
-    "range": [
-     1200,
-     2000
-    ],
-    "fly": "Кишинёв → Рейкьявик (KEF) с пересадкой; жильё и машина — главные расходы."
-   }
-  ],
-  "plan": [
-   [
-    "1 · Короткий список",
-    "Тунис или Марокко — история, медины, кухня, новый регион."
-   ],
-   [
-    "2 · Логистика",
-    "Сравнить вылет из Кишинёва, Бухареста и Стамбула с трансфером."
-   ],
-   [
-    "3 · Компания",
-    "Даты, бюджет на человека и темп без гонки."
-   ],
-   [
-    "4 · Следующий уровень",
-    "Япония/Корея или природная поездка в Исландию."
-   ]
-  ]
- },
- "pix_url": "https://pub-5514667a5da04a75986022e39efc7118.r2.dev/pix"
+ }
 }

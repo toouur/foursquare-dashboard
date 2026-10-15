@@ -115,18 +115,3 @@ def test_config_is_well_formed():
     assert all(k in FLAGS for k in CFG["landmark_audit"])
     assert all(v["status"] in ("visited", "unknown") and v["landmark"] for v in CFG["landmark_audit"].values())
     assert all(re.fullmatch(r"[0-9a-f]{24}", c) for c in CFG["curated_checkins"])
-
-
-def test_owner_specific_bits_come_from_config():
-    """A fork (another person's dashboard) ships its own travel_atlas.json: no
-    curated set, no landmark audit, no next-trip chapter, its own site/photo host."""
-    rows = _rows()
-    stats, trips = process(rows, {}, home_city="Minsk", min_trip_checkins=2)
-    bare = {"iso_numeric": CFG["iso_numeric"], "site_url": "https://example.pages.dev/"}
-    p = ga.build_payload(rows, stats, trips, PHOTOS, TIPS, bare, FLAGS)
-    assert p["curated"] == [] and p["next"] == {}
-    assert all(c["audit"] is None for c in p["countries"])
-    assert p["meta"]["site"] == "https://example.pages.dev"
-    assert p["meta"]["pre"] == "29447180_"     # dominant key prefix, detected not hard-coded
-    mine = _payload()[0]
-    assert mine["next"]["ideas"] and mine["meta"]["site"] == "https://4sq.pages.dev"

@@ -35,6 +35,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "templates" / "travel_atlas.html.tmpl"
+DEFAULT_PIX = "https://pub-5514667a5da04a75986022e39efc7118.r2.dev/pix/"
+PIX_PREFIX = "29447180_"           # common R2 key prefix, stripped to save ~200 KB
 EPOCH = date(2000, 1, 1)           # compact dates: days since EPOCH
 SIGHT = ("Monument", "Plaza", "Historic", "Palace", "Castle", "Church", "Cathedral", "Mosque",
          "Temple", "Bridge", "Beach", "Scenic", "Lookout", "Mountain", "Lake", "River", "Harbor",
@@ -81,16 +83,6 @@ def _place_key(r: dict) -> Any:
     return (round(c[0], 3), round(c[1], 3)) if c else None
 
 
-def _common_prefix(files: list[str]) -> str:
-    """Dominant `<owner id>_` key prefix (Swarm names photos <user id>_<hash>.jpg);
-    stripped from every key that carries it — ~200 KB off a 24k-photo archive."""
-    c = Counter(f.split("_", 1)[0] + "_" for f in files if "_" in f[:16])
-    if not c:
-        return ""
-    pre, n = c.most_common(1)[0]
-    return pre if n * 2 > len(files) else ""
-
-
 def _sight(cat: str) -> bool:
     return any(s in cat for s in SIGHT)
 
@@ -113,7 +105,7 @@ def build_payload(rows: list[dict], stats: dict[str, Any], trips: list[dict],
                   photos_by_checkin: dict[str, list[str]], tips: list[dict],
                   cfg: dict[str, Any], flags: dict[str, str],
                   ctry_norm: dict[str, str] | None = None,
-                  pix_url: str = "") -> dict[str, Any]:
+                  pix_url: str = DEFAULT_PIX) -> dict[str, Any]:
     """rows: the transformed rows build.py passed to metrics.process();
     stats/trips: what process() returned (trips after naming)."""
     ctry_norm = ctry_norm or {}
@@ -121,7 +113,6 @@ def build_payload(rows: list[dict], stats: dict[str, Any], trips: list[dict],
     curated_ids = set(cfg.get("curated_checkins", []))
     audit: dict[str, dict] = cfg.get("landmark_audit", {})
 
-    total = stats.get("total", len(rows))
     countries = [c for c, _ in stats["countries"]]
     cidx = {c: i for i, c in enumerate(countries)}
     rows = sorted(rows, key=_ts)
@@ -151,9 +142,8 @@ def build_payload(rows: list[dict], stats: dict[str, Any], trips: list[dict],
             p["ll"] = c
     keys = sorted(pl, key=lambda k: -pl[k]["n"])
     pidx = {k: i for i, k in enumerate(keys)}
-    if len(keys) != stats.get("unique_places_count", len(keys)):
-        raise ValueError(f"place identity drifted from metrics.stats: "
-                         f"{len(keys)} vs {stats.get('unique_places_count')}")
+    assert len(keys) == stats.get("unique_places_count", len(keys)), \
+        f"place identity drifted from metrics.stats: {len(keys)} vs {stats.get('unique_places_count')}"
 
     # ---- photos: every photos.json file of a known check-in + every tip photo ----
     photos: list[dict] = []
@@ -281,10 +271,8 @@ def build_payload(rows: list[dict], stats: dict[str, Any], trips: list[dict],
                              round(_km(prev[0][0], prev[0][1], ll[0], ll[1]))]
         prev = (ll, co, r.get("city", ""))
 
-    pre = _common_prefix([p["f"] for p in photos])
-
     def _photo_out(p: dict) -> list:
-        f = p["f"][len(pre):] if pre and p["f"].startswith(pre) else "!" + p["f"]
+        f = p["f"][len(PIX_PREFIX):] if p["f"].startswith(PIX_PREFIX) else "!" + p["f"]
         out = [f, p.get("p", -1), _dn(_day(p["ts"]))]
         if "inline" in p:
             out.append(p["inline"])
@@ -295,18 +283,14 @@ def build_payload(rows: list[dict], stats: dict[str, Any], trips: list[dict],
         return out
 
     return {
-        "meta": {"checkins": total, "refurb": stats.get("refurb_checkins", 0),
+        "meta": {"checkins": stats["total"], "refurb": stats.get("refurb_checkins", 0),
                  "countries": len(stats["countries"]), "cities": len(stats["cities"]),
-                 "venues": stats.get("unique_places_count", len(keys)), "photos": len(photos),
+                 "venues": stats["unique_places_count"], "photos": len(photos),
                  "photoCheckins": len({p["cid"] for p in photos if p["cid"]}),
                  "tipPhotos": sum(1 for p in photos if p.get("tip")),
-                 "trips": len(trips),
-                 "first": stats.get("date_min") or (_day(_ts(rows[0])) if rows else ""),
-                 "last": stats.get("date_max") or (_day(_ts(rows[-1])) if rows else ""),
+                 "trips": len(trips), "first": stats["date_min"], "last": stats["date_max"],
                  "days": len({_day(_ts(r)) for r in rows if _ts(r)}),
-                 "built": date.today().isoformat(), "pix": pix_url, "pre": pre,
-                 "site": (cfg.get("site_url") or "https://4sq.pages.dev").rstrip("/")},
-        "next": cfg.get("next") or {},
+                 "built": date.today().isoformat(), "pix": pix_url},
         "C": countries, "K": catlist, "countries": cout, "trips": tout, "years": years,
         "cities": mapcities, "routes": list(routes.values()),
         # place: [name, city, countryIdx, lat, lng, n, first (0 = same as last), last, catIdx, venueId]
@@ -316,7 +300,7 @@ def build_payload(rows: list[dict], stats: dict[str, Any], trips: list[dict],
                     pl[k]["n"],
                     0 if _day(pl[k]["first"]) == _day(pl[k]["last"]) else _dn(_day(pl[k]["first"])),
                     _dn(_day(pl[k]["last"])), catidx.get(pl[k]["cat"], -1), pl[k]["id"]] for k in keys],
-        # photo: [file ('!' = full key, else meta.pre stripped), placeIdx (-1 = inline),
+        # photo: [file ('!' = full key, else PIX_PREFIX stripped), placeIdx (-1 = inline),
         #         day, (inline [name, city, countryIdx, catIdx, venueId] | null), (1 = tip photo)]
         "photos": [_photo_out(p) for p in photos],
         "curated": [p["i"] for p in photos if p["cid"] in curated_ids],
@@ -335,10 +319,7 @@ def write_page(out_path: str | Path, rows: list[dict], stats: dict[str, Any], tr
     config_dir = Path(config_dir)
     cfg = json.loads((config_dir / "travel_atlas.json").read_text(encoding="utf-8"))
     flags = json.loads((config_dir / "country_flags.json").read_text(encoding="utf-8"))
-    # A local file:// pix dir only resolves on the build machine; the journal is
-    # meant to be opened anywhere, so it needs the public photo host.
-    pix = pix_url if pix_url.startswith("http") else (cfg.get("pix_url") or pix_url)
-    pix = pix.rstrip("/") + "/" if pix else ""
+    pix = (pix_url.rstrip("/") + "/") if pix_url.startswith("http") else DEFAULT_PIX
     payload = build_payload(rows, stats, trips, photos_by_checkin, tips, cfg, flags, ctry_norm, pix)
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
