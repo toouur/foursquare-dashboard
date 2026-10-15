@@ -222,7 +222,26 @@ jobs:
           else
             TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
             git commit -m "chore: full check-in snapshot [${TIMESTAMP}]"
-            git push
+            # The hourly job may commit a new check-in (checkins.csv + photos.json)
+            # while this one re-fetches — same files, so a plain rebase collides.
+            # resolve_archive_rebase.py merges exactly those two by content (the
+            # fresh snapshot + rows added upstream, minus Swarm deletions); any
+            # other conflict aborts the run, to be re-run by hand.
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              if ! git pull --rebase origin main; then
+                if python ../scripts/resolve_archive_rebase.py --deleted /tmp/swarm_deleted.txt \
+                   && GIT_EDITOR=true git rebase --continue; then
+                  echo "rebase conflict resolved by content"
+                else
+                  git rebase --abort || true
+                  echo "::error::data-repo rebase conflict outside checkins.csv/photos.json — re-run the job"
+                  exit 1
+                fi
+              fi
+            done
           fi
 
       # ── 9. Sync check-ins, venue changes, and tips to D1 ─────────────────
