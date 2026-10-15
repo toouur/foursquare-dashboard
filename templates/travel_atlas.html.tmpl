@@ -373,7 +373,7 @@ function hd(s){if(!s)return'';const[y,m,d]=s.split('-');return `${+d} ${MON[m-1]
 function hrange(a,b){if(a===b)return hd(a);const[ya,ma,da]=a.split('-'),[yb,mb,db]=b.split('-');if(ya===yb&&ma===mb)return `${+da}–${+db} ${MON[mb-1]} ${yb}`;if(ya===yb)return `${+da} ${MON[ma-1]} — ${+db} ${MON[mb-1]} ${yb}`;return `${hd(a)} — ${hd(b)}`}
 function plural(n,a,b,c){const m=n%10,h=n%100;return m===1&&h!==11?a:(m>=2&&m<=4&&(h<12||h>14)?b:c)}
 const P=D.places, PH=D.photos, M=D.meta;
-const purl=i=>{const f=PH[i][0];return M.pix+(f[0]==='!'?f.slice(1):'29447180_'+f)};
+const purl=i=>{const f=PH[i][0];return M.pix+(f[0]==='!'?f.slice(1):M.pre+f)};
 // photo -> [name, city, countryIdx, catIdx, venueId]: from its place, or inline when it has none
 const pp=i=>{const x=PH[i];if(x[1]>=0){const p=P[x[1]];return [p[0],p[1],p[2],p[8],p[9]]}return x[3]||['','',-1,-1,'']};
 const pinfo=i=>{const p=pp(i);return{name:p[0]||'Без названия',city:p[1],country:D.C[p[2]]||'',date:dstr(PH[i][2]),cat:D.K[p[3]]||'',vid:p[4],tip:PH[i][4]===1}};
@@ -420,7 +420,7 @@ const CH=[
   {id:'photos',n:'V',t:'Фотоархив'},
   {id:'places',n:'VI',t:'Места'},
   {id:'next',n:'VII',t:'Дальше'},
-];
+].filter(c=>c.id!=='next'||((D.next||{}).ideas||[]).length);
 $('#tabs').innerHTML=CH.slice(1).map(c=>`<button class="tab" type="button" data-go="${c.id}"><b>${c.n}</b>${c.t}</button>`).join('');
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)go(b.dataset.go)});
 const rendered={};const memo={country:null,trip:null,photos:'1'};
@@ -506,9 +506,9 @@ RENDER.cover=(sec,arg,first)=>{
     <div class="mosaic">${pick.map((i,k)=>tile(i,'cover',k)).join('')}</div>
   </div>
   <nav class="toc" aria-label="Содержание">
-    ${[['world-atlas','I','Атлас','Карта мира: где и сколько'],['country','II','Страны',`${M.countries} разворотов с фото и топ-местами`],['trip','III','Поездки',`${M.trips} ${plural(M.trips,'путешествие','путешествия','путешествий')} по одному на страницу`],['years','IV','Хроника','Год за годом: новые страны'],['photos','V','Фотоархив',`${fmt(M.photos)} снимков, постранично`],['places','VI','Места',`Поиск по ${fmt(M.venues)} точкам`],['next','VII','Дальше','Идеи и бюджет следующих поездок']].map(([h,n,t,p])=>`<a href="#${h}"><div class="n">${n}</div><h3>${t}</h3><p>${p}</p></a>`).join('')}
+    ${[['world-atlas','I','Атлас','Карта мира: где и сколько'],['country','II','Страны',`${M.countries} разворотов с фото и топ-местами`],['trip','III','Поездки',`${M.trips} ${plural(M.trips,'путешествие','путешествия','путешествий')} по одному на страницу`],['years','IV','Хроника','Год за годом: новые страны'],['photos','V','Фотоархив',`${fmt(M.photos)} снимков, постранично`],['places','VI','Места',`Поиск по ${fmt(M.venues)} точкам`],['next','VII','Дальше','Идеи и бюджет следующих поездок']].filter(x=>CH.some(c=>c.id===x[0])).map(([h,n,t,p])=>`<a href="#${h}"><div class="n">${n}</div><h3>${t}</h3><p>${p}</p></a>`).join('')}
   </nav>
-  <p class="muted" style="font-size:12px;margin-top:22px">Данные: checkins.csv + ${fmt(M.refurb)} восстановленных записей до 2012 года, обработанные тем же конвейером, что и <a href="https://4sq.pages.dev/" target="_blank" rel="noopener">4sq.pages.dev</a>. Цифры — те же, что на дашборде. Снимок от ${hd(M.built)}.</p>`;
+  <p class="muted" style="font-size:12px;margin-top:22px">Данные: checkins.csv${M.refurb?` + ${fmt(M.refurb)} восстановленных записей`:''}, обработанные тем же конвейером, что и <a href="${esc(M.site)}/" target="_blank" rel="noopener">${esc(M.site.replace(/^https?:\/\//,''))}</a>. Цифры — те же, что на дашборде. Снимок от ${hd(M.built)}.</p>`;
   hookImgs(sec);
 };
 
@@ -633,7 +633,7 @@ RENDER.country=(sec,arg)=>{
       </div>
       ${a?`<div class="pull"><small>Главная точка${a.status==='visited'?'<span class="badge yes">✓ есть в истории</span>':'<span class="badge no">не найдено в CSV</span>'}</small><strong>${esc(a.landmark)}${a.city?` <span class="muted" style="font-size:15px;font-weight:400">· ${esc(a.city)}</span>`:''}</strong><p>${esc(a.evidence)}</p>${a.next?`<p style="margin-top:6px"><b>В следующий раз:</b> ${esc(a.next)}</p>`:''}</div>`:''}
       <div class="chips" style="margin-top:16px">${c.cats.map(x=>`<span class="chip">${esc(x[0])} · ${fmt(x[1])}</span>`).join('')}</div>
-      <div class="links"><a class="btn" href="https://4sq.pages.dev/country-${c.iso2}.html" target="_blank" rel="noopener">Страница в дашборде ↗</a><a class="btn ghost" href="#places/${encodeURIComponent(c.en)}">Все места</a><a class="btn ghost" href="#world-atlas/${c.iso2}">На карте</a></div>
+      <div class="links"><a class="btn" href="${esc(M.site)}/country-${c.iso2}.html" target="_blank" rel="noopener">Страница в дашборде ↗</a><a class="btn ghost" href="#places/${encodeURIComponent(c.en)}">Все места</a><a class="btn ghost" href="#world-atlas/${c.iso2}">На карте</a></div>
     </div>
   </article>`;
   hookImgs(sec);
@@ -668,7 +668,7 @@ RENDER.trip=(sec,arg)=>{
       <div class="chips" style="margin-bottom:16px">${t.co.map(x=>{const c=byEn.get(x);return c?`<a class="chip" href="#country/${c.iso2}">${flag(x)} ${esc(c.ru)}</a>`:`<span class="chip">${esc(x)}</span>`}).join('')}</div>
       <div class="sub-h">Маршрут</div>
       <div class="route">${t.ci.map(x=>`<span>${esc(x)}</span>`).join('')}${t.cin>t.ci.length?`<span class="muted">ещё ${t.cin-t.ci.length}</span>`:''}</div>
-      <div class="links"><a class="btn" href="https://4sq.pages.dev/trips.html#trip-${t.id}" target="_blank" rel="noopener">Все чекины поездки ↗</a></div>
+      <div class="links"><a class="btn" href="${esc(M.site)}/trips.html#trip-${t.id}" target="_blank" rel="noopener">Все чекины поездки ↗</a></div>
     </div>
   </article>`;
   hookImgs(sec);
@@ -694,7 +694,7 @@ RENDER.years=(sec,arg,first)=>{
 };
 
 /* ================= PHOTO ARCHIVE ================= */
-const PER=15;let phState={mode:'fav',c:'',y:'',q:'',sort:'new'},phFiltered=[];
+const PER=15;let phState={mode:D.curated.length?'fav':'all',c:'',y:'',q:'',sort:'new'},phFiltered=[];
 RENDER.photos=(sec,arg,first)=>{
   let page=1;
   if(arg){const [p,qs]=arg.split('?');page=Math.max(1,parseInt(p)||1);if(qs){const u=new URLSearchParams(qs);if(u.has('c')||u.has('y')){phState={...phState,mode:'all',c:u.get('c')||'',y:u.get('y')||'',q:''};history.replaceState(null,'','#photos/1');memo.photos='1';rendered.photos&&syncPhForm()}}}
@@ -702,7 +702,7 @@ RENDER.photos=(sec,arg,first)=>{
     const cs=[...new Set(PH.map((_,i)=>pp(i)[2]))].filter(i=>i>=0).map(i=>D.C[i]).sort((a,b)=>ruName(a).localeCompare(ruName(b),'ru'));
     const ys=[...new Set(PH.map(p=>dstr(p[2]).slice(0,4)))].sort().reverse();
     sec.innerHTML=`<div class="ch-head"><div><div class="kicker">Глава V</div><h2>Фотоархив</h2><p>${fmt(M.photos)} снимков из ${fmt(M.photoCheckins)} чекинов${M.tipPhotos?` и ${M.tipPhotos} ${plural(M.tipPhotos,'совета','советов','советов')}`:''}, по ${PER} на страницу. Подпись — место и дата чекина. Нажми на фото, чтобы листать в полноэкранном режиме.</p></div>
-      <div class="seg" role="group" aria-label="Подборка"><button type="button" data-mode="fav">Избранное</button><button type="button" data-mode="all">Все фото</button></div></div>
+      ${D.curated.length?`<div class="seg" role="group" aria-label="Подборка"><button type="button" data-mode="fav">Избранное</button><button type="button" data-mode="all">Все фото</button></div>`:''}</div>
     <div class="toolbar"><input class="field" id="phQ" type="search" placeholder="Место, город, категория…" aria-label="Поиск по фото">
       <select class="field" id="phC" aria-label="Страна"><option value="">Все страны</option>${cs.map(c=>`<option value="${esc(c)}">${esc(ruName(c))}</option>`).join('')}</select>
       <select class="field" id="phY" aria-label="Год"><option value="">Все годы</option>${ys.map(y=>`<option>${y}</option>`).join('')}</select>
@@ -828,23 +828,13 @@ function plSelect(i){
 /* ================= NEXT ================= */
 RENDER.next=(sec,arg,first)=>{
   setWhere('');if(!first)return;
-  const I=[
-   ['🧿','Тунис','7 дней · Северная Африка · античность и медины',['Тунисская медина и музей Бардо','Карфаген и Сиди-бу-Саид','Однодневный выезд в Эль-Джем','Природа — солёные озёра и юг отдельным маршрутом'],'€650–1 050',[650,1050],'Кишинёв → Тунис (TUN) с одной пересадкой; иногда дешевле через Стамбул.'],
-   ['🕌','Марокко','8 дней · медины, Атлантика и горы',['Марракеш: медина, дворцы и сады','Эс-Сувейра: океан и старый порт','Фес — историческая городская ткань','Не пытаться уместить Сахару, север и океан за неделю'],'€750–1 250',[750,1250],'Кишинёв → Марракеш (RAK) или Касабланка (CMN); пересадки в Стамбуле или Европе.'],
-   ['🏔️','Словения + север Италии','6–8 дней · природа к городам',['Любляна и старый центр','Блед и Бохинь: озёра и горы','Триест или Венеция как продолжение','Поезд/автобус + короткая аренда авто'],'€650–1 100',[650,1100],'Часто удобно лететь в Венецию и ехать дальше по земле.'],
-   ['🏯','Южная Корея','8–10 дней · Сеул и второй город',['Сеул: дворцы, рынки, районы, музеи','Пусан: побережье','Поезд KTX между городами','Акцент на современной культуре'],'€1 400–2 300',[1400,2300],'Кишинёв → Сеул (ICN) с пересадкой; сравнить вылеты из Бухареста и Стамбула.'],
-   ['🗾','Япония','10–12 дней · большой культурный контраст',['Токио: районы, рынки, музеи','Киото: храмы, сады, кварталы','Осака — еда и вечерняя жизнь','Один день на природу'],'€1 700–2 700',[1700,2700],'Сравнить вылеты из Кишинёва, Бухареста и Стамбула с учётом дороги до аэропорта.'],
-   ['🌋','Исландия','6–8 дней · пейзажи и водопады',['Рейкьявик и Золотое кольцо','Южное побережье, чёрные пляжи','Аренда авто для компании','Не гнаться за всей кольцевой'],'€1 200–2 000',[1200,2000],'Кишинёв → Рейкьявик (KEF) с пересадкой; жильё и машина — главные расходы.']];
-  const mx=2700;
-  sec.innerHTML=`<div class="ch-head"><div><div class="kicker">Глава VII</div><h2>Что дальше</h2><p>Направления, которые добавят к плотной городской географии новый культурный и природный слой. Бюджеты — широкие ориентиры на человека из Кишинёва, не котировка.</p></div></div>
-  <div class="ideas">${I.map(x=>`<article class="idea"><div class="e" aria-hidden="true">${x[0]}</div><h3>${x[1]}</h3><div class="muted" style="font-size:13px">${x[2]}</div><ul>${x[3].map(l=>`<li>${l}</li>`).join('')}</ul><div class="fly">✈ ${x[6]}</div><div class="price"><span class="muted" style="font-size:12px">на человека</span><strong>${x[4]}</strong></div></article>`).join('')}</div>
-  <div class="blk"><h3>Бюджет рядом</h3><p class="muted" style="margin:0 0 14px">Перелёт, жильё, еда, местный транспорт и базовые билеты; двухместное размещение.</p>
-  <div class="bars" style="max-width:760px">${[...I].sort((a,b)=>a[5][0]-b[5][0]).map(x=>`<div class="barrow" style="grid-template-columns:minmax(120px,190px) 1fr 110px"><span>${x[0]} ${x[1]}</span><div class="bar" style="position:relative;height:10px"><i style="position:absolute;left:${100*x[5][0]/mx}%;width:${100*(x[5][1]-x[5][0])/mx}%;background:var(--accent)"></i></div><b>${x[4]}</b></div>`).join('')}</div></div>
-  <div class="blk"><h3>План на 12 месяцев</h3><div class="plan">
-   <div><strong>1 · Короткий список</strong><span>Тунис или Марокко — история, медины, кухня, новый регион.</span></div>
-   <div><strong>2 · Логистика</strong><span>Сравнить вылет из Кишинёва, Бухареста и Стамбула с трансфером.</span></div>
-   <div><strong>3 · Компания</strong><span>Даты, бюджет на человека и темп без гонки.</span></div>
-   <div><strong>4 · Следующий уровень</strong><span>Япония/Корея или природная поездка в Исландию.</span></div></div></div>`;
+  const N=D.next||{},I=N.ideas||[],PL=N.plan||[];
+  const mx=Math.max(1,...I.map(x=>(x.range||[0,0])[1]));
+  sec.innerHTML=`<div class="ch-head"><div><div class="kicker">Глава ${CH.find(c=>c.id==='next').n}</div><h2>Что дальше</h2>${N.intro?`<p>${esc(N.intro)}</p>`:''}</div></div>
+  <div class="ideas">${I.map(x=>`<article class="idea"><div class="e" aria-hidden="true">${esc(x.emoji)}</div><h3>${esc(x.title)}</h3><div class="muted" style="font-size:13px">${esc(x.sub)}</div><ul>${(x.items||[]).map(l=>`<li>${esc(l)}</li>`).join('')}</ul>${x.fly?`<div class="fly">✈ ${esc(x.fly)}</div>`:''}${x.price?`<div class="price"><span class="muted" style="font-size:12px">на человека</span><strong>${esc(x.price)}</strong></div>`:''}</article>`).join('')}</div>
+  ${I.some(x=>x.range)?`<div class="blk"><h3>Бюджет рядом</h3>${N.budget_note?`<p class="muted" style="margin:0 0 14px">${esc(N.budget_note)}</p>`:''}
+  <div class="bars" style="max-width:760px">${I.filter(x=>x.range).sort((a,b)=>a.range[0]-b.range[0]).map(x=>`<div class="barrow" style="grid-template-columns:minmax(120px,190px) 1fr 110px"><span>${esc(x.emoji)} ${esc(x.title)}</span><div class="bar" style="position:relative;height:10px"><i style="position:absolute;left:${100*x.range[0]/mx}%;width:${100*(x.range[1]-x.range[0])/mx}%;background:var(--accent)"></i></div><b>${esc(x.price)}</b></div>`).join('')}</div></div>`:''}
+  ${PL.length?`<div class="blk"><h3>План на 12 месяцев</h3><div class="plan">${PL.map(p=>`<div><strong>${esc(p[0])}</strong><span>${esc(p[1])}</span></div>`).join('')}</div></div>`:''}`;
 };
 
 route();

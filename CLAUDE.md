@@ -133,7 +133,12 @@ passes, so the file stays clean; failure only logs a warning. No workflow passes
 Hand-curated bits live in `config/travel_atlas.json` (ISO-numeric ids for the world-atlas
 topojson, the 58 "Избранное" check-ins, one checked landmark per country — keys are the
 CANONICAL English country names, e.g. `North Macedonia`, or the entry silently never
-shows). Tests: `tests/test_travel_atlas.py`.
+shows), plus everything owner-specific: `site_url` (links back to the dashboard),
+`pix_url` (public photo host when build.py only has a local pix dir) and `next` (chapter
+VII ideas/budget/plan — omit it and the chapter disappears). The photo-key prefix is
+detected from photos.json, not hard-coded. So a fork for another person (e.g.
+swarm-journal.pages.dev) only needs its own `config/travel_atlas.json`; the code is
+shared. Tests: `tests/test_travel_atlas.py`.
 ```bash
 python scripts/build.py \
   --input C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
