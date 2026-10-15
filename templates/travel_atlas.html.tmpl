@@ -709,7 +709,7 @@ RENDER.photos=(sec,arg,first)=>{
       <select class="field" id="phS" aria-label="Порядок"><option value="new">Сначала новые</option><option value="old">Сначала старые</option></select></div>
     <div id="phInfo" class="muted" style="font-size:13px;margin:-4px 0 12px"></div>
     <div class="pgrid" id="phGrid"></div><nav class="pages" id="phPages" aria-label="Страницы"></nav>`;
-    sec.querySelector('.seg').addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(!b)return;phState.mode=b.dataset.mode;phApply()});
+    sec.querySelector('.seg')?.addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(!b)return;phState.mode=b.dataset.mode;phApply()});
     let tmo;$('#phQ').addEventListener('input',e=>{clearTimeout(tmo);tmo=setTimeout(()=>{phState.q=e.target.value.trim().toLowerCase();if(phState.q)phState.mode='all';phApply()},220)});
     $('#phC').addEventListener('change',e=>{phState.c=e.target.value;if(phState.c)phState.mode='all';phApply()});
     $('#phY').addEventListener('change',e=>{phState.y=e.target.value;if(phState.y)phState.mode='all';phApply()});
