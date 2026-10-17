@@ -1,0 +1,59 @@
+# .github/workflows/telegram-on-this-day.yml
+#
+# Daily "on this day" story to Telegram (scripts/telegram_on_this_day.py):
+# every earlier year with check-ins on today's date, with places, weather
+# (Open-Meteo archive) and a short narrative — written by Claude when
+# ANTHROPIC_API_KEY is set, otherwise a plain template. Read-only: nothing is
+# committed anywhere.
+
+name: Telegram on this day
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 06:00 UTC = 09:00 in Chișinău (summer) / 08:00 (winter)
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date to post for (YYYY-MM-DD, default: today)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Print the message only, send nothing'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  post:
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Post
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          # Optional separate destination (e.g. a channel); falls back to the
+          # chat the failure alerts already go to.
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_OTD_CHAT_ID || secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OTD_DATE: ${{ inputs.date }}
+          OTD_DRY: ${{ inputs.dry_run }}
+        run: |
+          args=(--csv private-data/checkins.csv
+                --photos private-data/photos.json
+                --pix-url "${{ secrets.R2_PUBLIC_URL }}")
+          [ -n "$OTD_DATE" ] && args+=(--date "$OTD_DATE")
+          [ "$OTD_DRY" = "true" ] && args+=(--dry-run)
+          python scripts/telegram_on_this_day.py "${args[@]}"

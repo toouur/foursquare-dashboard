@@ -72,6 +72,24 @@ python scripts/fetch_lastfm.py --user TOOUUR \
 python scripts/fetch_lastfm.py --user TOOUUR --check   # probe key, no write
 ```
 
+### Telegram "on this day" story (daily)
+`telegram_on_this_day.py` posts every earlier year that has check-ins on today's date
+(local date per check-in; "today" in `Europe/Chisinau`). Each year gets its places,
+companions and weather from the Open-Meteo archive (no key). On top sits a short
+narrative: Claude writes it when `ANTHROPIC_API_KEY` is set (model `ANTHROPIC_MODEL`,
+default `claude-sonnet-5-5`), otherwise a template does. Up to 4 photos come from
+photos.json. Home is era-aware (`_home_at`), and "Home (private)" venues are never
+named. Weather and Claude fail soft; only a failed `sendMessage` exits 1. Runs daily
+in CI (`telegram-on-this-day.yml`, 06:00 UTC, honours `UPDATES_PAUSED`, read-only),
+using the existing `TELEGRAM_BOT_TOKEN`; it posts to `TELEGRAM_OTD_CHAT_ID` when set (e.g. a
+channel with the bot as admin), else to the alerts chat `TELEGRAM_CHAT_ID`.
+Tests: `tests/test_telegram_on_this_day.py`.
+```bash
+python scripts/telegram_on_this_day.py --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
+  --photos C:/Users/toouur/Documents/GitHub/foursquare-data/photos.json \
+  --pix-url "https://pub-5514667a5da04a75986022e39efc7118.r2.dev/pix" --dry-run [--date 2026-10-18]
+```
+
 ### Build pre-2012 travel backfill ("refurbished" check-ins)
 The Foursquare dataset starts in 2012; earlier travel (~2008+) is reconstructed at
 country/city/day granularity from a hand-editable `backfill.yaml` (next to
@@ -344,7 +362,7 @@ python -m http.server 8000 --directory _site
 
 ### Run tests / lint
 ```bash
-# Offline suite (394 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (405 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 /c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 14 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -406,14 +424,15 @@ python -m http.server 8000 --directory _site
 - Tips fetch: `scripts/fetch_tips.py`
 - Check-ins fetch: `scripts/fetch_checkins.py`
 - Flights fetch: `scripts/fetch_flights.py` (FR24 login → diary CSV; weekly `fr24-flights.yml`)
+- Telegram "on this day": `scripts/telegram_on_this_day.py` (daily story post; `telegram-on-this-day.yml`)
 - Last.fm fetch: `scripts/fetch_lastfm.py` (per-year scrobble aggregate; weekly `lastfm.yml`; feeds year-page "The year in sound" section via `gen_year_pages` `music_by_year`)
 - Pre-2012 backfill: `scripts/build_backfill.py` (`backfill.yaml` → `backfill.csv`, 23-col schema, `source_app="refurbished"`, `rf<seq>` ids, centroid-reuse geocode); `build.py` auto-merges the sibling `backfill.csv`; `sync_to_d1.py --backfill` ingests to D1; source adapters `scripts/import_polarsteps.py` (Polarsteps export ZIP → backfill.yaml; PENDING user export) and `scripts/import_liveinternet.py` (LiveInternet diary crawl → candidate entries). `scripts/refresh_backfill_venue.py` (+ `refresh-backfill-venue.yml`) fills real Foursquare venue metadata onto a reconstructed row. **Both its endpoints can be shut at once**: `/v2/venues/{id}` is premium and 402s permanently for this token, and `/v2/venues/search` — the fallback — has been seen answering `402 credits_exhausted` too once the monthly call budget is spent (same budget the ratings fetch draws on). The run still exits 0 and commits nothing; the row keeps `[coords_approx:pending_api]` and must be retried after the quota resets on the 1st. Reconstructed rows badged in feed/trips/year-hero. Tests: `tests/test_backfill.py`.
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
-- Tests: `tests/` — pytest suite (438 tests: 394 offline, 22 live API contract, 22 live+e2e): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative/home-eras + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
+- Tests: `tests/` — pytest suite (449 tests: 405 offline, 22 live API contract, 22 live+e2e): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative/home-eras + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
 - HTML deploy gate: `scripts/validate_html.py` — runs in `update-dashboard.yml` before every deploy (required pages present, no leftover `{{PLACEHOLDER}}`, embedded JSON parses, min page size; skips `solution.html` which quotes placeholders as documentation).
 - QA docs: `qa/` — `test-strategy.md` (risk analysis → pyramid → gates), `exploratory-checklist.md` (manual pre-release charter), `bug-reports/` (14 written-up real defects). `docs/` is gitignored — QA docs must live in `qa/`.
 - Lint config: `ruff.toml` (E4/E7/E9+F; E401/E701/E702/E731 ignored deliberately).
-- Type-check config: `setup.cfg` `[mypy]` — `files = scripts`, ignore_missing_imports, allow_redefinition, var-annotated disabled; tree is CLEAN in CI (0 errors / 70 files) and must stay so (runs in the tests.yml lint job).
+- Type-check config: `setup.cfg` `[mypy]` — `files = scripts`, ignore_missing_imports, allow_redefinition, var-annotated disabled; tree is CLEAN in CI (0 errors / 71 files) and must stay so (runs in the tests.yml lint job).
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
   NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in the `fetch_*` scripts —
   that is drift from a newer locally-installed `requests` shipping its own inline types, not a code change.
