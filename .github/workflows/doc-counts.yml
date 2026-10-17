@@ -1,0 +1,54 @@
+# .github/workflows/doc-counts.yml
+#
+# Monthly: re-measure the test / script-file counts and rewrite them in
+# README.md, CLAUDE.md and solution.html so the three docs never disagree
+# (scripts/sync_doc_counts.py holds the per-phrase rules). Commits only when a
+# number moved. Fails if a known phrase vanished from a doc — reword the rule
+# in sync_doc_counts.py (tests/test_sync_doc_counts.py also catches it on push).
+#
+# Touches docs only, never config/ — nothing here can read or copy secrets.
+
+name: Sync doc counts
+
+on:
+  schedule:
+    - cron: '30 7 1 * *'   # 1st of the month, 07:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # pytest-playwright is needed for COLLECTION only (no browser): the
+      # layout-overflow module importorskips playwright and would drop out.
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest pytest-playwright
+      - name: Rewrite counts
+        id: sync
+        run: |
+          python scripts/sync_doc_counts.py | tee "$RUNNER_TEMP/doc_counts.txt"
+          grep '^DOC_COUNTS_CHANGED=' "$RUNNER_TEMP/doc_counts.txt" >> "$GITHUB_OUTPUT"
+      - name: Commit
+        if: steps.sync.outputs.DOC_COUNTS_CHANGED == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md CLAUDE.md solution.html
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "docs: sync test/file counts across README, CLAUDE.md, solution.html"
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase --autostash origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
+          fi
