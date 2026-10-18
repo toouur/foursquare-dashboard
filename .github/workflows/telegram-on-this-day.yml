@@ -5,8 +5,9 @@
 # (Open-Meteo archive) and a short narrative written by Claude — through the
 # API when ANTHROPIC_API_KEY is set, else through the Claude Code CLI with
 # CLAUDE_CODE_OAUTH_TOKEN (a Pro/Max subscription token from `claude
-# setup-token`) — or a plain template when neither works. Read-only: nothing
-# is committed anywhere.
+# setup-token`) — or a plain template when neither works. Each Claude story is
+# kept in otd_stories.json in the data repo (never pruned) and reused by any rerun
+# for that date, hand edits included; the `regenerate` input writes a new one.
 
 name: Telegram on this day
 
@@ -21,6 +22,10 @@ on:
         default: ''
       dry_run:
         description: 'Print the message only, send nothing'
+        type: boolean
+        default: false
+      regenerate:
+        description: 'Write a new story even if one is stored for that date'
         type: boolean
         default: false
 
@@ -62,10 +67,29 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           OTD_DATE: ${{ inputs.date }}
           OTD_DRY: ${{ inputs.dry_run }}
+          OTD_REGEN: ${{ inputs.regenerate }}
         run: |
           args=(--csv private-data/checkins.csv
                 --photos private-data/photos.json
-                --pix-url "${{ secrets.R2_PUBLIC_URL }}")
+                --pix-url "${{ secrets.R2_PUBLIC_URL }}"
+                --stories private-data/otd_stories.json)
           [ -n "$OTD_DATE" ] && args+=(--date "$OTD_DATE")
           [ "$OTD_DRY" = "true" ] && args+=(--dry-run)
+          [ "$OTD_REGEN" = "true" ] && args+=(--regenerate)
           python scripts/telegram_on_this_day.py "${args[@]}"
+      # 6th data-repo writer: same bounded rebase-and-retry loop as the others (BUG-014).
+      - name: Commit story
+        if: inputs.dry_run != true
+        run: |
+          cd private-data
+          [ -f otd_stories.json ] || exit 0
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add otd_stories.json
+          git diff --cached --quiet && exit 0
+          git commit -m "otd story $(date -u +%Y-%m-%d)"
+          for i in 1 2 3 4 5; do
+            git push && break
+            git pull --rebase origin main
+            [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+          done

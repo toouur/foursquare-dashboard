@@ -242,3 +242,70 @@ def test_tg_send_photo_failure_is_not_fatal():
     assert [m["media"] for m in media] == ["u1", "u2"] and media[0]["caption"] == "2023 · Tbilisi"
     assert s.calls[3][0].endswith("/sendPhoto")
     assert otd.tg_send("t", "c", ["hi"], [], session=FakeSession(FakeResp(status=401))) is False
+
+
+# ── Story store ─────────────────────────────────────────────────────────────
+
+def test_story_store_round_trip_keeps_every_date(tmp_path):
+    p = tmp_path / "otd_stories.json"
+    assert otd.load_stories(p) == {}
+    stories = otd.load_stories(p)
+    otd.save_story(p, stories, date(2026, 10, 18), "Minsk day", "claude-cli",
+                   now=datetime(2026, 10, 18, 6, tzinfo=timezone.utc))
+    otd.save_story(p, otd.load_stories(p), date(2025, 1, 2), "Old day", "claude-api")
+    back = otd.load_stories(p)
+    assert list(back) == ["2025-01-02", "2026-10-18"]          # sorted, nothing pruned
+    assert back["2026-10-18"] == {"story": "Minsk day", "source": "claude-cli",
+                                  "created": "2026-10-18T06:00:00Z"}
+    assert otd.stored_story(back, date(2026, 10, 18)) == "Minsk day"
+    assert otd.stored_story(back, date(2026, 10, 19)) is None
+
+
+def test_story_store_tolerates_junk(tmp_path):
+    p = tmp_path / "otd_stories.json"
+    p.write_text("not json", encoding="utf-8")
+    assert otd.load_stories(p) == {}
+    assert otd.stored_story({"2026-10-18": {"story": "  "}}, TODAY) is None
+    assert otd.stored_story({"2026-10-18": "bare"}, TODAY) is None
+
+
+def _run_main(monkeypatch, tmp_path, *extra, sent=True):
+    csv_path = tmp_path / "checkins.csv"
+    csv_path.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(otd, "load_rows", lambda path, cfg: [minsk(ts(2018, 10, 18))])
+    monkeypatch.setattr(otd, "write_story", lambda facts, today, lang: ("Fresh story", "claude-cli"))
+    posted = []
+    monkeypatch.setattr(otd, "tg_send", lambda t, c, msgs, albums: posted.append(msgs) or sent)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "c")
+    monkeypatch.setattr(sys, "argv", ["otd", "--csv", str(csv_path), "--date", "2026-10-18",
+                                      "--no-weather", "--stories", str(tmp_path / "s.json"), *extra])
+    rc = otd.main()
+    return rc, "".join(posted[0]) if posted else ""
+
+
+def test_main_reuses_stored_story_and_regenerate_replaces_it(monkeypatch, tmp_path):
+    rc, text = _run_main(monkeypatch, tmp_path)
+    assert rc == 0 and "Fresh story" in text
+    stories = otd.load_stories(tmp_path / "s.json")
+    stories["2026-10-18"]["story"] = "My edited draft"           # a hand edit
+    (tmp_path / "s.json").write_text(json.dumps(stories), encoding="utf-8")
+    _, text = _run_main(monkeypatch, tmp_path)
+    assert "My edited draft" in text and "Fresh story" not in text
+    _, text = _run_main(monkeypatch, tmp_path, "--regenerate")
+    assert "Fresh story" in text
+    assert otd.stored_story(otd.load_stories(tmp_path / "s.json"), TODAY) == "Fresh story"
+
+
+def test_main_does_not_store_template_or_failed_send(monkeypatch, tmp_path):
+    _run_main(monkeypatch, tmp_path, sent=False)
+    assert otd.load_stories(tmp_path / "s.json") == {}
+    monkeypatch.setattr(otd, "write_story", lambda *a: ("Template", "template"))
+    csv_path = tmp_path / "checkins.csv"
+    csv_path.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(otd, "load_rows", lambda path, cfg: [minsk(ts(2018, 10, 18))])
+    monkeypatch.setattr(otd, "tg_send", lambda *a: True)
+    monkeypatch.setattr(sys, "argv", ["otd", "--csv", str(csv_path), "--date", "2026-10-18",
+                                      "--no-weather", "--stories", str(tmp_path / "s.json")])
+    assert otd.main() == 0
+    assert otd.load_stories(tmp_path / "s.json") == {}

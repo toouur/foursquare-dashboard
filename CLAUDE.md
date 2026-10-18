@@ -87,9 +87,17 @@ subscription token from `claude setup-token`, no API billing; the workflow insta
 messages under Telegram's 4096-char limit (a long year continues with a "(cont.)"
 head); then one photo album per year (≤10, `sendMediaGroup`) from photos.json.
 Weather, Claude and photos fail soft; only a failed `sendMessage` exits 1. Runs daily
-in CI (`telegram-on-this-day.yml`, 06:00 UTC, honours `UPDATES_PAUSED`, read-only),
+in CI (`telegram-on-this-day.yml`, 06:00 UTC, honours `UPDATES_PAUSED`),
 using the existing `TELEGRAM_BOT_TOKEN`; it posts to `TELEGRAM_OTD_CHAT_ID` when set (e.g. a
 channel with the bot as admin), else to the alerts chat `TELEGRAM_CHAT_ID`.
+**Stories are drafts kept forever** in `otd_stories.json` in the data repo
+(`--stories`; `{"YYYY-MM-DD": {story, source, created}}`, never pruned): after a
+successful send a Claude story is stored under its date, and any rerun for that date
+reuses the stored text instead of writing a new one — edit an entry's `story` by hand to
+change what a rerun posts. `--regenerate` (workflow input `regenerate`) writes and stores
+a fresh one. Template stories, dry runs and failed sends are never stored. The check-in
+list, weather and photos are always rebuilt. The workflow commits the file, which makes it
+the 6th data-repo writer (BUG-014 rebase loop).
 Tests: `tests/test_telegram_on_this_day.py`.
 ```bash
 python scripts/telegram_on_this_day.py --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
@@ -769,10 +777,11 @@ with nothing to preserve across a re-fetch.
   because that path is gitignored).
 - Pause switch: repo Variable `UPDATES_PAUSED=true` halts the hourly update job and the
   monthly Netlify mirror job.
-- **Shared data-repo pushes are concurrency-hardened.** Five workflows commit to
+- **Shared data-repo pushes are concurrency-hardened.** Six workflows commit to
   `toouur/foursquare-data` `main` — `update-dashboard.yml` (hourly), `warm-routes.yml`
   (daily 03:00 UTC), `recheck-enrich.yml` (daily 04:15 UTC), `fr24-flights.yml` (weekly
-  Sun 05:00), `lastfm.yml` (weekly Sun 06:00). Overlapping runs (e.g. the 03:00
+  Sun 05:00), `lastfm.yml` (weekly Sun 06:00), `telegram-on-this-day.yml` (daily 06:00,
+  `otd_stories.json`). Overlapping runs (e.g. the 03:00
   route-warm still pushing as the 03:00 hourly build commits) caused non-fast-forward
   rejections (`! [rejected] main -> main (fetch first)`) that failed the run. Every
   data-repo commit step now wraps its push in the SAME bounded rebase-and-retry loop

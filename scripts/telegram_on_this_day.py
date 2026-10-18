@@ -23,11 +23,19 @@ Home is era-aware (`_home_at`), so 2010 in Chișinău and 2018 in Minsk both rea
 as "home". Every check-in shows its venue name exactly as checked in, "Home
 (private)" venues included. Weather comes from the Open-Meteo archive (no key).
 
+With --stories PATH (otd_stories.json in the data repo) the narrative is kept:
+the first real send stores it under the date, and every later run for that date
+reuses the stored text — hand edits included — instead of writing a new one.
+--regenerate forces a fresh story (and overwrites the stored one). Only Claude
+stories are stored; a template fallback is not, so a later run can still get a
+real narrative. Stories are kept forever. The check-in list is always rebuilt.
+
 Exit codes: 0 sent / nothing to send / dry run, 1 Telegram send failed.
 
 Usage:
   python scripts/telegram_on_this_day.py --csv private-data/checkins.csv \\
-      --photos private-data/photos.json --pix-url "$R2_PUBLIC_URL" [--dry-run] [--date 2026-10-18]
+      --photos private-data/photos.json --pix-url "$R2_PUBLIC_URL" \
+      --stories private-data/otd_stories.json [--regenerate] [--dry-run] [--date 2026-10-18]
 Env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ANTHROPIC_API_KEY (optional),
      CLAUDE_CODE_OAUTH_TOKEN (optional, used when there is no API key),
      ANTHROPIC_MODEL (optional, default claude-sonnet-5-5).
@@ -512,6 +520,53 @@ def tg_send(token: str, chat_id: str, texts: list[str], albums: list[tuple[str, 
     return True
 
 
+# ── Story store ─────────────────────────────────────────────────────────────
+
+def load_stories(path: Path | None) -> dict[str, dict]:
+    """{"YYYY-MM-DD": {"story", "source", "created"}}; missing/unreadable → {}."""
+    if not path or not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        log.warning("stories file unreadable (%s) — writing fresh stories", e)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def stored_story(stories: dict[str, dict], day: date) -> str | None:
+    entry = stories.get(day.isoformat())
+    text = entry.get("story") if isinstance(entry, dict) else None
+    return text.strip() if isinstance(text, str) and text.strip() else None
+
+
+def save_story(path: Path, stories: dict[str, dict], day: date, story: str, source: str,
+               now: datetime | None = None) -> None:
+    stories[day.isoformat()] = {
+        "story": story, "source": source,
+        "created": (now or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    path.write_text(json.dumps(dict(sorted(stories.items())), ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8")
+
+
+def write_story(facts: list[dict], today: date, lang: str) -> tuple[str, str]:
+    """(story, source) — source is "claude-api", "claude-cli" or "template"."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    model = os.environ.get("ANTHROPIC_MODEL", "").strip()
+    if api_key:
+        story = claude_story(facts, today, lang, api_key, model or DEFAULT_MODEL)
+        if story:
+            return story, "claude-api"
+    elif os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip():
+        story = claude_cli_story(facts, today, lang, model)
+        if story:
+            return story, "claude-cli"
+    else:
+        log.info("no ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN — template story")
+    return template_story(facts), "template"
+
+
 # ── Main ────────────────────────────────────────────────────────────────────
 
 def main() -> int:
@@ -529,6 +584,8 @@ def main() -> int:
     ap.add_argument("--lang", default="English", help="narrative language")
     ap.add_argument("--no-weather", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="print the messages, send nothing")
+    ap.add_argument("--stories", default="", help="otd_stories.json — keeps each date's narrative")
+    ap.add_argument("--regenerate", action="store_true", help="write a new story even if one is stored")
     args = ap.parse_args()
 
     today = (date.fromisoformat(args.date) if args.date
@@ -552,16 +609,14 @@ def main() -> int:
         for f in facts:
             f["weather"] = fetch_weather(f["lat"], f["lng"], date(f["year"], today.month, today.day))
 
-    story = None
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    model = os.environ.get("ANTHROPIC_MODEL", "").strip()
-    if api_key:
-        story = claude_story(facts, today, args.lang, api_key, model or DEFAULT_MODEL)
-    elif os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip():
-        story = claude_cli_story(facts, today, args.lang, model)
+    stories_path = Path(args.stories) if args.stories else None
+    stories = load_stories(stories_path)
+    story = None if args.regenerate else stored_story(stories, today)
+    source = "stored"
+    if story:
+        log.info("reusing the stored story for %s", today)
     else:
-        log.info("no ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN — template story")
-    story = story or template_story(facts)
+        story, source = write_story(facts, today, args.lang)
     messages = build_messages(facts, story, today)
     albums = photo_albums(facts, args.pix_url.rstrip("/"))
 
@@ -581,6 +636,13 @@ def main() -> int:
         log.error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set")
         return 1
     ok = tg_send(token, chat, messages, albums)
+    # Keep what was actually posted. A template is not kept: a later run with
+    # Claude available should still be able to write the real story.
+    saved = bool(ok and stories_path and source not in ("stored", "template"))
+    if saved and stories_path:
+        save_story(stories_path, stories, today, story, source)
+        log.info("story for %s saved to %s", today, stories_path)
+    print(f"STORY_SAVED={'true' if saved else 'false'}")
     print(f"SENT={'true' if ok else 'false'}")
     return 0 if ok else 1
 
