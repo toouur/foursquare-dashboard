@@ -20,9 +20,8 @@ the site uses), then posts:
 A check-in belongs to a day by its LOCAL date at the place it was made
 (`metrics.trips._localise`), exactly like the index "on this day" card.
 Home is era-aware (`_home_at`), so 2010 in Chișinău and 2018 in Minsk both read
-as "home". "Home (private)" venues never leak a street name: they read "home"
-in the home city of that era and "the flat" anywhere else (a rented place on a
-trip). Weather comes from the Open-Meteo archive (no key).
+as "home". Every check-in shows its venue name exactly as checked in, "Home
+(private)" venues included. Weather comes from the Open-Meteo archive (no key).
 
 Exit codes: 0 sent / nothing to send / dry run, 1 Telegram send failed.
 
@@ -153,12 +152,8 @@ def rows_on_this_day(rows: list[dict], today: date) -> dict[int, list[tuple[date
     return dict(sorted(out.items()))
 
 
-def place_name(r: dict, home_city: str = "") -> str:
-    """Venue name; a private home reads "home" in that era's home city, "the flat" elsewhere."""
-    if (r.get("category") or "") == HOME_CATEGORY:
-        if not home_city or (r.get("city") or "").strip() == home_city:
-            return "home"
-        return "the flat"
+def place_name(r: dict) -> str:
+    """The venue name exactly as checked in."""
     return (r.get("venue") or "").strip() or "somewhere"
 
 
@@ -201,7 +196,7 @@ def summarize_year(year: int, items: list[tuple[datetime, dict]], today: date,
         stop_with = collect_companions(r)
         shout = clean_shout(r.get("shout"))
         stops.append({
-            "time": loc.strftime("%H:%M"), "name": place_name(r, home), "category": cat,
+            "time": loc.strftime("%H:%M"), "name": place_name(r), "category": cat,
             "city": (r.get("city") or "").strip(), "emoji": icons.get(cat, DEFAULT_EMOJI),
             "companions": stop_with, "shout": shout, "photos": stop_photos,
         })
@@ -288,8 +283,9 @@ in earlier years (JSON).
 
 How to read them: "stops" is every check-in of that day in order, with LOCAL time; each stop's \
 "companions" are the people tagged on that exact check-in and "shout" is what the person wrote \
-there at the time (often Russian — quote or paraphrase it, translated if needed). "home" is their \
-home; "the flat" is a rented place or lodging while travelling. "at_home" means the day was based \
+there at the time (often Russian — quote or paraphrase it, translated if needed). A stop with \
+category "Home (private)" is their home, or a rented flat while travelling; use its name as given. \
+"at_home" means the day was based \
 in their home city of that era ("home_city" — it moved over the years); otherwise it was a travel \
 day. "reconstructed" days are rebuilt from old diaries at day granularity, so their times are not \
 real — don't mention clock times for them.
@@ -375,7 +371,7 @@ def template_story(facts: list[dict]) -> str:
             line += f" — {w['desc']}, {w['tmax']}°" if w["desc"] else f" — {w['tmax']}°"
         line += "."
         stops = f["stops"]
-        named = [s for s in stops if s["name"] not in ("home", "the flat", "somewhere")] or stops
+        named = [s for s in stops if s["category"] != HOME_CATEGORY and s["name"] != "somewhere"] or stops
         if len(stops) == 1 or f["reconstructed"]:
             line += f" {named[0]['name']}" + (f" and {len(stops) - 1} more" if len(stops) > 1 else "") + "."
         else:

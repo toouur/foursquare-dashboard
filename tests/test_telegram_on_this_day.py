@@ -83,20 +83,18 @@ def test_matches_local_date_and_skips_current_year():
     assert list(otd.rows_on_this_day(rows, TODAY)) == [2018, 2020]
 
 
-def test_home_category_reads_home_or_the_flat():
+def test_home_category_keeps_its_real_name():
     r = minsk(ts(2018, 10, 18), venue="ул. Секретная, 5", category=otd.HOME_CATEGORY)
-    assert otd.place_name(r) == "home"
-    assert otd.place_name(r, "Minsk") == "home"
-    assert otd.place_name(r, "Chișinău") == "the flat"     # a rented place on a trip
+    assert otd.place_name(r) == "ул. Секретная, 5"
     assert otd.place_name(minsk(0, venue="")) == "somewhere"
 
 
-def test_flat_while_travelling_never_leaks_the_address():
+def test_flat_while_travelling_shows_its_name():
     rows = [make_row(ts(2023, 10, 18, 8), city="Tbilisi", country="Georgia", venue="ул. Тайная, 1",
                      category=otd.HOME_CATEGORY, lat="41.7", lng="44.8")]
     (f,) = facts_for(rows)
-    assert f["stops"][0]["name"] == "the flat"
-    assert "Тайная" not in "".join(otd.build_messages([f], "s", TODAY))
+    assert f["stops"][0]["name"] == "ул. Тайная, 1"
+    assert "Тайная" in "".join(otd.build_messages([f], "s", TODAY))
 
 
 def test_at_home_is_era_aware():

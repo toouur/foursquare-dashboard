@@ -77,8 +77,8 @@ python scripts/fetch_lastfm.py --user TOOUUR --check   # probe key, no write
 (local date per check-in; "today" in `Europe/Chisinau`). Each year is headed 🏠 home or
 ✈️ travel (era-aware `_home_at`) with its weather from the Open-Meteo archive (no key),
 then lists EVERY check-in with its local time; companions and shout sit inline on the
-check-in they belong to. A "Home (private)" venue reads "home" in the home city and
-"the flat" elsewhere — its address is never shown. On top sits a narrative: Claude
+check-in they belong to. Venue names are shown exactly as checked in, "Home
+(private)" venues included. On top sits a narrative: Claude
 writes it via the API when `ANTHROPIC_API_KEY` (repo secret) is set (model
 `ANTHROPIC_MODEL`, default `claude-sonnet-5-5`); else via the Claude Code CLI
 (`claude -p`, prompt over stdin) when `CLAUDE_CODE_OAUTH_TOKEN` is set — a Pro/Max
