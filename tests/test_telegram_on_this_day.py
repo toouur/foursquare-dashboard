@@ -2,6 +2,7 @@
 
 Offline: weather, Claude and Telegram are exercised through fake sessions.
 """
+import json
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -82,10 +83,20 @@ def test_matches_local_date_and_skips_current_year():
     assert list(otd.rows_on_this_day(rows, TODAY)) == [2018, 2020]
 
 
-def test_home_category_reads_home():
+def test_home_category_reads_home_or_the_flat():
     r = minsk(ts(2018, 10, 18), venue="ул. Секретная, 5", category=otd.HOME_CATEGORY)
     assert otd.place_name(r) == "home"
+    assert otd.place_name(r, "Minsk") == "home"
+    assert otd.place_name(r, "Chișinău") == "the flat"     # a rented place on a trip
     assert otd.place_name(minsk(0, venue="")) == "somewhere"
+
+
+def test_flat_while_travelling_never_leaks_the_address():
+    rows = [make_row(ts(2023, 10, 18, 8), city="Tbilisi", country="Georgia", venue="ул. Тайная, 1",
+                     category=otd.HOME_CATEGORY, lat="41.7", lng="44.8")]
+    (f,) = facts_for(rows)
+    assert f["stops"][0]["name"] == "the flat"
+    assert "Тайная" not in "".join(otd.build_messages([f], "s", TODAY))
 
 
 def test_at_home_is_era_aware():
@@ -102,18 +113,31 @@ def test_at_home_is_era_aware():
     assert not by[2023]["at_home"]
 
 
-def test_summary_dedupes_places_and_collects_companions():
+def test_summary_lists_every_stop_with_its_own_companions():
     rows = [
         minsk(ts(2018, 10, 18, 9), venue="Cafe", with_name="Tata M"),
         minsk(ts(2018, 10, 18, 10), venue="Cafe"),
         minsk(ts(2018, 10, 18, 11), venue="Office", shout="[coords_approx] x"),
-        minsk(ts(2018, 10, 18, 12), venue="Park", shout="lovely"),
+        minsk(ts(2018, 10, 18, 12), venue="Park", shout="lovely [geo_pinned]"),
     ]
     (f,) = facts_for(rows)
-    assert [p["name"] for p in f["places"]] == ["Cafe", "Office", "Park"]
+    assert [s["name"] for s in f["stops"]] == ["Cafe", "Cafe", "Office", "Park"]
+    assert [s["time"] for s in f["stops"]] == ["12:00", "13:00", "14:00", "15:00"]  # Minsk UTC+3
+    assert [s["companions"] for s in f["stops"]] == [["Tata M"], [], [], []]
+    assert [s["shout"] for s in f["stops"]] == ["", "", "", "lovely"]
     assert f["companions"] == ["Tata M"]
     assert f["shouts"] == ["lovely"]
     assert f["checkins"] == 4 and not f["reconstructed"]
+
+
+def test_companion_sits_on_its_own_checkin_line():
+    rows = [minsk(ts(2018, 10, 18, 9), venue="Cafe"),
+            minsk(ts(2018, 10, 18, 10), venue="Bar", with_name="Tata M")]
+    (f,) = facts_for(rows)
+    lines = otd.year_lines(f)
+    assert lines[0].startswith("🏠 <b>2018</b>")
+    assert lines[1] == "12:00 📍 Cafe"
+    assert lines[2] == "13:00 📍 Bar — with Tata M"
 
 
 # ── Message ─────────────────────────────────────────────────────────────────
@@ -129,26 +153,39 @@ def test_template_story_groups_quiet_home_years():
     assert lines[-1] == "Quiet home days in Minsk: 2019, 2017."
 
 
-def test_message_stays_under_telegram_limit():
+def test_messages_split_under_telegram_limit_and_keep_every_checkin():
     rows = [minsk(ts(y, 10, 18, h), venue=f"Venue {y}-{h} " + "x" * 80)
             for y in range(1990, 2026) for h in range(8, 20)]
-    facts = facts_for(rows)
-    msg = otd.build_message(facts, "story " * 50, TODAY)
-    assert len(msg) <= otd.TG_LIMIT
-    assert "<b>2025</b>" in msg            # newest years survive, oldest are dropped
-    assert "<b>1990</b>" not in msg
+    msgs = otd.build_messages(facts_for(rows), "story " * 50, TODAY)
+    assert len(msgs) > 1 and all(len(m) <= otd.TG_LIMIT for m in msgs)
+    text = "\n".join(msgs)
+    assert text.count("Venue ") == len(rows)               # nothing dropped
+    assert text.index("<b>2025</b>") < text.index("<b>1990</b>")  # newest first
+    assert msgs[0].startswith("📅 <b>On this day — 18 October</b>")
+
+
+def test_oversized_year_flows_on_with_cont_head():
+    rows = [minsk(ts(2018, 10, 18, 0, m), venue=f"V{m} " + "y" * 120) for m in range(0, 59)]
+    msgs = otd.build_messages(facts_for(rows), "s", TODAY)
+    assert len(msgs) >= 2 and all(len(m) <= otd.TG_LIMIT for m in msgs)
+    assert "<b>2018</b>" in msgs[1] and "(cont.)" in msgs[1]
 
 
 def test_message_escapes_html():
-    (f,) = facts_for([minsk(ts(2018, 10, 18), venue="Bar <Tom & Jerry>")])
-    msg = otd.build_message([f], "a < b", TODAY)
-    assert "Bar &lt;Tom &amp; Jerry&gt;" in msg and "a &lt; b" in msg
+    (f,) = facts_for([minsk(ts(2018, 10, 18), venue="Bar <Tom & Jerry>", shout="1 < 2")])
+    msg = "".join(otd.build_messages([f], "a < b", TODAY))
+    assert "Bar &lt;Tom &amp; Jerry&gt;" in msg and "a &lt; b" in msg and "1 &lt; 2" in msg
 
 
-def test_pick_photos_round_robin_newest_first():
-    facts = [{"photos": ["a1", "a2", "a3"]}, {"photos": []}, {"photos": ["c1", "c2"]}]
-    assert otd.pick_photos(facts, limit=4) == ["c1", "a1", "c2", "a2"]
-    assert otd.pick_photos([{"photos": []}]) == []
+def test_photo_albums_one_per_year_newest_first_capped():
+    facts = [{"year": 2018, "main_city": "Minsk", "photos": ["a1", "a2"]},
+             {"year": 2020, "main_city": "", "photos": []},
+             {"year": 2023, "main_city": "Tbilisi", "photos": [f"c{i}" for i in range(25)]}]
+    albums = otd.photo_albums(facts, "https://pix")
+    assert [cap for cap, _ in albums] == ["2023 · Tbilisi", "2018 · Minsk"]
+    assert len(albums[0][1]) == otd.ALBUM_MAX and albums[0][1][0] == "https://pix/c0"
+    assert albums[1][1] == ["https://pix/a1", "https://pix/a2"]
+    assert otd.photo_albums(facts, "") == []
 
 
 # ── External calls fail soft ────────────────────────────────────────────────
@@ -174,7 +211,12 @@ def test_claude_story_and_fallback():
 
 
 def test_tg_send_photo_failure_is_not_fatal():
-    s = FakeSession(FakeResp({}), FakeResp(status=400))
-    assert otd.tg_send("t", "c", "hi", ["u1", "u2"], session=s) is True
-    assert s.calls[1][0].endswith("/sendMediaGroup")
-    assert otd.tg_send("t", "c", "hi", [], session=FakeSession(FakeResp(status=401))) is False
+    s = FakeSession(FakeResp({}), FakeResp({}), FakeResp(status=400),
+                    requests.ConnectionError("down"))
+    albums = [("2023 · Tbilisi", ["u1", "u2"]), ("2018 · Minsk", ["u3"])]
+    assert otd.tg_send("t", "c", ["hi", "more"], albums, session=s) is True
+    assert s.calls[2][0].endswith("/sendMediaGroup")
+    media = json.loads(s.calls[2][1]["data"]["media"])
+    assert [m["media"] for m in media] == ["u1", "u2"] and media[0]["caption"] == "2023 · Tbilisi"
+    assert s.calls[3][0].endswith("/sendPhoto")
+    assert otd.tg_send("t", "c", ["hi"], [], session=FakeSession(FakeResp(status=401))) is False

@@ -3,19 +3,23 @@
 
 For today's calendar date, finds every earlier year with check-ins on the same
 day (checkins.csv + the sibling backfill.csv, run through the same transforms
-the site uses), then posts one Telegram message:
+the site uses), then posts:
 
-  * a short narrative — places, weather, who you were with, home vs away —
-    written by Claude when ANTHROPIC_API_KEY is set, otherwise a plain
-    template, so the bot never stays silent because of the LLM;
-  * a compact per-year list (city, weather, the day's places);
-  * optionally an album of up to 4 photos from that day (photos.json + pix URL).
+  * a narrative — places, weather, who you were with, home vs travel — written
+    by Claude when ANTHROPIC_API_KEY is set, otherwise a plain template, so the
+    bot never stays silent because of the LLM;
+  * every check-in of every year, newest year first: 🏠 home day / ✈️ travel
+    day, local time, category emoji, venue, and the companions + shout on the
+    exact check-in they belong to. Split over several messages when it outgrows
+    Telegram's 4096-character limit;
+  * one photo album per year that has photos (photos.json + pix URL, ≤10 each).
 
 A check-in belongs to a day by its LOCAL date at the place it was made
 (`metrics.trips._localise`), exactly like the index "on this day" card.
 Home is era-aware (`_home_at`), so 2010 in Chișinău and 2018 in Minsk both read
-as "home". "Home (private)" venues never leak a street name: they read "home".
-Weather comes from the Open-Meteo archive (no key).
+as "home". "Home (private)" venues never leak a street name: they read "home"
+in the home city of that era and "the flat" anywhere else (a rented place on a
+trip). Weather comes from the Open-Meteo archive (no key).
 
 Exit codes: 0 sent / nothing to send / dry run, 1 Telegram send failed.
 
@@ -52,11 +56,12 @@ log = logging.getLogger("on_this_day")
 
 HOME_CATEGORY = "Home (private)"
 TG_LIMIT = 4096          # Telegram message hard limit
-MAX_PLACES_PER_YEAR = 6
-MAX_PHOTOS = 4
+ALBUM_MAX = 10           # sendMediaGroup takes 2-10 items
+SHOUT_MAX = 200
+DEFAULT_EMOJI = "📍"
 DEFAULT_MODEL = "claude-sonnet-5-5"
 
-# WMO weather interpretation codes (Open-Meteo `weathercode`).
+# WMO weather interpretation codes (Open-Meteo `weather_code`).
 WMO = {
     0: ("☀️", "clear sky"), 1: ("🌤", "mostly clear"), 2: ("⛅", "partly cloudy"),
     3: ("☁️", "overcast"), 45: ("🌫", "fog"), 48: ("🌫", "freezing fog"),
@@ -93,6 +98,15 @@ def home_config(settings: dict) -> tuple[str, list[tuple[int, str]]]:
             history.append((ts, city))
     history.sort(key=lambda p: p[0])
     return trip_cfg.get("home_city", "Minsk"), history
+
+
+def load_icons(config_dir: Path) -> dict[str, str]:
+    """{category: emoji} from config/category_icons.json ({cat: [emoji, color]})."""
+    path = config_dir / "category_icons.json"
+    if not path.exists():
+        return {}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    return {k: v[0] for k, v in raw.items() if isinstance(v, list) and v and not k.startswith("_")}
 
 
 def load_rows(csv_path: Path, config_dir: Path) -> list[dict]:
@@ -133,18 +147,31 @@ def rows_on_this_day(rows: list[dict], today: date) -> dict[int, list[tuple[date
     return dict(sorted(out.items()))
 
 
-def place_name(r: dict) -> str:
+def place_name(r: dict, home_city: str = "") -> str:
+    """Venue name; a private home reads "home" in that era's home city, "the flat" elsewhere."""
     if (r.get("category") or "") == HOME_CATEGORY:
-        return "home"
+        if not home_city or (r.get("city") or "").strip() == home_city:
+            return "home"
+        return "the flat"
     return (r.get("venue") or "").strip() or "somewhere"
+
+
+def clean_shout(s: str | None) -> str:
+    """The person's own words, minus machine markers ([geo_pinned], [coords_approx…])."""
+    s = (s or "").replace("[geo_pinned]", "").strip()
+    if not s or s.startswith("["):
+        return ""
+    return s if len(s) <= SHOUT_MAX else s[:SHOUT_MAX - 1].rstrip() + "…"
 
 
 def summarize_year(year: int, items: list[tuple[datetime, dict]], today: date,
                    home_city: str, home_history: list[tuple[int, str]],
-                   photos: dict[str, list[str]] | None = None) -> dict:
+                   photos: dict[str, list[str]] | None = None,
+                   icons: dict[str, str] | None = None) -> dict:
     """Plain facts about one year's day — the only input the narrative sees."""
     ts0 = int(items[0][1].get("date") or 0)
     home = _home_at(ts0, home_city, home_history)
+    icons = icons or {}
     city_counts = Counter((r.get("city") or "").strip() for _, r in items if (r.get("city") or "").strip())
     # Main city: most check-ins, ties go to the later one (where the day ended).
     main_city = ""
@@ -158,28 +185,28 @@ def summarize_year(year: int, items: list[tuple[datetime, dict]], today: date,
     lng = sum(b for _, b in coords) / len(coords) if coords else None
     country = next(((r.get("country") or "").strip() for r in main_rows if (r.get("country") or "").strip()), "")
 
-    places: list[dict] = []
-    seen: set[str] = set()
+    stops: list[dict] = []
     companions: list[str] = []
     shouts: list[str] = []
     photo_files: list[str] = []
     for loc, r in items:
-        name = place_name(r)
-        key = name.lower()
-        if key not in seen:
-            seen.add(key)
-            places.append({"time": loc.strftime("%H:%M"), "name": name,
-                           "category": r.get("category") or "", "city": (r.get("city") or "").strip()})
-        for c in collect_companions(r):
+        cat = r.get("category") or ""
+        stop_photos = list((photos or {}).get(r.get("checkin_id") or "", []))
+        stop_with = collect_companions(r)
+        shout = clean_shout(r.get("shout"))
+        stops.append({
+            "time": loc.strftime("%H:%M"), "name": place_name(r, home), "category": cat,
+            "city": (r.get("city") or "").strip(), "emoji": icons.get(cat, DEFAULT_EMOJI),
+            "companions": stop_with, "shout": shout, "photos": stop_photos,
+        })
+        for c in stop_with:
             if c.lower() not in {x.lower() for x in companions}:
                 companions.append(c)
-        s = (r.get("shout") or "").replace("[geo_pinned]", "").strip()
-        if s and not s.startswith("[") and s not in shouts:
-            shouts.append(s)
-        if photos:
-            photo_files.extend(photos.get(r.get("checkin_id") or "", []))
+        if shout and shout not in shouts:
+            shouts.append(shout)
+        photo_files.extend(stop_photos)
 
-    cities = list(dict.fromkeys(p["city"] for p in places if p["city"]))
+    cities = list(dict.fromkeys(s["city"] for s in stops if s["city"]))
     countries = list(dict.fromkeys((r.get("country") or "").strip() for _, r in items if (r.get("country") or "").strip()))
     return {
         "year": year,
@@ -192,9 +219,9 @@ def summarize_year(year: int, items: list[tuple[datetime, dict]], today: date,
         "cities": cities,
         "countries": countries,
         "checkins": len(items),
-        "places": places,
+        "stops": stops,
         "companions": companions,
-        "shouts": shouts[:3],
+        "shouts": shouts,
         "reconstructed": all((r.get("source_app") or "") == "refurbished" for _, r in items),
         "lat": lat, "lng": lng,
         "photos": photo_files,
@@ -211,7 +238,7 @@ def fetch_weather(lat: float | None, lng: float | None, day: date, session=reque
         resp = session.get("https://archive-api.open-meteo.com/v1/archive", params={
             "latitude": round(lat, 3), "longitude": round(lng, 3),
             "start_date": day.isoformat(), "end_date": day.isoformat(),
-            "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode",
+            "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code",
             "timezone": "auto",
         }, timeout=20)
         resp.raise_for_status()
@@ -219,7 +246,7 @@ def fetch_weather(lat: float | None, lng: float | None, day: date, session=reque
         tmax, tmin = d.get("temperature_2m_max", [None])[0], d.get("temperature_2m_min", [None])[0]
         if tmax is None or tmin is None:
             return None
-        code = d.get("weathercode", [None])[0]
+        code = (d.get("weather_code") or d.get("weathercode") or [None])[0]
         icon, desc = WMO.get(int(code), ("🌡", "")) if code is not None else ("🌡", "")
         return {"tmax": round(tmax), "tmin": round(tmin),
                 "precip_mm": round(d.get("precipitation_sum", [0])[0] or 0, 1),
@@ -238,23 +265,36 @@ def weather_text(w: dict | None) -> str:
 # ── Narrative ───────────────────────────────────────────────────────────────
 
 def _llm_facts(facts: list[dict]) -> list[dict]:
-    keep = ("year", "years_ago", "home_city", "at_home", "cities", "countries",
-            "checkins", "places", "companions", "shouts", "weather", "reconstructed")
-    return [{k: f[k] for k in keep} for f in facts]
+    keep = ("year", "years_ago", "home_city", "at_home", "main_city", "cities", "countries",
+            "checkins", "companions", "weather", "reconstructed")
+    out = []
+    for f in facts:
+        d = {k: f[k] for k in keep}
+        d["stops"] = [{k: s[k] for k in ("time", "name", "category", "city", "companions", "shout")
+                       if s[k] or k in ("time", "name")} for s in f["stops"]]
+        out.append(d)
+    return out
 
 
-PROMPT = """You write a short daily "on this day" note for one person's private Telegram chat, \
+PROMPT = """You write the daily "on this day" story for one person's private Telegram channel, \
 based on their own check-in history. Today is {today}. Below are the facts for this calendar day \
-in earlier years (JSON). Places are in local time; "home" is their home; "at_home" means the whole \
-day was spent in their home city; "reconstructed" days are rebuilt from old diaries at day \
-granularity, so their times are not real. Shouts are their own words at the time (often Russian).
+in earlier years (JSON).
 
-Write {words} words in {lang}, second person ("you"), warm and a little wry, like a friend \
-remembering with them. Weave a narrative: where they were, what the day looked like (use the \
-weather), who they were with, how the places connect into a day. Lead with the most interesting \
-year (travel, a notable place, company) — don't march through every year; quiet home days can be \
-grouped in one line. Never invent events, feelings or details not supported by the facts. \
-Plain text only: no markdown, no headings, no lists, no hashtags. At most 2 emoji.
+How to read them: "stops" is every check-in of that day in order, with LOCAL time; each stop's \
+"companions" are the people tagged on that exact check-in and "shout" is what the person wrote \
+there at the time (often Russian — quote or paraphrase it, translated if needed). "home" is their \
+home; "the flat" is a rented place or lodging while travelling. "at_home" means the day was based \
+in their home city of that era ("home_city" — it moved over the years); otherwise it was a travel \
+day. "reconstructed" days are rebuilt from old diaries at day granularity, so their times are not \
+real — don't mention clock times for them.
+
+Write {words} words in {lang}, second person ("you"), warm and a little wry, like an old friend \
+flipping through a photo album with them. Tell it as a story: open with the most interesting year \
+(travel, a notable place, good company), follow the shape of that day — morning to evening, how \
+one place led to the next, the weather, who joined when — then move through the other years more \
+briefly; quiet home days can share one sentence. Short paragraphs separated by a blank line are \
+welcome. Never invent events, feelings or details the facts don't support. Plain text only: no \
+markdown, no headings, no lists, no hashtags. At most 2 emoji.
 
 Facts:
 {facts}"""
@@ -262,14 +302,14 @@ Facts:
 
 def claude_story(facts: list[dict], today: date, lang: str, api_key: str,
                  model: str = DEFAULT_MODEL, session=requests) -> str | None:
-    words = "60-90" if len(facts) == 1 else "120-180"
+    words = "80-120" if len(facts) == 1 else "150-250"
     prompt = PROMPT.format(today=today.strftime("%d %B %Y"), words=words, lang=lang,
                            facts=json.dumps(_llm_facts(facts), ensure_ascii=False, indent=1))
     try:
         resp = session.post("https://api.anthropic.com/v1/messages", headers={
             "x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json",
-        }, json={"model": model, "max_tokens": 700,
-                 "messages": [{"role": "user", "content": prompt}]}, timeout=60)
+        }, json={"model": model, "max_tokens": 1200,
+                 "messages": [{"role": "user", "content": prompt}]}, timeout=90)
         resp.raise_for_status()
         text = "".join(b.get("text", "") for b in resp.json().get("content", []) if b.get("type") == "text")
         return text.strip() or None
@@ -278,116 +318,176 @@ def claude_story(facts: list[dict], today: date, lang: str, api_key: str,
         return None
 
 
-def template_story(facts: list[dict]) -> str:
-    """No-LLM fallback: a sentence per trip away, quiet home years grouped in one line."""
-    def ago(n: int) -> str:
-        return f"{n} year{'s' if n != 1 else ''} ago"
+def _ago(n: int) -> str:
+    return f"{n} year{'s' if n != 1 else ''} ago"
 
-    lines = []
+
+def template_story(facts: list[dict]) -> str:
+    """No-LLM fallback: a paragraph per notable year, quiet home years grouped in one line."""
+    paras = []
     home_years: list[dict] = []
     for f in reversed(facts):
-        if f["at_home"] and not f["companions"]:
+        if f["at_home"] and not f["companions"] and not f["shouts"]:
             home_years.append(f)
             continue
         where = f["main_city"] or "somewhere"
         if f["country"] and not f["at_home"]:
             where += f", {f['country']}"
-        line = f"{ago(f['years_ago'])} you were " + ("at home in " if f["at_home"] else "in ") + where
+        if f["at_home"]:
+            line = f"{_ago(f['years_ago'])}, a home day in {where}"
+        else:
+            line = f"{_ago(f['years_ago'])} you were in {where}"
         w = f["weather"]
         if w:
-            line += f" ({w['desc']}, {w['tmax']}°)" if w["desc"] else f" ({w['tmax']}°)"
-        names = [p["name"] for p in f["places"] if p["name"] != "home"][:3]
-        if names:
-            line += ", stopping at " + ", ".join(names)
+            line += f" — {w['desc']}, {w['tmax']}°" if w["desc"] else f" — {w['tmax']}°"
+        line += "."
+        stops = f["stops"]
+        named = [s for s in stops if s["name"] not in ("home", "the flat", "somewhere")] or stops
+        if len(stops) == 1 or f["reconstructed"]:
+            line += f" {named[0]['name']}" + (f" and {len(stops) - 1} more" if len(stops) > 1 else "") + "."
+        else:
+            first, last = named[0], named[-1]
+            line += (f" The day ran from {first['name']} ({first['time']}) to "
+                     f"{last['name']} ({last['time']}) across {len(stops)} check-ins")
+            others = [c for c in f["cities"] if c != f["main_city"]]
+            if others:
+                line += ", through " + ", ".join(others[:3])
+            line += "."
         if f["companions"]:
-            line += " — with " + ", ".join(f["companions"][:3])
-        lines.append(line.rstrip(".") + ".")
+            line += " With " + ", ".join(f["companions"][:4]).rstrip(".") + "."
+        if f["shouts"]:
+            line += f" You wrote: “{f['shouts'][0]}”"
+        paras.append(line)
     if home_years:
         cities = list(dict.fromkeys(f["main_city"] for f in home_years))
         years = ", ".join(str(f["year"]) for f in home_years)
-        lines.append(f"Quiet home days in {' and '.join(cities)}: {years}.")
-    return "\n".join(lines)
+        paras.append(f"Quiet home days in {' and '.join(cities)}: {years}.")
+    return "\n\n".join(paras)
 
 
 # ── Message formatting ──────────────────────────────────────────────────────
 
-def year_block(f: dict) -> str:
-    e = html.escape
+def year_head(f: dict) -> str:
     where = f["main_city"] or "—"
     if f["country"]:
         where += f", {f['country']}"
-    head = f"<b>{f['year']}</b> · {f['years_ago']}y ago — {'🏠' if f['at_home'] else '📍'} {e(where)}"
+    head = (f"{'🏠' if f['at_home'] else '✈️'} <b>{f['year']}</b> · {_ago(f['years_ago'])} — "
+            f"{html.escape(where)}")
     w = weather_text(f["weather"])
     if w:
         head += f" · {w}"
     if f["reconstructed"]:
-        head += " · ↺"
-    places = [p for p in f["places"]][:MAX_PLACES_PER_YEAR]
-    body = ", ".join(e(p["name"]) for p in places)
-    extra = len(f["places"]) - len(places)
-    if extra > 0:
-        body += f" +{extra}"
-    if f["companions"]:
-        body += " · with " + e(", ".join(f["companions"][:4]))
-    return head + "\n" + body
+        head += " · ↺ reconstructed"
+    return head
 
 
-def build_message(facts: list[dict], story: str, today: date) -> str:
+def stop_line(s: dict, main_city: str, reconstructed: bool) -> str:
+    e = html.escape
+    line = ("" if reconstructed else f"{s['time']} ") + f"{s['emoji']} {e(s['name'])}"
+    if s["city"] and s["city"] != main_city:
+        line += f" · <i>{e(s['city'])}</i>"
+    if s["companions"]:
+        line += " — with " + e(", ".join(s["companions"]))
+    if s["shout"]:
+        line += f" 💬 <i>{e(s['shout'])}</i>"
+    if s["photos"]:
+        line += " 📷"
+    return line
+
+
+def year_lines(f: dict) -> list[str]:
+    return [year_head(f)] + [stop_line(s, f["main_city"], f["reconstructed"]) for s in f["stops"]]
+
+
+def _cut(text: str) -> str:
+    return text if len(text) <= TG_LIMIT else text[:TG_LIMIT - 1] + "…"
+
+
+def build_messages(facts: list[dict], story: str, today: date) -> list[str]:
+    """Header + story, then every year newest first, packed into ≤4096-char messages.
+
+    Whole year blocks are kept together when they fit; a block that does not
+    fit in an empty message flows line by line, repeating its head "(cont.)".
+    """
     header = f"📅 <b>On this day — {today.day} {today.strftime('%B')}</b>"
-    story_html = html.escape(story)
-    blocks = [year_block(f) for f in reversed(facts)]
-    msg = "\n\n".join([header, story_html, "\n\n".join(blocks)])
-    # Over the limit: drop the oldest year blocks first, then trim the story.
-    while len(msg) > TG_LIMIT and blocks:
-        blocks.pop()
-        msg = "\n\n".join([header, story_html, "\n\n".join(blocks + ["…"])])
-    if len(msg) > TG_LIMIT:
-        msg = msg[:TG_LIMIT - 1] + "…"
-    return msg
+    chunks: list[str] = []
+    cur = _cut(header + "\n\n" + html.escape(story, quote=False))
+    for f in reversed(facts):
+        lines = year_lines(f)
+        block = "\n".join(lines)
+        if len(cur) + 2 + len(block) <= TG_LIMIT:
+            cur += "\n\n" + block
+            continue
+        if len(block) <= TG_LIMIT:
+            chunks.append(cur)
+            cur = block
+            continue
+        # Too big for any one message: flow it line by line.
+        sep = "\n\n"
+        for i, line in enumerate(lines):
+            line = _cut(line)
+            if len(cur) + len(sep) + len(line) > TG_LIMIT:
+                chunks.append(cur)
+                cur = lines[0] + " <i>(cont.)</i>" if i else ""
+                sep = "\n" if cur else ""
+            cur += sep + line
+            sep = "\n"
+    if cur:
+        chunks.append(cur)
+    return [_cut(c) for c in chunks if c]
 
 
-def pick_photos(facts: list[dict], limit: int = MAX_PHOTOS) -> list[str]:
-    """One photo per year, newest years first, then fill up round-robin."""
-    pools = [list(f["photos"]) for f in reversed(facts) if f["photos"]]
-    out: list[str] = []
-    while pools and len(out) < limit:
-        for pool in list(pools):
-            if len(out) >= limit:
-                break
-            out.append(pool.pop(0))
-            if not pool:
-                pools.remove(pool)
+def photo_albums(facts: list[dict], pix: str) -> list[tuple[str, list[str]]]:
+    """[(caption, urls≤10)] — one album per year with photos, newest year first."""
+    if not pix:
+        return []
+    out = []
+    for f in reversed(facts):
+        if not f["photos"]:
+            continue
+        files = list(dict.fromkeys(f["photos"]))
+        if len(files) > ALBUM_MAX:   # spread the picks over the whole day
+            step = len(files) / ALBUM_MAX
+            files = [files[int(i * step)] for i in range(ALBUM_MAX)]
+        cap = f"{f['year']} · {f['main_city']}" if f["main_city"] else str(f["year"])
+        out.append((cap, [f"{pix}/{p}" for p in files]))
     return out
 
 
 # ── Telegram ────────────────────────────────────────────────────────────────
 
-def tg_send(token: str, chat_id: str, text: str, photo_urls: list[str], session=requests) -> bool:
+def tg_send(token: str, chat_id: str, texts: list[str], albums: list[tuple[str, list[str]]],
+            session=requests) -> bool:
     api = f"https://api.telegram.org/bot{token}"
-    resp = session.post(f"{api}/sendMessage", data={
-        "chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": "true",
-    }, timeout=30)
-    if not resp.ok:
-        log.error("sendMessage failed: %s %s", resp.status_code, resp.text[:300])
-        return False
-    if photo_urls:
+    for text in texts:
+        resp = session.post(f"{api}/sendMessage", data={
+            "chat_id": chat_id, "text": text, "parse_mode": "HTML", "disable_web_page_preview": "true",
+        }, timeout=30)
+        if not resp.ok:
+            log.error("sendMessage failed: %s %s", resp.status_code, resp.text[:300])
+            return False
+    for caption, urls in albums:
         try:
-            if len(photo_urls) == 1:
-                r = session.post(f"{api}/sendPhoto", data={"chat_id": chat_id, "photo": photo_urls[0]}, timeout=60)
+            if len(urls) == 1:
+                r = session.post(f"{api}/sendPhoto", data={
+                    "chat_id": chat_id, "photo": urls[0], "caption": caption}, timeout=60)
             else:
-                media = [{"type": "photo", "media": u} for u in photo_urls]
+                media = [{"type": "photo", "media": u} for u in urls]
+                media[0]["caption"] = caption
                 r = session.post(f"{api}/sendMediaGroup",
                                  data={"chat_id": chat_id, "media": json.dumps(media)}, timeout=60)
             if not r.ok:   # photos are a bonus — the story already went out
-                log.warning("photo send failed: %s %s", r.status_code, r.text[:300])
+                log.warning("photo send failed (%s): %s %s", caption, r.status_code, r.text[:300])
         except requests.RequestException as exc:
-            log.warning("photo send failed: %s", exc)
+            log.warning("photo send failed (%s): %s", caption, exc)
     return True
 
 
 # ── Main ────────────────────────────────────────────────────────────────────
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")   # a Windows console is cp1252
     logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
     root = Path(__file__).resolve().parent.parent
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -399,13 +499,14 @@ def main() -> int:
     ap.add_argument("--tz", default="Europe/Chisinau", help="timezone that defines 'today'")
     ap.add_argument("--lang", default="English", help="narrative language")
     ap.add_argument("--no-weather", action="store_true")
-    ap.add_argument("--dry-run", action="store_true", help="print the message, send nothing")
+    ap.add_argument("--dry-run", action="store_true", help="print the messages, send nothing")
     args = ap.parse_args()
 
     today = (date.fromisoformat(args.date) if args.date
              else datetime.now(ZoneInfo(args.tz)).date())
     config_dir = Path(args.config_dir)
     home_city, home_history = home_config(load_settings(config_dir))
+    icons = load_icons(config_dir)
     photos: dict[str, list[str]] = {}
     if args.photos and Path(args.photos).exists() and args.pix_url:
         photos = json.loads(Path(args.photos).read_text(encoding="utf-8"))
@@ -416,7 +517,7 @@ def main() -> int:
         print("SENT=false")
         return 0
 
-    facts = [summarize_year(y, items, today, home_city, home_history, photos)
+    facts = [summarize_year(y, items, today, home_city, home_history, photos, icons)
              for y, items in by_year.items()]
     if not args.no_weather:
         for f in facts:
@@ -427,15 +528,19 @@ def main() -> int:
     if api_key:
         story = claude_story(facts, today, args.lang, api_key,
                              os.environ.get("ANTHROPIC_MODEL", "").strip() or DEFAULT_MODEL)
+    else:
+        log.info("ANTHROPIC_API_KEY not set — template story")
     story = story or template_story(facts)
-    message = build_message(facts, story, today)
-    pix = args.pix_url.rstrip("/")
-    photo_urls = [f"{pix}/{p}" for p in pick_photos(facts)] if pix else []
+    messages = build_messages(facts, story, today)
+    albums = photo_albums(facts, args.pix_url.rstrip("/"))
 
     if args.dry_run:
-        print(message)
-        for u in photo_urls:
-            print("PHOTO", u)
+        for i, m in enumerate(messages, 1):
+            print(f"──── message {i}/{len(messages)} ({len(m)} chars) ────")
+            print(m)
+        for caption, urls in albums:
+            for u in urls:
+                print("PHOTO", caption, u)
         print("SENT=false")
         return 0
 
@@ -444,7 +549,7 @@ def main() -> int:
     if not token or not chat:
         log.error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set")
         return 1
-    ok = tg_send(token, chat, message, photo_urls)
+    ok = tg_send(token, chat, messages, albums)
     print(f"SENT={'true' if ok else 'false'}")
     return 0 if ok else 1
 

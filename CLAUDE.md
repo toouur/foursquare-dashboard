@@ -74,12 +74,16 @@ python scripts/fetch_lastfm.py --user TOOUUR --check   # probe key, no write
 
 ### Telegram "on this day" story (daily)
 `telegram_on_this_day.py` posts every earlier year that has check-ins on today's date
-(local date per check-in; "today" in `Europe/Chisinau`). Each year gets its places,
-companions and weather from the Open-Meteo archive (no key). On top sits a short
-narrative: Claude writes it when `ANTHROPIC_API_KEY` is set (model `ANTHROPIC_MODEL`,
-default `claude-sonnet-5-5`), otherwise a template does. Up to 4 photos come from
-photos.json. Home is era-aware (`_home_at`), and "Home (private)" venues are never
-named. Weather and Claude fail soft; only a failed `sendMessage` exits 1. Runs daily
+(local date per check-in; "today" in `Europe/Chisinau`). Each year is headed 🏠 home or
+✈️ travel (era-aware `_home_at`) with its weather from the Open-Meteo archive (no key),
+then lists EVERY check-in with its local time; companions and shout sit inline on the
+check-in they belong to. A "Home (private)" venue reads "home" in the home city and
+"the flat" elsewhere — its address is never shown. On top sits a narrative: Claude
+writes it when `ANTHROPIC_API_KEY` (repo secret) is set (model `ANTHROPIC_MODEL`,
+default `claude-sonnet-5-5`), otherwise a template does. Text splits into several
+messages under Telegram's 4096-char limit (a long year continues with a "(cont.)"
+head); then one photo album per year (≤10, `sendMediaGroup`) from photos.json.
+Weather, Claude and photos fail soft; only a failed `sendMessage` exits 1. Runs daily
 in CI (`telegram-on-this-day.yml`, 06:00 UTC, honours `UPDATES_PAUSED`, read-only),
 using the existing `TELEGRAM_BOT_TOKEN`; it posts to `TELEGRAM_OTD_CHAT_ID` when set (e.g. a
 channel with the bot as admin), else to the alerts chat `TELEGRAM_CHAT_ID`.
