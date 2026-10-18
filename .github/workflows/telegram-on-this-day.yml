@@ -2,9 +2,11 @@
 #
 # Daily "on this day" story to Telegram (scripts/telegram_on_this_day.py):
 # every earlier year with check-ins on today's date, with places, weather
-# (Open-Meteo archive) and a short narrative — written by Claude when
-# ANTHROPIC_API_KEY is set, otherwise a plain template. Read-only: nothing is
-# committed anywhere.
+# (Open-Meteo archive) and a short narrative written by Claude — through the
+# API when ANTHROPIC_API_KEY is set, else through the Claude Code CLI with
+# CLAUDE_CODE_OAUTH_TOKEN (a Pro/Max subscription token from `claude
+# setup-token`) — or a plain template when neither works. Read-only: nothing
+# is committed anywhere.
 
 name: Telegram on this day
 
@@ -29,6 +31,9 @@ jobs:
   post:
     if: vars.UPDATES_PAUSED != 'true'
     runs-on: ubuntu-latest
+    env:
+      # Secrets can't be tested in a step `if`; expose a yes/no flag instead.
+      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -41,6 +46,12 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: pip install -r requirements.txt
+      # Claude Code CLI, only when the subscription token is configured. A failed
+      # install just means the template story.
+      - name: Install Claude Code
+        if: env.HAS_CLAUDE_TOKEN == 'true'
+        continue-on-error: true
+        run: npm install -g @anthropic-ai/claude-code
       - name: Post
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -48,6 +59,7 @@ jobs:
           # chat the failure alerts already go to.
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_OTD_CHAT_ID || secrets.TELEGRAM_CHAT_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           OTD_DATE: ${{ inputs.date }}
           OTD_DRY: ${{ inputs.dry_run }}
         run: |

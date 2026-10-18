@@ -210,6 +210,30 @@ def test_claude_story_and_fallback():
     assert otd.claude_story(facts, TODAY, "English", "k", session=bad) is None
 
 
+def test_claude_cli_story_and_fallback(monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+    facts = facts_for([minsk(ts(2018, 10, 18))])
+    seen = {}
+
+    def ok(cmd, **kw):
+        seen.update(cmd=cmd, **kw)
+        return SimpleNamespace(returncode=0, stdout="  A calm Minsk day.\n", stderr="")
+
+    monkeypatch.setattr(otd.shutil, "which", lambda name: "/usr/bin/claude")
+    assert otd.claude_cli_story(facts, TODAY, "English", "sonnet", run=ok) == "A calm Minsk day."
+    assert seen["cmd"][:2] == ["/usr/bin/claude", "-p"] and seen["cmd"][-2:] == ["--model", "sonnet"]
+    assert "Minsk" in seen["input"]                        # prompt goes over stdin
+
+    def boom(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, 180)
+    assert otd.claude_cli_story(facts, TODAY, "English", run=boom) is None
+    failed = lambda cmd, **kw: SimpleNamespace(returncode=1, stdout="", stderr="auth")  # noqa: E731
+    assert otd.claude_cli_story(facts, TODAY, "English", run=failed) is None
+    monkeypatch.setattr(otd.shutil, "which", lambda name: None)
+    assert otd.claude_cli_story(facts, TODAY, "English", run=ok) is None
+
+
 def test_tg_send_photo_failure_is_not_fatal():
     s = FakeSession(FakeResp({}), FakeResp({}), FakeResp(status=400),
                     requests.ConnectionError("down"))

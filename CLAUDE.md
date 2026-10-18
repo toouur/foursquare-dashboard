@@ -79,8 +79,11 @@ python scripts/fetch_lastfm.py --user TOOUUR --check   # probe key, no write
 then lists EVERY check-in with its local time; companions and shout sit inline on the
 check-in they belong to. A "Home (private)" venue reads "home" in the home city and
 "the flat" elsewhere — its address is never shown. On top sits a narrative: Claude
-writes it when `ANTHROPIC_API_KEY` (repo secret) is set (model `ANTHROPIC_MODEL`,
-default `claude-sonnet-5-5`), otherwise a template does. Text splits into several
+writes it via the API when `ANTHROPIC_API_KEY` (repo secret) is set (model
+`ANTHROPIC_MODEL`, default `claude-sonnet-5-5`); else via the Claude Code CLI
+(`claude -p`, prompt over stdin) when `CLAUDE_CODE_OAUTH_TOKEN` is set — a Pro/Max
+subscription token from `claude setup-token`, no API billing; the workflow installs
+`@anthropic-ai/claude-code` only when that secret exists. Otherwise a template does. Text splits into several
 messages under Telegram's 4096-char limit (a long year continues with a "(cont.)"
 head); then one photo album per year (≤10, `sendMediaGroup`) from photos.json.
 Weather, Claude and photos fail soft; only a failed `sendMessage` exits 1. Runs daily
