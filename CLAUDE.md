@@ -106,24 +106,29 @@ python scripts/telegram_on_this_day.py --csv C:/Users/toouur/Documents/GitHub/fo
 ```
 
 ### Telegram check-in echo (instant + morning digest)
-`telegram_checkin_echo.py` reads each NEW check-in against all history before it
-(checkins.csv + backfill.csv, same transforms) and raises events: `new_country`,
-`new_city`, `city_back` (first check-in in a city after ≥1 year), `comeback_long` (same
-venue after ≥5 years), `milestone_big` (50/100/250/500/1000th visit), `total` (every
-1000th check-in) — all **instant** — and `comeback` (≥1 year), `milestone` (10/25th),
-`new_venue` — **digest only**. Home (private) and reconstructed rows never raise events;
-pass-through categories (`PASS_THROUGH`: Road, Bus Line, Taxi, Neighborhood, …) are
-demoted to the digest and sorted last in it. `--mode instant` runs after every
-`update-dashboard` run (`telegram-checkin-echo.yml`, `workflow_run`, push-verify runs
-skipped), posts ≤3 messages, only for check-ins newer than the watermark and ≤36 h old;
-`--mode digest` runs 05:45 UTC for YESTERDAY's local date: one message, ≤15 event lines
-ranked strongest-first, the rest summarised. Claude writes the text (API, else CLI), else
-a template. State `checkin_echo_state.json` in the data repo (`last_ts` watermark,
-told-instantly ids, sent digest dates): the first instant run without it only records the
-watermark — enabling the bot never replays history — and the watermark moves only past
-messages that actually went out. Posts to `TELEGRAM_OTD_CHAT_ID` (else
-`TELEGRAM_CHAT_ID`). 7th data-repo writer (BUG-014 rebase loop). Manual dispatch defaults
-to `dry_run`. Tests: `tests/test_telegram_checkin_echo.py`.
+`telegram_checkin_echo.py` tells EVERY new real check-in's story against all history before
+it (checkins.csv + backfill.csv, same transforms): a repeat gets `visit` (visit number, first
+visit, `recent_visits`, days since last, who you were here with before), a new place gets
+`new_venue` (its rank in the category, the previous place of that kind, same-name chain
+count). There is **no threshold**: labels — `new_country`, `new_city`, `city_back` (≥1 year
+away from the city), `comeback`/`comeback_long` (≥1/≥5 years since the venue),
+`milestone`/`milestone_big` (10/25 · 50/100/250/500/1000th visit), `total` (every 1000th) —
+only colour the text and decide what the digest lists. Home (private) and reconstructed rows
+are never told; `PASS_THROUGH` categories (Road, Bus Line, Taxi, …) never get the `_long`/
+`_big` labels and sort last in the digest. **Trigger:** `update-dashboard.yml` step 6b
+dispatches `telegram-checkin-echo.yml -f mode=instant` right after it commits new
+check-ins (`continue-on-error`, needs `actions: write`), so a story lands about a minute after
+the poller sees the check-in; the echo workflow has its own `concurrency` group, so two
+polls never double-post. Instant posts ≤10 per run, only for check-ins newer than the
+watermark and ≤36 h old. `--mode digest` (05:45 UTC, YESTERDAY's local date) lists that
+day's labelled check-ins (plain repeat visits excluded), ≤15 lines strongest-first, the rest
+summarised. Claude writes the text (API, else CLI), else a template. State
+`checkin_echo_state.json` in the data repo (`last_ts` watermark, told ids, sent digest
+dates): the first instant run without it only records the watermark — enabling the bot never
+replays history — and the watermark moves only past messages that actually went out. Posts
+to `TELEGRAM_OTD_CHAT_ID` (else `TELEGRAM_CHAT_ID`). 7th data-repo writer (BUG-014 rebase
+loop). Manual dispatch defaults to `mode=digest`, `dry_run`. Tests:
+`tests/test_telegram_checkin_echo.py`.
 ```bash
 python scripts/telegram_checkin_echo.py --mode digest --csv C:/Users/toouur/Documents/GitHub/foursquare-data/checkins.csv \
   --state C:/Users/toouur/Documents/GitHub/foursquare-data/checkin_echo_state.json --date 2026-10-18 --dry-run --no-llm
@@ -401,7 +406,7 @@ python -m http.server 8000 --directory _site
 
 ### Run tests / lint
 ```bash
-# Offline suite (422 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (423 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 /c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 14 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -468,7 +473,7 @@ python -m http.server 8000 --directory _site
 - Last.fm fetch: `scripts/fetch_lastfm.py` (per-year scrobble aggregate; weekly `lastfm.yml`; feeds year-page "The year in sound" section via `gen_year_pages` `music_by_year`)
 - Pre-2012 backfill: `scripts/build_backfill.py` (`backfill.yaml` → `backfill.csv`, 23-col schema, `source_app="refurbished"`, `rf<seq>` ids, centroid-reuse geocode); `build.py` auto-merges the sibling `backfill.csv`; `sync_to_d1.py --backfill` ingests to D1; source adapters `scripts/import_polarsteps.py` (Polarsteps export ZIP → backfill.yaml; PENDING user export) and `scripts/import_liveinternet.py` (LiveInternet diary crawl → candidate entries). `scripts/refresh_backfill_venue.py` (+ `refresh-backfill-venue.yml`) fills real Foursquare venue metadata onto a reconstructed row. **Both its endpoints can be shut at once**: `/v2/venues/{id}` is premium and 402s permanently for this token, and `/v2/venues/search` — the fallback — has been seen answering `402 credits_exhausted` too once the monthly call budget is spent (same budget the ratings fetch draws on). The run still exits 0 and commits nothing; the row keeps `[coords_approx:pending_api]` and must be retried after the quota resets on the 1st. Reconstructed rows badged in feed/trips/year-hero. Tests: `tests/test_backfill.py`.
 - D1 sync: `scripts/sync_to_d1.py`, `scripts/d1_client.py`
-- Tests: `tests/` — pytest suite (466 tests: 422 offline, 22 live API contract, 22 live+e2e): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative/home-eras + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
+- Tests: `tests/` — pytest suite (467 tests: 423 offline, 22 live API contract, 22 live+e2e): offline unit tests for transform/trips/companions/shouts/transport-mode/route-paths/year-covers/month-narrative/home-eras + a full build-integration smoke (`test_build_integration.py`: real build → validate_html gate + PWA/map_data + per-country-page/syndication-feed/on-this-day assertions), `live`-marked API contract tests, `live`+`e2e` Playwright smoke tests + axe-core a11y audit (`test_a11y.py`, fails on NEW critical/serious rules only — pre-existing debt lives in its `KNOWN_ISSUES` baseline), Py↔JS companion parity (extracts `collectCompanions` verbatim from feed.js, runs under node). Markers registered in `tests/conftest.py` (also has `make_row()` factory). CI: `.github/workflows/tests.yml` — lint (ruff+mypy) + unit on push/PR touching scripts/tests/functions/config/setup.cfg; live suite weekly (Mon 06:00 UTC) + manual dispatch only, so a site outage never blocks a push.
 - HTML deploy gate: `scripts/validate_html.py` — runs in `update-dashboard.yml` before every deploy (required pages present, no leftover `{{PLACEHOLDER}}`, embedded JSON parses, min page size; skips `solution.html` which quotes placeholders as documentation).
 - QA docs: `qa/` — `test-strategy.md` (risk analysis → pyramid → gates), `exploratory-checklist.md` (manual pre-release charter), `bug-reports/` (14 written-up real defects). `docs/` is gitignored — QA docs must live in `qa/`.
 - Lint config: `ruff.toml` (E4/E7/E9+F; E401/E701/E702/E731 ignored deliberately).
@@ -806,7 +811,7 @@ with nothing to preserve across a re-fetch.
   `toouur/foursquare-data` `main` — `update-dashboard.yml` (hourly), `warm-routes.yml`
   (daily 03:00 UTC), `recheck-enrich.yml` (daily 04:15 UTC), `fr24-flights.yml` (weekly
   Sun 05:00), `lastfm.yml` (weekly Sun 06:00), `telegram-on-this-day.yml` (daily 06:00,
-  `otd_stories.json`), `telegram-checkin-echo.yml` (after each hourly run + daily 05:45,
+  `otd_stories.json`), `telegram-checkin-echo.yml` (dispatched by each hourly poll with new check-ins + daily 05:45,
   `checkin_echo_state.json`). Overlapping runs (e.g. the 03:00
   route-warm still pushing as the 03:00 hourly build commits) caused non-fast-forward
   rejections (`! [rejected] main -> main (fetch first)`) that failed the run. Every

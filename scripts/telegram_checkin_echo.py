@@ -2,22 +2,22 @@
 """Check-in echo: a mini history story to Telegram for notable new check-ins.
 
 Every new check-in is read against the whole history before it (checkins.csv +
-backfill.csv, the same transforms as the site) and may raise events:
+backfill.csv, the same transforms as the site) and gets its own story — how
+many times you have been there, when first, the last visits, with whom, or for
+a new place what number of its kind it is and what the previous one was. On
+top, labels that colour the text and fill the digest:
 
-  new_country  first check-in ever in that country             → instant
-  new_city     first check-in ever in that city                → instant
-  city_back    first check-in in a city after ≥1 year away     → instant
-  comeback     back at a venue after ≥5 years                  → instant
-               … after ≥1 year                                 → digest
-  milestone    50th / 100th / 250th / 500th / 1000th visit      → instant
-               10th / 25th visit                               → digest
-  total        every 1000th check-in overall                   → instant
-  new_venue    a place never checked in before                 → digest
+  new_country / new_city   first check-in ever there
+  city_back                first check-in in a city after ≥1 year away
+  comeback(_long)          back at the venue after ≥1 (≥5) years
+  milestone(_big)          10/25 (50/100/250/500/1000)th visit
+  total                    every 1000th check-in overall
+  new_venue / visit        never here before / been here before
 
 Two modes, both posting to the "on this day" channel:
 
-  --mode instant  (after each hourly data update) one message per check-in with
-                  an instant event, at most MAX_INSTANT per run, only for
+  --mode instant  (inside the hourly poller, right after it commits new data)
+                  one message per new check-in, at most MAX_INSTANT per run, only for
                   check-ins newer than the stored watermark and fresher than
                   MAX_AGE_H — a backlog after an outage goes to the digest only.
   --mode digest   (once a day, for yesterday's local date) one message listing
@@ -77,7 +77,7 @@ DIGEST_MILESTONES = {10, 25}
 COMEBACK_INSTANT_DAYS = 5 * 365
 COMEBACK_DIGEST_DAYS = 365
 TOTAL_STEP = 1000
-MAX_INSTANT = 3          # instant messages per run; anything beyond waits for the digest
+MAX_INSTANT = 10         # messages per run — a cap for a backlog, not a filter
 MAX_AGE_H = 36           # an older check-in is news for the digest, not a ping
 KEEP_IDS = 300           # instant ids remembered (the digest marks them as already told)
 KEEP_DIGESTS = 120
@@ -183,6 +183,7 @@ def facts_for(h: History, i: int) -> dict:
         f["last_visit"] = last.strftime("%Y-%m-%d")
         f["days_since_last"] = (now.date() - last.date()).days
         f["visits_by_year"] = dict(sorted(Counter(h.local[j].year for j in same).items()))
+        f["recent_visits"] = [h.local[j].strftime("%Y-%m-%d") for j in same[-5:]]
         f["with_here_before"] = {c: together[c] for c in comp if together.get(c)}
     if last_city is not None:
         f["days_since_city"] = (now.date() - h.local[last_city].date()).days
@@ -219,11 +220,14 @@ def events(f: dict) -> list[str]:
         out.append("total")
     if f["visit_no"] == 1:
         out.append("new_venue")
+    else:
+        out.append("visit")
     return out
 
 
 def is_instant(kinds: list[str]) -> bool:
-    return any(k in INSTANT_KINDS for k in kinds)
+    """Every real check-in is told — the history is the story, not a threshold."""
+    return bool(kinds)
 
 
 # ── Text ────────────────────────────────────────────────────────────────────
@@ -244,6 +248,9 @@ def headline(f: dict, kinds: list[str]) -> str:
         return f"Visit #{f['visit_no']} (first one {f['first_visit']})"
     if k == "total":
         return f"Check-in #{f['checkin_no']:,} overall"
+    if k == "visit":
+        return (f"Visit #{f['visit_no']} — last time {_years_days(f['days_since_last'])} ago "
+                f"({f['last_visit']}), first time {f['first_visit']}")
     n = f["category_places_before"]
     extra = (f", your {_ord(f['same_name_elsewhere'] + 1)} {f['venue']}"
              if f["same_name_elsewhere"] else "")
@@ -267,8 +274,11 @@ def template_instant(f: dict, kinds: list[str]) -> str:
 
 
 INSTANT_PROMPT = """You write a one-message "check-in echo" for one person's private Telegram \
-channel: they just checked in somewhere, and their own history makes it notable. The facts (JSON) \
-were computed from every check-in BEFORE this one. "events" says why it is notable: new_country / \
+channel: they just checked in somewhere, and you tell them what their own history says about \
+it. The facts (JSON) were computed from every check-in BEFORE this one. "events": visit = they have \
+been here before ("visit_no", "first_visit", "recent_visits", "days_since_last"); new_venue = a place \
+never visited ("category_places_before" = how many other places of that category came before, \
+"last_in_category" = the previous one); new_country / \
 new_city = first time ever there; city_back = first check-in in this city after a year or more \
 away ("days_since_city"); comeback_long = back at this exact place after 5+ years \
 ("days_since_last"); milestone_big = a round visit number ("visit_no"); total = a round overall \
@@ -277,7 +287,8 @@ here together with someone tagged now; "shout" is what they wrote (often Russian
 English). "category_places_before" is how many other places of that category they visited before.
 
 Write {words} words in English, second person ("you"), warm and a little wry, like a friend who \
-remembers everything. Lead with what makes it notable, add one or two telling details from the \
+remembers everything ("10th time in this bar — before that you were here on …" / "a new place! \
+your last lounge was …"). Lead with the most telling fact, add one or two details from the \
 history. Never invent anything the facts don't support. Plain text only, no markdown, no \
 hashtags, at most 1 emoji.
 
@@ -425,7 +436,7 @@ def plan_digest(h: History, day: date) -> tuple[list[tuple[int, dict, list[str]]
         f = facts_for(h, i)
         kinds = events(f)
         new += f["visit_no"] == 1
-        if kinds:
+        if kinds and kinds != ["visit"]:     # a plain repeat visit was told instantly
             todo.append((i, f, kinds))
     return todo, {"checkins": len(idx), "places": len(places), "new_places": new}
 

@@ -40,11 +40,21 @@ def test_new_city_and_new_country_are_instant():
     assert kinds[:2] == ["new_country", "new_city"] and echo.is_instant(kinds)
 
 
-def test_comeback_after_five_years_is_instant_after_one_is_digest():
+def test_comeback_labels_colour_the_story():
     t0 = _ts("2015-06-01")
     assert "comeback_long" in _kinds([_row(t0, "a"), *_town(t0, 6), _row(t0 + 6 * YEAR, "a")])
-    kinds = _kinds([_row(t0, "a"), *_town(t0, 2), _row(t0 + 2 * YEAR, "a")])
-    assert "comeback" in kinds and not echo.is_instant(kinds)
+    assert "comeback" in _kinds([_row(t0, "a"), *_town(t0, 2), _row(t0 + 2 * YEAR, "a")])
+
+
+def test_every_real_checkin_is_told_with_its_history():
+    t0 = _ts("2026-10-01")
+    rows = [_row(t0 + i * DAY, "bar", venue="Tuda Suda") for i in range(10)]
+    h = echo.History(rows)
+    f = echo.facts_for(h, 9)
+    kinds = echo.events(f)
+    assert kinds[-1] == "visit" and echo.is_instant(kinds)
+    assert f["visit_no"] == 10 and f["recent_visits"][-1] == "2026-10-09"
+    assert echo.headline(f, ["visit"]).startswith("Visit #10 — last time 1 day ago (2026-10-09)")
 
 
 def test_city_back_after_a_year_away():
@@ -62,11 +72,11 @@ def test_milestones():
     assert "milestone" in _kinds(rows[:10])          # 10th visit, digest only
 
 
-def test_a_street_never_pings_on_its_own():
+def test_a_street_never_gets_the_long_comeback_label():
     t0 = _ts("2012-01-01")
     kinds = _kinds([_row(t0, "s", category="Road"), *_town(t0, 7),
                     _row(t0 + 7 * YEAR, "s", category="Road")])
-    assert kinds == ["comeback"] and not echo.is_instant(kinds)
+    assert "comeback_long" not in kinds and kinds[0] == "comeback"
 
 
 def test_home_and_reconstructed_rows_raise_nothing():
@@ -86,7 +96,7 @@ def test_companions_counted_at_this_venue():
 def test_instant_skips_old_and_caps_but_moves_the_watermark():
     now = _ts("2026-10-19T12:00:00")
     rows = [_row(now - 3 * DAY, "o", city="Old"),                       # too old: digest's job
-            *[_row(now - 3600 * (9 - i), f"v{i}", city=f"City{i}") for i in range(5)]]
+            *[_row(now - 600 * (20 - i), f"v{i}") for i in range(echo.MAX_INSTANT + 2)]]
     todo, mark = echo.plan_instant(echo.History(rows), {"last_ts": 0}, now)
     assert len(todo) == echo.MAX_INSTANT
     assert mark == max(int(r["date"]) for r in rows)

@@ -29,7 +29,7 @@ on:
 
 permissions:
   contents: write
-  actions: read     # alert step reads previous run conclusions via gh api
+  actions: write    # alert step reads previous runs; 6b dispatches the check-in echo
 
 jobs:
 
@@ -257,6 +257,18 @@ jobs:
             done
           fi
           cd ..
+
+      # ── 6b. Kick the Telegram check-in echo ──────────────────────────────────
+      #   The new check-ins are in the data repo now, so the echo can tell their
+      #   story within a minute instead of after this whole build + deploy. It
+      #   runs as its own workflow (own concurrency group → never double-posts)
+      #   and a failure here never touches the dashboard update.
+      - name: Trigger check-in echo
+        if: steps.fetch.outputs.CHANGED == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run telegram-checkin-echo.yml --repo "${{ github.repository }}" --ref main -f mode=instant -f dry_run=false
 
       # ── 7. Rebuild dashboard ─────────────────────────────────────────────────
       - name: Rebuild dashboard
