@@ -1,0 +1,113 @@
+# .github/workflows/telegram-checkin-echo.yml
+#
+# Check-in echo to Telegram (scripts/telegram_checkin_echo.py) — a mini history
+# story about a new check-in, posted to the "on this day" channel:
+#
+#   instant  after every hourly data update: a new city or country, a city or a
+#            venue you are back at after years, a round visit number. At most 3
+#            messages per run; a watermark in checkin_echo_state.json (data repo)
+#            means a check-in is never told twice and the very first run only
+#            records the watermark, so switching this on never replays history.
+#   digest   every morning at 05:45 UTC, just before "on this day": yesterday's
+#            new places, comebacks and milestones in one message.
+#
+# Claude writes the text (ANTHROPIC_API_KEY, else CLAUDE_CODE_OAUTH_TOKEN through
+# the Claude Code CLI); without either, or on any failure, a template does.
+# Runs separately from update-dashboard.yml, so it can never slow or break it.
+
+name: Telegram check-in echo
+
+on:
+  workflow_run:
+    workflows: ["Update check-in dashboard"]
+    types: [completed]
+  schedule:
+    - cron: '45 5 * * *'   # digest for yesterday, before the 06:00 "on this day"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'instant or digest'
+        type: choice
+        options: [instant, digest]
+        default: digest
+      date:
+        description: 'Digest date (YYYY-MM-DD, default: yesterday)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Print the messages only, send nothing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One run at a time: two overlapping instant runs would read the same watermark.
+concurrency:
+  group: telegram-checkin-echo
+  cancel-in-progress: false
+
+jobs:
+  echo:
+    # The push-triggered dashboard run only verifies the build — no new data.
+    if: >-
+      vars.UPDATES_PAUSED != 'true' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.event != 'push')
+    runs-on: ubuntu-latest
+    env:
+      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      MODE: ${{ inputs.mode || (github.event_name == 'schedule' && 'digest' || 'instant') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Plan
+        id: plan
+        run: |
+          args=(--mode "$MODE" --csv private-data/checkins.csv
+                --state private-data/checkin_echo_state.json --plan)
+          [ -n "${{ inputs.date }}" ] && args+=(--date "${{ inputs.date }}")
+          python scripts/telegram_checkin_echo.py "${args[@]}" | tee /tmp/plan.txt
+          grep '^EVENTS=' /tmp/plan.txt >> "$GITHUB_OUTPUT"
+      # Only worth the npm install when there is something to write.
+      - name: Install Claude Code
+        if: steps.plan.outputs.EVENTS != '0' && env.HAS_CLAUDE_TOKEN == 'true'
+        continue-on-error: true
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Post
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_OTD_CHAT_ID || secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          args=(--mode "$MODE" --csv private-data/checkins.csv
+                --state private-data/checkin_echo_state.json)
+          [ -n "${{ inputs.date }}" ] && args+=(--date "${{ inputs.date }}")
+          [ "${{ inputs.dry_run }}" = "true" ] && args+=(--dry-run)
+          python scripts/telegram_checkin_echo.py "${args[@]}"
+      # 7th data-repo writer: same bounded rebase-and-retry loop as the others (BUG-014).
+      - name: Commit state
+        if: inputs.dry_run != true
+        run: |
+          cd private-data
+          [ -f checkin_echo_state.json ] || exit 0
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add checkin_echo_state.json
+          git diff --cached --quiet && exit 0
+          git commit -m "check-in echo state $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3 4 5; do
+            git push && break
+            git pull --rebase origin main
+            [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+          done
