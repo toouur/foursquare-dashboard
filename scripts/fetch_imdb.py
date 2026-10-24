@@ -190,6 +190,14 @@ def main(argv: list[str] | None = None) -> int:
             for k in ("mainColumnData", "urqlState", "fetchState"):
                 if pp.get(k):
                     _note("notice", f"probe: {k} = {deep_shape(pp[k])[:3000]}")
+            edges = ((pp.get("mainColumnData") or {}).get("advancedTitleSearch") or {}).get("edges") or []
+            if edges:
+                node = edges[0].get("node") or {}
+                t = node.get("title") or {}
+                _note("notice", f"probe: edge keys = {list(edges[0])}, node keys = {list(node)}, title keys = {list(t)}")
+                _note("notice", "probe: rating-like title fields = " + ", ".join(
+                    f"{k}:{deep_shape(v, 2) if isinstance(v, (dict, list)) else type(v).__name__}"
+                    for k, v in t.items() if "rat" in k.lower()))
         print("CHANGED=false")
         return 0
     rows = [to_row(n) for _, n in items]
