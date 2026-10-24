@@ -72,24 +72,53 @@ a{color:inherit;}
 .filter-pill.active{background:var(--gold);color:#0b0d13;border-color:var(--gold);}
 .filter-pill:hover:not(.active){border-color:var(--gold);color:var(--gold);}
 
-/* ── TRIPS GRID ── */
-.trips-grid{padding:0 56px 72px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
-.trip-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 22px 18px;cursor:pointer;transition:border-color .2s,transform .15s;position:relative;overflow:hidden;text-decoration:none;display:block;}
-.trip-card::after{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.3;}
-.trip-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+/* ── TRIPS GRID ── photo-cover cards grouped by year */
+.yr-ribbon{display:flex;gap:6px;align-items:flex-end;overflow-x:auto;padding:4px 56px 10px;scrollbar-width:none;}
+.yr-ribbon::-webkit-scrollbar{display:none;}
+.yr-rb{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:30px;cursor:pointer;background:none;border:none;padding:0;}
+.yr-rb i{display:block;width:16px;border-radius:5px;background:var(--card2);border:1px solid var(--border);transition:all .2s;}
+.yr-rb span{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);}
+.yr-rb:hover i{border-color:var(--gold);}
+.yr-rb.on i{background:linear-gradient(180deg,#f6d38b,#ff9a6b 60%,#ff6fae);border-color:transparent;box-shadow:0 0 16px rgba(255,154,107,.45);}
+.yr-rb.on span{color:var(--text);}
+.trips-grid{padding:0 56px 72px;}
+.yr-sec{margin-top:30px;}
+.yr-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.yr-big{font-family:'Playfair Display',serif;font-size:3.2rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.yr-chip{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.04em;padding:4px 10px;border-radius:999px;background:var(--card2);color:var(--text2);white-space:nowrap;}
+.yr-chip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0;}
+.yr-away{display:grid;grid-template-columns:repeat(366,1fr);gap:1px;height:22px;border-radius:6px;overflow:hidden;margin-bottom:4px;}
+.yr-away i{background:var(--card2);}
+.yr-away i.g{background:#2fd6b5;}.yr-away i.a{background:#ff7a6b;}
+.yr-mlab{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);letter-spacing:.1em;margin-bottom:16px;}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;grid-auto-flow:dense;}
+.trip-card{position:relative;display:block;border-radius:20px;overflow:hidden;aspect-ratio:4/3;background:var(--card);border:1px solid var(--border);text-decoration:none;color:#fff;isolation:isolate;cursor:pointer;transition:transform .25s,box-shadow .25s;}
+.trip-card:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.35);}
+.trip-card.big{grid-column:span 2;grid-row:span 2;aspect-ratio:auto;}
 .trip-card.hidden{display:none;}
-.tc-num{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);margin-bottom:6px;}
-.tc-name{font-size:1rem;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:8px;}
-.tc-tag{display:inline-block;font-size:.68rem;margin-left:6px;vertical-align:middle;opacity:.85;}
-.tc-dates{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);margin-bottom:10px;}
-.tc-countries{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
-.tc-country{font-family:'DM Mono',monospace;font-size:.56rem;padding:3px 8px;border-radius:4px;background:rgba(78,205,196,.1);color:var(--teal);border:1px solid rgba(78,205,196,.2);}
-.tc-stats{display:flex;gap:16px;}
-.tc-stat{display:flex;flex-direction:column;gap:2px;}
-.tc-stat-v{font-family:'DM Mono',monospace;font-size:.80rem;color:var(--gold);}
-.tc-stat-l{font-size:.60rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
-.tc-photos-link{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-family:'DM Mono',monospace;font-size:.58rem;color:var(--teal);text-decoration:none;opacity:.8;transition:opacity .2s;}
-.tc-photos-link:hover{opacity:1;}
+.tc-img,.tc-noimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;transition:transform .6s;}
+.trip-card:hover .tc-img{transform:scale(1.06);}
+.tc-noimg{background:linear-gradient(135deg,#4cb8ff,#9b7bff);opacity:.45;}
+.tc-noimg.m-a{background:linear-gradient(135deg,#ff7a6b,#ff6fae);}
+.trip-card::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(9,11,16,0) 28%,rgba(9,11,16,.93) 100%);}
+.tc-mode{position:absolute;top:12px;left:12px;width:34px;height:34px;border-radius:12px;display:grid;place-items:center;background:rgba(9,11,16,.55);backdrop-filter:blur(8px);font-size:1rem;box-shadow:inset 0 0 0 1px rgba(47,214,181,.7);}
+.tc-mode.m-a{box-shadow:inset 0 0 0 1px rgba(255,122,107,.9);}
+.tc-num{position:absolute;top:18px;right:14px;font-family:'DM Mono',monospace;font-size:.55rem;color:rgba(255,255,255,.7);background:rgba(9,11,16,.45);backdrop-filter:blur(6px);padding:3px 8px;border-radius:999px;}
+.tc-body{position:absolute;left:0;right:0;bottom:0;padding:16px 16px 14px;}
+.tc-dates{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:#f0c27a;}
+.tc-name{font-family:'Playfair Display',serif;font-weight:700;font-size:1.22rem;line-height:1.15;margin:4px 0 6px;color:#fff;}
+.trip-card.big .tc-name{font-size:2.1rem;}
+.tc-tag{display:inline-block;font-size:.8em;margin-left:6px;vertical-align:middle;}
+.tc-countries{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#d3d6e2;margin-bottom:8px;white-space:nowrap;overflow:hidden;}
+.tc-countries .fi{border-radius:2px;flex-shrink:0;}
+.tc-countries span.c{overflow:hidden;text-overflow:ellipsis;margin-left:3px;}
+.tc-stats{display:flex;gap:6px;flex-wrap:wrap;}
+.tc-stat{font-family:'DM Mono',monospace;font-size:.58rem;background:rgba(255,255,255,.13);backdrop-filter:blur(6px);padding:4px 8px;border-radius:999px;color:#dfe2ea;}
+.tc-stat b{color:#fff;font-weight:500;}
+.tc-photos-link{cursor:pointer;}
+.tc-photos-link:hover{background:rgba(255,255,255,.25);}
+body.light .trip-card{border-color:transparent;}
+body.light .yr-away i{background:#cfc9bf;}
 .detail-photos-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#0b0d13;background:var(--teal);text-decoration:none;transition:opacity .2s;white-space:nowrap;}
 .detail-photos-btn:hover{opacity:.85;}
 
@@ -267,14 +296,19 @@ body.light .ts-cell.z{background:var(--card2);}
 }
 
 @media(max-width:900px){
-  .topnav,.list-header,.list-filters,.trips-grid,.detail-back,.detail-hero,.detail-body{padding-left:18px;padding-right:18px;}
-  .trips-grid{grid-template-columns:1fr 1fr;}
+  .topnav,.list-header,.list-filters,.trips-grid,.yr-ribbon,.detail-back,.detail-hero,.detail-body{padding-left:18px;padding-right:18px;}
+  .tgrid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .detail-body{grid-template-columns:1fr;}
 }
 @media(max-width:520px){
   .topnav{gap:12px;padding-left:14px;padding-right:14px;}
   .list-header{padding-top:24px;padding-bottom:16px;}
-  .trips-grid{grid-template-columns:1fr;padding-bottom:24px;}
+  .trips-grid{padding-bottom:24px;}
+  .tgrid{grid-template-columns:1fr;}
+  .trip-card.big{grid-column:auto;grid-row:auto;aspect-ratio:4/3;}
+  .trip-card.big .tc-name{font-size:1.6rem;}
+  .yr-big{font-size:2.6rem;}
+  .yr-away{height:18px;}
   .filter-search{min-width:0;width:100%;flex:1;}
   .list-filters{gap:6px;}
   .tc-stats{flex-wrap:wrap;gap:10px;}
@@ -314,9 +348,9 @@ body.light .ts-cell.z{background:var(--card2);}
   <div class="page-insight" id="page-insight"></div>
   <div class="list-filters">
     <input class="filter-search" type="text" placeholder="Search trips…" id="tripSearch" oninput="filterTrips()">
-    <div id="yearPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
     <div id="sortPills" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;"></div>
   </div>
+  <div class="yr-ribbon" id="yearPills"></div>
   <div class="trips-grid" id="tripsGrid"></div>
 </div>
 
@@ -383,45 +417,85 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 let activeMap = null, activeObserver = null;
 
 // ── Build the grid ──────────────────────────────────────────────────────────
+// Photo-cover cards. Sorted by date the trips are grouped by year (newest first),
+// each year with a days-away strip and its biggest trip as a double tile; sorted
+// by check-ins or days they are one flat grid.
+const ISO2T = {{CTRY_CODE_JSON}};
+const MON3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const isAir = t => t.name.includes('✈');
+const tFlag = c => ISO2T[c] ? `<span class="fi fi-${ISO2T[c]}"></span>` : '';
+const shortD = s => +s.slice(8,10) + ' ' + MON3[+s.slice(5,7)-1];
+const bareName = s => s.replace(/\s*[^\w\s\-–—&+'’.,()!?:\/]+\s*$/u, '').trim() || s;
+const modeIcon = s => (s.match(/[✈🚂🚌🚗🚲🏕🛁🚢⛵🚆]/u) || ['•'])[0];
+function tripCard(t, big){
+  const a = isAir(t) ? ' m-a' : '';
+  const bike = (t.tags||[]).includes('bicycle') ? '<span class="tc-tag" title="Bicycle trip">🚲</span>' : '';
+  return `<a class="trip-card${big?' big':''}" id="card-trip-${t.id}" href="#trip-${t.id}" onclick="showTrip(${t.id});return false;">
+    ${t.cover && PIX_DIR ? `<img class="tc-img" loading="lazy" src="${esc(PIX_DIR+'/'+t.cover)}" alt="">` : `<div class="tc-noimg${a}"></div>`}
+    <span class="tc-mode${a}">${modeIcon(t.name)}</span><span class="tc-num">#${t.id}</span>
+    <div class="tc-body">
+      <div class="tc-dates">${shortD(t.start_date)}${t.end_date!==t.start_date?' – '+shortD(t.end_date):''}${t.start_date.slice(0,4)!==t.end_date.slice(0,4)?' '+t.end_date.slice(0,4):''} · ${t.duration} d</div>
+      <div class="tc-name">${esc(bareName(t.name))}${bike}</div>
+      <div class="tc-countries">${t.countries.slice(0,6).map(tFlag).join('')}<span class="c">${esc((t.cities||[]).slice(0,3).join(' · '))}</span></div>
+      <div class="tc-stats">
+        <span class="tc-stat"><b>${t.checkin_count.toLocaleString()}</b> check-ins</span>
+        <span class="tc-stat"><b>${t.unique_places.toLocaleString()}</b> places</span>
+        ${(t.km||0)>0?`<span class="tc-stat"><b>${t.km.toLocaleString()}</b> km</span>`:''}
+        ${t.photo_count>0?`<span class="tc-stat tc-photos-link" onclick="event.preventDefault();event.stopPropagation();showTrip(${t.id}).then(()=>setTimeout(scrollToPhotos,300))"><b>${t.photo_count.toLocaleString()}</b> photos</span>`:''}
+      </div>
+    </div></a>`;
+}
+function yearStrip(y, trips){
+  // one cell per day of the year: teal = away on the ground, coral = a trip with a flight
+  const n = (y%4===0 && (y%100!==0 || y%400===0)) ? 366 : 365, days = new Array(n).fill('');
+  const jan1 = Date.UTC(y,0,1);
+  trips.forEach(t => {
+    const d0 = Math.round((Date.parse(t.start_date+'T00:00:00Z') - jan1)/864e5);
+    for(let k=0;k<t.duration;k++){ const d=d0+k; if(d>=0 && d<n) days[d] = isAir(t)?'a':(days[d]||'g'); }
+  });
+  return {away: days.filter(Boolean).length,
+          html: `<div class="yr-away" style="grid-template-columns:repeat(${n},1fr)">${days.map(c=>c?`<i class="${c}"></i>`:'<i></i>').join('')}</div>`};
+}
 function renderGrid(trips){
   const grid = document.getElementById('tripsGrid');
-  grid.innerHTML = trips.map(t => `
-    <a class="trip-card" id="card-trip-${t.id}" href="#trip-${t.id}" onclick="showTrip(${t.id});return false;">
-      <div class="tc-num">Trip #${t.id}</div>
-      <div class="tc-name">${esc(t.name)}${(t.tags||[]).includes('bicycle')?'<span class="tc-tag" title="Bicycle trip">🚲</span>':''}</div>
-      <div class="tc-dates">${t.start_date} &nbsp;–&nbsp; ${t.end_date}</div>
-      <div class="tc-countries">${t.countries.slice(0,5).map(c=>`<span class="tc-country">${c}</span>`).join('')}</div>
-      <div class="tc-stats">
-        <div class="tc-stat"><div class="tc-stat-v">${t.duration}</div><div class="tc-stat-l">Days</div></div>
-        <div class="tc-stat"><div class="tc-stat-v">${t.checkin_count.toLocaleString()}</div><div class="tc-stat-l">Check-ins</div></div>
-        <div class="tc-stat"><div class="tc-stat-v">${t.unique_places.toLocaleString()}</div><div class="tc-stat-l">Places</div></div>
-        <div class="tc-stat"><div class="tc-stat-v">${t.countries.length}</div><div class="tc-stat-l">Countries</div></div>
-        ${(t.km||0)>0?`<div class="tc-stat"><div class="tc-stat-v">${(t.km).toLocaleString()}</div><div class="tc-stat-l">km</div></div>`:''}
-      </div>
-      ${t.photo_count>0?`<span class="tc-photos-link" onclick="event.preventDefault();event.stopPropagation();showTrip(${t.id}).then(()=>setTimeout(scrollToPhotos,300))">📸 ${t.photo_count.toLocaleString()} photos</span>`:''}
-    </a>`).join('');
+  if(activeSort !== 'date'){ grid.innerHTML = `<div class="tgrid">${trips.map(t=>tripCard(t,false)).join('')}</div>`; return; }
+  const byY = {};
+  trips.forEach(t => (byY[t.start_year] = byY[t.start_year] || []).push(t));
+  grid.innerHTML = Object.keys(byY).sort((a,b)=>b-a).map(y => {
+    const ts = byY[y].slice().sort((a,b)=>b.start_ts-a.start_ts);
+    const top = ts.length >= 3 ? ts.reduce((m,t)=>t.checkin_count>m.checkin_count?t:m, ts[0]) : null;
+    const st = yearStrip(+y, ts);
+    return `<section class="yr-sec" id="yr-${y}"><div class="yr-head"><span class="yr-big">${y}</span>
+      <span class="yr-chip">${ts.length} trip${ts.length===1?'':'s'}</span><span class="yr-chip">${st.away} days away</span>
+      <span class="yr-chip"><i style="background:#2fd6b5"></i>ground</span><span class="yr-chip"><i style="background:#ff7a6b"></i>with a flight</span></div>
+      ${st.html}<div class="yr-mlab">${MON3.map(m=>`<span>${m.toUpperCase()}</span>`).join('')}</div>
+      <div class="tgrid">${ts.map(t=>tripCard(t, t===top)).join('')}</div></section>`;
+  }).join('');
 }
-renderGrid(TRIPS);
 
-// ── Year filter pills ───────────────────────────────────────────────────────
+// ── Year ribbon (replaces the year filter pills): bar height = trips that year ──
+let activeSort = 'date';
 const years = [...new Set(TRIPS.map(t => t.start_year))].sort();
 const pillsEl = document.getElementById('yearPills');
 let activeYear = null;
+const perYear = {}; TRIPS.forEach(t => perYear[t.start_year] = (perYear[t.start_year]||0) + 1);
+const maxPerYear = Math.max(...Object.values(perYear));
 ['All',...years].forEach(y => {
-  const p = document.createElement('div');
-  p.className = 'filter-pill' + (y==='All'?' active':'');
-  p.textContent = y;
+  const p = document.createElement('button');
+  p.className = 'yr-rb' + (y==='All'?' on':'');
+  p.title = y==='All' ? 'All years' : y + ': ' + perYear[y] + ' trips';
+  p.innerHTML = `<i style="height:${y==='All'?40:Math.round(36*perYear[y]/maxPerYear)+4}px"></i><span>${y==='All'?'ALL':String(y).slice(2)}</span>`;
   p.onclick = () => {
-    document.querySelectorAll('#yearPills .filter-pill').forEach(x=>x.classList.remove('active'));
-    p.classList.add('active');
+    document.querySelectorAll('#yearPills .yr-rb').forEach(x=>x.classList.remove('on'));
+    p.classList.add('on');
     activeYear = y==='All' ? null : y;
     filterTrips();
   };
   pillsEl.appendChild(p);
 });
+renderGrid(TRIPS);
 
 // ── Sort pills ───────────────────────────────────────────────────────────────
-let activeSort = 'date';
 [['date','Date ↓'],['checkins','Check-ins ↓'],['days','Days ↓']].forEach(([key,label]) => {
   const p = document.createElement('div');
   p.className = 'filter-pill' + (key==='date'?' active':'');

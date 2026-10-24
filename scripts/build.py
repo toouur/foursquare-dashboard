@@ -121,7 +121,12 @@ def _write_trip_checkin_shards(trips, out_dir):
             row[_TRIP_CK_FIELDS.index('refurbished')] = 1 if c.get('refurbished') else 0
             rows.append(row)
         shards.setdefault(t['id'] // _TRIP_SHARD, {})[str(t['id'])] = rows
-        inline.append({k: v for k, v in t.items() if k != 'checkins'})
+        slim = {k: v for k, v in t.items() if k != 'checkins'}
+        # card cover: a photo from the middle of the trip (fewer airports, more of the place)
+        shots = [c['photos'][0] for c in t.get('checkins') or [] if c.get('photos')]
+        if shots:
+            slim['cover'] = shots[len(shots) // 2]
+        inline.append(slim)
     h = hashlib.sha1()
     for n in sorted(shards):
         body = json.dumps({'f': _TRIP_CK_FIELDS, 't': shards[n]},
@@ -1077,7 +1082,8 @@ if __name__ == "__main__":
     _here = _SCRIPT_DIR
     _gen_outputs: list[str] = []
     for gen_script, gen_out, gen_tmpl, gen_kwargs in [
-        (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {"social_data": data}),
+        (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {"social_data": data, "photos_by_checkin": _photos_by_checkin,
+                                                                                      "pix_url": _pix_dir_uri, "trips": trips}),
         (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {"swarm_user_id": fs_user_id}),
         (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities"), "country_count": len(data['countries'])}),
         (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {}),
