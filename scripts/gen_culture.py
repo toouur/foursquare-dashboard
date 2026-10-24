@@ -39,15 +39,17 @@ PAGE_TEMPLATE = r"""<!DOCTYPE html>
 body{{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.55;overflow-x:hidden;}}
 a{{color:var(--teal);text-decoration:none;}} a:hover{{color:var(--gold);}}
 .crumb{{position:fixed;top:14px;left:18px;z-index:1200;font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);background:rgba(18,21,31,.85);backdrop-filter:blur(8px);border:1px solid var(--border);padding:6px 12px;border-radius:6px;}}
-.wrap{{max-width:1100px;margin:0 auto;padding:88px 22px 120px;}}
+.wrap{{max-width:1240px;margin:0 auto;padding:88px 28px 120px;}}
 .hero-name{{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,6vw,4rem);font-weight:900;line-height:1.08;letter-spacing:-.02em;padding-bottom:.08em;background:linear-gradient(150deg,#f5d48a 0%,#e8b86d 40%,#b97c30 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}}
 .hero-sub{{font-family:'DM Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.16em;color:var(--muted);margin-top:12px;}}
 .profiles{{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}}
 .profiles a{{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;border:1px solid var(--border);border-radius:999px;padding:4px 12px;color:var(--muted);}}
 .profiles a:hover{{border-color:var(--gold);color:var(--gold);}}
 .kpis{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:30px 0 8px;}}
-.kpi{{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 14px;text-align:center;}}
-.kpi-num{{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--gold);line-height:1.1;}}
+.kpi{{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px 16px 14px;}}
+.kpi-num{{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:900;line-height:1.05;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.kpi:nth-child(3n+2) .kpi-num{{background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;}}
+.kpi:nth-child(3n) .kpi-num{{background:linear-gradient(135deg,#2fd6b5,#4cb8ff);-webkit-background-clip:text;background-clip:text;}}
 .kpi-lbl{{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);margin-top:6px;}}
 section{{margin-top:50px;}}
 .sec-h{{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.2em;color:var(--gold);margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}}
@@ -68,12 +70,32 @@ section{{margin-top:50px;}}
 .pill.cinema{{color:var(--gold);border-color:var(--gold);}} .pill.road{{color:var(--rose);border-color:var(--rose);}}
 .more{{margin-top:10px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 14px;font-family:'DM Mono',monospace;font-size:.66rem;cursor:pointer;}}
 .more:hover{{color:var(--gold);border-color:var(--gold);}}
-.years{{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}}
-.yr{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}}
-.yr b{{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--gold);}}
 .yr .a{{font-size:.86rem;margin-top:2px;}} .yr .n{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);}}
 .note{{color:var(--muted);font-size:.82rem;margin-top:10px;max-width:780px;}}
-@media(max-width:600px){{.wrap{{padding:78px 14px 90px;}}.item{{grid-template-columns:70px 1fr auto;gap:8px;}}#wmap{{height:340px;}}}}
+.big-h{{font-family:'Playfair Display',serif;font-weight:700;font-size:clamp(1.6rem,3vw,2.3rem);letter-spacing:-.01em;margin-bottom:16px;display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}}
+.big-h em{{font-style:normal;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.big-h small{{font-family:'DM Mono',monospace;font-size:.6rem;font-weight:400;color:var(--muted);background:var(--card2);padding:4px 10px;border-radius:999px;letter-spacing:.04em;}}
+.wall{{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;}}
+.wl{{position:relative;display:block;aspect-ratio:3/4;border-radius:18px;overflow:hidden;background:linear-gradient(160deg,#241a2e,#141824);color:#fff;}}
+.wl img{{position:absolute;inset:7% 14% 30%;width:72%;height:63%;object-fit:contain;filter:drop-shadow(0 12px 18px rgba(0,0,0,.5));transition:transform .4s;}}
+.wl:hover img{{transform:scale(1.06) rotate(-2deg);}}
+.wr{{position:absolute;top:10px;right:10px;font-family:'DM Mono',monospace;font-size:.62rem;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);color:#1a1206;padding:3px 8px;border-radius:999px;}}
+.wn{{position:absolute;left:0;right:0;bottom:0;padding:22px 12px 10px;font-size:.78rem;font-weight:600;line-height:1.25;color:#fff;background:linear-gradient(transparent,rgba(9,11,16,.94) 40%);}}
+.wn small{{display:block;font-family:'DM Mono',monospace;font-weight:400;font-size:.56rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+.wn span{{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}}
+.films{{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}}
+.ft{{position:relative;display:block;border-radius:18px;padding:16px;min-height:140px;background:linear-gradient(160deg,color-mix(in srgb,var(--c) 30%,#12141c),#12141c 72%);border:1px solid color-mix(in srgb,var(--c) 30%,transparent);color:var(--text);overflow:hidden;transition:transform .2s;}}
+.ft:hover{{transform:translateY(-3px);color:var(--text);}}
+.fr{{font-family:'Playfair Display',serif;font-weight:900;font-size:2.4rem;line-height:1;color:var(--c);}}.fr small{{font-size:.9rem;color:var(--muted);}}
+.fn{{font-weight:700;font-size:.98rem;margin-top:10px;line-height:1.2;}}.fm{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-top:4px;}}
+.fw{{position:absolute;top:14px;right:14px;font-family:'DM Mono',monospace;font-size:.5rem;letter-spacing:.12em;text-transform:uppercase;color:var(--c);}}
+.years{{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}}
+.yr{{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px;}}
+.yr b{{font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:900;background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.yr .cnt{{display:flex;gap:10px;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text);margin:4px 0 10px;}}
+.yr .a{{font-weight:700;font-size:.95rem;}}
+@media(max-width:900px){{.wall{{grid-template-columns:repeat(3,minmax(0,1fr));}}.films{{grid-template-columns:repeat(2,minmax(0,1fr));}}}}
+@media(max-width:600px){{.wall{{grid-template-columns:repeat(2,minmax(0,1fr));}}.ft{{min-height:120px;}}.fr{{font-size:2rem;}}.wrap{{padding:78px 14px 90px;}}.item{{grid-template-columns:70px 1fr auto;gap:8px;}}#wmap{{height:340px;}}}}
 </style>
 </head>
 <body>
@@ -83,11 +105,13 @@ section{{margin-top:50px;}}
 <div class="hero-sub">Last.fm, Vivino and IMDb on the check-in timeline</div>
 <div class="profiles">{profiles}</div>
 <div class="kpis" id="kpis"></div>
+<section><div class="big-h"><span>The wine <em>wall</em></span><small>latest 18 · tap for Vivino</small></div><div class="wall" id="wall"></div></section>
+<section><div class="big-h"><span>Recently <em>watched</em></span><small>colour = first genre · number = your rating</small></div><div class="films" id="ftiles"></div></section>
 <section><div class="sec-h">Wine map <em>· each rated bottle at the check-in nearest its scan</em></div><div id="wmap"></div><div class="legend" id="wlegend"></div></section>
-<section><div class="sec-h">Films <div class="tabs" id="ftabs"></div></div><div class="list" id="flist"></div><button class="more" id="fmore" hidden>Show more</button>
+<section><div class="big-h"><span>Year by <em>year</em></span><small>films · wines · most-played artist</small></div><div class="years" id="sound"></div></section>
+<section><div class="sec-h">All films <div class="tabs" id="ftabs"></div></div><div class="list" id="flist"></div><button class="more" id="fmore" hidden>Show more</button>
 <p class="note">IMDb keeps the rating date, not the viewing date. A film counts as seen in the cinema when it was rated on the day of a movie-theatre check-in or up to two days later and is a new release; on the road when the day falls inside a trip. Days with ten or more ratings are catch-up sessions (backlog).</p></section>
-<section><div class="sec-h">Wines <div class="tabs" id="wtabs"></div></div><div class="list" id="wlist"></div><button class="more" id="wmore" hidden>Show more</button></section>
-<section><div class="sec-h">Sound <em>· most-played artist per year</em></div><div class="years" id="sound"></div></section>
+<section><div class="sec-h">All wines <div class="tabs" id="wtabs"></div></div><div class="list" id="wlist"></div><button class="more" id="wmore" hidden>Show more</button></section>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -96,6 +120,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&l
 const fmt = n => Number(n).toLocaleString('en-US');
 const WCOL = {{'Red Wine':'#c0485a','White Wine':'#e8d48a','Sparkling':'#4ec9b0','Rosé Wine':'#f0a0b4','Dessert Wine':'#d08a3a','Fortified Wine':'#9a6a3a'}};
 const PAGE = 60;
+const GCOL = {{Action:'#ff7a6b',Comedy:'#f6c25b',Drama:'#9b7bff',Animation:'#2fd6b5','Sci-Fi':'#4cb8ff',Horror:'#ff6fae',Thriller:'#c084fc',Crime:'#fb923c',Adventure:'#34d399',Romance:'#f472b6',Documentary:'#b8e65c'}};
 function venueLink(o) {{ return o.venue ? (o.venue_id ? '<a href="/venue.html#' + esc(o.venue_id) + '">' + esc(o.venue) + '</a>' : esc(o.venue)) : ''; }}
 function tripLink(o) {{ return o.trip != null ? '<a href="/trips.html#trip-' + o.trip + '">' + esc(o.trip_name || 'trip') + '</a>' : ''; }}
 function pager(listEl, moreEl, items, row) {{
@@ -138,6 +163,17 @@ function render(D) {{
   document.getElementById('wlegend').innerHTML = Object.entries(types).sort((a, b) => b[1] - a[1]).map(([t, n]) => '<span><i style="background:' + (WCOL[t] || '#e8b86d') + '"></i>' + esc(t) + ' · ' + n + '</span>').join('') +
     '<span>' + (wines.length - placed.length) + ' without a place (no check-in near the scan)</span>';
 
+  // the wall: the newest bottles that have a label photo
+  document.getElementById('wall').innerHTML = wines.filter(w => w.label).slice(0, 18).map(w =>
+    '<a class="wl" href="' + esc(w.url) + '" target="_blank" rel="noopener" title="' + esc(w.wine + ' ' + (w.vintage || '')) + '"><img loading="lazy" src="' + esc(w.label) + '" alt=""><span class="wr">★ ' + w.rating + '</span>' +
+    '<div class="wn"><span>' + esc(w.wine) + '</span><small>' + esc([w.winery, w.country, w.vintage].filter(Boolean).join(' · ')) + '</small></div></a>').join('');
+  // film tiles: the latest films actually watched (backlog catch-up days left out)
+  document.getElementById('ftiles').innerHTML = seen.slice(0, 12).map(f => {{
+    const c = GCOL[(f.genres || [])[0]] || '#9b7bff';
+    return '<a class="ft" style="--c:' + c + '" href="' + esc(f.url) + '" target="_blank" rel="noopener"><div class="fr">' + f.rating + '<small>/10</small></div>' +
+      '<div class="fn">' + esc(f.title) + '</div><div class="fm">' + esc([f.year, (f.genres || []).slice(0, 2).join(', ')].filter(Boolean).join(' · ')) + '</div><div class="fw">' + esc(f.where) + '</div></a>';
+  }}).join('');
+
   // films
   const frow = f => '<div class="item"><span class="d">' + esc(f.date) + '</span><span class="t"><a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.title) + '</a> <span style="color:var(--muted)">' + esc(f.year || '') + '</span>' +
     '<span class="pill ' + f.where + '">' + f.where + '</span><span class="s">' + [venueLink(f), tripLink(f), esc((f.genres || []).slice(0, 3).join(', '))].filter(Boolean).join(' · ') + '</span></span><span class="r">' + f.rating + '/10</span></div>';
@@ -152,11 +188,16 @@ function render(D) {{
     k => pager(document.getElementById('wlist'), document.getElementById('wmore'),
       k === 'best' ? wines.slice().sort((a, b) => b.rating - a.rating) : k === 'trips' ? wines.filter(w => w.trip != null) : wines, wrow));
 
-  // sound
-  const ys = Object.entries(D.music || {{}}).filter(([y, v]) => +y >= 2000 && v.scrobbles).sort((a, b) => b[0] - a[0]);
-  document.getElementById('sound').innerHTML = ys.map(([y, v]) => {{
+  // year by year: films and wines rated that year + the year in sound
+  const fy = {{}}, wy = {{}};
+  films.forEach(f => {{ const y = (f.date || '').slice(0, 4); if (y) fy[y] = (fy[y] || 0) + 1; }});
+  wines.forEach(w => {{ const y = (w.date || '').slice(0, 4); if (y) wy[y] = (wy[y] || 0) + 1; }});
+  const allY = [...new Set([...Object.keys(D.music || {{}}).filter(y => (D.music[y] || {{}}).scrobbles), ...Object.keys(fy), ...Object.keys(wy)])].filter(y => +y >= 2000).sort((a, b) => b - a);
+  document.getElementById('sound').innerHTML = allY.map(y => {{
+    const v = (D.music || {{}})[y] || {{}};
     const tt = ((D.years || {{}})[y] || {{}}).top_tracks || [];
-    return '<div class="yr"><b>' + y + '</b><div class="a">' + esc((v.top_artist || {{}}).name || '—') + '</div><div class="n">' + fmt(v.scrobbles) + ' scrobbles · ' + fmt((v.top_artist || {{}}).plays || 0) + ' plays of the top artist</div>' +
+    return '<div class="yr"><b>' + y + '</b><div class="cnt"><span>🎬 ' + (fy[y] || 0) + '</span><span>🍷 ' + (wy[y] || 0) + '</span>' + (v.scrobbles ? '<span>♪ ' + fmt(v.scrobbles) + '</span>' : '') + '</div>' +
+      '<div class="a">' + esc((v.top_artist || {{}}).name || '—') + '</div>' + (v.scrobbles ? '<div class="n">' + fmt((v.top_artist || {{}}).plays || 0) + ' plays · top artist</div>' : '') +
       (tt.length ? '<div class="n" style="margin-top:6px">' + tt.slice(0, 3).map(t => esc(t[0] + ' — ' + t[1]) + ' ×' + t[2]).join('<br>') + '</div>' : '') + '</div>';
   }}).join('') || '<p class="note">No Last.fm data yet.</p>';
 }}
