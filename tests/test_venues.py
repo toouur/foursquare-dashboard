@@ -102,15 +102,14 @@ def test_shards_written_and_stale_removed(tmp_path):
     assert ver == write_venue_shards(v, str(tmp_path))   # content-addressed version
 
 
-def test_page_skips_home_and_lists_top(tmp_path):
-    rows = [_row(_ts("2020-01-01T10:00:00") + i, "home1", venue="Str. Secret 1", category="Home (private)")
+def test_page_includes_home_and_lists_top(tmp_path):
+    rows = [_row(_ts("2020-01-01T10:00:00") + i, "home1", venue="Str. Alecu Russo, 55", category="Home (private)")
             for i in range(5)]
     rows += [_row(_ts("2020-02-01T10:00:00"), "bar1", venue="Bar </script>")]
-    assert gen_venue_page.build_page(out_path=str(tmp_path), rows=rows, pix_url="https://x/pix/") == 1
+    assert gen_venue_page.build_page(out_path=str(tmp_path), rows=rows, pix_url="https://x/pix/") == 2
     page = (tmp_path / "venue.html").read_text(encoding="utf-8")
-    assert "Str. Secret 1" not in page and "home1" not in page
-    assert '"id": "bar1"' in page and "Bar <\\/script>" in page
+    assert page.index('"id": "home1"') < page.index('"id": "bar1"')   # most visited first and "Bar <\\/script>" in page
     assert 'const PIX = "https://x/pix";' in page
     assert "{{" not in page.replace("{{CARTO_KEY}}", "")
     shards = "".join(p.read_text(encoding="utf-8") for p in tmp_path.glob("venue_data_*.json"))
-    assert "Str. Secret 1" not in shards
+    assert "Str. Alecu Russo, 55" in shards

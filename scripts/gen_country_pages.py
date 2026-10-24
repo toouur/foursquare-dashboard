@@ -244,7 +244,7 @@ def build_page(
                 key = vid or vname
                 venues[key] += 1
                 venue_names.setdefault(key, vname)
-                if vid and r.get("category") != "Home (private)":
+                if vid:
                     venue_links[key] = f"/venue.html#{vid}"   # gen_venue_page dossier
             cy = (r.get("city") or "").strip()
             if cy:

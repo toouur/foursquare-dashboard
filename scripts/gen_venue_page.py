@@ -7,9 +7,8 @@ gen_venue_page.py — one page per venue, served as ``venue.html#<venue_id>``.
 The page is a single static shell; the dossier comes from the venue's shard
 ``venue_data_<xx>.json`` (written here via `metrics.venues`), fetched on load and on
 every hash change, cache-busted with a content hash. Without a hash it lists the
-most visited venues. `Home (private)` venues get no dossier: a public shard would
-publish the exact home coordinates and street address. Self-contained like the country pages (fonts + Leaflet from
-CDNs, no {{SITE_CSS_LINK}}); the only post-processed placeholder is {{CARTO_KEY}}.
+most visited venues. Every venue gets a dossier, `Home (private)` included — like the
+rest of the site. Self-contained like the country pages (fonts + Leaflet from CDNs, no {{SITE_CSS_LINK}}); the only post-processed placeholder is {{CARTO_KEY}}.
 """
 from __future__ import annotations
 
@@ -23,7 +22,6 @@ log = logging.getLogger(__name__)
 
 SITE_URL = "https://4sq.pages.dev"
 TOP_N = 40
-HOME_CATEGORY = "Home (private)"
 
 PAGE_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
@@ -182,8 +180,7 @@ def build_page(
     """Write venue.html + venue_data_<xx>.json shards. Returns the venue count."""
     out_dir = Path(out_path)
     out_dir.mkdir(parents=True, exist_ok=True)
-    venues = {vid: r for vid, r in compute_venues(rows or [], photos_by_checkin).items()
-              if r["cat"] != HOME_CATEGORY}
+    venues = compute_venues(rows or [], photos_by_checkin)
     ver = write_venue_shards(venues, str(out_dir))
     top = sorted(venues.items(), key=lambda kv: (-kv[1]["n"], kv[1]["name"]))[:TOP_N]
     top_json = json.dumps([{"id": vid, "name": r["name"], "city": r["city"], "n": r["n"]}
