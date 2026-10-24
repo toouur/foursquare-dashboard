@@ -426,17 +426,47 @@ a{{color:var(--teal);}}
 .crumb{{position:fixed;top:14px;left:18px;z-index:200;font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);background:rgba(18,21,31,.85);backdrop-filter:blur(8px);border:1px solid var(--border);padding:6px 12px;border-radius:6px;text-decoration:none;}}
 .crumb:hover{{color:var(--gold);}}
 
-/* ── Hero ── */
-.hero{{padding:60px 28px 42px;background:linear-gradient(160deg,#10121c 0%,#0a0c12 75%);border-bottom:1px solid var(--border);position:relative;overflow:hidden;}}
-.hero::before{{content:'';position:absolute;top:-50%;right:-20%;width:80%;height:160%;background:radial-gradient(closest-side,rgba(232,184,109,.10),transparent);pointer-events:none;}}
-.hero h1{{font-family:'Playfair Display',serif;font-size:clamp(2rem,5vw,3.6rem);font-weight:900;background:linear-gradient(140deg,#f5d48a,#e8b86d 60%,#b97c30);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.02em;}}
-.hero .sub{{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-top:6px;}}
-.kpi-strip{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:28px;max-width:1300px;}}
-.kpi{{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;}}
-.kpi::after{{content:'';position:absolute;top:0;left:18px;right:18px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.35;}}
-.kpi-num{{font-family:'Playfair Display',serif;font-size:1.75rem;font-weight:700;color:var(--gold);line-height:1;}}
-.kpi-lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:5px;}}
-.kpi-sub{{font-size:.62rem;color:var(--muted);margin-top:3px;opacity:.85;}}
+/* ── Hero: title, then the route map as the centrepiece ── */
+.hero{{padding:64px 28px 10px;max-width:1300px;margin:0 auto;position:relative;}}
+.hero .eyebrow{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--gold);letter-spacing:.22em;text-transform:uppercase;}}
+.hero h1{{font-family:'Playfair Display',serif;font-size:clamp(2.3rem,5.6vw,4.4rem);font-weight:900;line-height:1;letter-spacing:-0.02em;margin:10px 0 10px;color:var(--text);}}
+.hero h1 em{{font-style:normal;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.hero .sub{{color:var(--muted);font-size:.92rem;max-width:640px;}}
+.map-section{{padding:18px 28px 6px;max-width:1300px;margin:0 auto;}}
+#flMap{{width:100%;height:540px;border-radius:24px;background:#0c0e14;border:1px solid var(--border);}}
+.leaflet-container{{background:#0c0e14;}}
+.leaflet-popup-content-wrapper{{background:var(--card2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:.78rem;}}
+.leaflet-popup-tip{{background:var(--card2);}}
+.ap-lbl{{background:none;border:none;box-shadow:none;color:#eef0f6;font-family:'DM Mono',monospace;font-size:10px;padding:0;}}
+.ap-lbl::before{{display:none;}}
+/* ── Facts ── */
+.facts{{padding:16px 28px 0;max-width:1300px;margin:0 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;}}
+.box{{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:18px 20px;min-width:0;}}
+.box h3{{font-family:'DM Mono',monospace;font-weight:400;font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}}
+.s2{{grid-column:span 2;}}.s4{{grid-column:span 4;}}.s6{{grid-column:span 6;}}
+.huge{{font-family:'Playfair Display',serif;font-weight:900;font-size:2.6rem;line-height:1;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.huge.sea{{background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;}}
+.huge.mint{{background:linear-gradient(135deg,#2fd6b5,#4cb8ff);-webkit-background-clip:text;background-clip:text;}}
+.fact-sub{{color:var(--text);opacity:.8;font-size:.8rem;margin-top:8px;}}
+.box.grow{{display:flex;flex-direction:column;}}
+.fy{{display:flex;align-items:flex-end;gap:8px;flex:1;min-height:150px;}}
+.fy-col{{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;min-width:0;height:100%;}}
+.fy-col .t{{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;}}
+.fy-col i{{display:block;width:100%;max-width:40px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#f6d38b,#ff9a6b 60%,#ff6fae);}}
+.fy-col .v,.fy-col .l{{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);}}
+.rt{{display:flex;align-items:center;gap:10px;padding:6px 0;font-family:'Playfair Display',serif;font-size:1.12rem;color:var(--text);}}
+.rt+.rt{{border-top:1px solid var(--border);}}
+.rt span{{color:var(--muted);font-size:.8rem;}}
+.rt em{{margin-left:auto;font-family:'DM Mono',monospace;font-size:.66rem;font-style:normal;color:var(--teal);}}
+.al-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 30px;}}
+.al{{display:grid;grid-template-columns:32px minmax(0,1fr) 90px 28px;gap:10px;align-items:center;padding:5px 0;}}
+.al .lg{{width:32px;height:32px;border-radius:9px;background:rgba(255,255,255,.94);padding:3px;object-fit:contain;}}
+.al .lgfb{{width:32px;height:32px;border-radius:9px;background:rgba(232,184,109,.15);display:none;align-items:center;justify-content:center;color:var(--gold);}}
+.al .nm{{font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+.al .bar{{height:6px;border-radius:3px;background:var(--card2);overflow:hidden;}}
+.al .bar i{{display:block;height:100%;background:linear-gradient(90deg,#4cb8ff,#9b7bff);}}
+.al b{{font-family:'DM Mono',monospace;font-weight:400;font-size:.7rem;color:var(--gold);text-align:right;}}
+@media(max-width:900px){{.facts{{grid-template-columns:repeat(2,minmax(0,1fr));}}.s2,.s4,.s6{{grid-column:span 2;}}}}
 
 /* ── Records strip ── */
 .records-section{{padding:30px 28px 0;max-width:1300px;margin:0 auto;}}
@@ -492,13 +522,6 @@ a{{color:var(--teal);}}
 .dow-num{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--text);font-weight:600;}}
 .dow-lbl{{font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);letter-spacing:.1em;}}
 
-/* ── Map ── */
-.map-section{{padding:32px 28px 16px;max-width:1400px;margin:0 auto;}}
-#flMap{{width:100%;height:480px;border-radius:14px;background:#0c0e14;border:1px solid var(--border);}}
-.leaflet-container{{background:#0c0e14;}}
-.leaflet-popup-content-wrapper{{background:var(--card2);border:1px solid var(--border);color:var(--text);font-family:'DM Sans',sans-serif;font-size:.78rem;}}
-.leaflet-popup-tip{{background:var(--card2);}}
-
 /* ── Filter bar ── */
 .fbar{{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:18px 28px;background:var(--card);border-bottom:1px solid var(--border);max-width:1400px;margin:0 auto;border-radius:14px;margin-top:16px;}}
 .fbar select,.fbar input{{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;}}
@@ -506,32 +529,35 @@ a{{color:var(--teal);}}
 .fbar .lbl{{font-family:'DM Mono',monospace;font-size:.55rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-right:4px;}}
 .fbar .count{{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--teal);margin-left:auto;}}
 
-/* ── Card grid ── */
-.grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;padding:18px 28px 80px;max-width:1400px;margin:0 auto;}}
-.fcard{{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 20px 16px;display:flex;flex-direction:column;gap:12px;transition:transform .2s,border-color .2s;}}
-.fcard:hover{{border-color:rgba(232,184,109,.4);transform:translateY(-2px);}}
-.fc-head{{display:flex;align-items:center;gap:14px;}}
-.fc-logo{{width:44px;height:44px;background:rgba(255,255,255,.94);border-radius:8px;padding:4px;object-fit:contain;flex-shrink:0;}}
-.fc-logo-fb{{width:44px;height:44px;background:rgba(232,184,109,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:1.3rem;flex-shrink:0;}}
-.fc-airline-block{{flex:1;min-width:0;}}
-.fc-airline{{font-size:.86rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
-.fc-fno{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--teal);margin-top:1px;letter-spacing:.05em;}}
-.fc-route{{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--gold);line-height:1.05;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}}
-.fc-route .iata{{color:var(--gold);}}
-.fc-route .arrow{{font-family:'DM Sans',sans-serif;font-size:1.1rem;color:var(--muted);font-weight:400;}}
-.fc-route-names{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:-4px;}}
-.fc-meta{{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);}}
-.fc-meta-item{{display:flex;flex-direction:column;gap:1px;}}
-.fc-meta-lbl{{font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);}}
-.fc-meta-val{{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--text);font-weight:500;}}
-.fc-footer{{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);}}
-.fc-note{{font-style:italic;font-size:.7rem;color:var(--muted);margin-top:4px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.06);}}
-
-@media(max-width:600px){{.hero{{padding:42px 16px 30px;}}.kpi-strip{{grid-template-columns:repeat(2,1fr);}}.map-section,.grid{{padding-left:14px;padding-right:14px;}}.grid{{grid-template-columns:1fr;}}
-/* let full airline / airport names wrap instead of clipping on narrow screens */
-.fc-airline{{white-space:normal;overflow:visible;}}
-.fc-route-names{{white-space:normal;overflow:visible;line-height:1.25;}}
-.fc-meta-val{{overflow-wrap:anywhere;}}}}
+/* ── The log: compact boarding-pass rows grouped by year ── */
+.log{{padding:18px 28px 80px;max-width:1300px;margin:0 auto;}}
+.log-h{{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,3vw,2.3rem);font-weight:700;margin:26px 0 4px;}}
+.log-h em{{font-style:normal;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+details.ly{{margin-bottom:12px;}}
+details.ly>summary{{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:12px;padding:8px 0;}}
+details.ly>summary::-webkit-details-marker{{display:none;}}
+.ly-y{{font-family:'Playfair Display',serif;font-weight:900;font-size:2.2rem;line-height:1;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.ly-n{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);background:var(--card2);padding:3px 10px;border-radius:999px;}}
+.ly-arrow{{color:var(--muted);transition:transform .2s;}}
+details[open] .ly-arrow{{transform:rotate(90deg);}}
+.fr{{display:grid;grid-template-columns:38px 70px minmax(0,1fr) 110px;gap:14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:10px 16px;margin-bottom:6px;position:relative;}}
+.fr::before{{content:'';position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:2px;background:linear-gradient(180deg,#f6d38b,#ff6fae);}}
+.fc-logo{{width:38px;height:38px;background:rgba(255,255,255,.94);border-radius:9px;padding:3px;object-fit:contain;}}
+.fc-logo-fb{{width:38px;height:38px;background:rgba(232,184,109,.15);border-radius:9px;display:flex;align-items:center;justify-content:center;color:var(--gold);}}
+.fd b{{display:block;font-family:'DM Mono',monospace;font-size:.8rem;font-weight:500;}}
+.fd small,.fm small{{display:block;font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);}}
+.fx{{display:grid;grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr);align-items:center;gap:10px;min-width:0;}}
+.io b{{display:block;font-family:'Playfair Display',serif;font-weight:900;font-size:1.5rem;line-height:1;color:var(--gold);}}
+.io small{{display:block;font-size:.66rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+.io.r{{text-align:right;}}
+.fl{{text-align:center;font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);}}
+.fl i{{display:block;height:1px;background:linear-gradient(90deg,transparent,#ff7a6b,transparent);margin-bottom:5px;position:relative;}}
+.fl i::after{{content:'✈';position:absolute;left:50%;top:-8px;transform:translateX(-50%);color:#ff7a6b;font-size:.8rem;font-style:normal;}}
+.fm{{font-family:'DM Mono',monospace;font-size:.7rem;text-align:right;}}
+.fnote{{grid-column:3/-1;font-style:italic;font-size:.72rem;color:var(--muted);}}
+.empty{{text-align:center;padding:40px;color:var(--muted);}}
+@media(max-width:600px){{.hero{{padding:48px 16px 6px;}}.map-section,.facts,.log,.records-section,.yearly-section,.tops-section,.dow-section{{padding-left:14px;padding-right:14px;}}#flMap{{height:340px;border-radius:18px;}}
+.fr{{grid-template-columns:32px minmax(0,1fr);gap:10px;padding:10px 12px;}}.fc-logo,.fc-logo-fb{{width:32px;height:32px;}}.fd,.fm{{display:none;}}.fx{{grid-template-columns:minmax(0,1fr) 70px minmax(0,1fr);}}.io b{{font-size:1.2rem;}}.huge{{font-size:2rem;}}.fnote{{grid-column:2;}}}}
 
 /* ── Side nav ── */
 .side-nav{{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:4000;display:flex;flex-direction:column;background:rgba(18,21,31,0.92);border:1px solid var(--border);border-right:none;border-radius:10px 0 0 10px;backdrop-filter:blur(10px);overflow:hidden;}}
@@ -548,20 +574,20 @@ a{{color:var(--teal);}}
 <a class="crumb" href="index.html">← Dashboard</a>
 
 <div class="hero">
-  <h1>Flights</h1>
-  <div class="sub">Every leg, ground-truth from FlightRadar24</div>
-  <div class="kpi-strip">
-    <div class="kpi"><div class="kpi-num">{total_flights}</div><div class="kpi-lbl">Flights</div></div>
-    <div class="kpi"><div class="kpi-num">{total_hours} h</div><div class="kpi-lbl">In the air</div></div>
-    <div class="kpi"><div class="kpi-num">{total_km} km</div><div class="kpi-lbl">Distance flown</div></div>
-    <div class="kpi"><div class="kpi-num">{n_airports}</div><div class="kpi-lbl">Airports</div></div>
-    <div class="kpi"><div class="kpi-num">{n_airlines}</div><div class="kpi-lbl">Airlines</div></div>
-    <div class="kpi"><div class="kpi-num">{n_aircraft}</div><div class="kpi-lbl">Aircraft types</div></div>
-    <div class="kpi"><div class="kpi-num">{n_routes}</div><div class="kpi-lbl">Unique routes</div><div class="kpi-sub">undirected pairs</div></div>
-    <div class="kpi"><div class="kpi-num">{n_regs}</div><div class="kpi-lbl">Airframes</div><div class="kpi-sub">distinct tails</div></div>
-    <div class="kpi"><div class="kpi-num">{co2_kg}</div><div class="kpi-lbl">kg CO₂e</div><div class="kpi-sub">est. economy</div></div>
-    <div class="kpi"><div class="kpi-num">{same_day_conn}</div><div class="kpi-lbl">Connections</div><div class="kpi-sub">same-day layovers</div></div>
-  </div>
+  <div class="eyebrow">Flights · ground truth from FlightRadar24</div>
+  <h1>{total_flights} flights, <em>{total_km} km</em></h1>
+  <div class="sub">Every leg on record — real great-circle arcs, brighter for routes flown more often; dots are airports, bigger for more visits.</div>
+</div>
+
+<div class="map-section"><div id="flMap"></div></div>
+
+<div class="facts">
+  <div class="box s2"><h3>Distance</h3><div class="huge" id="factEarth"></div><div class="fact-sub">around the Earth · {total_km} km</div></div>
+  <div class="box s2"><h3>In the air</h3><div class="huge sea" id="factDays"></div><div class="fact-sub" id="factDaysSub"></div></div>
+  <div class="box s2"><h3>Reach</h3><div class="huge mint">{n_airports}</div><div class="fact-sub">airports · {n_airlines} airlines · {n_routes} routes · {n_regs} airframes</div></div>
+  <div class="box s4 grow"><h3>Flights per year</h3><div class="fy" id="factYears"></div></div>
+  <div class="box s2"><h3>Top routes</h3><div id="factRoutes"></div></div>
+  <div class="box s6"><h3>Airlines</h3><div class="al-grid" id="factAirlines"></div></div>
 </div>
 
 <div class="records-section">
@@ -587,10 +613,7 @@ a{{color:var(--teal);}}
   <div class="dow-chart">{dow_html}</div>
 </div>
 
-<div class="map-section">
-  <div id="flMap"></div>
-</div>
-
+<div class="log" style="padding-bottom:0"><div class="log-h">The <em>log</em></div></div>
 <div class="fbar">
   <span class="lbl">Year</span>
   <select id="fYear"><option value="">All</option></select>
@@ -602,7 +625,7 @@ a{{color:var(--teal);}}
   <span class="count" id="fCount"></span>
 </div>
 
-<div class="grid" id="grid"></div>
+<div class="log"><div id="grid"></div></div>
 
 <nav class="side-nav" aria-label="Page shortcuts">
   <a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
@@ -640,7 +663,7 @@ function setLogo(img, iata) {{
   img.onerror = () => {{ i++; if (i < cdns.length) img.src = cdns[i]; else {{ img.style.display='none'; const fb=img.nextElementSibling; if(fb)fb.style.display='flex'; }} }};
   img.src = cdns[0];
 }}
-const fmtDur = m => m ? `${{Math.floor(m/60)}}h ${{m%60}}m` : '';
+const fmtDur = m => m ? `${{Math.floor(m/60)}}h ${{String(m%60).padStart(2,'0')}}` : '';
 const haversine = (la1, lo1, la2, lo2) => {{
   const R = 6371, r = Math.PI/180;
   const dLa = (la2-la1)*r, dLo = (lo2-lo1)*r;
@@ -676,30 +699,49 @@ L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}
 const routeLayer = L.layerGroup().addTo(map);
 const airportLayer = L.layerGroup().addTo(map);
 
-// Plot all airports as small dots
-const seenAirports = new Set();
-Object.entries(COORDS).forEach(([iata, [la, lo, name]]) => {{
-  if (!la || !lo) return;
-  seenAirports.add(iata);
-  L.circleMarker([la, lo], {{ radius: 3, fillColor: '#e8b86d', color: '#fff', weight: 1, fillOpacity: 0.9 }})
-    .addTo(airportLayer)
-    .bindPopup(`<strong>${{iata}}</strong><br>${{esc(name)}}`);
-}});
-
-// Plot routes — collapsed to undirected pairs with thickness ∝ frequency
-const pairCount = new Map();
+// Routes collapsed to undirected pairs: colour and weight grow with how often a route was flown
+const pairCount = new Map(), apCount = new Map();
 FLIGHTS.forEach(f => {{
   if (!f.from_iata || !f.to_iata) return;
   const key = [f.from_iata, f.to_iata].sort().join('|');
   pairCount.set(key, (pairCount.get(key) || 0) + 1);
+  [f.from_iata, f.to_iata].forEach(a => apCount.set(a, (apCount.get(a) || 0) + 1));
 }});
+const maxPair = Math.max(1, ...pairCount.values()), maxAp = Math.max(1, ...apCount.values());
+const pairColor = n => n > 4 ? '#ff9a6b' : n > 1 ? '#ff6fae' : '#9b7bff';
 pairCount.forEach((n, key) => {{
   const [a, b] = key.split('|');
   const ca = COORDS[a], cb = COORDS[b];
   if (!ca || !cb) return;
-  const w = Math.min(3.5, 0.6 + n * 0.3);
-  L.polyline(greatCircle(ca[0], ca[1], cb[0], cb[1]), {{ color: '#4ec9b0', weight: w, opacity: 0.55 }}).addTo(routeLayer);
+  const pts = greatCircle(ca[0], ca[1], cb[0], cb[1]);
+  L.polyline(pts, {{ color: pairColor(n), weight: 6 + 6 * n / maxPair, opacity: 0.08 }}).addTo(routeLayer);   // glow
+  L.polyline(pts, {{ color: pairColor(n), weight: 1 + 2.4 * n / maxPair, opacity: 0.55 + 0.4 * n / maxPair }})
+    .addTo(routeLayer).bindPopup(`<strong>${{a}} ⇄ ${{b}}</strong><br>${{n}} flight${{n === 1 ? '' : 's'}}`);
 }});
+const fitPts = [];
+Object.entries(COORDS).forEach(([iata, [la, lo, name]]) => {{
+  if (!la || !lo || !apCount.get(iata)) return;
+  const n = apCount.get(iata); fitPts.push([la, lo]);
+  const m = L.circleMarker([la, lo], {{ radius: 2.5 + 6 * Math.sqrt(n / maxAp), fillColor: '#f6d38b', color: '#ffb36b', weight: 1, fillOpacity: 0.95 }})
+    .addTo(airportLayer).bindPopup(`<strong>${{iata}}</strong><br>${{esc(name)}}<br>${{n}} departures + arrivals`);
+  if (n >= 8) m.bindTooltip(iata, {{ permanent: true, direction: 'right', className: 'ap-lbl', offset: [6, 0] }});
+}});
+if (fitPts.length) map.fitBounds(fitPts, {{ padding: [24, 24] }});
+
+// ── Facts ──
+const EARTH_KM = 40075;
+document.getElementById('factEarth').textContent = (HISTORY.total_km / EARTH_KM).toFixed(1) + '×';
+document.getElementById('factDays').textContent = (HISTORY.total_hours / 24).toFixed(1) + ' days';
+document.getElementById('factDaysSub').textContent = Math.round(HISTORY.total_hours).toLocaleString() + ' hours · average ' + Math.round(HISTORY.total_hours * 60 / Math.max(1, FLIGHTS.length)) + ' min a leg';
+const byYear = HISTORY.by_year || [], maxY = Math.max(1, ...byYear.map(r => r[1]));
+document.getElementById('factYears').innerHTML = byYear.map(r => `<div class="fy-col" title="${{r[0]}}: ${{r[1]}} flights · ${{r[2].toLocaleString()}} km · ${{r[3]}} h"><span class="v">${{r[1]}}</span><span class="t"><i style="height:${{Math.max(3, Math.round(100 * r[1] / maxY))}}%"></i></span><span class="l">${{r[0].slice(2)}}</span></div>`).join('');
+document.getElementById('factRoutes').innerHTML = [...pairCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)
+  .map(([k, n]) => {{ const [a, b] = k.split('|'); return `<div class="rt">${{a}}<span>⇄</span>${{b}}<em>${{n}}×</em></div>`; }}).join('');
+const alCount = new Map(), alIata = {{}};
+FLIGHTS.forEach(f => {{ if (!f.airline) return; alCount.set(f.airline, (alCount.get(f.airline) || 0) + 1); if (f.airline_iata) alIata[f.airline] = f.airline_iata; }});
+const alTop = [...alCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 9), alMax = alTop.length ? alTop[0][1] : 1;
+document.getElementById('factAirlines').innerHTML = alTop.map(([a, n], i) => `<div class="al"><img class="lg" id="al_logo_${{i}}" alt=""><span class="lgfb">✈</span><span class="nm">${{esc(a)}}</span><span class="bar"><i style="width:${{Math.round(100 * n / alMax)}}%"></i></span><b>${{n}}</b></div>`).join('');
+alTop.forEach(([a], i) => setLogo(document.getElementById('al_logo_' + i), alIata[a]));
 
 // ── Filters ──
 const years = [...new Set(FLIGHTS.map(f => f.date.slice(0,4)))].sort();
@@ -724,43 +766,32 @@ function getFiltered() {{
   }});
 }}
 
+function flightRow(f, idx) {{
+  const ca = COORDS[f.from_iata], cb = COORDS[f.to_iata];
+  const km = (ca && cb) ? haversine(ca[0], ca[1], cb[0], cb[1]) : 0;
+  return `<div class="fr">
+    ${{f.airline_iata ? `<img class="fc-logo" id="fc_logo_${{idx}}" alt="" title="${{esc(f.airline)}}"/><div class="fc-logo-fb" style="display:none;">✈</div>` : `<div class="fc-logo-fb" title="${{esc(f.airline || '')}}">✈</div>`}}
+    <div class="fd"><b>${{f.date.slice(8, 10)}}.${{f.date.slice(5, 7)}}</b><small>${{esc(f.flight || '')}}</small></div>
+    <div class="fx">
+      <div class="io"><b>${{esc(f.from_iata || '—')}}</b><small>${{esc(f.from_name || '')}}</small></div>
+      <div class="fl"><i></i>${{fmtDur(f.dur_min)}}${{km ? ' · ' + km.toLocaleString() + ' km' : ''}}</div>
+      <div class="io r"><b>${{esc(f.to_iata || '—')}}</b><small>${{esc(f.to_name || '')}}</small></div>
+    </div>
+    <div class="fm">${{esc(f.aircraft_code || f.aircraft || '')}}<small>${{esc(f.reg || '')}}${{f.seat ? ' · ' + esc(f.seat) : ''}}</small></div>
+    ${{f.note ? `<div class="fnote">“${{esc(f.note)}}”</div>` : ''}}
+  </div>`;
+}}
 function render() {{
   const filtered = getFiltered();
+  const filtering = yrSel.value || alSel.value || acSel.value || document.getElementById('fQ').value.trim();
   document.getElementById('fCount').textContent = `${{filtered.length}} / ${{FLIGHTS.length}}`;
   const grid = document.getElementById('grid');
-  grid.innerHTML = filtered.map((f, idx) => {{
-    const ca = COORDS[f.from_iata], cb = COORDS[f.to_iata];
-    const km = (ca && cb) ? haversine(ca[0], ca[1], cb[0], cb[1]) : 0;
-    return `<div class="fcard">
-      <div class="fc-head">
-        ${{f.airline_iata
-            ? `<img class="fc-logo" id="fc_logo_${{idx}}" alt=""/><div class="fc-logo-fb" style="display:none;">✈</div>`
-            : `<div class="fc-logo-fb">✈</div>`}}
-        <div class="fc-airline-block">
-          <div class="fc-airline">${{esc(f.airline || 'Unknown')}}</div>
-          ${{f.flight ? `<div class="fc-fno">${{esc(f.flight)}}</div>` : ''}}
-        </div>
-      </div>
-      <div>
-        <div class="fc-route">
-          <span class="iata">${{esc(f.from_iata || '—')}}</span>
-          <span class="arrow">→</span>
-          <span class="iata">${{esc(f.to_iata || '—')}}</span>
-        </div>
-        <div class="fc-route-names">${{esc(f.from_name || '')}} → ${{esc(f.to_name || '')}}</div>
-      </div>
-      <div class="fc-meta">
-        <div class="fc-meta-item"><span class="fc-meta-lbl">Date</span><span class="fc-meta-val">${{esc(f.date)}}</span></div>
-        ${{f.aircraft_code || f.aircraft ? `<div class="fc-meta-item"><span class="fc-meta-lbl">Plane</span><span class="fc-meta-val">${{esc(f.aircraft_code || f.aircraft)}}</span></div>` : ''}}
-        ${{f.dur_min ? `<div class="fc-meta-item"><span class="fc-meta-lbl">Time</span><span class="fc-meta-val">${{fmtDur(f.dur_min)}}</span></div>` : ''}}
-      </div>
-      <div class="fc-footer">
-        ${{f.reg ? `<span>Reg ${{esc(f.reg)}}</span>` : '<span>&nbsp;</span>'}}
-        ${{km ? `<span>${{km.toLocaleString()}} km</span>` : ''}}
-      </div>
-      ${{f.note ? `<div class="fc-note">"${{esc(f.note)}}"</div>` : ''}}
-    </div>`;
-  }}).join('');
+  if (!filtered.length) {{ grid.innerHTML = '<div class="empty">No flights match</div>'; return; }}
+  const byY = {{}};
+  filtered.forEach((f, idx) => (byY[f.date.slice(0, 4)] = byY[f.date.slice(0, 4)] || []).push([f, idx]));
+  grid.innerHTML = Object.keys(byY).sort((a, b) => b - a).map((y, yi) =>
+    `<details class="ly"${{filtering || yi < 2 ? ' open' : ''}}><summary><span class="ly-y">${{y}}</span><span class="ly-n">${{byY[y].length}} flight${{byY[y].length === 1 ? '' : 's'}}</span><span class="ly-arrow">›</span></summary>
+      ${{byY[y].map(([f, idx]) => flightRow(f, idx)).join('')}}</details>`).join('');
   // Boot the logo loaders after innerHTML is set
   filtered.forEach((f, idx) => {{
     if (!f.airline_iata) return;
