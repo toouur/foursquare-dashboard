@@ -616,6 +616,7 @@ a{{color:var(--teal);}}
   <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
   <a href="compare.html"><span class="sn-icon">⚖️</span><span class="sn-lbl">COMPARE</span></a>
   <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
+  <a href="culture.html"><span class="sn-icon">🍷</span><span class="sn-lbl">CULTURE</span></a>
 </nav>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

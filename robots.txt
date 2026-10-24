@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /visits.html
+Disallow: /api/
 
 Sitemap: https://4sq.pages.dev/sitemap.xml

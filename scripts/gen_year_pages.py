@@ -820,6 +820,13 @@ html.js .section:not(.in){{opacity:0;transform:translateY(50px);}}
 /* ── The year in sound (Last.fm) ── */
 .music-hero{{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:34px;}}
 .music-artist{{font-family:'Playfair Display',serif;font-size:1.55rem;font-weight:700;color:var(--teal);line-height:1.12;overflow-wrap:anywhere;}}
+.cult-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:22px;}}
+.cult-h{{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.16em;color:var(--gold);}}
+.cult-sub{{font-size:.76rem;color:var(--muted);margin:4px 0 10px;}}
+.cult-list{{display:flex;flex-direction:column;gap:6px;}}
+.cult-list a,.cult-list .cult-t{{font-size:.88rem;color:var(--text);text-decoration:none;}}
+.cult-list a:hover{{color:var(--gold);}}
+.cult-list span:not(.cult-t){{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--teal);margin-left:8px;}}
 .music-months{{display:flex;align-items:flex-end;gap:5px;height:120px;margin-top:8px;}}
 .music-months .mm-col{{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px;height:100%;}}
 .music-months .mm-fill{{width:100%;max-width:26px;background:linear-gradient(180deg,var(--teal),rgba(78,201,176,.22));border-radius:4px 4px 0 0;min-height:2px;}}
@@ -975,6 +982,7 @@ html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
 {shouts_section}
 {companions_section}
 {music_section}
+{culture_section}
 
 {year_nav}
 
@@ -1146,6 +1154,7 @@ def build_page(
     flight_history: dict | None = None,
     flights_data: list | None = None,
     music_by_year: dict | None = None,
+    culture_by_year: dict | None = None,
     **_extra,
 ) -> None:
     out_dir = Path(out_path)
@@ -1829,6 +1838,42 @@ def build_page(
         else:
             music_section = ""
 
+        # ── The year in culture (IMDb films, Vivino wines, Last.fm tracks) ──
+        cy = (culture_by_year or {}).get(str(yr)) or {}
+        culture_section = ""
+        if cy.get("films") or cy.get("wines") or cy.get("top_tracks"):
+            def _clist(items):
+                return '<div class="cult-list">' + "".join(items) + "</div>"
+            cols = []
+            if cy.get("films"):
+                w = cy.get("where") or {}
+                split = " · ".join(f"{w[k]} {lbl}" for k, lbl in
+                                   (("cinema", "in the cinema"), ("road", "on the road"), ("home", "at home")) if w.get(k))
+                cols.append(
+                    f'<div class="cult-col"><div class="cult-h">Frame · {cy["films"]} film{"s" if cy["films"] != 1 else ""}</div>'
+                    f'<div class="cult-sub">avg {cy.get("film_avg")}/10 · {_esc(split)}</div>'
+                    + _clist(f'<a href="{_esc(f.get("url") or "")}" target="_blank" rel="noopener">{_esc(f.get("title"))}</a>'
+                             f'<span>{f.get("rating")}/10</span>' for f in cy.get("top_films") or []) + "</div>")
+            if cy.get("wines"):
+                ctry = ", ".join(c for c, _ in (cy.get("wine_countries") or [])[:3])
+                cols.append(
+                    f'<div class="cult-col"><div class="cult-h">Taste · {cy["wines"]} wine{"s" if cy["wines"] != 1 else ""}</div>'
+                    f'<div class="cult-sub">avg ★ {cy.get("wine_avg")} · {_esc(ctry)}</div>'
+                    + _clist(f'<a href="{_esc(w.get("url") or "")}" target="_blank" rel="noopener">{_esc(w.get("wine"))} {_esc(w.get("vintage") or "")}</a>'
+                             f'<span>★ {w.get("rating")}</span>' for w in cy.get("top_wines") or []) + "</div>")
+            if cy.get("top_tracks"):
+                cols.append(
+                    '<div class="cult-col"><div class="cult-h">Sound · top tracks</div><div class="cult-sub">most-scrobbled</div>'
+                    + _clist(f'<span class="cult-t">{_esc(a)} — {_esc(t)}</span><span>×{n}</span>' for a, t, n in cy["top_tracks"]) + "</div>")
+            culture_section = (
+                f'<section class="section" id="sec-culture" data-bg-index="10" data-sec-title="The Year in Culture">'
+                f'<div class="section-h">The year in culture</div>'
+                f'<div class="section-title">Sound, taste <em>&amp; frame</em></div>'
+                f'<div class="section-intro">What played, what was poured and what was watched in {yr}. '
+                f'<a href="/culture.html">The whole chronicle →</a></div>'
+                f'<div class="cult-grid">{"".join(cols)}</div></section>'
+            )
+
         # ── Year prev/next nav ──
         idx = all_years_sorted.index(yr) if yr in all_years_sorted else -1
         prev_yr = all_years_sorted[idx - 1] if idx > 0 else None
@@ -1867,6 +1912,7 @@ def build_page(
             shouts_section=shouts_section,
             companions_section=companions_section,
             music_section=music_section,
+            culture_section=culture_section,
             year_nav=year_nav,
         )
         (out_dir / f"year-{yr}.html").write_text(html, encoding="utf-8")

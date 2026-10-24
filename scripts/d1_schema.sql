@@ -172,6 +172,33 @@ CREATE TABLE IF NOT EXISTS companions (
     cnt     INTEGER NOT NULL DEFAULT 0
 );
 
+-- Page views from /api/hit (functions/api/hit.js), one row per view. Private:
+-- read only by /api/visits (STATS_KEY-gated) and the weekly Telegram report
+-- (scripts/visits_report.py). IPs are personal data, so rows older than 90 days
+-- are deleted by the report run and, as a backstop, by 1 in 200 hits.
+-- vid = random id kept in the visitor's localStorage (no cookie), owner = 1 for
+-- the site owner's own browser (set by opening visits.html) so stats can skip it.
+-- One index only (ts): every index costs a row WRITTEN per view. No AUTOINCREMENT:
+-- it also rewrites sqlite_sequence on every insert (a third written row).
+CREATE TABLE IF NOT EXISTS visits (
+    id      INTEGER PRIMARY KEY,
+    ts      INTEGER NOT NULL,
+    path    TEXT    NOT NULL,
+    ref     TEXT,
+    ip      TEXT,
+    country TEXT,
+    city    TEXT,
+    region  TEXT,
+    asn     INTEGER,
+    org     TEXT,
+    tz      TEXT,
+    ua      TEXT,
+    vid     TEXT,
+    owner   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts);
+
+
 CREATE VIRTUAL TABLE IF NOT EXISTS venues_fts USING fts5(name, category, city, country, content='venues', content_rowid='rowid');
 CREATE VIRTUAL TABLE IF NOT EXISTS tips_fts USING fts5(venue, text, city, country, content='tips', content_rowid='rowid');
 CREATE VIRTUAL TABLE IF NOT EXISTS trips_fts USING fts5(name, countries, cities, content='trips', content_rowid='rowid');

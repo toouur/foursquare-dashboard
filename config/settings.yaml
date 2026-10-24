@@ -106,6 +106,13 @@ dashboard:
 basemap:
   carto_key: "cb1_4jrw_1_42fc1bd62cab3196cc180c0b"
 
+# Cultural chronicle (culture.html): public profile links shown in its header.
+# Sources live next to checkins.csv: imdb_export.csv, full_wine_list.csv, lastfm/.
+culture:
+  imdb_profile: "https://www.imdb.com/user/p.yx6kaorazm2bqhp4nwbhqrqsni/ratings/"
+  vivino_profile: "https://www.vivino.com/en/users/andrei.patsiomkin"
+  lastfm_profile: "https://www.last.fm/user/TOOUUR"
+
 output:
   index_html: index.html
   trips_html: trips.html

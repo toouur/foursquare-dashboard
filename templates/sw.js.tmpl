@@ -33,7 +33,7 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return;
   // Live API and big generated data blobs must always hit the network.
   if (url.pathname.startsWith('/api/')) return;
-  if (/(feed_meta|map_data|routes|trips_meta|trip_checkins_\d+|venue_data_[0-9a-f]{2}|year_facts|life_data)\.json$/.test(url.pathname)) return;
+  if (/(feed_meta|map_data|routes|trips_meta|trip_checkins_\d+|venue_data_[0-9a-f]{2}|year_facts|life_data|culture_data)\.json$/.test(url.pathname)) return;
 
   // Static assets: cache-first (content-hashed CSS, immutable SVG/PNG/JS).
   if (isStaticAsset(url.pathname)) {

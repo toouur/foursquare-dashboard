@@ -112,6 +112,13 @@ a{color:inherit;}
 #detailMap{height:380px;border-radius:8px;}
 .detail-countries{display:flex;flex-wrap:wrap;gap:6px;}
 .detail-country{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:.78rem;}
+.trip-culture{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px;}
+.tc-h{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);margin-bottom:8px;}
+.tc-row{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+.tc-row a{color:var(--text);text-decoration:none;}.tc-row a:hover{color:var(--gold);}
+.tc-row i{display:block;font-style:normal;font-size:.7rem;color:var(--muted);}
+.tc-row b{font-family:'DM Mono',monospace;font-weight:400;color:var(--teal);white-space:nowrap;}
+.tc-sub{font-size:.72rem;color:var(--muted);margin-top:8px;}
 .detail-timeline{max-height:440px;overflow-y:auto;padding-right:4px;}
 .detail-timeline::-webkit-scrollbar{width:3px;}
 .detail-timeline::-webkit-scrollbar-thumb{background:var(--border);}
@@ -336,6 +343,10 @@ body.light .ts-cell.z{background:var(--card2);}
       <div class="detail-card-title">Top Categories</div>
       <div id="detailCats"></div>
     </div>
+    <div class="detail-card full" id="detailCultureCard" style="display:none">
+      <div class="detail-card-title">Sound · Taste · Frame <a href="culture.html" style="font-size:.6rem;color:var(--gold);text-decoration:none;margin-left:8px">all culture →</a></div>
+      <div id="detailCulture" class="trip-culture"></div>
+    </div>
     <div class="detail-card full" id="detail-timeline-card">
       <div class="detail-card-title">Check-in Timeline</div>
       <div class="detail-timeline" id="detailTimeline"></div>
@@ -460,11 +471,39 @@ function loadTripCheckins(t){
   }
   return _ckShards[n];
 }
+// Sound · Taste · Frame: Last.fm / Vivino / IMDb for this trip, from culture_data.json
+// (fetched once, on the first trip opened; a missing file just hides the card).
+let _culture = null;
+function loadCulture(){
+  if(!_culture) _culture = fetch('culture_data.json').then(r=>r.ok?r.json():{trips:{}}).catch(()=>({trips:{}}));
+  return _culture;
+}
+function renderTripCulture(t){
+  const card = document.getElementById('detailCultureCard'), box = document.getElementById('detailCulture');
+  card.style.display = 'none';
+  loadCulture().then(C=>{
+    const x = (C.trips||{})[String(t.id)];
+    if(!x) return;
+    const e = s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+    const more = n => n>10 ? `<div class="tc-sub"><a href="culture.html" style="color:var(--gold)">+${n-10} more →</a></div>` : '';
+    const cols = [];
+    if(x.sound) cols.push(`<div><div class="tc-h">🎧 Sound · ${x.sound.n.toLocaleString('en-US')} scrobbles</div>`
+      + x.sound.artists.map(([a,n])=>`<div class="tc-row"><span>${e(a)}</span><b>${n}</b></div>`).join('')
+      + (x.sound.tracks.length?`<div class="tc-sub">${x.sound.tracks.slice(0,3).map(([a,tr,n])=>e(a+' — '+tr)+' ×'+n).join('<br>')}</div>`:'') + '</div>');
+    if(x.wines.length) cols.push(`<div><div class="tc-h">🍷 Taste · ${x.wines.length} wine${x.wines.length>1?'s':''}</div>`
+      + x.wines.slice(0,10).map(w=>`<div class="tc-row"><span><a href="${e(w.url)}" target="_blank" rel="noopener">${e(w.wine)}</a> ${e(w.vintage)}<i>${e([w.country,w.venue].filter(Boolean).join(' · '))}</i></span><b>★ ${w.rating}</b></div>`).join('') + more(x.wines.length) + '</div>');
+    if(x.films.length) cols.push(`<div><div class="tc-h">🎬 Frame · ${x.films.length} film${x.films.length>1?'s':''}</div>`
+      + x.films.slice(0,10).map(f=>`<div class="tc-row"><span><a href="${e(f.url)}" target="_blank" rel="noopener">${e(f.title)}</a> ${e(f.year||'')}<i>${e(f.where)} · rated ${e(f.date)}</i></span><b>${f.rating}/10</b></div>`).join('') + more(x.films.length) + '</div>');
+    if(!cols.length) return;
+    box.innerHTML = cols.join('');
+    card.style.display = '';
+  });
+}
 function showTrip(id){
   const t = TRIPS.find(x=>x.id===id);
   if(!t) return Promise.resolve();
   return loadTripCheckins(t).catch(()=>{ t.checkins = t.checkins || []; })
-    .then(()=>_renderTrip(t));
+    .then(()=>{ _renderTrip(t); renderTripCulture(t); });
 }
 function _renderTrip(t){
   const id = t.id;
@@ -951,6 +990,7 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
   <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
   <a href="compare.html"><span class="sn-icon">⚖️</span><span class="sn-lbl">COMPARE</span></a>
   <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
+  <a href="culture.html"><span class="sn-icon">🍷</span><span class="sn-lbl">CULTURE</span></a>
   <div class="sn-sep"></div>
   <button id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
 </nav>

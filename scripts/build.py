@@ -1155,6 +1155,24 @@ if __name__ == "__main__":
         except Exception as _yie:
             log.warning("gen_years_index failed: %s", _yie)
 
+    # ── Cultural chronicle: IMDb + Vivino + Last.fm joined to check-ins ───────
+    # Sources sit next to checkins.csv (missing ones just mean "no culture").
+    # Computed before the year pages, which carry a "Year in culture" section;
+    # culture.html and the trip modal read the same result later.
+    _culture: dict = {}
+    try:
+        from culture_sources import load_imdb, load_scrobbles, load_vivino
+        from metrics.culture import compute_culture
+        _cdir = Path(args.input).resolve().parent
+        _culture = compute_culture(
+            rows, trips,
+            films=load_imdb(_cdir / "imdb_export.csv"),
+            wines=load_vivino(_cdir / "full_wine_list.csv"),
+            scrobbles=load_scrobbles(_cdir / "lastfm"),
+        )
+    except Exception as _cue:
+        log.warning("culture failed: %s", _cue)
+
     # ── Generate year-YYYY.html album pages ─────────────────────────────────
     _gen_year = _SCRIPT_DIR / "gen_year_pages.py"
     if _gen_year.exists():
@@ -1195,6 +1213,7 @@ if __name__ == "__main__":
                 flight_history=data.get("flight_history"),
                 flights_data=_flights_list,
                 music_by_year=_music_by_year,
+                culture_by_year=_culture.get("years", {}),
             )
         except Exception as _ye:
             log.warning("gen_year_pages failed: %s", _ye)
@@ -1284,6 +1303,35 @@ if __name__ == "__main__":
             )
         except Exception as _le:
             log.warning("gen_life failed: %s", _le)
+
+    # ── Generate culture.html + culture_data.json (sound · taste · frame) ─────
+    _gen_cult = _SCRIPT_DIR / "gen_culture.py"
+    if _gen_cult.exists():
+        try:
+            import importlib.util as _ilu_cu
+            _spec_cu = _ilu_cu.spec_from_file_location("gen_culture", _gen_cult)
+            assert _spec_cu and _spec_cu.loader
+            _mod_cu  = _ilu_cu.module_from_spec(_spec_cu)
+            _spec_cu.loader.exec_module(_mod_cu)
+            _cu_music: dict = {}
+            _cu_lf = Path(args.input).resolve().parent / "lastfm_years.json"
+            if _cu_lf.exists():
+                _cu_music = json.loads(_cu_lf.read_text(encoding="utf-8")).get("years", {}) or {}
+            _mod_cu.build_page(
+                out_path=args.output_dir,
+                culture=_culture,
+                music_by_year=_cu_music,
+                profiles=settings.get("culture") or {},
+            )
+        except Exception as _cue2:
+            log.warning("gen_culture failed: %s", _cue2)
+
+    # ── visits.html: the owner's private view of /api/visits (STATS_KEY-gated) ──
+    try:
+        import gen_visits
+        gen_visits.build_page(out_path=args.output_dir)
+    except Exception as _vse:
+        log.warning("gen_visits failed: %s", _vse)
 
     # ── Post-process: substitute canonical placeholders in every generated file ──
     # Single source of truth: config/country_flags.json + config/category_icons.json
@@ -1421,6 +1469,37 @@ if __name__ == "__main__":
         log.info("PWA: manifest + sw.js (v%s) injected into %d pages", _sw_version, _n_pwa)
     else:
         log.warning("PWA templates missing — skipping manifest/sw.js")
+
+    # ── Cloudflare Web Analytics beacon on EVERY page ──────────────────────────
+    # It used to live in 10 hand-edited templates only, so year/country/trip/
+    # venue/compare/life/culture pages were never counted. Pages already carrying
+    # it (the templates) are left alone; Google verification stubs have no body.
+    _cf_beacon = ("<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' "
+                  "data-cf-beacon='{\"token\": \"096ba3d9093f4c629948d81ef8438a34\"}'></script><!-- End Cloudflare Web Analytics -->")
+    # Plus our own counter (functions/api/hit.js → D1 `visits`, private view in
+    # visits.html): one sendBeacon per page view with the path, referrer, a random
+    # visitor id from localStorage and the owner flag. Every failure is swallowed.
+    _hit_js = ("<script>(function(){try{var s=localStorage,v=s.getItem('fsq_vid');"
+               "if(!v){v=Math.random().toString(36).slice(2)+Date.now().toString(36);s.setItem('fsq_vid',v)}"
+               "var p=location.pathname+(/venue\\.html$/.test(location.pathname)?location.hash:'');"
+               "navigator.sendBeacon('/api/hit',JSON.stringify({p:p,r:document.referrer||'',v:v,"
+               "o:s.getItem('fsq_owner')==='1'?1:0}))}catch(e){}})();</script>")
+    _n_beacon = _n_hit = 0
+    for _html in Path(args.output_dir).glob("*.html"):
+        _txt = _html.read_text(encoding="utf-8")
+        if "</body>" not in _txt:
+            continue
+        _add = ""
+        if "cloudflareinsights.com/beacon" not in _txt:
+            _add += _cf_beacon
+            _n_beacon += 1
+        if "/api/hit" not in _txt and _html.name != "visits.html":   # the owner's page never counts
+            _add += _hit_js
+            _n_hit += 1
+        if _add:
+            _i = _txt.rfind("</body>")
+            _html.write_text(_txt[:_i] + _add + _txt[_i:], encoding="utf-8")
+    log.info("Web Analytics beacon added to %d more pages, visit counter to %d", _n_beacon, _n_hit)
 
     # ── Syndication feeds: feed.xml (RSS 2.0) + feed.json (JSON Feed 1.1) ──────
     # Built from the metrics recent[] list (30 newest check-ins). The CI cp glob

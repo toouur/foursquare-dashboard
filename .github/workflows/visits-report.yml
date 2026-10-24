@@ -1,0 +1,47 @@
+# .github/workflows/visits-report.yml
+#
+# Weekly private digest of site visits (scripts/visits_report.py): the D1
+# `visits` table written by functions/api/hit.js — views, unique visitors and
+# IPs, pages, countries, cities, referrers, networks, newest visitors — for the
+# last 7 days vs the 7 before, sent to the PRIVATE alerts chat
+# (TELEGRAM_CHAT_ID, never the public on-this-day channel). The same run deletes
+# rows older than 90 days. Reads/writes D1 only; never touches the data repo.
+
+name: Visits report (weekly)
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'   # Monday 07:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the report only, send and delete nothing'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install requests
+      - name: Send visits report
+        env:
+          CF_D1_TOKEN: ${{ secrets.CF_D1_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_DATABASE_ID: ${{ secrets.CF_D1_DATABASE_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          cd scripts
+          python visits_report.py ${{ inputs.dry_run && '--dry-run' || '' }}

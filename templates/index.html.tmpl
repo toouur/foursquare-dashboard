@@ -219,7 +219,8 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 /* ── TRIPS LINK ── */
 .trips-link-card{display:flex;align-items:center;justify-content:space-between;padding:20px 26px;background:linear-gradient(135deg,#12151f 0%,#1a1f30 100%);border:1px solid var(--border);border-radius:14px;cursor:pointer;text-decoration:none;transition:border-color 0.2s;}
 .trips-link-card:hover{border-color:var(--gold);}
-.tlc-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-self:start;}
+.tlc-pair{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-self:start;}
+@media(max-width:1100px){.tlc-pair{grid-template-columns:1fr 1fr 1fr;gap:12px;}.tlc-pair .trips-link-card{padding:16px 14px;}}
 @media(max-width:700px){.tlc-pair{grid-template-columns:1fr;gap:14px;}}
 .tlc-left{display:flex;flex-direction:column;gap:4px;}
 .tlc-num{font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:var(--gold);line-height:1;}
@@ -738,12 +739,16 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
   </a>
   <div class="tlc-pair">
     <a class="trips-link-card" href="compare.html">
-      <div class="tlc-left"><div class="tlc-label">Compare &nbsp;&middot;&nbsp; years &amp; eras →</div></div>
+      <div class="tlc-left"><div class="tlc-label">Compare years →</div></div>
       <div class="tlc-arrow">⚖️</div>
     </a>
     <a class="trips-link-card" href="life.html">
-      <div class="tlc-left"><div class="tlc-label">Life in Stripes &nbsp;&middot;&nbsp; timeline →</div></div>
+      <div class="tlc-left"><div class="tlc-label">Life in Stripes →</div></div>
       <div class="tlc-arrow">🧬</div>
+    </a>
+    <a class="trips-link-card" href="culture.html">
+      <div class="tlc-left"><div class="tlc-label">Culture →</div></div>
+      <div class="tlc-arrow">🍷</div>
     </a>
   </div>
 
@@ -2253,6 +2258,7 @@ function buildCityMap(){
   <a class="sn-item" href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
   <a href="compare.html"><span class="sn-icon">⚖️</span><span class="sn-lbl">COMPARE</span></a>
   <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
+  <a href="culture.html"><span class="sn-icon">🍷</span><span class="sn-lbl">CULTURE</span></a>
   <div class="sn-sep"></div>
   <button class="sn-item" id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
 </nav>

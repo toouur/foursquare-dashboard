@@ -119,7 +119,9 @@ def test_inline_js_parses(tmp_path):
     gen_compare.build_page(out_path=str(tmp_path), rows=rows, home_city="Minsk", home_history=ERAS)
     gen_life.build_page(out_path=str(tmp_path), rows=rows, home_city="Minsk", home_history=ERAS)
     gen_venue_page.build_page(out_path=str(tmp_path), rows=rows)
-    for page in ("compare.html", "life.html", "venue.html"):
+    import gen_culture
+    gen_culture.build_page(out_path=str(tmp_path), culture=None)
+    for page in ("compare.html", "life.html", "venue.html", "culture.html"):
         html = (tmp_path / page).read_text(encoding="utf-8")
         for i, js in enumerate(re.findall(r"<script>([\s\S]*?)</script>", html)):
             f = tmp_path / f"{page}.{i}.js"
