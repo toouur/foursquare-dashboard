@@ -121,6 +121,6 @@ def load_scrobbles(dir_: str | Path) -> list[tuple[int, str, str, str]]:
         return []
     from fetch_lastfm import load_raw   # the writer owns the format
     raw = load_raw(d)
-    out = sorted((r["ts"], r["artist"], r["track"], r["album"]) for rows in raw.values() for r in rows.values())
+    out = sorted((r["ts"], r["artist"], r["track"], r["album"]) for rows in raw.values() for r in rows)
     log.info("Last.fm raw layer: %d scrobbles", len(out))
     return out

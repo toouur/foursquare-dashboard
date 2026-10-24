@@ -126,24 +126,41 @@ def test_fetch_since_single_track_dict_and_mismatch_warning(monkeypatch, caplog)
     assert "FETCH_TOTAL_MISMATCH" in caplog.text
 
 
-def test_raw_roundtrip_is_exact(tmp_path):
+def test_raw_roundtrip_is_exact_and_keeps_repeats(tmp_path):
     raw: dict = {}
     tricky = {"ts": _ts(2019), "artist": "Sigur  Rós ", "track": "Track\twith tab", "album": "Line sep\x85x"}
     assert lf.add_raw(raw, tricky)
-    assert not lf.add_raw(raw, dict(tricky))                 # same (ts, artist, track) → dup
+    assert lf.add_raw(raw, dict(tricky))                     # Last.fm does store a same-second repeat
     assert lf.add_raw(raw, {"ts": _ts(2019) + 1, "artist": "Air", "track": "", "album": None})
     assert not lf.add_raw(raw, {"ts": 1, "artist": "", "track": "x"})
     lf.write_raw(tmp_path, raw)
     assert (tmp_path / "scrobbles_2019.tsv").read_bytes().count(b"\r") == 0
     back = lf.load_raw(tmp_path)
-    rows = sorted(back["2019"].values(), key=lambda r: r["ts"])
-    assert rows[0] == {"ts": _ts(2019), "artist": "Sigur  Rós ", "track": "Track with tab",
-                       "album": "Line sep\x85x"}
-    assert rows[1] == {"ts": _ts(2019) + 1, "artist": "Air", "track": "", "album": ""}
+    rows = sorted(back["2019"], key=lambda r: (r["ts"], r["artist"]))
+    assert len(rows) == 3
+    assert rows[0] == rows[1] == {"ts": _ts(2019), "artist": "Sigur  Rós ", "track": "Track with tab",
+                                  "album": "Line sep\x85x"}
+    assert rows[2] == {"ts": _ts(2019) + 1, "artist": "Air", "track": "", "album": ""}
     assert lf.raw_last_ts(back) == _ts(2019) + 1
 
 
-def _run_raw(monkeypatch, tmp_path, scrobbles, state):
+def test_replace_window_is_a_multiset_replace():
+    a = {"ts": _ts(2026, 10, 1), "artist": "A", "track": "x", "album": ""}
+    b = {"ts": _ts(2026, 10, 2), "artist": "B", "track": "y", "album": ""}
+    old = {"ts": _ts(2025, 1, 1), "artist": "Old", "track": "z", "album": ""}
+    raw: dict = {}
+    for sc in (old, a):
+        lf.add_raw(raw, sc)
+    years, added, removed = lf.replace_window(raw, _ts(2026, 9, 1), _ts(2026, 10, 20), [a, a, b])
+    assert years == {"2026"} and (added, removed) == (2, 0)          # the repeat of a + b
+    assert sorted(r["artist"] for r in raw["2026"]) == ["A", "A", "B"]
+    assert [r["artist"] for r in raw["2025"]] == ["Old"]             # outside the window: untouched
+    assert lf.replace_window(raw, _ts(2026, 9, 1), _ts(2026, 10, 20), [a, a, b]) == (set(), 0, 0)
+    years, added, removed = lf.replace_window(raw, _ts(2026, 9, 1), _ts(2026, 10, 20), [a])
+    assert (added, removed) == (0, 2)                                # deleted on Last.fm → deleted here
+
+
+def _run_raw(monkeypatch, tmp_path, scrobbles, state, raw=None, extra=()):
     seen = {}
 
     def fake_fetch(key, user, from_ts, to_ts=None):
@@ -153,27 +170,61 @@ def _run_raw(monkeypatch, tmp_path, scrobbles, state):
     monkeypatch.setattr(lf, "fetch_since", fake_fetch)
     sp, rd, op = tmp_path / "s.json", tmp_path / "raw", tmp_path / "y.json"
     sp.write_text(json.dumps(state), encoding="utf-8")
-    rc = lf.main(["--state", str(sp), "--scrobbles-dir", str(rd), "--out", str(op), "--api-key", "k"])
-    return rc, seen["from"], json.loads(sp.read_text(encoding="utf-8")), lf.load_raw(rd)
+    if raw is not None:
+        lf.write_raw(rd, raw)
+    rc = lf.main(["--state", str(sp), "--scrobbles-dir", str(rd), "--out", str(op), "--api-key", "k", *extra])
+    return rc, seen.get("from"), json.loads(sp.read_text(encoding="utf-8")), lf.load_raw(rd)
 
 
-def test_seed_walk_fills_raw_without_double_counting_years(monkeypatch, tmp_path, capsys):
+def test_seed_walk_fills_raw_and_rebuilds_the_year_state(monkeypatch, tmp_path, capsys):
     old, new = _ts(2015), _ts(2020)
     st = lf.new_state("u")
-    lf.add_scrobble(st, "Air", old)                          # the year state already holds 2015
+    lf.add_scrobble(st, "Air", old)
+    lf.add_scrobble(st, "Ghost", old)                # the old state counted a play Last.fm no longer has
     sc = [{"ts": old, "artist": "Air", "track": "Sexy Boy", "album": "Moon Safari"},
+          {"ts": new, "artist": "Muse", "track": "Uprising", "album": "The Resistance"},
           {"ts": new, "artist": "Muse", "track": "Uprising", "album": "The Resistance"}]
     rc, from_ts, st2, raw = _run_raw(monkeypatch, tmp_path, sc, st)
-    assert rc == 0 and from_ts == 0                          # empty raw layer → whole history
-    assert st2["total"] == 2 and st2["years"]["2015"]["scrobbles"] == 1
-    assert {k: len(v) for k, v in raw.items()} == {"2015": 1, "2020": 1}
+    assert rc == 0 and from_ts == 0                  # empty raw layer → whole history
+    assert {k: len(v) for k, v in raw.items()} == {"2015": 1, "2020": 2}
+    assert st2["total"] == 3 and "Ghost" not in st2["years"]["2015"]["artists"]
     out = capsys.readouterr().out
     assert "CHANGED=true" in out and "RAW_YEAR_DIFF=0" in out
 
-    # next week: both watermarks equal → only the new scrobble is fetched and folded
-    sc.append({"ts": new + 60, "artist": "Muse", "track": "Resistance", "album": "The Resistance"})
-    rc, from_ts, st3, raw = _run_raw(monkeypatch, tmp_path, sc, st2)
-    assert from_ts == new and st3["total"] == 3 and len(raw["2020"]) == 2
+
+def test_weekly_run_catches_a_late_scrobble(monkeypatch, tmp_path, capsys):
+    t0 = _ts(2026, 10, 10)
+    on_disk = [{"ts": t0, "artist": "A", "track": "1", "album": ""},
+               {"ts": t0 + 3600, "artist": "B", "track": "2", "album": ""}]
+    raw: dict = {}
+    for sc in on_disk:
+        lf.add_raw(raw, sc)
+    late = {"ts": t0 + 60, "artist": "Tycho", "track": "Awake", "album": "Awake"}   # synced days later
+    newer = {"ts": t0 + 7200, "artist": "C", "track": "3", "album": ""}
+    rc, from_ts, st2, raw2 = _run_raw(monkeypatch, tmp_path, [*on_disk, late, newer],
+                                      lf.state_from_raw(raw, "u"), raw)
+    assert rc == 0 and from_ts == t0 + 3600 - lf.OVERLAP_DAYS * 86400
+    assert sorted(r["artist"] for r in raw2["2026"]) == ["A", "B", "C", "Tycho"]
+    assert st2["total"] == 4
+    assert "LATE_SCROBBLES=1" in capsys.readouterr().out
+
+
+def test_a_shrunken_window_writes_nothing(monkeypatch, tmp_path, capsys):
+    t0 = _ts(2026, 10, 10)
+    raw: dict = {}
+    for k in range(20):
+        lf.add_raw(raw, {"ts": t0 + k * 60, "artist": "A", "track": str(k), "album": ""})
+    rc, _, _, raw2 = _run_raw(monkeypatch, tmp_path, [], lf.state_from_raw(raw, "u"), raw)
+    assert rc == 1 and len(raw2["2026"]) == 20       # an API hiccup must not wipe two weeks
+    assert "CHANGED=false" in capsys.readouterr().out
+
+
+def test_reseed_ignores_the_raw_layer_on_disk(monkeypatch, tmp_path):
+    raw: dict = {}
+    lf.add_raw(raw, {"ts": _ts(2026), "artist": "A", "track": "1", "album": ""})
+    rc, from_ts, _, _ = _run_raw(monkeypatch, tmp_path, [{"ts": _ts(2026), "artist": "A", "track": "1", "album": ""}],
+                                 lf.state_from_raw(raw, "u"), raw, extra=["--reseed-raw"])
+    assert rc == 0 and from_ts == 0
 
 
 def test_raw_year_diff_reports_a_lossy_layer():
@@ -192,4 +243,4 @@ def test_bootstrap_also_seeds_raw(tmp_path):
     raw: dict = {}
     st = lf.bootstrap_from_export(p, "u", raw)
     assert st["total"] == 1
-    assert list(raw["2015"].values()) == [{"ts": _ts(2015), "artist": "Air", "track": "Sexy Boy", "album": "Moon Safari"}]
+    assert raw["2015"] == [{"ts": _ts(2015), "artist": "Air", "track": "Sexy Boy", "album": "Moon Safari"}]

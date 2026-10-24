@@ -20,14 +20,21 @@ WHY TWO FILES
 
     plus, with ``--scrobbles-dir``, the RAW layer the cultural chronicle reads:
     every scrobble as one TSV line ``ts  artist  track  album`` (UTC unix seconds,
-    sorted, de-duplicated on (ts, artist, track)) in ``scrobbles_<YYYY>.tsv`` per
-    UTC year — ~20 MB for ~280k scrobbles, and a weekly run rewrites only the
-    current year's file. It keeps its own watermark (the newest ts on disk); when
-    the directory is empty the run walks the WHOLE history once to seed it
-    (~1400 API pages, 15-25 min). The year state is never double-counted: each
-    layer folds only scrobbles past its own watermark. After writing, per-year
-    counts of the raw layer are compared with the year state and any gap is
-    logged (``RAW_YEAR_DIFF``), so a lossy walk cannot pass silently.
+    sorted) in ``scrobbles_<YYYY>.tsv`` per UTC year — ~16 MB for ~280k
+    scrobbles. Repeats are KEPT: Last.fm really stores the same track twice in
+    the same second now and then, and counts both (dedup on (ts, artist, track)
+    lost 4 of them in the first seed, 2018/2020).
+    Each run re-reads the last ``OVERLAP_DAYS`` before the newest scrobble on
+    disk and REPLACES that window with what the API returns: devices scrobble
+    late with the original timestamp (offline plays sync hours or days later),
+    and a "newer than the watermark" fetch misses those for good — the first
+    seed found 5 such plays in 2026 that the weekly runs never saw. A window
+    reply more than 10 % smaller than what is on disk is treated as a transient
+    API failure and nothing is written (``WINDOW_SHRANK``).
+    With a raw layer the year state is REBUILT from it on every run, so the two
+    can no longer drift; ``LATE_SCROBBLES=<n>`` reports the late arrivals.
+    An empty directory (or ``--reseed-raw``) walks the whole history once
+    (~1400 API pages, 15-25 min).
 
 MODES
   1. BOOTSTRAP (one-off seed) — ``--bootstrap path/to/all_scrobbles_api.json``.
@@ -144,13 +151,16 @@ def _clean(v) -> str:
     return str(v or "").replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
 
-def load_raw(dir_: Path) -> dict[str, dict[tuple, dict]]:
-    """year → {(ts, artist, track): row} for every scrobbles_<YYYY>.tsv in dir_."""
-    out: dict[str, dict[tuple, dict]] = {}
+OVERLAP_DAYS = 14
+WINDOW_MIN_RATIO = 0.9
+
+
+def load_raw(dir_: Path) -> dict[str, list[dict]]:
+    """year → [row] for every scrobbles_<YYYY>.tsv in dir_ (repeats kept)."""
+    out: dict[str, list[dict]] = {}
     for f in sorted(dir_.glob("scrobbles_*.tsv")):
-        yr = f.stem.split("_", 1)[1]
-        rows = out.setdefault(yr, {})
-        # split on "\n" only: splitlines() would also break on \x85 /   inside a tag
+        rows = out.setdefault(f.stem.split("_", 1)[1], [])
+        # split on "\n" only: splitlines() would also break on \x85 / \u2028 inside a tag
         for i, line in enumerate(f.read_text(encoding="utf-8").split("\n")):
             if i == 0 or not line:
                 continue                                   # header
@@ -160,45 +170,84 @@ def load_raw(dir_: Path) -> dict[str, dict[tuple, dict]]:
             except ValueError:
                 log.warning("%s:%d unreadable ts %r — line skipped", f.name, i + 1, parts[0])
                 continue
-            row = {"ts": ts, "artist": parts[1], "track": parts[2], "album": parts[3]}
-            rows[(ts, row["artist"], row["track"])] = row
+            rows.append({"ts": ts, "artist": parts[1], "track": parts[2], "album": parts[3]})
     return out
 
 
-def raw_last_ts(raw: dict[str, dict[tuple, dict]]) -> int:
-    return max((k[0] for rows in raw.values() for k in rows), default=0)
+def raw_last_ts(raw: dict[str, list[dict]]) -> int:
+    return max((r["ts"] for rows in raw.values() for r in rows), default=0)
 
 
-def add_raw(raw: dict[str, dict[tuple, dict]], sc: dict) -> bool:
-    """Fold one scrobble dict into the raw layer; False when it was already there."""
+def _year(ts: int) -> str:
+    return str(datetime.fromtimestamp(ts, tz=timezone.utc).year)
+
+
+def _row(sc: dict) -> dict | None:
     row = {k: _clean(sc.get(k)) for k in ("artist", "track", "album")}
-    if not row["artist"]:
+    return {"ts": int(sc["ts"]), **row} if row["artist"] else None
+
+
+def add_raw(raw: dict[str, list[dict]], sc: dict) -> bool:
+    """Append one scrobble dict to the raw layer; False when it has no artist."""
+    row = _row(sc)
+    if row is None:
         return False
-    ts = int(sc["ts"])
-    rows = raw.setdefault(str(datetime.fromtimestamp(ts, tz=timezone.utc).year), {})
-    key = (ts, row["artist"], row["track"])
-    if key in rows:
-        return False
-    rows[key] = {"ts": ts, **row}
+    raw.setdefault(_year(row["ts"]), []).append(row)
     return True
 
 
-def write_raw(dir_: Path, raw: dict[str, dict[tuple, dict]], years: set[str] | None = None) -> None:
+def _key(r: dict) -> tuple:
+    return (r["ts"], r["artist"], r["track"], r["album"])
+
+
+def replace_window(raw: dict[str, list[dict]], lo: int, hi: int, scrobbles: list[dict]) -> tuple[set[str], int, int]:
+    """Make [lo, hi] hold exactly `scrobbles`. Returns (years touched, rows
+    added, rows removed) — counted as multisets, so a repeat is a real row."""
+    from collections import Counter
+    new = [r for r in (_row(sc) for sc in scrobbles) if r is not None and lo <= r["ts"] <= hi]
+    old = [r for rows in raw.values() for r in rows if lo <= r["ts"] <= hi]
+    before, after = Counter(map(_key, old)), Counter(map(_key, new))
+    added, removed = sum((after - before).values()), sum((before - after).values())
+    if not added and not removed:
+        return set(), 0, 0
+    years = {_year(r["ts"]) for r in old + new}
+    for y in years:
+        raw[y] = [r for r in raw.get(y, []) if not lo <= r["ts"] <= hi]
+    for r in new:
+        raw.setdefault(_year(r["ts"]), []).append(r)
+    return years, added, removed
+
+
+def state_from_raw(raw: dict[str, list[dict]], user: str) -> dict:
+    """The year state recomputed from the raw layer (the raw layer is the truth)."""
+    st = new_state(user)
+    for rows in raw.values():
+        for r in rows:
+            add_scrobble(st, r["artist"], r["ts"])
+    return st
+
+
+def write_raw(dir_: Path, raw: dict[str, list[dict]], years: set[str] | None = None) -> None:
     """Rewrite scrobbles_<YYYY>.tsv for `years` (all when None), sorted by ts."""
     dir_.mkdir(parents=True, exist_ok=True)
     for yr in sorted(years if years is not None else raw):
-        rows = sorted(raw.get(yr, {}).values(), key=lambda r: (r["ts"], r["artist"], r["track"]))
+        rows = sorted(raw.get(yr, []), key=_key)
+        f = dir_ / f"scrobbles_{yr}.tsv"
+        if not rows:
+            if f.exists():
+                f.unlink()
+            continue
         lines = ["\t".join(RAW_FIELDS)] + [
             f"{r['ts']}\t{r['artist']}\t{r['track']}\t{r['album']}" for r in rows]
         # newline="\n": the same bytes whether written in CI or by a local bootstrap on Windows
-        (dir_ / f"scrobbles_{yr}.tsv").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        f.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
-def raw_year_diff(raw: dict[str, dict[tuple, dict]], state: dict) -> dict[str, tuple[int, int]]:
+def raw_year_diff(raw: dict[str, list[dict]], state: dict) -> dict[str, tuple[int, int]]:
     """Years where the raw layer and the year state disagree: year → (raw, state)."""
     out = {}
     for yr in sorted(set(raw) | set(state.get("years", {}))):
-        a = len(raw.get(yr, {}))
+        a = len(raw.get(yr, []))
         b = int(state.get("years", {}).get(yr, {}).get("scrobbles", 0))
         if a != b:
             out[yr] = (a, b)
@@ -368,6 +417,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--state", required=False, help="lastfm_state.json (cache)")
     ap.add_argument("--scrobbles-dir", required=False,
                     help="raw layer: scrobbles_<YYYY>.tsv per year (seeded from the full history when empty)")
+    ap.add_argument("--reseed-raw", action="store_true",
+                    help="ignore the raw layer on disk and walk the whole history again")
     ap.add_argument("--bootstrap", help="Seed from a full all_scrobbles_api.json export")
     ap.add_argument("--api-key", default=os.environ.get("LASTFM_API_KEY", ""))
     ap.add_argument("--check", action="store_true", help="Probe auth only; write nothing")
@@ -422,15 +473,20 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     st = _load_state(state_path, args.user)
-    state_ts = int(st.get("last_ts", 0))
     raw_dir = Path(args.scrobbles_dir) if args.scrobbles_dir else None
-    raw = load_raw(raw_dir) if raw_dir else None
-    raw_ts = raw_last_ts(raw) if raw is not None else state_ts
-    if raw is not None and raw_ts == 0:
-        log.info("No raw layer yet — walking the whole history once to seed %s", raw_dir)
-    from_ts = min(state_ts, raw_ts)
+    raw = ({} if args.reseed_raw else load_raw(raw_dir)) if raw_dir else None
+    import time  # noqa: PLC0415
+    to_ts = int(time.time())
+    if raw is not None:
+        raw_ts = raw_last_ts(raw)
+        if raw_ts == 0:
+            log.info("No raw layer yet (or --reseed-raw) — walking the whole history once into %s", raw_dir)
+        from_ts = max(0, raw_ts - OVERLAP_DAYS * 86400) if raw_ts else 0
+    else:
+        raw_ts = 0
+        from_ts = int(st.get("last_ts", 0))
     try:
-        new = fetch_since(args.api_key, args.user, from_ts)
+        new = fetch_since(args.api_key, args.user, from_ts, to_ts)
     except LastfmError as e:
         print("KEY_VALID=false" if e.code in (10, 4, 26) else "KEY_VALID=true")
         print("CHANGED=false")
@@ -441,34 +497,42 @@ def main(argv: list[str] | None = None) -> int:
         log.error("fetch failed: %s", e)
         return 1
 
-    # Each layer folds only what is past its OWN watermark: the seed walk
-    # re-reads history the year state already holds.
-    new_state_n = new_raw_n = 0
-    touched: set[str] = set()
-    for sc in new:
-        if sc["ts"] > state_ts:
+    if raw is not None and raw_dir:
+        on_disk = sum(1 for rows in raw.values() for r in rows if from_ts < r["ts"] <= raw_ts)
+        fetched = sum(1 for sc in new if sc["ts"] <= raw_ts)
+        if raw_ts and fetched < WINDOW_MIN_RATIO * on_disk:
+            print("KEY_VALID=true"); print("CHANGED=false")
+            log.error("WINDOW_SHRANK: the API returned %d scrobbles for a window that holds %d on disk "
+                      "— treated as a transient failure, nothing written", fetched, on_disk)
+            return 1
+        touched, added, removed = replace_window(raw, from_ts + 1, to_ts, new)
+        late = sum(1 for sc in new if sc["ts"] <= raw_ts) - on_disk
+        print(f"LATE_SCROBBLES={max(0, late)}")
+        changed = bool(touched)
+        if changed:
+            write_raw(raw_dir, raw, touched)
+            st = state_from_raw(raw, st.get("user") or args.user)
+            _write_json(state_path, st)
+            if out_path:
+                _write_json(out_path, derive_aggregate(st))
+            log.info("Raw layer: +%d / -%d rows in %s; year state rebuilt — total %d",
+                     added, removed, ", ".join(sorted(touched)), st["total"])
+        else:
+            log.info("No change in the last %d days — nothing written", OVERLAP_DAYS)
+        print(f"RAW_YEAR_DIFF={len(raw_year_diff(raw, st))}")
+    else:
+        state_ts = int(st.get("last_ts", 0))
+        fresh = [sc for sc in new if sc["ts"] > state_ts]
+        for sc in fresh:
             add_scrobble(st, sc["artist"], sc["ts"])
-            new_state_n += 1
-        if raw is not None and sc["ts"] > raw_ts and add_raw(raw, sc):
-            new_raw_n += 1
-            touched.add(str(datetime.fromtimestamp(sc["ts"], tz=timezone.utc).year))
-
-    changed = bool(new_state_n or new_raw_n)
-    if new_state_n:
-        _write_json(state_path, st)
-        if out_path:
-            _write_json(out_path, derive_aggregate(st))
-        log.info("Added %d scrobbles — total %d, last_ts %d", new_state_n, st["total"], st["last_ts"])
-    if raw is not None and raw_dir and new_raw_n:
-        write_raw(raw_dir, raw, touched)
-        log.info("Raw layer: +%d scrobbles in %s", new_raw_n, ", ".join(sorted(touched)))
-    if raw is not None:
-        diff = raw_year_diff(raw, st)
-        for yr, (a, b) in diff.items():
-            log.warning("RAW_YEAR_DIFF %s: raw %d vs year state %d", yr, a, b)
-        print(f"RAW_YEAR_DIFF={len(diff)}")
-    if not changed:
-        log.info("No new scrobbles since ts %d — nothing written", from_ts)
+        changed = bool(fresh)
+        if changed:
+            _write_json(state_path, st)
+            if out_path:
+                _write_json(out_path, derive_aggregate(st))
+            log.info("Added %d scrobbles — total %d, last_ts %d", len(fresh), st["total"], st["last_ts"])
+        else:
+            log.info("No new scrobbles since ts %d — nothing written", from_ts)
 
     print("KEY_VALID=true")
     print(f"CHANGED={'true' if changed else 'false'}")

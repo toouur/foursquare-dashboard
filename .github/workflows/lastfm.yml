@@ -8,11 +8,13 @@
 # state cache lastfm_state.json (a few hundred KB) that lets each run fetch only
 # NEW scrobbles since its last_ts watermark.
 #
-# It also keeps the RAW layer lastfm/scrobbles_<YYYY>.tsv — every scrobble as
+# It also keeps the RAW layer (which, once present, is the truth the year state
+# is rebuilt from on every run) lastfm/scrobbles_<YYYY>.tsv — every scrobble as
 # `ts artist track album` — for the cultural chronicle. The first run without
 # that directory walks the whole history once (~1400 pages for ~280k scrobbles,
-# 15-25 min; hence the 90-minute timeout); later runs fetch only the new week
-# and rewrite only the current year's file. The log reports RAW_YEAR_DIFF (raw
+# 15-25 min; hence the 90-minute timeout); later runs re-read the last 14 days
+# (late, offline-synced scrobbles keep their original timestamp) and replace
+# that window. The `reseed` input walks everything again. The log reports RAW_YEAR_DIFF (raw
 # per-year counts vs the year state) and FETCH_TOTAL_MISMATCH (rows vs the total
 # Last.fm reported), so a lossy walk is visible in the run summary.
 #
@@ -37,6 +39,11 @@ on:
   schedule:
     - cron: '0 6 * * 0'   # Sunday 06:00 UTC (an hour after FR24)
   workflow_dispatch:
+    inputs:
+      reseed:
+        description: 'Walk the whole history again and rebuild lastfm/ + the year state from it'
+        type: boolean
+        default: false
 
 jobs:
   lastfm:
@@ -75,7 +82,7 @@ jobs:
             --user TOOUUR \
             --out   private-data/lastfm_years.json \
             --state private-data/lastfm_state.json \
-            --scrobbles-dir private-data/lastfm 2>&1 | tee out.txt
+            --scrobbles-dir private-data/lastfm ${{ inputs.reseed && '--reseed-raw' || '' }} 2>&1 | tee out.txt
           CODE=${PIPESTATUS[0]}
           set -e
           VALID=$(grep -m1 '^KEY_VALID=' out.txt | cut -d= -f2)
@@ -89,8 +96,9 @@ jobs:
             echo "- **key valid**: \`${VALID:-unknown}\`"
             echo "- **exit code**: \`${CODE}\` (0 ok · 1 transient · 2 bad key)"
             echo "- **aggregate changed**: \`${CHANGED:-false}\`"
+            echo "- **late scrobbles caught** (played earlier, synced after the last run): \`$(grep -m1 '^LATE_SCROBBLES=' out.txt | cut -d= -f2)\`"
             echo "- **raw years disagreeing with the year state**: \`$(grep -m1 '^RAW_YEAR_DIFF=' out.txt | cut -d= -f2)\`"
-            grep -E 'RAW_YEAR_DIFF |FETCH_TOTAL_MISMATCH' out.txt | sed 's/^/    /' || true
+            grep -E 'RAW_YEAR_DIFF |FETCH_TOTAL_MISMATCH|WINDOW_SHRANK' out.txt | sed 's/^/    /' || true
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit updated Last.fm data

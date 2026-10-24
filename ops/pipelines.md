@@ -28,17 +28,21 @@ and commits both files to the data repo. `build.py` auto-discovers `lastfm_years
 next to `checkins.csv` and threads it to `gen_year_pages.build_page(music_by_year=...)`.
 
 **Raw layer** (`--scrobbles-dir lastfm/`, for the cultural chronicle): every scrobble as
-a TSV line `ts artist track album` (UTC seconds) in `lastfm/scrobbles_<YYYY>.tsv`, sorted,
-de-duplicated on `(ts, artist, track)`; only `\t \r \n` inside a field become spaces —
-names are otherwise byte-exact, files are written with `\n` even on Windows. Own
-watermark (newest ts on disk): an empty dir means a one-off full-history walk
-(~1400 pages, 15-25 min; the workflow has `timeout-minutes: 90`), and each layer folds
-only scrobbles past its own watermark, so the year state is never double-counted.
-`to` is pinned at walk start — without it a scrobble arriving mid-walk shifts every
-later page by a row. Integrity signals: `FETCH_TOTAL_MISMATCH` (rows vs the API's
-`total`) and `RAW_YEAR_DIFF` (raw per-year count vs the year state), both in the run
-summary. The year state predates the raw layer and may itself be off (it was seeded
-from an export), so a diff is a prompt to look, not proof the raw layer is wrong.
+a TSV line `ts artist track album` (UTC seconds) in `lastfm/scrobbles_<YYYY>.tsv`, sorted;
+only `\t \r \n` inside a field become spaces — names are otherwise byte-exact, files are
+written with `\n` even on Windows. **Repeats are kept**: Last.fm does store the same track
+twice in the same second and counts both (deduping on `(ts, artist, track)` lost 4 such
+plays in 2018/2020 on the first seed). **Every run re-reads the last 14 days** before the
+newest scrobble on disk and replaces that window (multiset) with the API's answer:
+devices sync offline plays late with their ORIGINAL timestamp, which a "newer than the
+watermark" fetch never sees — the first seed (2026-10-24) found 5 such 2026 plays the
+weekly runs had missed. `LATE_SCROBBLES=` counts them; a window reply more than 10 %
+smaller than what is on disk is a transient failure (`WINDOW_SHRANK`, exit 1, nothing
+written). Once the raw layer exists the year state + `lastfm_years.json` are **rebuilt from
+it** every run, so they cannot drift. An empty dir, or the workflow's `reseed` input
+(`--reseed-raw`), walks the whole history (~1400 pages, 15-25 min; `timeout-minutes: 90`).
+`to` is pinned at walk start — without it a scrobble arriving mid-walk shifts every later
+page by a row. `FETCH_TOTAL_MISMATCH` compares rows with the API's `total`.
 ```bash
 export LASTFM_API_KEY=...
 # One-off bootstrap from a full local export (no key needed):
