@@ -121,6 +121,15 @@ def visits_ddl(schema_path: Path = Path(__file__).with_name("d1_schema.sql")) ->
             if st.strip() and re.search(r"\b(TABLE|ON)\s+(IF NOT EXISTS\s+)?visits\b", st)]
 
 
+def _fail(msg: str) -> int:
+    """Log the failure and, in GitHub Actions, raise it as an ::error annotation —
+    annotations are readable through the public API without the run logs."""
+    log.error("%s", msg)
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::error title=Visits report::{msg.replace(chr(10), ' ')}")
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--dry-run", action="store_true", help="print the report, send and delete nothing")
@@ -138,20 +147,18 @@ def main(argv: list[str] | None = None) -> int:
             d1.query("DELETE FROM visits WHERE ts < ?", [now - RETENTION_DAYS * 86400])
         text = render(collect(now))
     except Exception as exc:
-        log.error("D1 failed: %s", exc)
-        return 1
+        return _fail(f"D1 failed: {exc}")
     if args.dry_run:
         print(text)
         return 0
     token, chat = os.environ.get("TELEGRAM_BOT_TOKEN", ""), os.environ.get("TELEGRAM_CHAT_ID", "")
     if not token or not chat:
-        log.error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID not set")
-        return 1
+        missing = [k for k, v in (("TELEGRAM_BOT_TOKEN", token), ("TELEGRAM_CHAT_ID", chat)) if not v]
+        return _fail(f"secret(s) not set: {', '.join(missing)} — the report goes to the PRIVATE alerts chat only")
     r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", timeout=30, data={
         "chat_id": chat, "text": _fit(text), "parse_mode": "HTML", "disable_web_page_preview": "true"})
     if not r.ok:
-        log.error("sendMessage failed: %s %s", r.status_code, r.text[:300])
-        return 1
+        return _fail(f"Telegram sendMessage failed: {r.status_code} {r.text[:300]}")
     log.info("Visits report sent (%d chars)", len(text))
     return 0
 

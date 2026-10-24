@@ -111,3 +111,13 @@ def test_main_runs_the_ddl_before_reading(monkeypatch, capsys):
     assert vr.main(["--dry-run"]) == 0
     assert calls[0].startswith("CREATE TABLE IF NOT EXISTS visits")
     assert "No visits recorded this week." in capsys.readouterr().out
+
+
+def test_failures_surface_as_annotations(monkeypatch, capsys):
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: [])
+    monkeypatch.setattr(vr, "collect", lambda now: _collected())
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    assert vr.main([]) == 1
+    assert "::error title=Visits report::secret(s) not set: TELEGRAM_CHAT_ID" in capsys.readouterr().out
