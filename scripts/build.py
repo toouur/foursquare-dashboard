@@ -1086,7 +1086,7 @@ if __name__ == "__main__":
                                                                                       "pix_url": _pix_dir_uri, "trips": trips}),
         (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {"swarm_user_id": fs_user_id}),
         (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities"), "country_count": len(data['countries'])}),
-        (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {}),
+        (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {"photos_by_checkin": _photos_by_checkin, "pix_url": _pix_dir_uri}),
         (_here / "gen_tips.py",       "tips.html",         "tips.html.tmpl",         {"tips_path": str(tips_path), "pix_url": _pix_dir_uri, "country_count": len(data['countries'])}),
         (_here / "gen_stats.py",      "stats.html",        "stats.html.tmpl",        {"stats_data": data, "anomalies_html": _anomalies_html}),
         (_here / "gen_search.py",     "search.html",       "search.html.tmpl",       {"rows": rows, "all_tips": all_tips, "trips": trips, "metrics": data}),

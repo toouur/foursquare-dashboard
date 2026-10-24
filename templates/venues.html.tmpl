@@ -41,11 +41,9 @@ body.light a{color:var(--teal);}
 
 *{box-sizing:border-box;margin:0;padding:0;}
 
-body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
 
-
-
-.topnav{display:flex;align-items:center;gap:20px;padding:18px 40px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;}
+.topnav{display:flex;align-items:center;gap:20px;padding:18px 40px;border-bottom:1px solid var(--border);background:var(--card);}
 .topnav-logo{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);text-decoration:none;}
 .topnav a{font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);text-decoration:none;transition:color .2s;}
 .topnav a:hover{color:var(--gold);}
@@ -62,116 +60,76 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;hei
 .gs-input::placeholder{color:var(--muted);}
 .gs-esc-hint{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
 
-
-
-.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 40px;border-bottom:1px solid var(--border);background:var(--card);flex-shrink:0;z-index:50;}
-
-.search-box{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text);font-size:.78rem;outline:none;width:240px;transition:border-color .15s;}
-
+/* page — the side rail is fixed at the right edge above 900px, so keep clear of it */
+.wrap{max-width:1240px;margin:0 auto;padding:34px 40px 80px;}
+@media(min-width:901px){.wrap{padding-right:max(40px,calc(72px - (100vw - 1240px) / 2));}}
+.eyebrow{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);}
+h1.hero{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(2.3rem,5.6vw,4.2rem);line-height:1;letter-spacing:-.02em;margin:10px 0 12px;}
+h1.hero em{font-style:normal;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.page-insight{color:var(--muted);font-size:.9rem;line-height:1.5;max-width:760px;}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:24px 0 22px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px 18px;}
+.kpi b{display:block;font-family:'Playfair Display',serif;font-size:2rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.kpi:nth-child(2) b{background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;}
+.kpi:nth-child(3) b{background:linear-gradient(135deg,#2fd6b5,#4cb8ff);-webkit-background-clip:text;background-clip:text;}
+.kpi span{display:block;font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:8px;}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+.search-box{flex:1;min-width:220px;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:11px 18px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.86rem;outline:none;transition:border-color .15s;}
 .search-box:focus{border-color:var(--gold);}
+.pill{background:var(--card2);border:1px solid var(--border);border-radius:999px;padding:7px 13px;font-family:'DM Mono',monospace;font-size:.62rem;cursor:pointer;color:var(--muted);white-space:nowrap;}
+.pill.active{background:linear-gradient(135deg,#f6d38b,#ff9a6b);border-color:transparent;color:#1a1206;}
+.pill:hover:not(.active){border-color:var(--gold);color:var(--text);}
+.count-lbl{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);}
+.cats{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-bottom:22px;}
+.cats::-webkit-scrollbar{display:none;}
+.cats .pill b{font-weight:400;opacity:.65;margin-left:4px;}
+/* podium */
+.podium{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:14px;margin-bottom:18px;}
+.pd{position:relative;display:block;border-radius:22px;overflow:hidden;aspect-ratio:4/3;color:#fff;text-decoration:none;isolation:isolate;background:linear-gradient(135deg,#4cb8ff,#9b7bff);transition:transform .25s;}
+.pd:hover{transform:translateY(-3px);}
+.pd img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;transition:transform .6s;}
+.pd:hover img{transform:scale(1.05);}
+.pd::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,transparent 30%,rgba(9,11,16,.93));}
+.pd .medal{position:absolute;top:12px;left:12px;font-size:1.6rem;}
+.pdb{position:absolute;left:0;right:0;bottom:0;padding:16px;}
+.pdn{font-family:'Playfair Display',serif;font-weight:900;font-size:1.5rem;line-height:1.1;color:#fff;}
+.pd.p1 .pdn{font-size:2rem;}
+.pdc{font-size:.74rem;color:#d0d4e0;margin:4px 0 8px;display:flex;align-items:center;gap:6px;}
+.pdk{font-family:'Playfair Display',serif;font-weight:900;font-size:1.8rem;line-height:1;color:#ffc27d;}
+.pdk small{font-family:'DM Mono',monospace;font-weight:400;font-size:.58rem;color:#d0d4e0;}
+/* rows */
+.vr{display:grid;grid-template-columns:34px 44px minmax(0,1fr) 170px 160px;gap:14px;align-items:center;padding:8px 12px;border-radius:14px;color:var(--text);text-decoration:none;}
+.vr:hover{background:var(--card);}
+.vr+.vr{border-top:1px solid var(--border);}
+.rk{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);text-align:right;}
+.vr img,.vr .ph0{width:44px;height:44px;border-radius:12px;object-fit:cover;background:var(--card2);display:block;}
+.vn{min-width:0;}
+.vn b{display:block;font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vr:hover .vn b{color:var(--gold);}
+.vn small{display:flex;gap:6px;align-items:center;font-size:.7rem;color:var(--muted);white-space:nowrap;overflow:hidden;}
+.vn small .c{color:var(--teal);}
+.ys{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;height:16px;}
+.ys i{border-radius:2px;background:var(--card2);}
+.ys i.on{background:#2fd6b5;}
+.vk{display:flex;align-items:center;gap:10px;}
+.bar{flex:1;height:6px;border-radius:3px;background:var(--card2);overflow:hidden;}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#f6d38b,#ff9a6b 60%,#ff6fae);}
+.vk b{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--gold);min-width:40px;text-align:right;}
+.more{display:block;margin:18px auto 0;background:var(--card2);border:1px solid var(--border);border-radius:999px;padding:10px 22px;font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.06em;color:var(--text);cursor:pointer;}
+.more:hover{border-color:var(--gold);color:var(--gold);}
+.empty{text-align:center;padding:50px;color:var(--muted);}
+.fi{border-radius:2px;}
 
-.count-lbl{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--muted);margin-left:auto;}
-
-.page-insight{padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:.78rem;color:var(--muted);font-style:italic;border-bottom:1px solid var(--border);background:var(--card);line-height:1.5;flex-shrink:0;}
-
-
-
-/* Sort pills */
-
-.pill{background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:.68rem;font-weight:600;cursor:pointer;color:var(--muted);transition:all .15s;letter-spacing:.04em;}
-
-.pill.active{background:rgba(232,184,109,.1);border-color:var(--gold);color:var(--gold);}
-
-.pill:hover:not(.active){border-color:rgba(232,184,109,.3);color:var(--text);}
-
-.lbl-sm{font-size:.62rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
-
-
-
-/* Table */
-
-.tbl-wrap{flex:1;overflow-y:auto;overflow-x:auto;}
-
-table{width:100%;border-collapse:collapse;min-width:640px;}
-
-thead th{padding:10px 16px;text-align:left;font-size:.60rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);background:var(--card);position:sticky;top:0;z-index:40;cursor:pointer;user-select:none;white-space:nowrap;}
-
-thead th:hover{color:var(--text);}
-
-thead th.sorted{color:var(--gold);}
-
-thead th .sort-ico{margin-left:4px;opacity:.5;font-size:.65rem;}
-
-thead th.sorted .sort-ico{opacity:1;}
-
-
-
-tbody tr{border-bottom:1px solid rgba(34,39,56,.5);}
-
-td{padding:10px 16px;vertical-align:middle;}
-
-
-
-.rank{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--muted);text-align:right;width:40px;}
-
-.venue-name a,.venue-name a:link{color:#e0e2ec;text-decoration:none;font-weight:600;font-size:.85rem;}
-
-.venue-name a:visited{color:#e0e2ec !important;text-decoration:none;font-weight:600;font-size:.85rem;}
-
-.venue-name a:hover,.venue-name a:visited:hover{color:var(--gold) !important;}
-
-.venue-city{font-size:.68rem;color:var(--muted);margin-top:2px;}
-
-.cat{font-size:.62rem;color:var(--teal);text-transform:uppercase;letter-spacing:.04em;}
-
-.count{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--gold);font-weight:600;text-align:right;}
-
-.years-cell{max-width:220px;}
-
-.yr-chips{display:flex;gap:3px;flex-wrap:wrap;}
-
-.yr{font-family:'DM Mono',monospace;font-size:.52rem;padding:2px 5px;border-radius:4px;background:var(--card2);border:1px solid var(--border);color:var(--muted);}
-
-.fi{border-radius:2px;vertical-align:middle;margin-right:3px;}
-
-
-
-/* Mobile */
-
-@media(max-width:700px){
-
+@media(max-width:900px){
+  .wrap{padding:24px 16px 60px;}
   .topnav{padding:14px 16px;}
-
-  .controls{padding:8px 12px;}
-
-  .search-box{width:140px;}
-
-  td,th{padding:8px 10px;}
-
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .podium{grid-template-columns:1fr;}
+  .vr{grid-template-columns:28px 40px minmax(0,1fr) 54px;gap:10px;padding:8px 6px;}
+  .vr img,.vr .ph0{width:40px;height:40px;}
+  .ys,.bar{display:none;}
+  .vk b{min-width:0;}
 }
-
-@media(max-width:480px){
-
-  .search-box{width:100%;flex:1;min-width:0;}
-
-  .controls{flex-wrap:wrap;gap:6px;}
-
-  .lbl-sm{display:none;}
-
-  .count-lbl{margin-left:0;width:100%;}
-
-  td,th{padding:6px 8px;font-size:.72rem;}
-
-  .cat{display:none;}
-
-  .years-cell{display:none;}
-
-  .venue-city{font-size:.62rem;}
-
-  .count{font-size:.70rem;}
-
-}
-
 </style>
 
 </head>
@@ -187,202 +145,100 @@ td{padding:10px 16px;vertical-align:middle;}
   <div class="gs-modal"><div class="gs-input-wrap"><span class="gs-icon">⌕</span><input class="gs-input" id="gsInput" type="text" placeholder="Search venues, cities, trips…" autocomplete="off" spellcheck="false"><span class="gs-esc-hint" onclick="gsClose()">esc</span></div></div>
 </div>
 
-<div class="controls">
-
-  <span class="lbl-sm">Sort:</span>
-
-  <div class="pill active" id="sort-count" onclick="setSort('count',this)">Most visited</div>
-
-  <div class="pill" id="sort-years" onclick="setSort('years',this)">Years loyal</div>
-
-  <div class="pill" id="sort-name" onclick="setSort('name',this)">A–Z</div>
-
-  <input class="search-box" id="srch" type="text" placeholder="Search venues, cities, categories…" oninput="doSearch(this.value)">
-
-  <span class="count-lbl" id="countLbl"></span>
-
-</div>
-
-<div class="page-insight" id="page-insight"></div>
-
-<div class="tbl-wrap">
-
-<table>
-
-  <thead>
-
-    <tr>
-
-      <th class="sorted" id="th-count" onclick="setSort('count',null)">#  <span class="sort-ico">▼</span></th>
-
-      <th id="th-name" onclick="setSort('name',null)">Venue <span class="sort-ico">↕</span></th>
-
-      <th id="th-cat">Category</th>
-
-      <th id="th-loc">Location</th>
-
-      <th id="th-years" onclick="setSort('years',null)">Years <span class="sort-ico">↕</span></th>
-
-      <th id="th-ci" onclick="setSort('count',null)">Check-ins <span class="sort-ico">↕</span></th>
-
-    </tr>
-
-  </thead>
-
-  <tbody id="tbody"></tbody>
-
-</table>
-
+<div class="wrap">
+  <div class="eyebrow">Places · every venue ever checked into</div>
+  <h1 class="hero" id="hero">Places</h1>
+  <div class="page-insight" id="page-insight"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="controls">
+    <input class="search-box" id="srch" type="text" placeholder="Search venues, cities, categories…" oninput="doSearch(this.value)">
+    <div class="pill active" id="sort-count" onclick="setSort('count')">Most visited</div>
+    <div class="pill" id="sort-years" onclick="setSort('years')">Years loyal</div>
+    <div class="pill" id="sort-name" onclick="setSort('name')">A–Z</div>
+    <span class="count-lbl" id="countLbl"></span>
+  </div>
+  <div class="cats" id="cats"></div>
+  <div class="podium" id="podium"></div>
+  <div id="rows"></div>
+  <button class="more" id="more" hidden onclick="more()"></button>
 </div>
 
 <script>
-
-// [name, city, country, category, count, [years], vid]
-
-const VENUES=VENUES_DATA_PLACEHOLDER;
-
-(function(){
-  var el = document.getElementById('page-insight');
-  if (!el || !VENUES.length) return;
-  var total = VENUES.length;
-  // top venue by visit count (index 0 is already sorted by count desc at build time)
-  var top = VENUES[0];
-  var topName = top[0], topCount = top[4];
-  // count categories
-  var catMap = {};
-  for (var i=0;i<VENUES.length;i++){
-    var c=VENUES[i][3]||'Unknown';
-    catMap[c]=(catMap[c]||0)+VENUES[i][4];
-  }
-  var cats = Object.keys(catMap).map(function(k){return[k,catMap[k]];});
-  cats.sort(function(a,b){return b[1]-a[1];});
-  var topCat = cats[0]||['Plaza',2874];
-  el.textContent = total.toLocaleString() + ' unique places — the world\u2019s most personal venue database. '
-    + '\u201c' + topName + '\u201d visited ' + topCount.toLocaleString() + ' times. '
-    + 'Top category: ' + topCat[0] + ' (' + topCat[1].toLocaleString() + ' check-ins).';
-})();
-
+// [name, city, country, category, count, [years], vid, photo] — the top venues only;
+// the full list (no photo column) is venues_data.json, fetched on first need.
+const TOP=VENUES_DATA_PLACEHOLDER;
+const META=VENUES_META_PLACEHOLDER;
+const VER=VENUES_VER_PLACEHOLDER;
+const PIX=PIX_URL_PLACEHOLDER;
 const ISO2={{CTRY_CODE_JSON}};
-
+const PAGE=60, Y0=2007, Y1=new Date().getFullYear();
 function fi(c){const code=ISO2[c];return code?`<span class="fi fi-${code}"></span>`:'';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const fmt=n=>Number(n).toLocaleString('en-US');
 
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+document.getElementById('hero').innerHTML=`${fmt(META.total)} places, <em>top ${TOP.length}</em>`;
+document.getElementById('page-insight').textContent=`The places that became rituals — “${TOP[0][0]}” leads with ${fmt(TOP[0][4])} check-ins. Every one of the ${fmt(META.total)} venues is a search away.`;
+document.getElementById('kpis').innerHTML=[[fmt(META.total),'places'],[fmt(META.ten_plus),'visited 10+ times'],[fmt(META.categories),'categories'],[META.max_years,'years at one place']]
+  .map(([a,b])=>`<div class="kpi"><b>${a}</b><span>${b}</span></div>`).join('');
+document.getElementById('cats').innerHTML=`<div class="pill active" data-c="">All</div>`+META.cats.map(([c,n])=>`<div class="pill" data-c="${esc(c)}">${esc(c)}<b>${fmt(n)}</b></div>`).join('');
+document.querySelectorAll('#cats .pill').forEach(p=>p.onclick=()=>{
+  document.querySelectorAll('#cats .pill').forEach(x=>x.classList.toggle('active',x===p));
+  cat=p.dataset.c; refresh();
+});
 
-
-
-let sortKey='count', sortDir=1, searchQ='';
-
-
-
-function setSort(k, pillEl){
-
+let ALL=null, loading=null, sortKey='count', sortDir=-1, searchQ='', cat='', data=TOP, shown=0;
+function full(){   // the whole list, fetched once
+  if(!loading) loading=fetch('venues_data.json?v='+VER).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(j=>{const ph={};TOP.forEach(v=>ph[v[6]]=v[7]);ALL=j.map(v=>v.concat([ph[v[6]]||'']));return ALL;});
+  return loading;
+}
+function setSort(k){
   if(sortKey===k) sortDir*=-1; else {sortKey=k; sortDir=k==='name'?1:-1;}
-
-  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
-
-  document.querySelectorAll('thead th').forEach(th=>{
-
-    th.classList.remove('sorted');
-
-    const ico=th.querySelector('.sort-ico');
-
-    if(ico) ico.textContent='↕';
-
-  });
-
-  if(pillEl) pillEl.classList.add('active');
-
-  const sortPill=document.getElementById('sort-'+k);
-
-  if(sortPill) sortPill.classList.add('active');
-
-  const sortTh=document.getElementById('th-'+k);
-
-  if(sortTh){sortTh.classList.add('sorted');const ico=sortTh.querySelector('.sort-ico');if(ico)ico.textContent=sortDir>0?'▲':'▼';}
-
-  render();
-
+  document.querySelectorAll('.controls .pill').forEach(p=>p.classList.toggle('active',p.id==='sort-'+k));
+  refresh();
 }
-
-
-
-function doSearch(q){searchQ=q.toLowerCase().trim();render();}
-
-
-
-function render(){
-
-  let data=[...VENUES];
-
-  if(searchQ) data=data.filter(v=>
-
-    v[0].toLowerCase().includes(searchQ)||
-
-    v[1].toLowerCase().includes(searchQ)||
-
-    v[2].toLowerCase().includes(searchQ)||
-
-    v[3].toLowerCase().includes(searchQ)
-
-  );
-
-  data.sort((a,b)=>{
-
-    if(sortKey==='count') return sortDir*(b[4]-a[4]);
-
-    if(sortKey==='years') return sortDir*(b[5].length-a[5].length)||(b[4]-a[4]);
-
-    return sortDir*a[0].localeCompare(b[0]);
-
-  });
-
-
-
-  document.getElementById('countLbl').textContent=`${data.length} venues`;
-
-  const tbody=document.getElementById('tbody');
-
-  if(data.length===0){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:50px;color:var(--muted)">No venues found</td></tr>';return;}
-
-
-
-  // Render all rows
-
-  tbody.innerHTML=data.map((v,i)=>{
-
-    const [name,city,country,cat,count,years,vid]=v;
-
-    const vlink=vid?`<a href="/venue.html#${vid}">${esc(name)}</a>`:esc(name);
-
-    const yrs=years.map(y=>`<span class="yr">${y}</span>`).join('');
-
-    const origRank=i+1;  // rank in current sorted order
-
-    return `<tr>
-
-      <td class="rank">${origRank}</td>
-
-      <td class="venue-name">${vlink}${city?`<div class="venue-city">${fi(country)}${esc(city)}, ${esc(country)}</div>`:''}</td>
-
-      <td><span class="cat">${esc(cat)}</span></td>
-
-      <td>${fi(country)}${esc(city||country)}</td>
-
-      <td class="years-cell"><div class="yr-chips">${yrs}</div></td>
-
-      <td class="count">${count.toLocaleString()}</td>
-
-    </tr>`;
-
-  }).join('');
-
+function doSearch(q){searchQ=q.toLowerCase().trim();refresh();}
+function isDefault(){return sortKey==='count'&&sortDir===-1&&!searchQ&&!cat;}
+async function refresh(){
+  let src=TOP;
+  if(!isDefault()){
+    document.getElementById('countLbl').textContent='loading all places…';
+    try{src=await full();}catch(e){document.getElementById('countLbl').textContent='could not load the full list ('+e.message+')';src=TOP;}
+  }
+  let d=src;
+  if(searchQ) d=d.filter(v=>v[0].toLowerCase().includes(searchQ)||v[1].toLowerCase().includes(searchQ)||v[2].toLowerCase().includes(searchQ)||v[3].toLowerCase().includes(searchQ));
+  if(cat) d=d.filter(v=>v[3]===cat);
+  d=d.slice().sort((a,b)=>sortKey==='count'?sortDir*(a[4]-b[4]):sortKey==='years'?(sortDir*(a[5].length-b[5].length)||(b[4]-a[4])):sortDir*a[0].localeCompare(b[0]));
+  data=d; shown=0;
+  document.getElementById('countLbl').textContent=fmt(d.length)+(isDefault()?' of '+fmt(META.total):'')+' places';
+  const pod=isDefault()?d.slice(0,3):[];
+  document.getElementById('podium').style.display=pod.length?'':'none';
+  document.getElementById('podium').innerHTML=pod.map((v,i)=>`<a class="pd p${i+1}" href="/venue.html#${esc(v[6])}">${v[7]&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+v[7])}" alt="">`:''}<span class="medal">${['🥇','🥈','🥉'][i]}</span>
+    <div class="pdb"><div class="pdn">${esc(v[0])}</div><div class="pdc">${fi(v[2])} ${esc(v[1]||v[2])} · ${esc(v[3])}</div><div class="pdk">${fmt(v[4])}<small> check-ins · ${v[5].length} year${v[5].length===1?'':'s'}</small></div></div></a>`).join('');
+  document.getElementById('rows').innerHTML=d.length?'':'<div class="empty">No venues found</div>';
+  more();
 }
-
-
-
-render();
+function row(v,i){
+  const ys=new Set(v[5]);let strip='';for(let y=Y0;y<=Y1;y++)strip+=`<i class="${ys.has(y)?'on':''}" title="${y}"></i>`;
+  const top=data.length?data[0][4]:1;
+  return `<a class="vr" href="/venue.html#${esc(v[6])}"><span class="rk">${i+1}</span>${v[7]&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+v[7])}" alt="">`:'<span class="ph0"></span>'}
+    <div class="vn"><b>${esc(v[0])}</b><small>${fi(v[2])} ${esc(v[1]||v[2])} · <span class="c">${esc(v[3])}</span></small></div>
+    <div class="ys" title="years with check-ins">${strip}</div>
+    <div class="vk"><span class="bar"><i style="width:${Math.max(2,Math.round(100*v[4]/Math.max(1,top)))}%"></i></span><b>${fmt(v[4])}</b></div></a>`;
+}
+async function more(){
+  const skip=isDefault()&&shown===0?3:0;          // the podium already shows the top three
+  if(isDefault()&&shown>=data.length&&data.length<META.total){   // past the inline top: continue in the full list
+    try{data=await full();}catch(e){}
+  }
+  const start=shown+skip, chunk=data.slice(start,start+PAGE);
+  document.getElementById('rows').insertAdjacentHTML('beforeend',chunk.map((v,k)=>row(v,start+k)).join(''));
+  shown=start+chunk.length;
+  const left=(isDefault()?META.total:data.length)-shown, b=document.getElementById('more');
+  b.hidden=left<=0; b.textContent='SHOW MORE · '+fmt(left)+' LEFT';
+}
+refresh();
 (function(){const _q=new URLSearchParams(location.search).get('q');if(_q){const _inp=document.getElementById('srch');if(_inp){_inp.value=_q;doSearch(_q);}}})();
-
 </script>
 
 <script>
