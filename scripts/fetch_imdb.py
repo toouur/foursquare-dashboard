@@ -64,7 +64,7 @@ def _text(v) -> str:
 
 def _rating(d: dict):
     """A 1..10 user rating, wherever IMDb put it on this node."""
-    for k in ("userRating", "rating", "yourRating", "value"):
+    for k in ("userRating", "otherUserRating", "authorRating", "rating", "yourRating", "value"):
         v = d.get(k)
         if isinstance(v, dict):
             v = _first(v, "value", "rating")
@@ -127,6 +127,18 @@ def shape(node: dict) -> str:
     return ", ".join(keys[:25])
 
 
+def deep_shape(node, depth: int = 6) -> str:
+    """Nested key names (a list shows its length and first item) — never the values."""
+    if depth <= 0:
+        return "…"
+    if isinstance(node, dict):
+        return "{" + ",".join(k + (":" + deep_shape(v, depth - 1) if isinstance(v, (dict, list)) and v else "")
+                              for k, v in list(node.items())[:15]) + "}"
+    if isinstance(node, list):
+        return f"[{len(node)}]" + (deep_shape(node[0], depth - 1) if node else "")
+    return ""
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="New IMDb ratings via the logged-in ratings page.")
     ap.add_argument("--user", default=USER)
@@ -172,7 +184,12 @@ def main(argv: list[str] | None = None) -> int:
             row = to_row(items[0][1])
             _note("notice", "probe: parsed fields present = " + ", ".join(k for k, v in row.items() if v not in (None, "", [])))
         else:
-            _note("notice", f"probe: top-level keys = {shape(data.get('props', {}).get('pageProps', {}) or data)}")
+            pp = data.get("props", {}).get("pageProps", {}) or data
+            _note("notice", f"probe: top-level keys = {shape(pp)}")
+            _note("notice", f"probe: {len(set(re.findall(r'tt[0-9]{6,10}', m.group(1))))} distinct tt-ids in the page data")
+            for k in ("mainColumnData", "urqlState", "fetchState"):
+                if pp.get(k):
+                    _note("notice", f"probe: {k} = {deep_shape(pp[k])[:3000]}")
         print("CHANGED=false")
         return 0
     rows = [to_row(n) for _, n in items]
