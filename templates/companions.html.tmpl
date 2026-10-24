@@ -52,8 +52,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .topnav a:visited{color:#4a5270;}
 .topnav-logo:visited{color:#e8b86d;}
 /* ── People strip (replaces the sticky sidebar that covered the log on phones) ── */
-.people{display:flex;gap:8px;overflow-x:auto;padding:18px 40px 14px;scrollbar-width:thin;border-bottom:1px solid var(--border);}
-.people::-webkit-scrollbar{height:4px;}.people::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+/* desktop: the avatars wrap onto a second row; phones: a swipeable row with no scrollbar */
+.people{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 8px;padding:18px 40px 14px;border-bottom:1px solid var(--border);}
+.more-btn{display:block;margin:12px auto 0;background:var(--card2);border:1px solid var(--border);border-radius:999px;padding:8px 18px;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;color:var(--text);cursor:pointer;}
+.more-btn:hover{border-color:var(--gold);color:var(--gold);}
 .si{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:76px;max-width:76px;cursor:pointer;padding:6px 2px;border-radius:14px;transition:background .15s;}
 .si:hover{background:var(--card2);}
 .si-av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-family:'Playfair Display',serif;font-weight:900;font-size:1.15rem;color:#1a1206;position:relative;}
@@ -138,7 +140,10 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .person-name[href]{text-decoration:none;color:var(--gold);}.person-name[href]:hover{opacity:.8;}.ci-loc{font-size:0.72rem;color:var(--muted);font-family:"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",'DM Sans',sans-serif;}
 @media(max-width:700px){
   header{padding:16px 16px 12px;}
-  .people{padding:14px 12px 10px;}
+  .people{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity;padding:14px 12px 10px;
+          -webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent);}
+  .people::-webkit-scrollbar{display:none;}
+  .si{scroll-snap-align:start;}
   .main{padding:16px 14px;}
   .search-box{width:100%;max-width:100%;}
   .pf-av{width:68px;height:68px;font-size:1.9rem;}
@@ -294,6 +299,21 @@ function pfStep(d){if(PF_GAL.length){pfIdx=(pfIdx+d+PF_GAL.length)%PF_GAL.length
 document.addEventListener('keydown',e=>{if(!document.getElementById('pfLight').classList.contains('open'))return;if(e.key==='ArrowLeft')pfStep(-1);else if(e.key==='ArrowRight')pfStep(1);else if(e.key==='Escape')pfClose();});
 function toggleLog(){const l=document.getElementById('compLog');l.classList.toggle('open');document.getElementById('logLbl').textContent=l.classList.contains('open')?'HIDE THE LOG ▴':'OPEN THE LOG ▾';}
 
+let TOGETHER=[];
+const tripTile=([t,k])=>`<a class="tt" href="/trips.html#trip-${t[0]}">${t[4]&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+t[4])}" alt="">`:''}<div class="tts"><div class="ttn">${esc(t[1])}</div><div class="ttd">${dUTC(t[2]).toISOString().slice(0,7)} · ${k} check-ins together</div></div></a>`;
+const photoTile=(g,k)=>`<img loading="lazy" src="${esc(g.src)}" alt="" onclick="pfOpen(${k})">`;
+function moreTrips(){document.getElementById('pfTrips').innerHTML=TOGETHER.map(tripTile).join('');document.getElementById('pfTripsMore').remove();}
+function morePhotos(){
+  const s=document.getElementById('pfStrip'),n=s.children.length;
+  s.insertAdjacentHTML('beforeend',PF_GAL.slice(n,n+24).map((g,i)=>photoTile(g,n+i)).join(''));
+  syncMore();
+}
+function syncMore(){
+  const b=document.getElementById('pfMore');if(!b)return;
+  const left=PF_GAL.length-document.getElementById('pfStrip').children.length;
+  if(left<=0){b.remove();return;}
+  b.textContent='LOAD '+Math.min(24,left)+' MORE · '+left.toLocaleString()+' LEFT ▾';
+}
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dUTC=ts=>new Date(ts*1000);
 const dShort=ts=>{const d=dUTC(ts);return String(d.getUTCDate()).padStart(2,'0')+'.'+String(d.getUTCMonth()+1).padStart(2,'0')+'.'+String(d.getUTCFullYear()).slice(2);};
@@ -343,9 +363,11 @@ function show(idx){
   const nCities=new Set(all.map(r=>r[4]).filter(Boolean)).size, nCtry=new Set(all.map(r=>r[5]).filter(Boolean)).size;
   // trips with at least 5 check-ins together
   const together=TRIPS_LITE.map(t=>[t,ts.filter(x=>x>=t[2]&&x<t[3]+43200).length]).filter(([,k])=>k>=5).sort((a,b)=>b[0][2]-a[0][2]);
-  const tripsHtml=together.slice(0,6).map(([t,k])=>`<a class="tt" href="/trips.html#trip-${t[0]}">${t[4]&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+t[4])}" alt="">`:''}<div class="tts"><div class="ttn">${esc(t[1])}</div><div class="ttd">${dUTC(t[2]).toISOString().slice(0,7)} · ${k} check-ins together</div></div></a>`).join('');
-  PF_GAL=all.filter(r=>r[8]).slice(0,24).map(r=>({src:PIX+'/'+r[8],cap:r[1]+' · '+(r[3]||'')}));
-  const strip=PIX?PF_GAL.slice(0,12).map((g,k)=>`<img loading="lazy" src="${esc(g.src)}" alt="" onclick="pfOpen(${k})">`).join(''):'';
+  TOGETHER=together;
+  const tripsHtml=together.slice(0,6).map(tripTile).join('');
+  // every shared photo goes into the lightbox; the strip shows 12 and loads more in steps of 24
+  PF_GAL=PIX?all.filter(r=>r[8]).map(r=>({src:PIX+'/'+r[8],cap:r[1]+' · '+(r[3]||'')})):[];
+  const strip=PF_GAL.slice(0,12).map(photoTile).join('');
   const yrs=(last-first)/86400/365.25;
   const since=MON[dUTC(first).getUTCMonth()]+' '+dUTC(first).getUTCFullYear();
   document.getElementById('main').innerHTML=`
@@ -365,8 +387,10 @@ function show(idx){
         <div class="pf-date l">${dShort(last)}</div><div class="pf-where" style="margin-bottom:0">${venueLink(lastRow)}</div></div>
       <div class="box s3"><h3>Your places</h3>${places}</div>
       <div class="box s3"><h3>When you meet · weekday × hour</h3><div class="heat">${heatHtml}</div><h3 style="margin-top:20px">Cities</h3><div class="pf-cities">${cities}</div></div>
-      ${tripsHtml?`<div class="box s6"><h3>Trips together</h3><div class="tgrid">${tripsHtml}</div></div>`:''}
-      ${strip?`<div class="box s6"><h3>Photos from your check-ins together</h3><div class="strip">${strip}</div></div>`:''}
+      ${tripsHtml?`<div class="box s6"><h3>Trips together · ${together.length}</h3><div class="tgrid" id="pfTrips">${tripsHtml}</div>
+        ${together.length>6?`<button class="more-btn" id="pfTripsMore" onclick="moreTrips()">SHOW ALL ${together.length} TRIPS ▾</button>`:''}</div>`:''}
+      ${strip?`<div class="box s6"><h3>Photos from your check-ins together · ${PF_GAL.length.toLocaleString()}</h3><div class="strip" id="pfStrip">${strip}</div>
+        ${PF_GAL.length>12?`<button class="more-btn" id="pfMore" onclick="morePhotos()"></button>`:''}</div>`:''}
       <div class="box s6" style="padding:12px"><button class="log-btn" onclick="toggleLog()"><span>All ${all.length.toLocaleString()} check-ins together, searchable</span><b id="logLbl">OPEN THE LOG ▾</b></button>
         <div class="log" id="compLog">
           <div class="search-row">
@@ -377,6 +401,7 @@ function show(idx){
           <tbody id="compBody">${buildRows(all)}</tbody></table>
         </div></div>
     </div>`;
+  syncMore();
 }
 const p=new URLSearchParams(location.search).get('person');
 let idx=0;
