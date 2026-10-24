@@ -282,7 +282,8 @@ def _render_year_clock(yr: int, mon_counter: Counter, months_short: list[str]) -
             f'dominant-baseline="middle">{months_short[mo]}</text>'
         )
     return (
-        f'<svg viewBox="0 0 260 260" class="yearclock" role="img" aria-label="{yr} month activity ring">'
+        # labels sit at r_outer_max + 16 = 136 from the centre (130), past a 0..260 box — pad it
+        f'<svg viewBox="-24 -24 308 308" class="yearclock" role="img" aria-label="{yr} month activity ring">'
         f'<defs><linearGradient id="yc-grad" x1="0" y1="0" x2="1" y2="1">'
         f'<stop offset="0%" stop-color="#f5d48a"/>'
         f'<stop offset="55%" stop-color="#e8b86d"/>'
@@ -881,6 +882,7 @@ html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
 .item:hover{{border-color:rgba(232,184,109,.4);}}
 .item .rank{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);width:22px;text-align:right;flex-shrink:0;}}
 .item .name{{flex:1;font-size:.84rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
+@media(max-width:600px){{.item .name{{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;}}}}
 .item .name a{{color:inherit;text-decoration:none;}}
 .item .name a:hover{{color:var(--gold);}}
 .item .cnt{{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--teal);flex-shrink:0;}}
@@ -906,6 +908,7 @@ html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
 .fl-route .arrow{{font-family:'DM Sans',sans-serif;font-size:.9rem;color:var(--muted);font-weight:400;}}
 .fl-fno{{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--teal);background:rgba(78,201,176,.10);padding:2px 9px;border-radius:5px;}}
 .fl-meta{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.04em;flex:1;display:flex;gap:14px;flex-wrap:wrap;min-width:0;}}
+@media(max-width:600px){{.fl-card{{gap:6px 12px;padding:12px 14px;}}.fl-meta{{flex-basis:100%;padding-left:50px;gap:4px 12px;}}.fl-meta>*{{white-space:nowrap;}}}}
 
 /* ── Photos ── */
 .photo-grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;}}
@@ -914,6 +917,7 @@ html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
 .photo:hover img{{transform:scale(1.10);}}
 .photo .ph-meta{{position:absolute;left:0;right:0;bottom:0;padding:6px 8px 8px;background:linear-gradient(transparent,rgba(0,0,0,.92));font-size:.62rem;color:#fff;opacity:0;transition:opacity .2s;}}
 .photo:hover .ph-meta{{opacity:1;}}
+@media(max-width:600px){{.photo-grid{{grid-template-columns:repeat(3,1fr);gap:4px;}}.photo{{border-radius:5px;}}}}
 
 /* ── Shouts — drop-quote style ── */
 .shouts{{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px;}}
@@ -997,7 +1001,10 @@ html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
 
 <script>
 // ── Section fade-in ──
-const sObs = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('in')), {{threshold: 0.06}});
+// Fires once any part is 8% inside the viewport. Not a ratio threshold: a section
+// taller than viewport / ratio (the 90-photo grid on a phone is ~33k px) could never
+// reach it and stayed invisible.
+const sObs = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && e.target.classList.add('in')), {{threshold: 0, rootMargin: '0px 0px -8% 0px'}});
 document.querySelectorAll('.section, .mo').forEach(s => {{
   sObs.observe(s);
   // Anchored / restored-scroll loads: elements already above the viewport never
@@ -1742,7 +1749,7 @@ def build_page(
             photos_section = (
                 f'<section class="section" id="sec-photos" data-bg-index="7" data-sec-title="Memory">'
                 f'<div class="section-h">Memory</div>'
-                f'<div class="section-title">{len(photos_y)} frame{"s" if len(photos_y) != 1 else ""} kept</div>'
+                f'<div class="section-title">{len(photos_y):,} frame{"s" if len(photos_y) != 1 else ""} kept</div>'
                 f'<div class="section-intro">The pictures you held onto. Tap to open any one full-screen.</div>'
                 f'<div class="photo-grid">{ph_cards}</div>'
                 + (f'<div style="text-align:center;margin-top:18px;font-size:.74rem;color:var(--muted);">Showing 90 of {len(photos_y):,}.</div>' if len(photos_y) > 90 else "")
