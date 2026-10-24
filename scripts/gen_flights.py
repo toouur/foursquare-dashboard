@@ -614,6 +614,8 @@ a{{color:var(--teal);}}
   <a href="trips.html"><span class="sn-icon">🧳</span><span class="sn-lbl">TRIPS</span></a>
   <a href="photos.html"><span class="sn-icon">📷</span><span class="sn-lbl">PHOTOS</span></a>
   <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
+  <a href="compare.html"><span class="sn-icon">⚖️</span><span class="sn-lbl">COMPARE</span></a>
+  <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
 </nav>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

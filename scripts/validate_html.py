@@ -33,7 +33,8 @@ JSON_MARKER_RE = re.compile(
 
 REQUIRED_PAGES = [
     "index.html", "feed.html", "trips.html", "tips.html", "stats.html",
-    "venues.html", "companions.html", "shouts.html",
+    "venues.html", "companions.html", "shouts.html", "venue.html",
+    "compare.html", "life.html",
 ]
 
 # solution.html is the tracked write-up page — it quotes {{PLACEHOLDER}}

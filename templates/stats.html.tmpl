@@ -122,6 +122,43 @@ a{color:inherit;}
 .scroll-list::-webkit-scrollbar{width:3px;}
 .scroll-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 
+/* ── MILESTONES ── */
+.ms-chips{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 14px;}
+.ms-chip{font-family:'DM Mono',monospace;font-size:0.56rem;padding:3px 7px;border-radius:3px;background:rgba(232,184,109,0.1);color:var(--gold);border:1px solid rgba(232,184,109,0.2);}
+.ms-list{display:flex;flex-direction:column;gap:5px;}
+.ms-row{display:grid;grid-template-columns:84px 1fr auto;gap:10px;align-items:center;padding:7px 11px;background:var(--card2);border:1px solid var(--border);border-radius:7px;}
+.ms-date{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);}
+.ms-venue{font-size:0.78rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ms-venue a{color:inherit;text-decoration:none;}
+.ms-venue a:hover{color:var(--gold);}
+.ms-place{font-size:0.66rem;color:var(--muted);}
+.ms-tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;}
+.ms-tag{font-family:'DM Mono',monospace;font-size:0.54rem;padding:2px 6px;border-radius:3px;white-space:nowrap;background:rgba(122,133,168,0.12);color:var(--muted);}
+.ms-tag.t-new_country{background:rgba(232,119,138,0.15);color:var(--rose);}
+.ms-tag.t-new_city,.ms-tag.t-city_back{background:rgba(78,201,176,0.13);color:var(--teal);}
+.ms-tag.t-total,.ms-tag.t-milestone_big{background:rgba(232,184,109,0.15);color:var(--gold);}
+.ms-tag.t-comeback_long{background:rgba(155,135,245,0.15);color:#a99af0;}
+
+/* ── COVERAGE (radius of gyration grid) ── */
+.cov-grid{display:grid;grid-template-columns:40px repeat(12,1fr);gap:3px;align-items:center;max-width:560px;}
+.cov-grid .heatmap-cell{width:auto;height:14px;}
+.cov-hdr{font-family:'DM Mono',monospace;font-size:0.54rem;color:var(--muted);text-align:center;}
+.cov-yr{font-family:'DM Mono',monospace;font-size:0.60rem;color:var(--muted);text-align:right;padding-right:4px;}
+.cov-legend{display:flex;gap:4px;align-items:center;font-family:'DM Mono',monospace;font-size:0.56rem;color:var(--muted);margin-top:10px;}
+.cov-legend .heatmap-cell{width:11px;height:11px;}
+/* one hue, lightness rising with the radius bucket (the site heatmap's green→gold mix is not monotonic) */
+#coverageCard .heatmap-cell[data-v="0"]{background:#151820;}
+#coverageCard .heatmap-cell[data-v="1"]{background:#3b2f1b;}
+#coverageCard .heatmap-cell[data-v="2"]{background:#6e5326;}
+#coverageCard .heatmap-cell[data-v="3"]{background:#a87a33;}
+#coverageCard .heatmap-cell[data-v="4"]{background:#d9a650;}
+#coverageCard .heatmap-cell[data-v="5"]{background:#f5d48a;}
+.bar-row{display:grid;grid-template-columns:120px 1fr auto;gap:8px;align-items:center;margin:4px 0;}
+.bar-label{font-size:0.72rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bar-track{background:var(--border);height:6px;border-radius:3px;overflow:hidden;}
+.bar-fill{height:6px;border-radius:3px;}
+.bar-val{font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted);white-space:nowrap;}
+
 /* ── MEDIA QUERIES ── */
 @media(max-width:900px){
   .topnav{padding:14px 20px;}
@@ -145,6 +182,9 @@ a{color:inherit;}
   .reg-row{grid-template-columns:20px 1fr 44px 36px;gap:5px;}
   .reg-name{font-size:.72rem;}
   .heatmap-cell{width:7px;height:7px;}
+  .ms-row{grid-template-columns:1fr;gap:4px;}
+  .ms-tags{justify-content:flex-start;}
+  .cov-grid .heatmap-cell{height:11px;}
 }
 </style>
 </head>
@@ -393,6 +433,23 @@ a{color:inherit;}
   <div class="card full" id="dormantCard" style="display:none;">
     <div class="card-title">What You Miss <em>&middot; 10+ visit venues you haven't been to in over a year</em></div>
     <div id="dormantList"></div>
+  </div>
+
+  <!-- 33. Records & Milestones -->
+  <div class="card full" id="milestonesCard" style="display:none;">
+    <div class="card-title">Records &amp; Milestones <em>&middot; personal bests and the echo bot's labels over all history</em></div>
+    <div class="streak-row" id="msRecords"></div>
+    <div class="ms-chips" id="msCounts"></div>
+    <div class="scroll-list ms-list" id="msEvents" style="max-height:460px"></div>
+  </div>
+
+  <!-- 34. City coverage & radius of gyration -->
+  <div class="card full" id="coverageCard" style="display:none;">
+    <div class="card-title">Coverage &amp; Radius <em>&middot; how far each month reached from home (radius of gyration, km)</em></div>
+    <div class="cov-grid" id="covGrid"></div>
+    <div class="cov-legend" id="covLegend"></div>
+    <div class="card-title" style="margin-top:22px">City coverage <em>&middot; distinct ~500 m cells checked in</em></div>
+    <div id="covCities"></div>
   </div>
 
 </div><!-- /.grid -->
@@ -1242,6 +1299,66 @@ new Chart(document.getElementById('catChart'),{
   html+='</div>';
   document.getElementById('dormantList').innerHTML=html;
 })();
+
+
+// ── 33. Records & Milestones ─────────────────────────────────────────────────
+(function(){
+  var M=S.milestones;if(!M||!M.events)return;
+  document.getElementById('milestonesCard').style.display='';
+  var R=M.records||{},tiles=[];
+  function tile(n,l,sub){tiles.push('<div class="streak-stat"><div class="s-num">'+n+'</div><div class="s-lbl">'+l+(sub?'<br><span style="font-size:10px;opacity:.7">'+sub+'</span>':'')+'</div></div>');}
+  if(R.farthest_day)tile(R.farthest_day.km.toLocaleString()+' km','Farthest day',esc(R.farthest_day.date));
+  if(R.busiest_day)tile(R.busiest_day.n,'Busiest day',esc(R.busiest_day.date));
+  if(R.most_countries_day)tile(R.most_countries_day.n,'Countries in a day',esc(R.most_countries_day.date));
+  if(R.most_cities_day)tile(R.most_cities_day.n,'Cities in a day',esc(R.most_cities_day.date));
+  if(R.longest_silence)tile(R.longest_silence.days+' d','Longest silence',esc(R.longest_silence.from)+' → '+esc(R.longest_silence.to));
+  function vlink(o){return o.venue_id?'<a href="venue.html#'+esc(o.venue_id)+'">'+esc(o.venue)+'</a>':esc(o.venue);}
+  if(R.longest_comeback)tile(Math.round(R.longest_comeback.days/365*10)/10+' y','Longest comeback',vlink(R.longest_comeback));
+  if(R.top_venue)tile(R.top_venue.n.toLocaleString(),'Top venue',vlink(R.top_venue));
+  document.getElementById('msRecords').innerHTML=tiles.join('');
+  var NAMES={new_country:'New country',new_city:'New city',city_back:'City again',total:'Every 1000th',milestone_big:'50+ visit',milestone:'10/25 visit',comeback_long:'Back after 5y',comeback:'Back after 1y',new_venue:'New venue'};
+  var C=M.counts||{},chips=[];
+  Object.keys(NAMES).forEach(function(k){if(C[k])chips.push('<span class="ms-chip t-'+k+'">'+NAMES[k]+' · '+C[k].toLocaleString()+'</span>');});
+  document.getElementById('msCounts').innerHTML=chips.join('');
+  var rows=M.events.map(function(e){
+    var v=e.venue_id?'<a href="venue.html#'+esc(e.venue_id)+'">'+esc(e.venue)+'</a>':esc(e.venue);
+    var place=[e.city,e.country].filter(Boolean).map(esc).join(', ');
+    var tags=(e.labels||[]).map(function(l){
+      var t=NAMES[l]||l;
+      if((l==='milestone'||l==='milestone_big')&&e.visit_no)t='#'+e.visit_no+' visit';
+      if(l==='total')t='check-in #'+e.checkin_no.toLocaleString();
+      if((l==='comeback'||l==='comeback_long'||l==='city_back')&&e.gap_days)t+=' ('+Math.round(e.gap_days/365*10)/10+'y)';
+      return '<span class="ms-tag t-'+esc(l)+'">'+esc(t)+'</span>';
+    }).join('');
+    return '<div class="ms-row"><div class="ms-date">'+esc(e.date)+'</div><div><div class="ms-venue">'+v+'</div><div class="ms-place">'+place+'</div></div><div class="ms-tags">'+tags+'</div></div>';
+  });
+  document.getElementById('msEvents').innerHTML=rows.join('');
+})();
+
+// ── 34. Coverage & radius of gyration ────────────────────────────────────────
+(function(){
+  var C=S.coverage;if(!C||!C.years||!C.years.length)return;
+  document.getElementById('coverageCard').style.display='';
+  var MON=['J','F','M','A','M','J','J','A','S','O','N','D'];
+  var h='<div></div>'+MON.map(function(m){return '<div class="cov-hdr">'+m+'</div>';}).join('');
+  C.years.forEach(function(y){
+    h+='<div class="cov-yr" title="year radius '+y.rg.toLocaleString()+' km">'+esc(y.y)+'</div>';
+    y.months.forEach(function(m,i){
+      var t=m.n?(esc(y.y)+'-'+(i<9?'0':'')+(i+1)+': '+m.rg.toLocaleString()+' km · '+m.n+' check-ins'):'';
+      h+='<div class="heatmap-cell" data-v="'+m.b+'" title="'+t+'"></div>';
+    });
+  });
+  document.getElementById('covGrid').innerHTML=h;
+  var T=C.thresholds||[],lg='<span>none</span><div class="heatmap-cell" data-v="0"></div>';
+  for(var i=1;i<=5;i++)lg+='<div class="heatmap-cell" data-v="'+i+'" title="'+(i<5?'&lt; '+T[i]+' km':'≥ '+T[4]+' km')+'"></div>';
+  lg+='<span>'+(T.length?'≥ '+T[4].toLocaleString()+' km':'')+'</span>';
+  document.getElementById('covLegend').innerHTML=lg;
+  var mx=Math.max.apply(null,(C.cities||[]).map(function(c){return c.cells;}).concat([1]));
+  document.getElementById('covCities').innerHTML=(C.cities||[]).map(function(c){
+    var w=Math.max(2,Math.round(c.cells/mx*100));
+    return '<div class="bar-row"><div class="bar-label">'+esc(c.city)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:var(--teal)"></div></div><div class="bar-val">'+c.cells.toLocaleString()+' · '+c.km2+' km²</div></div>';
+  }).join('');
+})();
 </script>
 
 <!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "096ba3d9093f4c629948d81ef8438a34"}'></script><!-- End Cloudflare Web Analytics -->
@@ -1267,6 +1384,8 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
   <a href="venues.html"><span class="sn-icon">🏢</span><span class="sn-lbl">TOTAL PLACES</span></a>
   <a href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">WITH</span></a>
   <a class="active" href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
+  <a href="compare.html"><span class="sn-icon">⚖️</span><span class="sn-lbl">COMPARE</span></a>
+  <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
   <div class="sn-sep"></div>
   <button id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
 </nav>

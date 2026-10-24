@@ -164,12 +164,15 @@ def _kpi(num: str, lbl: str) -> str:
     return f'<div class="kpi"><div class="kpi-num">{num}</div><div class="kpi-lbl">{_esc(lbl)}</div></div>'
 
 
-def _rank_list(pairs: list[tuple[str, int]]) -> str:
+def _rank_list(pairs: list[tuple[str, int]], hrefs: list[str] | None = None) -> str:
     rows = []
     for i, (name, n) in enumerate(pairs, 1):
+        href = hrefs[i - 1] if hrefs else ""
+        label = (f'<a href="{_esc(href)}" style="color:inherit">{_esc(name)}</a>'
+                 if href else _esc(name))
         rows.append(
             f'<div class="rank-row"><span class="rank-i">{i}</span>'
-            f'<span class="rank-name" title="{_esc(name)}">{_esc(name)}</span>'
+            f'<span class="rank-name" title="{_esc(name)}">{label}</span>'
             f'<span class="rank-n">{n:,}</span></div>')
     return '<div class="rank-list">' + "".join(rows) + "</div>"
 
@@ -229,6 +232,7 @@ def build_page(
 
         venues = Counter()
         venue_names: dict[str, str] = {}
+        venue_links: dict[str, str] = {}
         cities = Counter()
         cats = Counter()
         by_year: Counter = Counter()
@@ -240,6 +244,8 @@ def build_page(
                 key = vid or vname
                 venues[key] += 1
                 venue_names.setdefault(key, vname)
+                if vid and r.get("category") != "Home (private)":
+                    venue_links[key] = f"/venue.html#{vid}"   # gen_venue_page dossier
             cy = (r.get("city") or "").strip()
             if cy:
                 cities[cy] += 1
@@ -283,7 +289,8 @@ def build_page(
 
         # Cities / venues / categories columns
         top_cities = [(n, c) for n, c in cities.most_common(10)]
-        top_venues = [(venue_names[k], c) for k, c in venues.most_common(10)]
+        top_venue_keys = [k for k, _ in venues.most_common(10)]
+        top_venues = [(venue_names[k], venues[k]) for k in top_venue_keys]
         top_cats = [(n, c) for n, c in cats.most_common(10)]
         cols = []
         if top_cities:
@@ -291,7 +298,8 @@ def build_page(
                         + _rank_list(top_cities) + "</div>")
         if top_venues:
             cols.append('<div><div class="sec-h">Top venues</div>'
-                        + _rank_list(top_venues) + "</div>")
+                        + _rank_list(top_venues, [venue_links.get(k, "") for k in top_venue_keys])
+                        + "</div>")
         if top_cats:
             cols.append('<div><div class="sec-h">Categories</div>'
                         + _rank_list(top_cats) + "</div>")

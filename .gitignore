@@ -30,6 +30,12 @@ feed.xml
 feed.json
 city_review.csv
 country-*.html
+venue.html
+venue_data_*.json
+compare.html
+year_facts.json
+life.html
+life_data.json
 # generated PWA artifacts (rendered from templates/*.tmpl at build)
 manifest.webmanifest
 sw.js

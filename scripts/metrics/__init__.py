@@ -21,6 +21,8 @@ from .shouts import (
     shout_analysis,
     shout_records,
 )
+from .coverage import compute_coverage
+from .milestones import compute_milestones
 from .stats import cross_dim_analysis, process
 from .trips import (
     _COUNTRY_TZ,
@@ -51,4 +53,6 @@ __all__ = [
     "_COUNTRY_TZ",
     "_TRANSPORT_CATEGORIES",
     "_BICYCLE_PASSTHROUGH_CATS",
+    "compute_milestones",
+    "compute_coverage",
 ]

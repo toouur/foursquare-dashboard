@@ -18,7 +18,7 @@ from pathlib import Path
 import yaml
 
 from transform import load_mappings, apply_transforms, build_blank_city_resolver
-from metrics import process
+from metrics import compute_coverage, compute_milestones, process
 from metrics.trip_insights import trip_used_plane
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
@@ -405,6 +405,14 @@ if __name__ == "__main__":
     log.info("Computing metrics (home=%s, min_checkins=%d) …", home_city, min_checkins)
     _name_report: dict = {}
     data, trips = process(rows, mappings, home_city=home_city, min_trip_checkins=min_checkins, trip_names=trip_names, trip_exclude=trip_exclude, trip_end_overrides=trip_end_overrides, trip_start_overrides=trip_start_overrides, trip_tags=trip_tags, new_country_year_overrides=nc_yr_overrides, flights=_metrics_flights, home_history=home_history, home_venue_ids=home_venue_ids, home_eras=home_eras, trip_name_report=_name_report)
+    try:
+        data["milestones"] = compute_milestones(rows, data.get("distance_from_home"))
+    except Exception as _mse:
+        log.warning("milestones failed: %s", _mse)
+    try:
+        data["coverage"] = compute_coverage(rows, home_city, home_history)
+    except Exception as _cve:
+        log.warning("coverage failed: %s", _cve)
 
     # ── trip_names.json self-heal (see metrics/trip_names.py) ─────────────────
     # detect_trips already rendered the healed names; here the heal is logged,
@@ -1213,6 +1221,69 @@ if __name__ == "__main__":
             )
         except Exception as _ce:
             log.warning("gen_country_pages failed: %s", _ce)
+
+    # ── Generate venue.html + venue_data_<xx>.json shards ──────────────────────
+    _gen_venue = _SCRIPT_DIR / "gen_venue_page.py"
+    if _gen_venue.exists():
+        try:
+            import importlib.util as _ilu_v
+            _spec_v = _ilu_v.spec_from_file_location("gen_venue_page", _gen_venue)
+            assert _spec_v and _spec_v.loader
+            _mod_v  = _ilu_v.module_from_spec(_spec_v)
+            _spec_v.loader.exec_module(_mod_v)
+            _mod_v.build_page(
+                out_path=args.output_dir,
+                rows=rows,
+                photos_by_checkin=_photos_by_checkin,
+                pix_url=_pix_dir_uri,
+            )
+        except Exception as _ve:
+            log.warning("gen_venue_page failed: %s", _ve)
+
+    # ── Generate compare.html + year_facts.json (years / home eras side by side) ─
+    _gen_cmp = _SCRIPT_DIR / "gen_compare.py"
+    if _gen_cmp.exists():
+        try:
+            import importlib.util as _ilu_cmp
+            _spec_cmp = _ilu_cmp.spec_from_file_location("gen_compare", _gen_cmp)
+            assert _spec_cmp and _spec_cmp.loader
+            _mod_cmp  = _ilu_cmp.module_from_spec(_spec_cmp)
+            _spec_cmp.loader.exec_module(_mod_cmp)
+            _mod_cmp.build_page(
+                out_path=args.output_dir,
+                rows=rows,
+                trips=trips,
+                stats_data=data,
+                photos_by_checkin=_photos_by_checkin,
+                home_city=home_city,
+                home_history=home_history,
+            )
+        except Exception as _cmpe:
+            log.warning("gen_compare failed: %s", _cmpe)
+
+    # ── Generate life.html + life_data.json ("Жизнь в полосах") ────────────────
+    _gen_life = _SCRIPT_DIR / "gen_life.py"
+    if _gen_life.exists():
+        try:
+            import importlib.util as _ilu_l
+            _spec_l = _ilu_l.spec_from_file_location("gen_life", _gen_life)
+            assert _spec_l and _spec_l.loader
+            _mod_l  = _ilu_l.module_from_spec(_spec_l)
+            _spec_l.loader.exec_module(_mod_l)
+            _life_music: dict = {}
+            _life_lf = Path(args.input).resolve().parent / "lastfm_years.json"
+            if _life_lf.exists():
+                _life_music = json.loads(_life_lf.read_text(encoding="utf-8")).get("years", {}) or {}
+            _mod_l.build_page(
+                out_path=args.output_dir,
+                rows=rows,
+                trips=trips,
+                home_city=home_city,
+                home_history=home_history,
+                music_by_year=_life_music,
+            )
+        except Exception as _le:
+            log.warning("gen_life failed: %s", _le)
 
     # ── Post-process: substitute canonical placeholders in every generated file ──
     # Single source of truth: config/country_flags.json + config/category_icons.json
