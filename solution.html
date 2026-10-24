@@ -2022,8 +2022,8 @@ python scripts/build.py \
     <div class="section-title">Testing &amp; CI Gates</div>
     <div class="section-body">
       <p>
-        The pipeline is protected by a <strong>539-test pytest suite</strong> organised into
-        three rings by what they need to run. The offline ring (495 tests, no network, no
+        The pipeline is protected by a <strong>540-test pytest suite</strong> organised into
+        three rings by what they need to run. The offline ring (496 tests, no network, no
         secrets, finishes in seconds) covers the highest-risk pure logic: the 5-layer
         city/country normalisation priority order, trip detection (synthetic timelines
         anchored at noon UTC so timezone localisation can never flake a test across a date
@@ -2135,7 +2135,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Testing &amp; QA</div>
         <div class="si-tech">pytest + Playwright + ruff</div>
-        <div class="si-role">539 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
+        <div class="si-role">540 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
       </div>
     </div>
   </div>

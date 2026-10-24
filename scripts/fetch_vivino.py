@@ -75,6 +75,15 @@ def _img(loc) -> str:
     return ("https:" + loc) if isinstance(loc, str) and loc.startswith("//") else (loc or "")
 
 
+def wine_url(v: dict, w: dict) -> str:
+    """Link by WINE id (`/w/<id>?year=`): Vivino resolves every one of those, while
+    `/wines/<vintage id>` (what its own CSV export uses) errors for many vintages."""
+    year = "" if str(v.get("year") or "") in ("", "0", "None") else str(v.get("year"))
+    if w.get("id"):
+        return f"https://www.vivino.com/w/{w['id']}" + (f"?year={year}" if year else "")
+    return f"https://www.vivino.com/wines/{v['id']}" if v.get("id") else ""
+
+
 def to_rating(act: dict, iso2_to_name: dict[str, str]) -> dict | None:
     """One reviewed user-vintage activity → the row culture_sources.load_vivino returns."""
     if act.get("object_type") != "user-vintage":
@@ -101,7 +110,7 @@ def to_rating(act: dict, iso2_to_name: dict[str, str]) -> dict | None:
         "review": (rev.get("note") or "").strip(),
         "scanned_at": o.get("scanned_at"),
         "rated_at": rev.get("created_at"),
-        "url": f"https://www.vivino.com/wines/{v['id']}" if v.get("id") else "",
+        "url": wine_url(v, w),
         "label": _img((o.get("image") or {}).get("location") or (v.get("image") or {}).get("location")),
     }
 

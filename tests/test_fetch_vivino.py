@@ -30,6 +30,16 @@ def test_to_rating_reads_both_times_and_names_the_country():
     assert fv.to_rating(_act(3, 3.0, year=0, typ=99, country="zz"), {})["vintage"] == ""
 
 
+def test_links_go_by_wine_id_with_the_year():
+    a = _act(4, 4.0)
+    a["object"]["vintage"]["wine"]["id"] = 777
+    assert fv.to_rating(a, {})["url"] == "https://www.vivino.com/w/777?year=2020"
+    nv = _act(5, 4.0, year=0)
+    nv["object"]["vintage"]["wine"]["id"] = 778
+    assert fv.to_rating(nv, {})["url"] == "https://www.vivino.com/w/778"          # non-vintage: no year
+    assert fv.to_rating(_act(6, 4.0), {})["url"] == "https://www.vivino.com/wines/5006"   # no wine id: vintage link
+
+
 def test_walk_pages_with_start_from(monkeypatch):
     monkeypatch.setattr(fv.time, "sleep", lambda s: None)
     pages = {None: [_act(9, 4), _act(8, 3)], 8: [_act(7, 2)], 7: []}
