@@ -82,28 +82,32 @@ details.yr>summary:hover{{background:var(--card2);}}
 .yr-strip i{{display:block;width:5px;background:var(--teal);opacity:.7;border-radius:1px;min-height:1px;}}
 .yr-arrow{{color:var(--muted);transition:transform .2s;}}
 details[open] .yr-arrow{{transform:rotate(90deg);}}
-.mon{{display:grid;grid-template-columns:96px 1fr;gap:0 18px;padding:12px 18px;border-top:1px solid var(--border);}}
-.mon-h{{padding-top:6px;}}
-.mon-name{{font-family:'DM Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text);}}
-.mon-n{{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);margin-top:3px;}}
-.vis{{display:grid;grid-template-columns:52px 1fr;gap:14px;padding:9px 0;align-items:start;}}
-.vis+.vis{{border-top:1px dashed var(--border);}}
-.vd{{text-align:center;}}
-.vd-n{{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:700;color:var(--gold);line-height:1;}}
-.vd-w{{font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px;white-space:nowrap;}}
-.vis.rfv .vd-n{{color:var(--rose);}}
-.vis-body{{min-width:0;padding-top:2px;}}
-.visit-shout{{font-family:'Playfair Display',serif;font-style:italic;font-size:1rem;color:#e8e9ee;overflow-wrap:anywhere;line-height:1.35;}}
-.visit-with{{font-size:.74rem;color:var(--muted);margin-top:3px;}}
-.visit-with b{{font-weight:400;color:var(--teal);}}
-.visit-pics{{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}}
-.visit-pics img{{width:96px;height:72px;object-fit:cover;border-radius:6px;background:var(--card2);cursor:pointer;border:1px solid var(--border);transition:transform .15s,opacity .15s;}}
-.visit-pics img:hover{{transform:scale(1.04);opacity:.9;}}
-.vis.plain{{grid-template-columns:1fr;}}
-.chips{{display:flex;flex-wrap:wrap;gap:5px;}}
-.chip{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap;}}
-.chip b{{font-weight:500;color:var(--text);margin:0 3px;}}
-.chip.rfc{{border-color:var(--rose);}}
+.hist{{max-width:860px;}}
+.log{{padding:2px 18px 14px;}}
+.mh{{display:flex;align-items:center;gap:10px;margin:14px 0 4px;font-family:'DM Mono',monospace;font-size:.58rem;text-transform:uppercase;letter-spacing:.14em;color:var(--gold);}}
+.mh::after{{content:'';flex:1;height:1px;background:var(--border);order:1;}}
+.mh span{{order:2;color:var(--muted);letter-spacing:.04em;}}
+.vr{{display:grid;grid-template-columns:58px 1fr auto;gap:0 16px;align-items:center;min-height:44px;padding:6px 10px;margin:0 -10px;border-radius:8px;}}
+.vr+.vr{{box-shadow:0 -1px 0 rgba(255,255,255,.035);}}
+.vr:hover{{background:var(--card2);box-shadow:none;}}
+.vr:hover+.vr{{box-shadow:none;}}
+.vr-d{{font-family:'DM Mono',monospace;white-space:nowrap;line-height:1.15;}}
+.vr-day{{font-size:.72rem;color:var(--muted);}}
+.vr-day b{{font-weight:500;color:var(--text);display:inline-block;min-width:1.3em;text-align:right;margin-left:3px;}}
+.vr-d.we .vr-day{{color:var(--gold);opacity:.85;}}
+.vr.rfv .vr-day b{{color:var(--rose);}}
+.vr-t{{font-size:.58rem;color:var(--muted);opacity:.75;margin-top:3px;letter-spacing:.04em;}}
+.vr-x{{font-size:.88rem;color:var(--text);min-width:0;overflow-wrap:anywhere;line-height:1.4;}}
+.vr-x .w{{display:block;color:var(--muted);font-size:.76rem;margin-top:1px;}}
+.vr-x .w:first-child{{margin-top:0;font-size:.82rem;}}
+.vr-x .w b{{font-weight:400;color:var(--teal);}}
+.vr-x .rf{{margin-left:0;}}
+.vr-p{{display:flex;gap:4px;}}
+.vr-p span{{position:relative;display:block;width:52px;height:39px;border-radius:5px;overflow:hidden;cursor:pointer;border:1px solid var(--border);background:var(--card2);}}
+.vr-p img{{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s;}}
+.vr-p span:hover img{{transform:scale(1.08);}}
+.vr-p i{{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,12,18,.62);color:#fff;font:500 .66rem 'DM Mono',monospace;font-style:normal;pointer-events:none;}}
+.vr-p i.m2{{display:none;}}
 #gallery{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9999;align-items:center;justify-content:center;}}
 #gallery.open{{display:flex;}}
 #gallery img{{max-width:92vw;max-height:84vh;object-fit:contain;border-radius:6px;}}
@@ -117,7 +121,7 @@ details[open] .yr-arrow{{transform:rotate(90deg);}}
 .ext{{color:var(--teal);text-decoration:none;text-transform:none;letter-spacing:.04em;}}
 .ext:hover{{color:var(--gold);}}
 .note{{color:var(--muted);font-size:.85rem;margin-top:24px;}}
-@media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}.visit-pics img{{width:76px;height:57px;}}.mon{{grid-template-columns:1fr;padding:10px 14px;}}.mon-h{{display:flex;gap:10px;align-items:baseline;padding:0 0 4px;}}.mon-n{{margin:0;}}.yr-strip{{display:none;}}}}
+@media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}.log{{padding:2px 12px 12px;}}.vr{{grid-template-columns:52px 1fr auto;gap:0 10px;}}.vr-x{{font-size:.84rem;}}.vr-p span{{width:42px;height:32px;}}.vr-p span:nth-child(n+3){{display:none;}}.vr-p i.m2{{display:flex;}}.yr-strip{{display:none;}}}}
 </style>
 </head>
 <body>
@@ -202,7 +206,6 @@ function render(id, rec, f) {{
   // every photo of the venue, newest first; each thumbnail opens the shared lightbox at its index
   GAL = [];
   rec.v.forEach(v => (v[ix.photos] || []).forEach(p => GAL.push({{ src: PIX + '/' + p, cap: v[ix.local] + (v[ix.shout] ? ' · ' + v[ix.shout] : '') }})));
-  const thumb = (src, cls) => {{ const k = GAL.findIndex(g => g.src === PIX + '/' + src); return '<img loading="lazy" class="' + cls + '" src="' + esc(PIX + '/' + src) + '" alt="" onclick="galOpen(' + k + ')">'; }};
   if (GAL.length && PIX) h += '<section><div class="sec-h">Photos · ' + fmt(GAL.length) + '</div><div class="pgrid">' +
     GAL.slice(0, 48).map((g, k) => '<img loading="lazy" src="' + esc(g.src) + '" alt="" onclick="galOpen(' + k + ')">').join('') + '</div>' +
     (GAL.length > 48 ? '<p class="note" style="margin-top:8px">All ' + fmt(GAL.length) + ' photos are in the visit history below.</p>' : '') + '</section>';
@@ -210,33 +213,33 @@ function render(id, rec, f) {{
   const byYear = {{}};
   rec.v.forEach(v => (byYear[v[ix.local].slice(0, 4)] = byYear[v[ix.local].slice(0, 4)] || []).push(v));
   const years = Object.keys(byYear).sort().reverse();
-  h += '<section><div class="sec-h">Visit history · ' + fmt(rec.n) + (rec.n === 1 ? ' visit' : ' visits') + '</div>' + years.map((y, yi) => {{
+  h += '<section class="hist"><div class="sec-h">Visit history · ' + fmt(rec.n) + (rec.n === 1 ? ' visit' : ' visits') + '</div>' + years.map((y, yi) => {{
     const vs = byYear[y], months = Array(12).fill(0);
     vs.forEach(v => months[+v[ix.local].slice(5, 7) - 1]++);
     const mm = Math.max(1, ...months), pics = vs.reduce((s, v) => s + (v[ix.photos] || []).length, 0);
-    // grouped by month; a visit with a shout, companions or photos gets its own row (big day number,
-    // weekday + time under it); runs of plain repeat visits collapse into one row of date chips
+    // a log: one row per visit — weekday + day with the time under it, the shout and companions,
+    // up to 3 photo thumbnails on the right (the last one shows +N when there are more); a rule per month
     const byMon = {{}};
     vs.forEach(v => (byMon[v[ix.local].slice(5, 7)] = byMon[v[ix.local].slice(5, 7)] || []).push(v));
-    const body = Object.keys(byMon).sort().reverse().map(mo => {{
+    const body = '<div class="log">' + Object.keys(byMon).sort().reverse().map(mo => {{
       const mv = byMon[mo];
-      let rows = '', run = [];
-      const flush = () => {{ if (run.length) rows += '<div class="vis plain"><div class="chips">' + run.map(v => '<span class="chip' + (v[ix.rf] ? ' rfc' : '') + '" title="' + esc(v[ix.local]) + '">' +
-        wd(v[ix.local]) + '<b>' + +v[ix.local].slice(8, 10) + '</b>' + esc(v[ix.local].slice(11)) + '</span>').join('') + '</div></div>'; run = []; }};
-      mv.forEach(v => {{
-        if (!(v[ix.shout] || v[ix.with].length || (v[ix.photos] || []).length)) {{ run.push(v); return; }}
-        flush();
-        rows += '<div class="vis' + (v[ix.rf] ? ' rfv' : '') + '"><div class="vd"><div class="vd-n">' + +v[ix.local].slice(8, 10) + '</div>' +
-          '<div class="vd-w">' + wd(v[ix.local]) + ' · ' + esc(v[ix.local].slice(11)) + '</div></div><div class="vis-body">' +
-          (v[ix.shout] ? '<div class="visit-shout">' + esc(v[ix.shout]) + '</div>' : '') +
-          (v[ix.with].length ? '<div class="visit-with">with ' + v[ix.with].map(n => '<b>' + esc(n) + '</b>').join(', ') + '</div>' : '') +
-          ((v[ix.photos] || []).length && PIX ? '<div class="visit-pics">' + v[ix.photos].map(p => thumb(p, '')).join('') + '</div>' : '') +
-          (v[ix.rf] ? '<span class="rf" style="margin-left:0">↺ reconstructed</span>' : '') + '</div></div>';
-      }});
-      flush();
-      return '<div class="mon"><div class="mon-h"><div class="mon-name">' + MONTHS[+mo - 1] + '</div><div class="mon-n">' +
-        mv.length + (mv.length === 1 ? ' visit' : ' visits') + '</div></div><div>' + rows + '</div></div>';
-    }}).join('');
+      return '<div class="mh">' + MONTHS[+mo - 1] + '<span>' + mv.length + '</span></div>' + mv.map(v => {{
+        const ph = (v[ix.photos] || []).length && PIX ? v[ix.photos] : [];
+        const w = v[ix.with].length ? '<span class="w">with ' + v[ix.with].map(n => '<b>' + esc(n) + '</b>').join(', ') + '</span>' : '';
+        const d = wd(v[ix.local]);
+        // narrow screens show 2 thumbnails (CSS), so they get their own +N on the 2nd one
+        const pics = ph.slice(0, 3).map((p, i) => {{
+          const k = GAL.findIndex(g => g.src === PIX + '/' + p);
+          return '<span onclick="galOpen(' + k + ')"><img loading="lazy" src="' + esc(PIX + '/' + p) + '" alt="">' +
+            (i === 2 && ph.length > 3 ? '<i>+' + (ph.length - 3) + '</i>' : '') +
+            (i === 1 && ph.length > 2 ? '<i class="m2">+' + (ph.length - 2) + '</i>' : '') + '</span>';
+        }}).join('');
+        return '<div class="vr' + (v[ix.rf] ? ' rfv' : '') + '"><div class="vr-d' + (d === 'Sat' || d === 'Sun' ? ' we' : '') + '"><div class="vr-day">' + d + '<b>' + +v[ix.local].slice(8, 10) + '</b></div>' +
+          '<div class="vr-t">' + esc(v[ix.local].slice(11)) + '</div></div>' +
+          '<div class="vr-x">' + (v[ix.shout] ? '«' + esc(v[ix.shout]) + '»' : '') + w + (v[ix.rf] ? '<span class="rf">↺ reconstructed</span>' : '') + '</div>' +
+          '<div class="vr-p">' + pics + '</div></div>';
+      }}).join('');
+    }}).join('') + '</div>';
     return '<details class="yr"' + (yi < 2 ? ' open' : '') + '><summary><span class="yr-y">' + y + '</span><span class="yr-meta">' +
       fmt(vs.length) + (vs.length === 1 ? ' visit' : ' visits') + (pics ? ' · ' + pics + ' photos' : '') + '</span>' +
       '<span class="yr-strip" title="visits per month">' + months.map((n, m) => '<i style="height:' + Math.round(18 * n / mm) + 'px" title="' + MONTHS[m] + ': ' + n + '"></i>').join('') + '</span>' +
