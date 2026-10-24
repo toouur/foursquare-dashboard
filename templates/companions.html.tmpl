@@ -51,18 +51,77 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .gs-esc-hint{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:3px;padding:2px 6px;cursor:pointer;flex-shrink:0;}
 .topnav a:visited{color:#4a5270;}
 .topnav-logo:visited{color:#e8b86d;}
-.layout{display:grid;grid-template-columns:260px 1fr;min-height:calc(100vh - 57px);}
-.sidebar{border-right:1px solid var(--border);overflow-y:auto;max-height:calc(100vh - 57px);position:sticky;top:0;}
-.sidebar::-webkit-scrollbar{width:3px;}
-.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-.si{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
+/* ── People strip (replaces the sticky sidebar that covered the log on phones) ── */
+.people{display:flex;gap:8px;overflow-x:auto;padding:18px 40px 14px;scrollbar-width:thin;border-bottom:1px solid var(--border);}
+.people::-webkit-scrollbar{height:4px;}.people::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.si{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:76px;max-width:76px;cursor:pointer;padding:6px 2px;border-radius:14px;transition:background .15s;}
 .si:hover{background:var(--card2);}
-.si.active{background:var(--card2);border-left-color:var(--gold);}
-.si-name{font-size:0.82rem;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}a.si-name{color:var(--text);text-decoration:none;}a.si-name:hover{color:var(--gold);}
-.si-cnt{font-size:0.72rem;font-family:'DM Mono',monospace;color:var(--gold);}
-.main{padding:28px 36px;overflow-y:auto;}
-.person-name{font-family:'Playfair Display',serif;font-size:2rem;font-weight:900;color:var(--gold);}
-.person-meta{font-size:0.78rem;color:var(--muted);margin-top:6px;}
+.si-av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-family:'Playfair Display',serif;font-weight:900;font-size:1.15rem;color:#1a1206;position:relative;}
+.si-av .si-flag{position:absolute;right:-3px;bottom:-3px;font-size:.8rem;line-height:1;font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif;}
+.si.active .si-av{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--gold);}
+.si-name{font-size:.68rem;font-weight:600;color:var(--text);max-width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.si-cnt{font-size:.58rem;font-family:'DM Mono',monospace;color:var(--muted);}
+.main{padding:28px 40px 20px;max-width:1300px;margin:0 auto;}
+/* ── Profile ── */
+.pf-hero{display:flex;gap:20px;align-items:center;margin-bottom:22px;}
+.pf-av{width:92px;height:92px;border-radius:50%;display:grid;place-items:center;font-family:'Playfair Display',serif;font-weight:900;font-size:2.5rem;color:#1a1206;flex-shrink:0;box-shadow:0 0 0 6px rgba(255,154,107,.12),0 18px 50px rgba(255,111,174,.22);}
+.pf-eyebrow{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+.person-name{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,3.6rem);font-weight:900;line-height:1;color:var(--text);text-decoration:none;display:inline-block;margin-top:6px;}
+a.person-name:hover{color:var(--gold);}
+.person-meta{font-size:0.8rem;color:var(--muted);margin-top:8px;}
+.pf-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px;}
+.pf-kpi{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px 18px;}
+.pf-kpi b{display:block;font-family:'Playfair Display',serif;font-size:2rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.pf-kpi:nth-child(2) b{background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;}
+.pf-kpi:nth-child(3) b{background:linear-gradient(135deg,#2fd6b5,#4cb8ff);-webkit-background-clip:text;background-clip:text;}
+.pf-kpi span{display:block;font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:8px;}
+.bento{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;}
+.box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:20px;min-width:0;}
+.box h3{font-family:'DM Mono',monospace;font-weight:400;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
+.s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}.s6{grid-column:span 6}
+.pf-bars{display:flex;align-items:flex-end;gap:5px;height:150px;}
+.pf-bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;min-width:0;}
+.pf-bar i{display:block;width:100%;max-width:34px;border-radius:7px 7px 3px 3px;background:linear-gradient(180deg,#f6d38b,#ff9a6b 60%,#ff6fae);}
+.pf-bar .v{font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);}
+.pf-bar .l{font-family:'DM Mono',monospace;font-size:.54rem;color:var(--muted);text-align:center;line-height:1.2;}
+.pf-date{font-family:'Playfair Display',serif;font-weight:900;font-size:2.3rem;line-height:1;background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.pf-date.l{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;}
+.pf-where{font-size:.8rem;color:var(--muted);margin:6px 0 18px;}
+.pf-where a{color:var(--text);text-decoration:none;}.pf-where a:hover{color:var(--gold);}
+.tv{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:7px 0;color:var(--text);text-decoration:none;}
+.tv+.tv{border-top:1px solid var(--border);}
+.tv img,.tv .ph0{width:44px;height:44px;border-radius:12px;object-fit:cover;background:var(--card2);}
+.tv:hover .tvn{color:var(--gold);}
+.tvn{font-size:.86rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.tvc{font-size:.7rem;color:var(--muted);}
+.tv b{font-family:'DM Mono',monospace;font-weight:400;font-size:.72rem;color:var(--gold);}
+.heat .hr{display:grid;grid-template-columns:14px repeat(24,minmax(0,1fr));gap:2px;margin-bottom:2px;align-items:center;}
+.heat .hr span,.hx span{font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);}
+.heat i{display:block;aspect-ratio:1;border-radius:3px;background:#9b7bff;}
+.hx{display:grid;grid-template-columns:14px repeat(24,minmax(0,1fr));gap:2px;}
+.pf-cities{display:flex;flex-wrap:wrap;gap:6px;}
+.pf-chip{display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:.6rem;padding:4px 9px;border-radius:999px;background:var(--card2);color:var(--text);white-space:nowrap;}
+.pf-chip b{font-weight:400;color:var(--gold);}
+.tgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.tt{position:relative;display:block;border-radius:16px;overflow:hidden;aspect-ratio:16/10;background:linear-gradient(135deg,#4cb8ff,#9b7bff);text-decoration:none;color:#fff;}
+.tt img{width:100%;height:100%;object-fit:cover;transition:transform .5s;}
+.tt:hover img{transform:scale(1.05);}
+.tts{position:absolute;left:0;right:0;bottom:0;padding:12px;background:linear-gradient(transparent,rgba(9,11,16,.92));}
+.ttn{font-family:'Playfair Display',serif;font-weight:900;font-size:1rem;color:#fff;}
+.ttd{font-family:'DM Mono',monospace;font-size:.55rem;color:#f0c27a;letter-spacing:.08em;margin-top:3px;}
+.strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;}
+.strip img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px;cursor:pointer;background:var(--card2);transition:opacity .2s;}
+.strip img:hover{opacity:.85;}
+.log-btn{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:14px 18px;font-size:.86rem;color:var(--text);cursor:pointer;font-family:'DM Sans',sans-serif;}
+.log-btn b{font-family:'DM Mono',monospace;font-weight:400;font-size:.62rem;color:var(--gold);letter-spacing:.12em;}
+.log{display:none;margin-top:14px;}.log.open{display:block;}
+#pfLight{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:9999;align-items:center;justify-content:center;}
+#pfLight.open{display:flex;}
+#pfLight img{max-width:92vw;max-height:84vh;object-fit:contain;border-radius:6px;}
+#pfLight .cap{position:absolute;bottom:22px;left:0;right:0;text-align:center;font-size:.78rem;color:rgba(255,255,255,.75);padding:0 60px;}
+#pfLight button{position:absolute;background:none;border:none;color:#fff;font-size:2rem;cursor:pointer;opacity:.6;padding:16px 22px;}
+#pfLight button:hover{opacity:1;}
+body.light .si.active .si-av{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--gold);}
+@media(max-width:900px){.bento{grid-template-columns:repeat(2,minmax(0,1fr));}.s2,.s3,.s4,.s6{grid-column:span 2;}.tgrid{grid-template-columns:repeat(2,minmax(0,1fr));}.strip{grid-template-columns:repeat(4,minmax(0,1fr));}.pf-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
 .search-row{display:flex;gap:10px;align-items:center;margin:18px 0;}
 .search-box{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-size:0.82rem;outline:none;width:260px;}
 .search-box:focus{border-color:var(--gold);}
@@ -79,16 +138,19 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .person-name[href]{text-decoration:none;color:var(--gold);}.person-name[href]:hover{opacity:.8;}.ci-loc{font-size:0.72rem;color:var(--muted);font-family:"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",'DM Sans',sans-serif;}
 @media(max-width:700px){
   header{padding:16px 16px 12px;}
-  .layout{grid-template-columns:1fr;}
-  .sidebar{max-height:160px;border-right:none;border-bottom:1px solid var(--border);}
-  .main{padding:14px;}
+  .people{padding:14px 12px 10px;}
+  .main{padding:16px 14px;}
   .search-box{width:100%;max-width:100%;}
-  .person-name{font-size:1.6rem;}
+  .pf-av{width:68px;height:68px;font-size:1.9rem;}
+  .pf-hero{gap:14px;}
+  .tgrid{grid-template-columns:1fr;}
+  .strip{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .pf-bars{gap:2px;}.pf-bar .v{display:none;}
+  .heat .hr,.hx{gap:1px;}
   td,th{padding:7px 8px;font-size:.76rem;}
   .ci-date,.ci-time{font-size:.64rem;}
 }
 @media(max-width:480px){
-  .person-name{font-size:1.3rem;}
   table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
   td,th{padding:6px 8px;font-size:.72rem;}
   .ci-loc{display:none;}
@@ -140,12 +202,19 @@ tr:hover td{background:rgba(255,255,255,.02);}
   <div class="gs-modal"><div class="gs-input-wrap"><span class="gs-icon">⌕</span><input class="gs-input" id="gsInput" type="text" placeholder="Search venues, cities, trips…" autocomplete="off" spellcheck="false"><span class="gs-esc-hint" onclick="gsClose()">esc</span></div></div>
 </div>
 <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Companions</h1>
-<div class="layout">
-  <div class="sidebar" id="sidebar"></div>
-  <div class="main" id="main"></div>
+<div class="people" id="sidebar"></div>
+<div class="main" id="main"></div>
+<div id="pfLight" onclick="if(event.target===this)pfClose()">
+  <img id="pfImg" src="" alt="">
+  <button style="left:0;top:50%;transform:translateY(-50%)" aria-label="Previous" onclick="pfStep(-1)">&#8592;</button>
+  <button style="right:0;top:50%;transform:translateY(-50%)" aria-label="Next" onclick="pfStep(1)">&#8594;</button>
+  <button style="top:8px;right:8px;font-size:1.4rem" aria-label="Close" onclick="pfClose()">&#10005;</button>
+  <div class="cap" id="pfCap"></div>
 </div>
 <script>
 const COMP=COMP_DATA_PLACEHOLDER;
+const TRIPS_LITE=TRIPS_LITE_PLACEHOLDER;   // [id, name, start_ts, end_ts, cover]
+const PIX=PIX_URL_PLACEHOLDER;
 
 // Country → flag emoji map (inline, no fetch needed)
 const F={
@@ -176,15 +245,22 @@ const F={
   'United Arab Emirates':'🇦🇪','UAE':'🇦🇪','United Kingdom':'🇬🇧','United States':'🇺🇸',
   'Uruguay':'🇺🇾','Uzbekistan':'🇺🇿','Venezuela':'🇻🇪','Vietnam':'🇻🇳','Zimbabwe':'🇿🇼'
 };
-function flag(c){return F[c]||'🌍';}
+// flag-icons, not emoji flags: Windows renders regional-indicator emoji as two letters
+const ISO2F={{CTRY_CODE_JSON}};
+function flag(c){const k=ISO2F[(c||'').trim()];return k?`<span class="fi fi-${k}" style="border-radius:2px"></span>`:(F[c]||'🌍');}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let cur=0;
 
 // c[4] = home country: config/companion_countries.json, else the country most
 // shared check-ins are in (computed in gen_companions.companion_country).
 const compFlag=COMP.map(c=>c[4]?flag(c[4]):'🌍');
+const GRAD=['linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae)','linear-gradient(135deg,#4cb8ff,#9b7bff)','linear-gradient(135deg,#2fd6b5,#4cb8ff)',
+            'linear-gradient(135deg,#ff6fae,#9b7bff)','linear-gradient(135deg,#b8e65c,#2fd6b5)','linear-gradient(135deg,#ff7a6b,#f6c25b)'];
+const initial=n=>[...String(n).trim()][0]||'?';
 document.getElementById('sidebar').innerHTML=COMP.map((c,i)=>
-  `<div class="si" id="si${i}" onclick="show(${i})"><span class="si-flag" style="font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif;margin-right:5px">${compFlag[i]}</span>${c[3]?`<a class="si-name" href="https://foursquare.com/user/${c[3]}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="${esc(c[0])}">${esc(c[0])}</a>`:`<span class="si-name" title="${esc(c[0])}">${esc(c[0])}</span>`}<span class="si-cnt">${c[1].toLocaleString()}</span></div>`
+  `<div class="si" id="si${i}" onclick="show(${i})" title="${esc(c[0])} · ${c[1].toLocaleString()} check-ins together">`+
+  `<span class="si-av" style="background:${GRAD[i%GRAD.length]}">${esc(initial(c[0]))}<span class="si-flag">${compFlag[i]}</span></span>`+
+  `<span class="si-name">${esc(c[0])}</span><span class="si-cnt">${c[1].toLocaleString()}</span></div>`
 ).join('');
 
 function buildRows(ci){
@@ -209,26 +285,98 @@ function filterRows(q){
   if(shownEl)shownEl.textContent=ci.length.toLocaleString()+' shown';
 }
 
+// ── Photo lightbox for the profile's photo strip ──
+let PF_GAL=[], pfIdx=0;
+function pfShow(){const g=PF_GAL[pfIdx];if(!g)return;document.getElementById('pfImg').src=g.src;document.getElementById('pfCap').textContent=(pfIdx+1)+' / '+PF_GAL.length+' · '+g.cap;}
+function pfOpen(k){pfIdx=k;pfShow();document.getElementById('pfLight').classList.add('open');}
+function pfClose(){document.getElementById('pfLight').classList.remove('open');document.getElementById('pfImg').src='';}
+function pfStep(d){if(PF_GAL.length){pfIdx=(pfIdx+d+PF_GAL.length)%PF_GAL.length;pfShow();}}
+document.addEventListener('keydown',e=>{if(!document.getElementById('pfLight').classList.contains('open'))return;if(e.key==='ArrowLeft')pfStep(-1);else if(e.key==='ArrowRight')pfStep(1);else if(e.key==='Escape')pfClose();});
+function toggleLog(){const l=document.getElementById('compLog');l.classList.toggle('open');document.getElementById('logLbl').textContent=l.classList.contains('open')?'HIDE THE LOG ▴':'OPEN THE LOG ▾';}
+
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dUTC=ts=>new Date(ts*1000);
+const dShort=ts=>{const d=dUTC(ts);return String(d.getUTCDate()).padStart(2,'0')+'.'+String(d.getUTCMonth()+1).padStart(2,'0')+'.'+String(d.getUTCFullYear()).slice(2);};
+const topN=(arr,key,n)=>{const m=new Map();arr.forEach(r=>{const k=key(r);if(k==null)return;const e=m.get(k)||{n:0,r};e.n++;m.set(k,e);});return [...m.entries()].sort((a,b)=>b[1].n-a[1].n).slice(0,n);};
+
+// A companion opens as a profile — years, places, rhythm, trips, photos — with
+// the full searchable log one tap away (it used to be the whole page).
 function show(idx){
   cur=idx;
   document.querySelectorAll('.si').forEach(e=>e.classList.remove('active'));
   const el=document.getElementById('si'+idx);
   el.classList.add('active');
-  el.scrollIntoView({block:'nearest'});
+  el.scrollIntoView({block:'nearest',inline:'center'});
   history.replaceState(null,'','?person='+encodeURIComponent(COMP[idx][0]));
   const [name,count,all,uid]=COMP[cur];
-  const cities={};
-  all.forEach(r=>{const k=r[4]||(r[5]||'');cities[k]=(cities[k]||0)+1;});
-  const top=Object.entries(cities).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([k])=>k).join(' · ');
+  const ts=all.map(r=>r[0]), first=Math.min(...ts), last=Math.max(...ts);
+  const firstRow=all.find(r=>r[0]===first), lastRow=all.find(r=>r[0]===last);
+  const venueLink=r=>r[7]?`<a href="/venue.html#${esc(r[7])}">${esc(r[3]||'—')}</a>`:esc(r[3]||'—');
+  // by year, or by month for a companionship shorter than three calendar years
+  const y0=dUTC(first).getUTCFullYear(), y1=dUTC(last).getUTCFullYear();
+  let bars='', byLbl;
+  if(y1-y0<2){
+    byLbl='by month';
+    const m0=y0*12+dUTC(first).getUTCMonth(), m1=y1*12+dUTC(last).getUTCMonth(), cnt=new Array(m1-m0+1).fill(0);
+    ts.forEach(t=>{const d=dUTC(t);cnt[d.getUTCFullYear()*12+d.getUTCMonth()-m0]++;});
+    const mx=Math.max(...cnt);
+    bars=cnt.map((v,i)=>{const m=(m0+i)%12,y=Math.floor((m0+i)/12);return `<div class="pf-bar" title="${MON[m]} ${y}: ${v}"><span class="v">${v||''}</span><i style="height:${Math.max(3,Math.round(120*v/mx))}px"></i><span class="l">${MON[m][0]}${m===0||i===0?'<br>'+String(y).slice(2):''}</span></div>`;}).join('');
+  }else{
+    byLbl='by year';
+    const cnt={};ts.forEach(t=>{const y=dUTC(t).getUTCFullYear();cnt[y]=(cnt[y]||0)+1;});
+    const mx=Math.max(...Object.values(cnt));
+    for(let y=y0;y<=y1;y++){const v=cnt[y]||0;bars+=`<div class="pf-bar" title="${y}: ${v}"><span class="v">${v||''}</span><i style="height:${Math.max(3,Math.round(120*v/mx))}px"></i><span class="l">${String(y).slice(2)}</span></div>`;}
+  }
+  // places with a thumbnail from a shared check-in there
+  const places=topN(all,r=>r[7]||r[3],6).map(([k,e])=>{
+    const ph=(all.find(r=>(r[7]||r[3])===k&&r[8])||[])[8];
+    const inner=`${ph&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+ph)}" alt="">`:'<span class="ph0"></span>'}<div><div class="tvn">${esc(e.r[3]||'—')}</div><div class="tvc">${esc(e.r[4]||e.r[5]||'')}</div></div><b>${e.n}×</b>`;
+    return e.r[7]?`<a class="tv" href="/venue.html#${esc(e.r[7])}">${inner}</a>`:`<div class="tv">${inner}</div>`;
+  }).join('');
+  // weekday × hour in the venue's local time (r[9] = weekday*24 + hour, Monday = 0)
+  const heat=[...Array(7)].map(()=>new Array(24).fill(0));
+  all.forEach(r=>{const k=r[9];if(k>=0&&k<168)heat[Math.floor(k/24)][k%24]++;});
+  const hmax=Math.max(1,...heat.flat());
+  const heatHtml=heat.map((row,d)=>`<div class="hr"><span>${'MTWTFSS'[d]}</span>${row.map(v=>`<i style="opacity:${(0.08+0.92*Math.pow(v/hmax,.6)).toFixed(2)}" title="${v}"></i>`).join('')}</div>`).join('')+
+    `<div class="hx"><span></span>${[...Array(24)].map((_,h)=>`<span>${h%6===0?h:''}</span>`).join('')}</div>`;
+  const cities=topN(all,r=>r[4]?r[4]+'|'+r[5]:null,10).map(([k,e])=>`<span class="pf-chip">${flag(e.r[5])} ${esc(e.r[4])} <b>${e.n}</b></span>`).join('');
+  const nCities=new Set(all.map(r=>r[4]).filter(Boolean)).size, nCtry=new Set(all.map(r=>r[5]).filter(Boolean)).size;
+  // trips with at least 5 check-ins together
+  const together=TRIPS_LITE.map(t=>[t,ts.filter(x=>x>=t[2]&&x<t[3]+43200).length]).filter(([,k])=>k>=5).sort((a,b)=>b[0][2]-a[0][2]);
+  const tripsHtml=together.slice(0,6).map(([t,k])=>`<a class="tt" href="/trips.html#trip-${t[0]}">${t[4]&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+t[4])}" alt="">`:''}<div class="tts"><div class="ttn">${esc(t[1])}</div><div class="ttd">${dUTC(t[2]).toISOString().slice(0,7)} · ${k} check-ins together</div></div></a>`).join('');
+  PF_GAL=all.filter(r=>r[8]).slice(0,24).map(r=>({src:PIX+'/'+r[8],cap:r[1]+' · '+(r[3]||'')}));
+  const strip=PIX?PF_GAL.slice(0,12).map((g,k)=>`<img loading="lazy" src="${esc(g.src)}" alt="" onclick="pfOpen(${k})">`).join(''):'';
+  const yrs=(last-first)/86400/365.25;
+  const since=MON[dUTC(first).getUTCMonth()]+' '+dUTC(first).getUTCFullYear();
   document.getElementById('main').innerHTML=`
-    ${uid?`<a class="person-name" href="https://foursquare.com/user/${uid}" target="_blank" rel="noopener">${esc(name)}</a>`:`<div class="person-name">${esc(name)}</div>`}
-    <div class="person-meta">${count.toLocaleString()} check-ins · ${esc(top)}</div>
-    <div class="search-row">
-      <input class="search-box" type="text" placeholder="Search venues, cities…" oninput="filterRows(this.value)">
-      <span class="shown-count" id="compShown">${all.length.toLocaleString()} shown</span>
+    <div class="pf-hero"><div class="pf-av" style="background:${GRAD[idx%GRAD.length]}">${esc(initial(name))}</div><div>
+      <div class="pf-eyebrow">Companion · since ${since}</div>
+      ${uid?`<a class="person-name" href="https://foursquare.com/user/${uid}" target="_blank" rel="noopener">${esc(name)}</a>`:`<div class="person-name">${esc(name)}</div>`}
+    </div></div>
+    <div class="pf-kpis">
+      <div class="pf-kpi"><b>${count.toLocaleString()}</b><span>check-ins together</span></div>
+      <div class="pf-kpi"><b>${yrs<1?Math.max(1,Math.round(yrs*12))+' mo':Math.round(yrs)+' yr'+(Math.round(yrs)===1?'':'s')}</b><span>since the first one</span></div>
+      <div class="pf-kpi"><b>${nCities}</b><span>cities · ${nCtry} countr${nCtry===1?'y':'ies'}</span></div>
+      <div class="pf-kpi"><b>${together.length}</b><span>trips together</span></div>
     </div>
-    <table><thead><tr><th>Date</th><th>Venue</th><th>Location</th></tr></thead>
-    <tbody id="compBody">${buildRows(all)}</tbody></table>`;
+    <div class="bento">
+      <div class="box s4"><h3>Check-ins together ${byLbl}</h3><div class="pf-bars">${bars}</div></div>
+      <div class="box s2"><h3>First &amp; latest</h3><div class="pf-date">${dShort(first)}</div><div class="pf-where">${venueLink(firstRow)}</div>
+        <div class="pf-date l">${dShort(last)}</div><div class="pf-where" style="margin-bottom:0">${venueLink(lastRow)}</div></div>
+      <div class="box s3"><h3>Your places</h3>${places}</div>
+      <div class="box s3"><h3>When you meet · weekday × hour</h3><div class="heat">${heatHtml}</div><h3 style="margin-top:20px">Cities</h3><div class="pf-cities">${cities}</div></div>
+      ${tripsHtml?`<div class="box s6"><h3>Trips together</h3><div class="tgrid">${tripsHtml}</div></div>`:''}
+      ${strip?`<div class="box s6"><h3>Photos from your check-ins together</h3><div class="strip">${strip}</div></div>`:''}
+      <div class="box s6" style="padding:12px"><button class="log-btn" onclick="toggleLog()"><span>All ${all.length.toLocaleString()} check-ins together, searchable</span><b id="logLbl">OPEN THE LOG ▾</b></button>
+        <div class="log" id="compLog">
+          <div class="search-row">
+            <input class="search-box" type="text" placeholder="Search venues, cities…" oninput="filterRows(this.value)">
+            <span class="shown-count" id="compShown">${all.length.toLocaleString()} shown</span>
+          </div>
+          <table><thead><tr><th>Date</th><th>Venue</th><th>Location</th></tr></thead>
+          <tbody id="compBody">${buildRows(all)}</tbody></table>
+        </div></div>
+    </div>`;
 }
 const p=new URLSearchParams(location.search).get('person');
 let idx=0;
@@ -377,7 +525,7 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
   <a class="active" href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">WITH</span></a>
   <a href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
   <a href="compare.html"><span class="sn-icon">⚖️</span><span class="sn-lbl">COMPARE</span></a>
-  <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
+  <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
   <a href="culture.html"><span class="sn-icon">🍷</span><span class="sn-lbl">CULTURE</span></a>
   <div class="sn-sep"></div>
   <button id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
