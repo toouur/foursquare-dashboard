@@ -12,11 +12,17 @@ visits_report.py — weekly private Telegram digest of site visits (D1 `visits`)
 3. Sends it to TELEGRAM_CHAT_ID — the private alerts chat, never the public
    on-this-day channel.
 
+--ping is the short in-between note (every 3 h from the workflow): only the
+visitors since the previous ping, and nothing is sent when there were none. The
+watermark lives in D1 `sync_state` (key 'visits_ping'), so a late or skipped cron
+run neither drops nor repeats visits; it is moved only after a successful send.
+
 Needs CF_D1_TOKEN (+ CF_ACCOUNT_ID / CF_D1_DATABASE_ID, defaults in d1_client),
 TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID. --dry-run prints instead of sending and
 deletes nothing. Exit 0 ok, 1 on a D1 or Telegram failure.
 
     python scripts/visits_report.py --dry-run
+    python scripts/visits_report.py --ping --dry-run
 """
 from __future__ import annotations
 
@@ -105,6 +111,51 @@ def render(c: dict, site: str = "https://4sq.pages.dev") -> str:
     return "\n".join(lines)
 
 
+PING_KEY = "visits_ping"
+PING_DEFAULT = 3 * 3600      # window of the very first ping
+PING_MAX = 24 * 3600         # never look back further than this, even after a long pause
+
+
+def ping_since(now: int) -> int:
+    rows = _q("SELECT updated_at FROM sync_state WHERE key = ?", [PING_KEY])
+    last = int((rows[0] if rows else {}).get("updated_at") or 0)
+    return max(last, now - PING_MAX) if last else now - PING_DEFAULT
+
+
+def collect_ping(since: int, now: int) -> list[dict]:
+    """One row per visitor seen in (since, now]: when, where, which pages, and
+    whether they had been here before the window."""
+    rows = _q("SELECT COALESCE(vid, ip) AS who, MIN(ts) AS first, COUNT(*) AS n, MAX(city) AS city, "
+              "MAX(country) AS country, MAX(org) AS org, MAX(ref) AS ref, GROUP_CONCAT(DISTINCT path) AS paths "
+              "FROM visits WHERE ts > ? AND ts <= ? AND owner = 0 GROUP BY who ORDER BY first", [since, now])
+    if rows:
+        # one pass over the older rows for all visitors (only ts is indexed), not one per visitor
+        whos = [r["who"] for r in rows][:90]
+        back = {r["who"] for r in _q("SELECT DISTINCT COALESCE(vid, ip) AS who FROM visits WHERE ts <= ? AND owner = 0 "
+                                     f"AND COALESCE(vid, ip) IN ({','.join('?' * len(whos))})", [since, *whos])}
+        for r in rows:
+            r["back"] = r["who"] in back
+    return rows
+
+
+def render_ping(rows: list[dict], since: int, site: str = "https://4sq.pages.dev") -> str:
+    def e(s, n=60):
+        s = str(s if s is not None else "—")
+        return html.escape(s if len(s) <= n else s[:n - 1] + "…", quote=False)
+    views = sum(int(r["n"]) for r in rows)
+    lines = [f"<b>👀 {len(rows)} visitor{'s' if len(rows) != 1 else ''} · {views} view{'s' if views != 1 else ''}</b> "
+             f"since {time.strftime('%d.%m %H:%M', time.gmtime(since))} UTC"]
+    for r in rows[:12]:
+        paths = ", ".join(e(p, 40) for p in str(r.get("paths") or "").split(",")[:4])
+        lines.append(f"• {time.strftime('%H:%M', time.gmtime(int(r['first'])))} · {e(r['city'])}, {e(r['country'])} · "
+                     f"{e(r['org'], 40)}{' · ↺ returning' if r.get('back') else ''}\n   {paths}"
+                     + (f" · from {e(r['ref'], 40)}" if r.get("ref") else ""))
+    if len(rows) > 12:
+        lines.append(f"… and {len(rows) - 12} more")
+    lines.append(f'<a href="{site}/visits.html">Full stats</a>')
+    return "\n".join(lines)
+
+
 def _fit(text: str, limit: int = 3900) -> str:
     """Telegram caps a message at 4096 chars and rejects HTML cut inside a tag:
     cut at the last line break instead."""
@@ -133,19 +184,31 @@ def _fail(msg: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--dry-run", action="store_true", help="print the report, send and delete nothing")
+    ap.add_argument("--ping", action="store_true", help="short note of the visitors since the previous ping")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
     d1.configure(os.environ.get("CF_D1_TOKEN", ""))
     now = int(time.time())
+    since = 0
     try:
         # The table is normally created by update-dashboard's --schema-only, but
         # that step only runs on a deploy, and a deploy only follows new data —
         # so the first report could meet a database without it ("no such table").
         for stmt in visits_ddl():
             d1.query(stmt)
-        if not args.dry_run:
-            d1.query("DELETE FROM visits WHERE ts < ?", [now - RETENTION_DAYS * 86400])
-        text = render(collect(now))
+        if args.ping:
+            since = ping_since(now)
+            rows = collect_ping(since, now)
+            if not rows:
+                log.info("No visitors since %s UTC — nothing to send", time.strftime("%d.%m %H:%M", time.gmtime(since)))
+                if not args.dry_run:
+                    d1.query("INSERT OR REPLACE INTO sync_state (key, hash, updated_at) VALUES (?,?,?)", [PING_KEY, "", now])
+                return 0
+            text = render_ping(rows, since)
+        else:
+            if not args.dry_run:
+                d1.query("DELETE FROM visits WHERE ts < ?", [now - RETENTION_DAYS * 86400])
+            text = render(collect(now))
     except Exception as exc:
         return _fail(f"D1 failed: {exc}")
     if args.dry_run:
@@ -159,7 +222,12 @@ def main(argv: list[str] | None = None) -> int:
         "chat_id": chat, "text": _fit(text), "parse_mode": "HTML", "disable_web_page_preview": "true"})
     if not r.ok:
         return _fail(f"Telegram sendMessage failed: {r.status_code} {r.text[:300]}")
-    log.info("Visits report sent (%d chars)", len(text))
+    if args.ping:
+        try:
+            d1.query("INSERT OR REPLACE INTO sync_state (key, hash, updated_at) VALUES (?,?,?)", [PING_KEY, "", now])
+        except Exception as exc:
+            return _fail(f"ping sent, but the watermark was not saved (the next ping repeats it): {exc}")
+    log.info("Visits %s sent (%d chars)", "ping" if args.ping else "report", len(text))
     return 0
 
 

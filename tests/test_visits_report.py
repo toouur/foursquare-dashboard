@@ -121,3 +121,69 @@ def test_failures_surface_as_annotations(monkeypatch, capsys):
     monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
     assert vr.main([]) == 1
     assert "::error title=Visits report::secret(s) not set: TELEGRAM_CHAT_ID" in capsys.readouterr().out
+
+
+def _ping_rows():
+    return [{"who": "a", "first": 1792800000, "n": 3, "city": "Bălți", "country": "MD", "org": "Orange <SA>",
+             "ref": "https://t.me/", "paths": "/index.html,/trips.html", "back": True},
+            {"who": "b", "first": 1792803600, "n": 1, "city": "Minsk", "country": "BY", "org": "A1",
+             "ref": None, "paths": "/venue.html", "back": False}]
+
+
+def test_render_ping():
+    text = vr.render_ping(_ping_rows(), 1792790000)
+    assert text.startswith("<b>👀 2 visitors · 4 views</b> since ")
+    assert "Bălți, MD · Orange &lt;SA&gt; · ↺ returning" in text and "/index.html, /trips.html · from https://t.me/" in text
+    assert "Minsk, BY · A1\n" in text and "returning" not in text.split("Minsk")[1]
+
+
+def test_ping_window_from_the_watermark(monkeypatch):
+    now = 2_000_000
+    monkeypatch.setattr(vr, "_q", lambda sql, params: [])
+    assert vr.ping_since(now) == now - vr.PING_DEFAULT                         # first ping ever
+    monkeypatch.setattr(vr, "_q", lambda sql, params: [{"updated_at": now - 5000}])
+    assert vr.ping_since(now) == now - 5000                                    # continues where the last one stopped
+    monkeypatch.setattr(vr, "_q", lambda sql, params: [{"updated_at": 10}])
+    assert vr.ping_since(now) == now - vr.PING_MAX                             # long pause: capped
+
+
+def test_ping_marks_returning_visitors_in_one_query(monkeypatch):
+    seen = []
+
+    def fake(sql, params):
+        seen.append((sql, params))
+        if "GROUP BY who" in sql:
+            return [{"who": "a", "first": 5, "n": 1}, {"who": "b", "first": 6, "n": 2}]
+        return [{"who": "b"}]
+
+    monkeypatch.setattr(vr, "_q", fake)
+    rows = vr.collect_ping(100, 200)
+    assert [r["back"] for r in rows] == [False, True]
+    assert len(seen) == 2 and all("owner = 0" in s for s, _ in seen)
+    assert seen[0][1] == [100, 200] and seen[1][1] == [100, "a", "b"]
+
+
+def test_ping_without_visitors_sends_nothing_and_moves_the_watermark(monkeypatch):
+    calls = []
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: calls.append(sql) or [])
+    monkeypatch.setattr(vr.requests, "post", lambda *a, **k: (_ for _ in ()).throw(AssertionError("sent")))
+    assert vr.main(["--ping"]) == 0
+    assert calls[-1].startswith("INSERT OR REPLACE INTO sync_state")
+    assert not any(s.startswith("DELETE") for s in calls)                      # retention stays weekly
+
+
+def test_ping_watermark_moves_only_after_a_send(monkeypatch):
+    calls = []
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: calls.append(sql) or [])
+    monkeypatch.setattr(vr, "collect_ping", lambda since, now: _ping_rows())
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "1")
+
+    class R:
+        ok, status_code, text = False, 500, "boom"
+    monkeypatch.setattr(vr.requests, "post", lambda *a, **k: R())
+    assert vr.main(["--ping"]) == 1
+    assert not any("sync_state (key" in s for s in calls)
+    R.ok = True
+    assert vr.main(["--ping"]) == 0
+    assert calls[-1].startswith("INSERT OR REPLACE INTO sync_state")

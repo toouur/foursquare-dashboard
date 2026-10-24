@@ -6,18 +6,30 @@
 # last 7 days vs the 7 before, sent to the PRIVATE alerts chat
 # (TELEGRAM_CHAT_ID, never the public on-this-day channel). The same run deletes
 # rows older than 90 days. Reads/writes D1 only; never touches the data repo.
+#
+# Every 3 h the same job runs `--ping`: a short note of the visitors since the
+# previous ping (watermark in D1 sync_state), sent only when there were any.
 
 name: Visits report (weekly)
 
 on:
   schedule:
-    - cron: '0 7 * * 1'   # Monday 07:00 UTC
+    - cron: '0 7 * * 1'      # Monday 07:00 UTC — the weekly digest
+    - cron: '20 */3 * * *'   # every 3 h — the short ping (silent without visitors)
   workflow_dispatch:
     inputs:
+      ping:
+        description: 'Short ping (visitors since the last ping) instead of the weekly digest'
+        type: boolean
+        default: false
       dry_run:
         description: 'Print the report only, send and delete nothing'
         type: boolean
         default: false
+
+concurrency:
+  group: visits-report     # two pings at once would both read the same watermark
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -44,4 +56,6 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           cd scripts
-          python visits_report.py ${{ inputs.dry_run && '--dry-run' || '' }}
+          python visits_report.py \
+            ${{ (github.event.schedule == '20 */3 * * *' || inputs.ping) && '--ping' || '' }} \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
