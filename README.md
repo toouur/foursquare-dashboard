@@ -31,6 +31,10 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 - **Syndication + per-country pages** — RSS 2.0 (`feed.xml`) and JSON Feed 1.1 (`feed.json`) with autodiscovery, plus a `country-<slug>.html` for every country visited.
 - **Lean pages, lazy data** — heavy payloads are split out of the HTML and fetched on demand (index map layers → `map_data.json`, per-trip check-ins → `trip_checkins_<n>.json` shards): `trips.html` dropped from ~21 MB to ~190 KB, `companions.html` from ~7.6 MB to ~2.4 MB.
 - **Free-tier D1, run within budget** — after the database hit its daily row-read limit, the APIs were hardened to degrade instead of 500ing, and the sync was rewritten to measure and cut its own reads/writes (cached counts, hash-gated reconciles, FTS checks of a single row).
+- **A page for every place** — `venue.html#<venue_id>` for 34k venues: map, visits per year and hour, companions, every photo in a lightbox and the full visit history by year, served from 256 hash-sharded JSON files (~80 KB each) instead of 34k HTML pages.
+- **Compare, Life in Stripes, Records** — any two years or home eras side by side (`compare.html`); the whole 2007–2026 history as parallel stripes of home, country, trips, rhythm, people and music (`life.html`); a records & milestones board that labels every check-in with the Telegram echo bot's rules, and a GitHub-style radius-of-gyration grid (`stats.html`).
+- **Cultural chronicle** — IMDb ratings, Vivino wines and every Last.fm scrobble joined to the check-in timeline (`culture.html`: a wine map placed at the check-in nearest each scan, films seen in the cinema / on the road / at home, "Sound · Taste · Frame" in every trip, "The year in culture" on year pages).
+- **Private visit counter** — a same-origin `sendBeacon` to a Pages Function stores IP, city, network and a cookie-less visitor id in D1 for 90 days; the owner reads it on a key-gated `visits.html` and in a weekly Telegram digest. Cloudflare Web Analytics now covers every page too.
 - Deep analytics: activity heatmaps, Hour×Category / Day-of-Week×Category matrices in local time, country hour profiles, shout text-mining (per-year language mix), streaks, venue loyalty, revisit intervals, per-segment transport-mode inference, and a per-year "year in sound" from Last.fm scrobbles.
 
 ## Screenshots
@@ -49,7 +53,7 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 **Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed/health APIs), D1 (SQLite + FTS5 at the edge), R2 (photo storage), Workers (check-in poller)
 **Front-end (CDN):** Leaflet (maps, CARTO basemaps with an API key), Chart.js, Twemoji · installable PWA (service worker + web manifest)
 **CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, a daily route-geometry warm and a daily enrichment re-scan, plus ~20 on-demand maintenance workflows
-**Quality:** ruff + mypy + a 523-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
+**Quality:** ruff + mypy + a 524-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
 
 ## Table of contents
 
@@ -106,7 +110,11 @@ tips page with country/city tabs, map, closed/deleted-venue detection, view coun
 **photo gallery** with 23 000+ check-in photos hosted on Cloudflare R2, country/city accordion filter,
 lazy loading, lightbox, and inline tip photos ·
 **the year in sound** — per-year Last.fm scrobble totals, top artist and month histogram on each year album ·
-**live travel guide** (`guide.html`) — nearby suggestions based on your 48h session history.
+**live travel guide** (`guide.html`) — nearby suggestions based on your 48h session history ·
+**venue pages** (`venue.html#<id>`, every venue name on the site links there) ·
+**compare** two years / home eras · **life in stripes** timeline · **records & milestones** board ·
+**coverage & radius of gyration** grid (era-aware) · **cultural chronicle** (`culture.html` — Last.fm raw scrobbles, Vivino, IMDb) ·
+**private visit stats** (`visits.html`, STATS_KEY-gated, weekly Telegram report, 90-day retention).
 
 ---
 
@@ -212,7 +220,7 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
 │       ├── custom-list.js       # /api/custom-list — custom curated lists
 │       └── health.js            # /api/health — D1 + data-freshness health check (200/503)
-├── tests/                    # 523-test pytest suite (see "Tests" section below)
+├── tests/                    # 524-test pytest suite (see "Tests" section below)
 │   ├── conftest.py           # Markers (live/e2e) + shared make_row() factory
 │   ├── test_*.py             # Offline unit (259) / live API contract (22) / E2E + a11y (22)
 │   └── load/search.js        # k6 load-test script for /api/search
@@ -436,12 +444,12 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **523-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **524-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 479 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 480 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
 | Browser E2E smoke + accessibility | `live` + `e2e` | 22 | internet + Playwright chromium |
 

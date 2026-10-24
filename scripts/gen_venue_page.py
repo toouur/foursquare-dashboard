@@ -69,21 +69,61 @@ section{{margin-top:48px;}}
 .rank-name{{font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
 .rank-sub{{color:var(--muted);font-size:.72rem;}}
 .rank-n{{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--teal);}}
-.visit{{display:grid;grid-template-columns:1fr auto;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);}}
-.visit-when{{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--gold);letter-spacing:.04em;}}
-.visit-shout{{font-family:'Playfair Display',serif;font-style:italic;font-size:.98rem;color:#e8e9ee;margin-top:4px;overflow-wrap:anywhere;}}
-.visit-with{{font-size:.74rem;color:var(--muted);margin-top:3px;}}
-.visit img{{width:96px;height:72px;object-fit:cover;border-radius:8px;background:var(--card2);}}
+.pgrid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;}}
+.pgrid img{{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:var(--card2);cursor:zoom-in;transition:transform .15s,opacity .15s;}}
+.pgrid img:hover{{transform:scale(1.03);opacity:.9;}}
+details.yr{{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden;}}
+details.yr>summary{{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:14px;padding:14px 18px;}}
+details.yr>summary::-webkit-details-marker{{display:none;}}
+details.yr>summary:hover{{background:var(--card2);}}
+.yr-y{{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--gold);}}
+.yr-meta{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.06em;flex:1;}}
+.yr-strip{{display:flex;gap:2px;align-items:flex-end;height:18px;}}
+.yr-strip i{{display:block;width:5px;background:var(--teal);opacity:.7;border-radius:1px;min-height:1px;}}
+.yr-arrow{{color:var(--muted);transition:transform .2s;}}
+details[open] .yr-arrow{{transform:rotate(90deg);}}
+.tl{{position:relative;margin:0 18px 14px 28px;border-left:1px solid var(--border);}}
+.visit{{position:relative;padding:9px 0 9px 18px;}}
+.visit::before{{content:'';position:absolute;left:-4px;top:15px;width:7px;height:7px;border-radius:50%;background:var(--gold);}}
+.visit.rfv::before{{background:var(--rose);}}
+.visit-when{{font-family:'DM Mono',monospace;font-size:.64rem;color:var(--gold);letter-spacing:.04em;}}
+.visit-when .t{{color:var(--muted);margin-left:6px;}}
+.visit-shout{{font-family:'Playfair Display',serif;font-style:italic;font-size:.98rem;color:#e8e9ee;margin-top:3px;overflow-wrap:anywhere;}}
+.visit-with{{font-size:.74rem;color:var(--muted);margin-top:2px;}}
+.visit-pics{{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}}
+.visit-pics img{{width:92px;height:69px;object-fit:cover;border-radius:6px;background:var(--card2);cursor:zoom-in;border:1px solid var(--border);transition:transform .15s;}}
+.visit-pics img:hover{{transform:scale(1.04);}}
+.visit.chips{{display:flex;flex-wrap:wrap;gap:4px;padding-top:7px;padding-bottom:7px;}}
+.visit.chips::before{{background:var(--border);}}
+.chip{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--text);background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:2px 6px;white-space:nowrap;}}
+.chip b{{font-weight:400;color:var(--muted);margin-left:5px;}}
+.chip.rfc{{border-color:var(--rose);}}
+#gallery{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9999;align-items:center;justify-content:center;}}
+#gallery.open{{display:flex;}}
+#gallery img{{max-width:92vw;max-height:84vh;object-fit:contain;border-radius:6px;}}
+.gal-nav,.gal-close{{position:absolute;background:none;border:none;color:#fff;cursor:pointer;opacity:.55;}}
+.gal-nav{{top:50%;transform:translateY(-50%);font-size:2.2rem;padding:18px 22px;}}
+.gal-nav:hover,.gal-close:hover{{opacity:1;}}
+#gal-prev{{left:0;}} #gal-next{{right:0;}}
+.gal-close{{top:16px;right:22px;font-size:1.5rem;}}
+.gal-cap{{position:absolute;bottom:22px;left:0;right:0;text-align:center;font-size:.78rem;color:rgba(255,255,255,.7);padding:0 60px;}}
 .rf{{font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:.1em;color:var(--rose);border:1px solid var(--rose);border-radius:4px;padding:1px 5px;margin-left:8px;}}
 .ext{{color:var(--teal);text-decoration:none;text-transform:none;letter-spacing:.04em;}}
 .ext:hover{{color:var(--gold);}}
 .note{{color:var(--muted);font-size:.85rem;margin-top:24px;}}
-@media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}.visit img{{width:72px;height:54px;}}}}
+@media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}.visit-pics img{{width:72px;height:54px;}}.tl{{margin:0 10px 12px 16px;}}.yr-strip{{display:none;}}}}
 </style>
 </head>
 <body>
 <a class="crumb" href="/index.html">← dashboard</a>
 <div class="wrap" id="app"></div>
+<div id="gallery" onclick="if(event.target===this)galClose()">
+  <img id="gal-img" src="" alt="">
+  <button class="gal-nav" id="gal-prev" aria-label="Previous" onclick="event.stopPropagation();galStep(-1)">&#8592;</button>
+  <button class="gal-nav" id="gal-next" aria-label="Next" onclick="event.stopPropagation();galStep(1)">&#8594;</button>
+  <button class="gal-close" aria-label="Close" onclick="galClose()">&#10005;</button>
+  <div class="gal-cap" id="gal-cap"></div>
+</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const VER = {ver_json};
@@ -112,7 +152,19 @@ function bars(pairs, cls) {{
     '<div class="bar-col ' + cls + '" title="' + esc(l) + ': ' + n + '"><span class="bar-n">' + (n || '') + '</span>' +
     '<div class="bar" style="height:' + Math.round(100 * n / mx) + 'px"></div><span class="bar-lbl">' + esc(l) + '</span></div>').join('') + '</div>';
 }}
-let map = null;
+let map = null, GAL = [], galIdx = 0;
+function galShow() {{
+  const g = GAL[galIdx]; if (!g) return;
+  document.getElementById('gal-img').src = g.src;
+  document.getElementById('gal-cap').textContent = (galIdx + 1) + ' / ' + GAL.length + ' · ' + g.cap;
+}}
+function galOpen(k) {{ if (k < 0) return; galIdx = k; galShow(); document.getElementById('gallery').classList.add('open'); }}
+function galClose() {{ document.getElementById('gallery').classList.remove('open'); document.getElementById('gal-img').src = ''; }}
+function galStep(d) {{ if (GAL.length) {{ galIdx = (galIdx + d + GAL.length) % GAL.length; galShow(); }} }}
+document.addEventListener('keydown', e => {{
+  if (!document.getElementById('gallery').classList.contains('open')) return;
+  if (e.key === 'ArrowLeft') galStep(-1); else if (e.key === 'ArrowRight') galStep(1); else if (e.key === 'Escape') galClose();
+}});
 function renderTop() {{
   document.title = 'Venues · Foursquare history';
   app.innerHTML = '<div class="hero-cat">Places</div><h1 class="hero-name">Most visited venues</h1>' +
@@ -138,11 +190,41 @@ function render(id, rec, f) {{
   if (rec.companions.length) h += '<section><div class="sec-h">Here with</div><div class="rank-list">' +
     rec.companions.map(([nm, n], i) => '<div class="rank-row"><span class="rank-i">' + (i + 1) + '</span><span class="rank-name">' +
       esc(nm) + '</span><span class="rank-n">' + fmt(n) + '</span></div>').join('') + '</div></section>';
-  h += '<section><div class="sec-h">' + (rec.v.length < rec.n ? 'Latest ' + rec.v.length + ' of ' + fmt(rec.n) + ' visits' : 'Visits') + '</div>' +
-    rec.v.map(v => '<div class="visit"><div><div class="visit-when">' + esc(v[ix.local]) + (v[ix.rf] ? '<span class="rf">↺ reconstructed</span>' : '') + '</div>' +
-      (v[ix.shout] ? '<div class="visit-shout">' + esc(v[ix.shout]) + '</div>' : '') +
-      (v[ix.with].length ? '<div class="visit-with">with ' + esc(v[ix.with].join(', ')) + '</div>' : '') + '</div>' +
-      (v[ix.photo] && PIX ? '<img loading="lazy" src="' + esc(PIX + '/' + v[ix.photo]) + '" alt="">' : '<span></span>') + '</div>').join('') + '</section>';
+  // every photo of the venue, newest first; each thumbnail opens the shared lightbox at its index
+  GAL = [];
+  rec.v.forEach(v => (v[ix.photos] || []).forEach(p => GAL.push({{ src: PIX + '/' + p, cap: v[ix.local] + (v[ix.shout] ? ' · ' + v[ix.shout] : '') }})));
+  const thumb = (src, cls) => {{ const k = GAL.findIndex(g => g.src === PIX + '/' + src); return '<img loading="lazy" class="' + cls + '" src="' + esc(PIX + '/' + src) + '" alt="" onclick="galOpen(' + k + ')">'; }};
+  if (GAL.length && PIX) h += '<section><div class="sec-h">Photos · ' + fmt(GAL.length) + '</div><div class="pgrid">' +
+    GAL.slice(0, 48).map((g, k) => '<img loading="lazy" src="' + esc(g.src) + '" alt="" onclick="galOpen(' + k + ')">').join('') + '</div>' +
+    (GAL.length > 48 ? '<p class="note" style="margin-top:8px">All ' + fmt(GAL.length) + ' photos are in the visit history below.</p>' : '') + '</section>';
+  // the whole visit history, grouped by year; the two most recent years start open
+  const byYear = {{}};
+  rec.v.forEach(v => (byYear[v[ix.local].slice(0, 4)] = byYear[v[ix.local].slice(0, 4)] || []).push(v));
+  const years = Object.keys(byYear).sort().reverse();
+  h += '<section><div class="sec-h">Visit history · ' + fmt(rec.n) + (rec.n === 1 ? ' visit' : ' visits') + '</div>' + years.map((y, yi) => {{
+    const vs = byYear[y], months = Array(12).fill(0);
+    vs.forEach(v => months[+v[ix.local].slice(5, 7) - 1]++);
+    const mm = Math.max(1, ...months), pics = vs.reduce((s, v) => s + (v[ix.photos] || []).length, 0);
+    // every visit is listed: a visit with a shout, companions or photos is a full timeline entry;
+    // runs of plain repeat visits between them collapse into one row of date chips
+    let body = '', run = [];
+    const flush = () => {{ if (run.length) body += '<div class="visit chips">' + run.map(v => '<span class="chip' + (v[ix.rf] ? ' rfc' : '') + '" title="' + esc(v[ix.local]) + '">' +
+      esc(v[ix.local].slice(8, 10) + '.' + v[ix.local].slice(5, 7)) + '<b>' + esc(v[ix.local].slice(11)) + '</b></span>').join('') + '</div>'; run = []; }};
+    vs.forEach(v => {{
+      if (!(v[ix.shout] || v[ix.with].length || (v[ix.photos] || []).length)) {{ run.push(v); return; }}
+      flush();
+      body += '<div class="visit' + (v[ix.rf] ? ' rfv' : '') + '"><div class="visit-when">' + esc(v[ix.local].slice(0, 10)) + '<span class="t">' + esc(v[ix.local].slice(11)) + '</span>' +
+        (v[ix.rf] ? '<span class="rf">↺ reconstructed</span>' : '') + '</div>' +
+        (v[ix.shout] ? '<div class="visit-shout">' + esc(v[ix.shout]) + '</div>' : '') +
+        (v[ix.with].length ? '<div class="visit-with">with ' + esc(v[ix.with].join(', ')) + '</div>' : '') +
+        ((v[ix.photos] || []).length && PIX ? '<div class="visit-pics">' + v[ix.photos].map(p => thumb(p, '')).join('') + '</div>' : '') + '</div>';
+    }});
+    flush();
+    return '<details class="yr"' + (yi < 2 ? ' open' : '') + '><summary><span class="yr-y">' + y + '</span><span class="yr-meta">' +
+      fmt(vs.length) + (vs.length === 1 ? ' visit' : ' visits') + (pics ? ' · ' + pics + ' photos' : '') + '</span>' +
+      '<span class="yr-strip" title="visits per month">' + months.map((n, m) => '<i style="height:' + Math.round(18 * n / mm) + 'px" title="' + (m + 1) + ': ' + n + '"></i>').join('') + '</span>' +
+      '<span class="yr-arrow">›</span></summary><div class="tl">' + body + '</div></details>';
+  }}).join('') + '</section>';
   app.innerHTML = h;
   if (map) {{ map.remove(); map = null; }}
   if (document.getElementById('map') && window.L) {{

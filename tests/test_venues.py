@@ -14,7 +14,7 @@ import pytest
 
 import gen_venue_page
 from conftest import make_row
-from metrics.venues import MAX_VISITS, VISIT_FIELDS, compute_venues, venue_shard, write_venue_shards
+from metrics.venues import VISIT_FIELDS, compute_venues, venue_shard, write_venue_shards
 
 
 def _ts(s: str) -> int:
@@ -76,18 +76,18 @@ def test_dossier():
     assert r["photos"] == 2
     ix = {k: i for i, k in enumerate(VISIT_FIELDS)}
     newest = r["v"][0]
-    assert newest[ix["local"]] == "2019-07-01 20:30" and newest[ix["photo"]] == "p1.jpg"
+    assert newest[ix["local"]] == "2019-07-01 20:30" and newest[ix["photos"]] == ["p1.jpg", "p2.jpg"]
     assert r["v"][1][ix["shout"]] == "again!" and r["v"][1][ix["with"]] == ["Vika"]
 
 
-def test_refurbished_flag_and_visit_cap():
+def test_full_history_and_refurbished_flag():
     t0 = _ts("2020-01-01T10:00:00")
-    rows = [_row(t0 + i * 86400, "v") for i in range(MAX_VISITS + 5)]
+    rows = [_row(t0 + i * 86400, "v") for i in range(300)]
     rows.append(_row(t0 - 10 * 365 * 86400, "v", source_app="refurbished"))
     r = compute_venues(rows)["v"]
-    assert r["n"] == MAX_VISITS + 6 and len(r["v"]) == MAX_VISITS
-    assert r["first"].startswith("2010")          # the reconstructed visit still counts
-    assert all(x[-1] == 0 for x in r["v"])        # …but is older than the shown window
+    assert r["n"] == 301 and len(r["v"]) == 301   # every visit, not the latest 60
+    assert r["first"].startswith("2010")
+    assert r["v"][-1][-1] == 1 and all(x[-1] == 0 for x in r["v"][:-1])
 
 
 def test_shards_written_and_stale_removed(tmp_path):
@@ -113,3 +113,15 @@ def test_page_includes_home_and_lists_top(tmp_path):
     assert "{{" not in page.replace("{{CARTO_KEY}}", "")
     shards = "".join(p.read_text(encoding="utf-8") for p in tmp_path.glob("venue_data_*.json"))
     assert "Str. Alecu Russo, 55" in shards
+
+
+def test_clean_shout():
+    from metrics.venues import clean_shout
+    assert clean_shout("with Darya", ["Darya"]) == ""                       # Swarm's auto text
+    assert clean_shout("with Nikita", ["NIkita Boyko"]) == ""
+    assert clean_shout("with 塔妮雅", ["塔妮雅"]) == ""
+    assert clean_shout("with Darya, Nikita", ["Darya", "Nikita Boyko"]) == ""
+    assert clean_shout("with Darya", []) == "with Darya"                     # nobody listed: keep it
+    assert clean_shout("with Darya and a cake", ["Darya"]) == "with Darya and a cake"
+    assert clean_shout("грузим на Дортмунд [geo_pinned]", []) == "грузим на Дортмунд"
+    assert clean_shout("[coords_approx:pending_api]", []) == ""

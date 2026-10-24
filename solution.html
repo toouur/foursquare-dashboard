@@ -133,7 +133,11 @@ footer a:hover{text-decoration:underline;}
         heatmaps plus shout text mining, <strong>20 per-year albums</strong> (each with its own cover
         photo, month timeline and a Last.fm "year in sound"), <strong>64 per-country pages</strong>,
         a live travel guide that reads your last 48&nbsp;hours and suggests
-        nearby venues based on your historical preferences, and this engineering write-up — all
+        nearby venues based on your historical preferences, <strong>a page for every one of 34&nbsp;000
+        venues</strong>, a year / home-era <strong>comparison</strong>, a whole-life timeline
+        (<strong>Life in Stripes</strong>), a records &amp; milestones board, a
+        <strong>cultural chronicle</strong> that joins Last.fm, Vivino and IMDb to the check-ins,
+        a private visit counter, and this engineering write-up — all
         assembled into a clean <code>_site/</code> bundle by CI and pushed to the Cloudflare Pages
         CDN via <strong>direct upload</strong> (the generated HTML is gitignored, not committed).
       </p>
@@ -1858,6 +1862,76 @@ basemap:
       </div>
     </div>
 
+    <!-- C29 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 29 — A Page for Each of 34&nbsp;000 Places</div>
+        <div class="cs-text">
+          Every venue deserved its own dossier (map, visits per year and hour, companions, every photo, the
+          full visit history), but 34&nbsp;000 generated HTML files would have dwarfed the rest of the site and
+          slowed every deploy, and one big JSON would make each page download the whole history.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — One Shell, 256 Hash Shards</div>
+        <div class="cs-text">
+          A single static <code>venue.html#&lt;venue_id&gt;</code> fetches one of 256
+          <code>venue_data_&lt;xx&gt;.json</code> shards. The first key was the id's last two hex digits —
+          Foursquare ids are far from uniform there and one shard reached 889&nbsp;KB — so the key became a
+          32-bit FNV-1a hash mod 256, mirrored in JavaScript and parity-tested under node: now ~80&nbsp;KB per
+          shard with the complete history. Every venue name across the site links to it.
+        </div>
+      </div>
+    </div>
+
+    <!-- C30 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 30 — The Scrobbles a Watermark Never Sees</div>
+        <div class="cs-text">
+          The weekly Last.fm fetch asked only for plays newer than its last timestamp. The first full re-walk
+          disagreed with fourteen years of counters in three years: 2018/2020 were short by four plays, 2026
+          had five the counters never knew. Phones sync offline plays days later <em>with their original
+          timestamp</em>, and Last.fm genuinely stores the same track twice in the same second.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Re-read a Window, Keep Repeats, Rebuild from the Raw Layer</div>
+        <div class="cs-text">
+          Every scrobble now lives byte-exact in <code>lastfm/scrobbles_&lt;YYYY&gt;.tsv</code> with repeats
+          kept. Each run re-reads the 14 days before the newest scrobble on disk and replaces that window as a
+          multiset (late plays are reported as <code>LATE_SCROBBLES</code>; a reply more than 10&nbsp;% smaller
+          than the window is treated as an API failure and writes nothing), pins <code>to</code> at walk start
+          so pages cannot shift, and rebuilds the per-year counters from the raw layer so the two can no longer
+          drift.
+        </div>
+      </div>
+    </div>
+
+    <!-- C31 -->
+    <div class="cs-block">
+      <div class="cs-challenge">
+        <div class="cs-label ch">Challenge 31 — Knowing Who Visits, on a Free Tier, Privately</div>
+        <div class="cs-text">
+          Cloudflare Web Analytics is cookie-less and sampled: no IPs, cities or unique visitors — and it was
+          embedded in only 10 of ~100 pages. A home-made counter writes a row per view, on the same D1 whose
+          daily write budget already ran out once, behind an endpoint anyone can POST to.
+        </div>
+      </div>
+      <div class="cs-solution">
+        <div class="cs-label sol">Solution — Same-Origin Beacon, Bounded Writes, Owner Excluded</div>
+        <div class="cs-text">
+          A build pass now injects both the Web Analytics beacon and a <code>sendBeacon('/api/hit')</code> into
+          every page. The Pages Function accepts same-origin requests only, drops bots, validates the visitor-id
+          format, caps one IP at 60 views per 10&nbsp;minutes with one indexed read (pages.dev allows no WAF
+          rate-limit rule), writes 2 rows per view (no AUTOINCREMENT) and prunes rows older than 90&nbsp;days.
+          Aggregates are served only with a <code>STATS_KEY</code> secret to a noindex <code>visits.html</code>
+          that also marks the owner's browser, and a weekly digest goes to a private Telegram chat — never to
+          the public channel.
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <div class="divider"></div>
@@ -1948,8 +2022,8 @@ python scripts/build.py \
     <div class="section-title">Testing &amp; CI Gates</div>
     <div class="section-body">
       <p>
-        The pipeline is protected by a <strong>523-test pytest suite</strong> organised into
-        three rings by what they need to run. The offline ring (479 tests, no network, no
+        The pipeline is protected by a <strong>524-test pytest suite</strong> organised into
+        three rings by what they need to run. The offline ring (480 tests, no network, no
         secrets, finishes in seconds) covers the highest-risk pure logic: the 5-layer
         city/country normalisation priority order, trip detection (synthetic timelines
         anchored at noon UTC so timezone localisation can never flake a test across a date
@@ -2061,7 +2135,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Testing &amp; QA</div>
         <div class="si-tech">pytest + Playwright + ruff</div>
-        <div class="si-role">523 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
+        <div class="si-role">524 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
       </div>
     </div>
   </div>

@@ -51,7 +51,7 @@ Venue renames, monthly re-fetch and deletions: `ops/d1.md`.
 
 ### Run tests / lint
 ```bash
-# Offline suite (479 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (480 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 python -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 14 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -90,11 +90,14 @@ python scripts/sync_doc_counts.py --check     # quoted test/file counts in READM
 Full map: `ops/internals.md`. Most used:
 - `scripts/build.py`, `scripts/transform.py`, `scripts/metrics/`, `scripts/gen_*.py`
 - `scripts/sync_to_d1.py`, `scripts/d1_client.py`, `d1_schema.sql`
-- `functions/api/{search,feed,health,search-venues,venue-tips,custom-list}.js` (Pages Functions)
-- `scripts/telegram_on_this_day.py`, `scripts/telegram_checkin_echo.py`
+- `functions/api/{search,feed,health,search-venues,venue-tips,custom-list,hit,visits}.js` (Pages Functions;
+  `hit`/`visits` = the private visit counter, `visits` is STATS_KEY-gated)
+- `scripts/telegram_on_this_day.py`, `scripts/telegram_checkin_echo.py`, `scripts/visits_report.py` (weekly, private chat)
+- Newer pages: `gen_venue_page.py` (venue.html#id, 256 FNV shards), `gen_compare.py`, `gen_life.py`,
+  `gen_culture.py` + `culture_sources.py` (IMDb/Vivino exports + Last.fm raw layer), `gen_visits.py`
 - `scripts/build_backfill.py`, `scripts/refresh_backfill_venue.py`
 - `scripts/check_city_count.py`, `scripts/check_city_config.py`, `scripts/validate_html.py`
-- Tests: `tests/` — pytest suite (523 tests: 479 offline, 22 live API contract, 22 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
+- Tests: `tests/` — pytest suite (524 tests: 480 offline, 22 live API contract, 22 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
 - Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 85 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
   NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in `fetch_*` — drift from a newer local `requests`, not a code change.
@@ -130,6 +133,10 @@ Full map: `ops/internals.md`. Most used:
   `metrics.collect_companions`; bump the feed `_v=` tag when the tuple shape changes.
 - **Seven workflows push the data repo**; every commit step uses the BUG-014 bounded
   rebase-and-retry loop, no repo-wide `concurrency` group. → `ops/internals.md`
+- **Last.fm raw layer is the truth** (`lastfm/scrobbles_<YYYY>.tsv`): repeats kept, every run
+  replaces the last 14 days (late offline scrobbles), the year state is rebuilt from it. → `ops/pipelines.md`
+- **Cloudflare via the MCP plugin is read-only** (OAuth "Read only"); every call still asks first.
+  Never write to Cloudflare without explicit confirmation; writes stay in CI with its own tokens.
 
 ## Known Gotchas
 
