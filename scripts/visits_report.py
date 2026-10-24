@@ -24,8 +24,10 @@ import argparse
 import html
 import logging
 import os
+import re
 import sys
 import time
+from pathlib import Path
 
 import requests
 
@@ -111,6 +113,14 @@ def _fit(text: str, limit: int = 3900) -> str:
     return text[:text.rfind("\n", 0, limit)] + "\n…"
 
 
+def visits_ddl(schema_path: Path = Path(__file__).with_name("d1_schema.sql")) -> list[str]:
+    """The `visits` statements of d1_schema.sql, split the way apply_schema() splits."""
+    sql = "\n".join(ln for ln in schema_path.read_text(encoding="utf-8").splitlines()
+                    if not ln.strip().startswith("--"))
+    return [st.strip() for st in sql.split(";")
+            if st.strip() and re.search(r"\b(TABLE|ON)\s+(IF NOT EXISTS\s+)?visits\b", st)]
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--dry-run", action="store_true", help="print the report, send and delete nothing")
@@ -119,6 +129,11 @@ def main(argv: list[str] | None = None) -> int:
     d1.configure(os.environ.get("CF_D1_TOKEN", ""))
     now = int(time.time())
     try:
+        # The table is normally created by update-dashboard's --schema-only, but
+        # that step only runs on a deploy, and a deploy only follows new data —
+        # so the first report could meet a database without it ("no such table").
+        for stmt in visits_ddl():
+            d1.query(stmt)
         if not args.dry_run:
             d1.query("DELETE FROM visits WHERE ts < ?", [now - RETENTION_DAYS * 86400])
         text = render(collect(now))

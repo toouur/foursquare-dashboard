@@ -96,3 +96,18 @@ def test_pages_functions_parse(tmp_path):
         mjs.write_text(js.read_text(encoding="utf-8"), encoding="utf-8")
         proc = subprocess.run([node, "--check", str(mjs)], capture_output=True, timeout=30)
         assert proc.returncode == 0, f"{js.name}: {proc.stderr.decode(errors='replace')}"
+
+
+def test_report_creates_the_visits_table_itself():
+    ddl = vr.visits_ddl()
+    assert len(ddl) == 2
+    assert ddl[0].startswith("CREATE TABLE IF NOT EXISTS visits") and "ip" in ddl[0]
+    assert ddl[1] == "CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts)"
+
+
+def test_main_runs_the_ddl_before_reading(monkeypatch, capsys):
+    calls = []
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: calls.append(sql) or [])
+    assert vr.main(["--dry-run"]) == 0
+    assert calls[0].startswith("CREATE TABLE IF NOT EXISTS visits")
+    assert "No visits recorded this week." in capsys.readouterr().out
