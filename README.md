@@ -49,7 +49,7 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 **Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed/health APIs), D1 (SQLite + FTS5 at the edge), R2 (photo storage), Workers (check-in poller)
 **Front-end (CDN):** Leaflet (maps, CARTO basemaps with an API key), Chart.js, Twemoji · installable PWA (service worker + web manifest)
 **CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, a daily route-geometry warm and a daily enrichment re-scan, plus ~20 on-demand maintenance workflows
-**Quality:** ruff + mypy + a 494-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
+**Quality:** ruff + mypy + a 500-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
 
 ## Table of contents
 
@@ -212,7 +212,7 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
 │       ├── custom-list.js       # /api/custom-list — custom curated lists
 │       └── health.js            # /api/health — D1 + data-freshness health check (200/503)
-├── tests/                    # 494-test pytest suite (see "Tests" section below)
+├── tests/                    # 500-test pytest suite (see "Tests" section below)
 │   ├── conftest.py           # Markers (live/e2e) + shared make_row() factory
 │   ├── test_*.py             # Offline unit (259) / live API contract (22) / E2E + a11y (22)
 │   └── load/search.js        # k6 load-test script for /api/search
@@ -436,12 +436,12 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **494-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **500-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 450 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 456 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
 | Browser E2E smoke + accessibility | `live` + `e2e` | 22 | internet + Playwright chromium |
 

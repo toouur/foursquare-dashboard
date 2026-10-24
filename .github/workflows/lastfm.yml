@@ -8,6 +8,14 @@
 # state cache lastfm_state.json (a few hundred KB) that lets each run fetch only
 # NEW scrobbles since its last_ts watermark.
 #
+# It also keeps the RAW layer lastfm/scrobbles_<YYYY>.tsv — every scrobble as
+# `ts artist track album` — for the cultural chronicle. The first run without
+# that directory walks the whole history once (~1400 pages for ~280k scrobbles,
+# 15-25 min; hence the 90-minute timeout); later runs fetch only the new week
+# and rewrite only the current year's file. The log reports RAW_YEAR_DIFF (raw
+# per-year counts vs the year state) and FETCH_TOTAL_MISMATCH (rows vs the total
+# Last.fm reported), so a lossy walk is visible in the run summary.
+#
 # This job calls user.getRecentTracks with LASTFM_API_KEY, folds the new plays
 # into the state, rewrites both files, and commits them to the private data repo
 # (toouur/foursquare-data) when they changed — build.py auto-discovers
@@ -35,6 +43,7 @@ jobs:
     # Honor the same global pause switch as the hourly update job.
     if: vars.UPDATES_PAUSED != 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +74,8 @@ jobs:
           python scripts/fetch_lastfm.py \
             --user TOOUUR \
             --out   private-data/lastfm_years.json \
-            --state private-data/lastfm_state.json | tee out.txt
+            --state private-data/lastfm_state.json \
+            --scrobbles-dir private-data/lastfm 2>&1 | tee out.txt
           CODE=${PIPESTATUS[0]}
           set -e
           VALID=$(grep -m1 '^KEY_VALID=' out.txt | cut -d= -f2)
@@ -79,6 +89,8 @@ jobs:
             echo "- **key valid**: \`${VALID:-unknown}\`"
             echo "- **exit code**: \`${CODE}\` (0 ok · 1 transient · 2 bad key)"
             echo "- **aggregate changed**: \`${CHANGED:-false}\`"
+            echo "- **raw years disagreeing with the year state**: \`$(grep -m1 '^RAW_YEAR_DIFF=' out.txt | cut -d= -f2)\`"
+            grep -E 'RAW_YEAR_DIFF |FETCH_TOTAL_MISMATCH' out.txt | sed 's/^/    /' || true
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit updated Last.fm data
@@ -87,7 +99,7 @@ jobs:
           cd private-data
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add lastfm_years.json lastfm_state.json
+          git add lastfm_years.json lastfm_state.json lastfm/
           if git diff --cached --quiet; then
             echo "Nothing to commit."
           else

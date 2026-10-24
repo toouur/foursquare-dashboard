@@ -26,6 +26,19 @@ fetches only scrobbles after `last_ts` and folds them in. Exit 0 ok / 2 key-inva
 06:00 UTC, honors `UPDATES_PAUSED`, 5th data-repo writer with the BUG-014 rebase loop)
 and commits both files to the data repo. `build.py` auto-discovers `lastfm_years.json`
 next to `checkins.csv` and threads it to `gen_year_pages.build_page(music_by_year=...)`.
+
+**Raw layer** (`--scrobbles-dir lastfm/`, for the cultural chronicle): every scrobble as
+a TSV line `ts artist track album` (UTC seconds) in `lastfm/scrobbles_<YYYY>.tsv`, sorted,
+de-duplicated on `(ts, artist, track)`; only `\t \r \n` inside a field become spaces —
+names are otherwise byte-exact, files are written with `\n` even on Windows. Own
+watermark (newest ts on disk): an empty dir means a one-off full-history walk
+(~1400 pages, 15-25 min; the workflow has `timeout-minutes: 90`), and each layer folds
+only scrobbles past its own watermark, so the year state is never double-counted.
+`to` is pinned at walk start — without it a scrobble arriving mid-walk shifts every
+later page by a row. Integrity signals: `FETCH_TOTAL_MISMATCH` (rows vs the API's
+`total`) and `RAW_YEAR_DIFF` (raw per-year count vs the year state), both in the run
+summary. The year state predates the raw layer and may itself be off (it was seeded
+from an export), so a diff is a prompt to look, not proof the raw layer is wrong.
 ```bash
 export LASTFM_API_KEY=...
 # One-off bootstrap from a full local export (no key needed):

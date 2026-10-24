@@ -18,6 +18,17 @@ WHY TWO FILES
       * ``lastfm_years.json`` — the tiny derived aggregate the build reads: per year
         ``{scrobbles, top_artist:{name,plays}, months:[12]}``. ~19 years, a few KB.
 
+    plus, with ``--scrobbles-dir``, the RAW layer the cultural chronicle reads:
+    every scrobble as one TSV line ``ts  artist  track  album`` (UTC unix seconds,
+    sorted, de-duplicated on (ts, artist, track)) in ``scrobbles_<YYYY>.tsv`` per
+    UTC year — ~20 MB for ~280k scrobbles, and a weekly run rewrites only the
+    current year's file. It keeps its own watermark (the newest ts on disk); when
+    the directory is empty the run walks the WHOLE history once to seed it
+    (~1400 API pages, 15-25 min). The year state is never double-counted: each
+    layer folds only scrobbles past its own watermark. After writing, per-year
+    counts of the raw layer are compared with the year state and any gap is
+    logged (``RAW_YEAR_DIFF``), so a lossy walk cannot pass silently.
+
 MODES
   1. BOOTSTRAP (one-off seed) — ``--bootstrap path/to/all_scrobbles_api.json``.
      Reads an existing full export ({username, scrobbles:[{track,artist,album,
@@ -122,9 +133,81 @@ def new_state(user: str) -> dict:
     return {"user": user, "last_ts": 0, "total": 0, "years": {}}
 
 
+# ── Raw scrobble layer (scrobbles_<YYYY>.tsv) ─────────────────────────────────
+
+RAW_FIELDS = ("ts", "artist", "track", "album")
+
+
+def _clean(v) -> str:
+    """One TSV cell. Only the three characters that would break the line format
+    are replaced; everything else (double spaces, edge spaces) stays as scrobbled."""
+    return str(v or "").replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
+
+def load_raw(dir_: Path) -> dict[str, dict[tuple, dict]]:
+    """year → {(ts, artist, track): row} for every scrobbles_<YYYY>.tsv in dir_."""
+    out: dict[str, dict[tuple, dict]] = {}
+    for f in sorted(dir_.glob("scrobbles_*.tsv")):
+        yr = f.stem.split("_", 1)[1]
+        rows = out.setdefault(yr, {})
+        # split on "\n" only: splitlines() would also break on \x85 /   inside a tag
+        for i, line in enumerate(f.read_text(encoding="utf-8").split("\n")):
+            if i == 0 or not line:
+                continue                                   # header
+            parts = (line.split("\t") + [""] * 4)[:4]
+            try:
+                ts = int(parts[0])
+            except ValueError:
+                log.warning("%s:%d unreadable ts %r — line skipped", f.name, i + 1, parts[0])
+                continue
+            row = {"ts": ts, "artist": parts[1], "track": parts[2], "album": parts[3]}
+            rows[(ts, row["artist"], row["track"])] = row
+    return out
+
+
+def raw_last_ts(raw: dict[str, dict[tuple, dict]]) -> int:
+    return max((k[0] for rows in raw.values() for k in rows), default=0)
+
+
+def add_raw(raw: dict[str, dict[tuple, dict]], sc: dict) -> bool:
+    """Fold one scrobble dict into the raw layer; False when it was already there."""
+    row = {k: _clean(sc.get(k)) for k in ("artist", "track", "album")}
+    if not row["artist"]:
+        return False
+    ts = int(sc["ts"])
+    rows = raw.setdefault(str(datetime.fromtimestamp(ts, tz=timezone.utc).year), {})
+    key = (ts, row["artist"], row["track"])
+    if key in rows:
+        return False
+    rows[key] = {"ts": ts, **row}
+    return True
+
+
+def write_raw(dir_: Path, raw: dict[str, dict[tuple, dict]], years: set[str] | None = None) -> None:
+    """Rewrite scrobbles_<YYYY>.tsv for `years` (all when None), sorted by ts."""
+    dir_.mkdir(parents=True, exist_ok=True)
+    for yr in sorted(years if years is not None else raw):
+        rows = sorted(raw.get(yr, {}).values(), key=lambda r: (r["ts"], r["artist"], r["track"]))
+        lines = ["\t".join(RAW_FIELDS)] + [
+            f"{r['ts']}\t{r['artist']}\t{r['track']}\t{r['album']}" for r in rows]
+        # newline="\n": the same bytes whether written in CI or by a local bootstrap on Windows
+        (dir_ / f"scrobbles_{yr}.tsv").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+
+
+def raw_year_diff(raw: dict[str, dict[tuple, dict]], state: dict) -> dict[str, tuple[int, int]]:
+    """Years where the raw layer and the year state disagree: year → (raw, state)."""
+    out = {}
+    for yr in sorted(set(raw) | set(state.get("years", {}))):
+        a = len(raw.get(yr, {}))
+        b = int(state.get("years", {}).get(yr, {}).get("scrobbles", 0))
+        if a != b:
+            out[yr] = (a, b)
+    return out
+
+
 # ── Bootstrap from a full local export ─────────────────────────────────────────
 
-def bootstrap_from_export(path: Path, user: str) -> dict:
+def bootstrap_from_export(path: Path, user: str, raw_layer: dict | None = None) -> dict:
     raw = json.loads(path.read_text(encoding="utf-8"))
     scrobbles = raw.get("scrobbles", [])
     st = new_state(raw.get("username") or user)
@@ -133,6 +216,9 @@ def bootstrap_from_export(path: Path, user: str) -> dict:
         if not ms:
             continue
         add_scrobble(st, s.get("artist", ""), int(ms) // 1000)
+        if raw_layer is not None:
+            add_raw(raw_layer, {"ts": int(ms) // 1000, "artist": s.get("artist"),
+                                "track": s.get("track"), "album": s.get("album")})
     log.info("Bootstrapped %d scrobbles across %d years (through ts %d)",
              st["total"], len(st["years"]), st["last_ts"])
     return st
@@ -140,12 +226,28 @@ def bootstrap_from_export(path: Path, user: str) -> dict:
 
 # ── Last.fm API (incremental) ──────────────────────────────────────────────────
 
-def _api_get(params: dict) -> dict:
+def _api_get(params: dict, retries: int = 4) -> dict:
     """One GET against the Last.fm 2.0 API returning parsed JSON. Requires
-    `requests`; imported lazily so bootstrap/derive work without the dep."""
+    `requests`; imported lazily so bootstrap/derive work without the dep.
+
+    Network errors and 429/5xx are retried with backoff: the one-off raw-layer
+    seed walks ~1400 pages, and one hiccup must not throw the whole walk away."""
+    import time  # noqa: PLC0415
+
     import requests  # noqa: PLC0415
     params = {**params, "format": "json"}
-    r = requests.get(API_ROOT, params=params, timeout=30)
+    for attempt in range(retries + 1):
+        try:
+            r = requests.get(API_ROOT, params=params, timeout=30)
+            if r.status_code in (429, 500, 502, 503, 504) and attempt < retries:
+                raise requests.ConnectionError(f"HTTP {r.status_code}")
+            break
+        except (requests.ConnectionError, requests.Timeout) as e:
+            if attempt >= retries:
+                raise
+            wait = 2 ** attempt
+            log.warning("  Last.fm request failed (%s) — retry in %ds", e, wait)
+            time.sleep(wait)
     # Last.fm returns HTTP 200 with an {error, message} body for auth/logic errors.
     try:
         body = r.json()
@@ -172,20 +274,34 @@ def check_auth(api_key: str, user: str) -> bool:
     return True
 
 
-def fetch_since(api_key: str, user: str, from_ts: int) -> list[tuple[str, int]]:
-    """Return [(artist, unix_ts)] for scrobbles strictly after `from_ts`.
+def _text(v) -> str:
+    """getRecentTracks gives artist/album as {'#text': …} (or {'name': …} when
+    extended); tolerate a bare string too."""
+    if isinstance(v, dict):
+        return v.get("#text") or v.get("name") or ""
+    return v if isinstance(v, str) else ""
 
-    Uses user.getRecentTracks with `from` (inclusive) and paginates. Skips the
-    now-playing row (no date). Ordered newest-first by the API; we don't rely on
-    order — the caller folds each into the state idempotently by ts filter."""
-    out: list[tuple[str, int]] = []
+
+def fetch_since(api_key: str, user: str, from_ts: int, to_ts: int | None = None) -> list[dict]:
+    """Return [{ts, artist, track, album}] for scrobbles strictly after `from_ts`.
+
+    Uses user.getRecentTracks with `from` (inclusive) and paginates newest-first.
+    `to` is pinned to the moment the walk starts: without it a scrobble landing
+    mid-walk pushes every later page down by one row, and a long walk (the
+    raw-layer seed) would repeat rows at page edges and lose others. Skips the
+    now-playing row (no date). After the walk the row count is compared with the
+    total the API reported on page 1 (`FETCH_TOTAL_MISMATCH` warning)."""
+    import time  # noqa: PLC0415
+    to_ts = int(time.time()) if to_ts is None else to_ts
+    out: list[dict] = []
     page = 1
     total_pages = 1
     seen = 0
+    reported: int | None = None
     while page <= total_pages:
         body = _api_get({
             "method": "user.getRecentTracks", "user": user, "api_key": api_key,
-            "limit": 200, "page": page, "from": from_ts + 1,
+            "limit": 200, "page": page, "from": from_ts + 1, "to": to_ts,
         })
         rt = body.get("recenttracks", {})
         attr = rt.get("@attr", {})
@@ -193,6 +309,11 @@ def fetch_since(api_key: str, user: str, from_ts: int) -> list[tuple[str, int]]:
             total_pages = int(attr.get("totalPages", 1)) or 1
         except (TypeError, ValueError):
             total_pages = 1
+        if reported is None:
+            try:
+                reported = int(attr.get("total", 0))
+            except (TypeError, ValueError):
+                reported = 0
         tracks = rt.get("track", [])
         if isinstance(tracks, dict):        # single-track responses aren't a list
             tracks = [tracks]
@@ -204,18 +325,17 @@ def fetch_since(api_key: str, user: str, from_ts: int) -> list[tuple[str, int]]:
             if not uts:
                 continue
             ts = int(uts)
-            if ts <= from_ts:
+            if ts <= from_ts or ts > to_ts:
                 continue
-            artist = ""
-            a = t.get("artist", {})
-            if isinstance(a, dict):
-                artist = a.get("#text") or a.get("name") or ""
-            elif isinstance(a, str):
-                artist = a
-            out.append((artist, ts))
+            out.append({"ts": ts, "artist": _text(t.get("artist")),
+                        "track": t.get("name") or "", "album": _text(t.get("album"))})
             seen += 1
-        log.info("  page %d/%d — %d new so far", page, total_pages, seen)
+        if page == 1 or page % 50 == 0 or page == total_pages:
+            log.info("  page %d/%d — %d new so far", page, total_pages, seen)
         page += 1
+    if reported and reported != len(out):
+        log.warning("FETCH_TOTAL_MISMATCH: API reported %d scrobbles in the window, got %d",
+                    reported, len(out))
     return out
 
 
@@ -246,6 +366,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--user", default=DEFAULT_USER)
     ap.add_argument("--out", required=False, help="lastfm_years.json (build input)")
     ap.add_argument("--state", required=False, help="lastfm_state.json (cache)")
+    ap.add_argument("--scrobbles-dir", required=False,
+                    help="raw layer: scrobbles_<YYYY>.tsv per year (seeded from the full history when empty)")
     ap.add_argument("--bootstrap", help="Seed from a full all_scrobbles_api.json export")
     ap.add_argument("--api-key", default=os.environ.get("LASTFM_API_KEY", ""))
     ap.add_argument("--check", action="store_true", help="Probe auth only; write nothing")
@@ -275,7 +397,12 @@ def main(argv: list[str] | None = None) -> int:
 
     # ── BOOTSTRAP ──────────────────────────────────────────────────────────────
     if args.bootstrap:
-        st = bootstrap_from_export(Path(args.bootstrap), args.user)
+        raw_seed: dict | None = {} if args.scrobbles_dir else None
+        st = bootstrap_from_export(Path(args.bootstrap), args.user, raw_seed)
+        if args.scrobbles_dir and raw_seed is not None:
+            write_raw(Path(args.scrobbles_dir), raw_seed)
+            log.info("Wrote raw layer → %s (%d scrobbles)", args.scrobbles_dir,
+                     sum(len(v) for v in raw_seed.values()))
         if state_path:
             _write_json(state_path, st)
             log.info("Wrote state → %s", state_path)
@@ -295,7 +422,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     st = _load_state(state_path, args.user)
-    from_ts = int(st.get("last_ts", 0))
+    state_ts = int(st.get("last_ts", 0))
+    raw_dir = Path(args.scrobbles_dir) if args.scrobbles_dir else None
+    raw = load_raw(raw_dir) if raw_dir else None
+    raw_ts = raw_last_ts(raw) if raw is not None else state_ts
+    if raw is not None and raw_ts == 0:
+        log.info("No raw layer yet — walking the whole history once to seed %s", raw_dir)
+    from_ts = min(state_ts, raw_ts)
     try:
         new = fetch_since(args.api_key, args.user, from_ts)
     except LastfmError as e:
@@ -308,16 +441,33 @@ def main(argv: list[str] | None = None) -> int:
         log.error("fetch failed: %s", e)
         return 1
 
-    for artist, ts in new:
-        add_scrobble(st, artist, ts)
+    # Each layer folds only what is past its OWN watermark: the seed walk
+    # re-reads history the year state already holds.
+    new_state_n = new_raw_n = 0
+    touched: set[str] = set()
+    for sc in new:
+        if sc["ts"] > state_ts:
+            add_scrobble(st, sc["artist"], sc["ts"])
+            new_state_n += 1
+        if raw is not None and sc["ts"] > raw_ts and add_raw(raw, sc):
+            new_raw_n += 1
+            touched.add(str(datetime.fromtimestamp(sc["ts"], tz=timezone.utc).year))
 
-    changed = bool(new)
-    if changed:
+    changed = bool(new_state_n or new_raw_n)
+    if new_state_n:
         _write_json(state_path, st)
         if out_path:
             _write_json(out_path, derive_aggregate(st))
-        log.info("Added %d scrobbles — total %d, last_ts %d", len(new), st["total"], st["last_ts"])
-    else:
+        log.info("Added %d scrobbles — total %d, last_ts %d", new_state_n, st["total"], st["last_ts"])
+    if raw is not None and raw_dir and new_raw_n:
+        write_raw(raw_dir, raw, touched)
+        log.info("Raw layer: +%d scrobbles in %s", new_raw_n, ", ".join(sorted(touched)))
+    if raw is not None:
+        diff = raw_year_diff(raw, st)
+        for yr, (a, b) in diff.items():
+            log.warning("RAW_YEAR_DIFF %s: raw %d vs year state %d", yr, a, b)
+        print(f"RAW_YEAR_DIFF={len(diff)}")
+    if not changed:
         log.info("No new scrobbles since ts %d — nothing written", from_ts)
 
     print("KEY_VALID=true")
