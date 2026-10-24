@@ -1,0 +1,83 @@
+# .github/workflows/imdb.yml
+#
+# New IMDb ratings (weekly) via the logged-in ratings page — scripts/fetch_imdb.py.
+# IMDb has no public API and sits behind AWS WAF, so the request carries the
+# browser session cookie (secret IMDB_COOKIE = the whole Cookie header of a
+# logged-in imdb.com request). The list is newest-first, so the first page
+# catches what is new; imdb_ratings.json is merged over imdb_export.csv at build.
+#
+# Manual dispatch defaults to `probe`: it only reports the page shape (key paths,
+# counts — no titles or ratings) as annotations, readable without the run logs.
+# Exit 2 = cookie refused / WAF challenge → the job fails so the owner refreshes
+# the secret. 9th data-repo writer: commits only imdb_ratings.json (BUG-014 loop).
+
+name: IMDb ratings (weekly)
+
+on:
+  schedule:
+    - cron: '30 7 * * 0'   # Sunday 07:30 UTC
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: 'Report the page shape only (no write)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  imdb:
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout private data repo
+        uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install requests
+
+      - name: Read IMDb ratings page
+        id: fetch
+        env:
+          IMDB_COOKIE: ${{ secrets.IMDB_COOKIE }}
+        run: |
+          set +e
+          python scripts/fetch_imdb.py --out private-data/imdb_ratings.json \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.probe) && '--probe' || '' }} 2>&1 | tee out.txt
+          CODE=${PIPESTATUS[0]}
+          set -e
+          echo "changed=$(grep -m1 '^CHANGED=' out.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+          exit $CODE
+
+      - name: Commit new IMDb ratings
+        if: steps.fetch.outputs.changed == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add imdb_ratings.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore: update IMDb ratings [$(date -u +'%Y-%m-%d %H:%M UTC')]"
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:main && break
+              [ "$i" = 5 ] && { echo "push failed after 5 attempts"; exit 1; }
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+            done
+          fi

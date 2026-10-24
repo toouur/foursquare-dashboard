@@ -8,6 +8,8 @@ culture_sources.py — read the cultural exports that sit next to checkins.csv.
                            date is the RATING date, not the viewing date. A day
                            with ``BULK_DAY`` or more ratings is a catch-up session
                            (marking films seen long ago) and is flagged ``bulk``.
+* ``imdb_ratings.json``   new ratings read weekly from the logged-in ratings page
+                           by fetch_imdb.py; merged over ↑ (the page wins per title).
 * ``vivino_ratings.json`` written weekly by fetch_vivino.py from the public
                            profile API — preferred: it has the rating time next
                            to the scan time. Falls back to ↓ when absent.
@@ -73,6 +75,31 @@ def load_imdb(path: str | Path) -> list[dict]:
         f["bulk"] = per_day[f["date"]] >= BULK_DAY
     out.sort(key=lambda f: (f["date"], f["title"]))
     log.info("IMDb: %d rated titles (%d on catch-up days)", len(out), sum(f["bulk"] for f in out))
+    return out
+
+
+def load_imdb_any(data_dir: str | Path) -> list[dict]:
+    """imdb_export.csv merged with imdb_ratings.json (the weekly page read wins per
+    title: a changed rating or a new title); catch-up days are re-flagged after."""
+    d = Path(data_dir)
+    films = {f["id"]: f for f in load_imdb(d / "imdb_export.csv")}
+    p = d / "imdb_ratings.json"
+    if p.exists():
+        import json  # noqa: PLC0415
+        for r in json.loads(p.read_text(encoding="utf-8")).get("ratings", []):
+            if not r.get("id") or not r.get("rating"):
+                continue
+            base = films.get(r["id"], {})
+            merged = {**base, **{k: v for k, v in r.items() if v not in (None, "", [])}}
+            merged["date"] = (merged.get("date") or base.get("date") or "")[:10]
+            if len(merged["date"]) == 10:
+                films[r["id"]] = merged
+    out = list(films.values())
+    per_day = Counter(f["date"] for f in out)
+    for f in out:
+        f["bulk"] = per_day[f["date"]] >= BULK_DAY
+        f.setdefault("genres", []); f.setdefault("type", ""); f.setdefault("year", None)
+    out.sort(key=lambda f: (f["date"], f.get("title", "")))
     return out
 
 

@@ -79,7 +79,10 @@ async function load() {
   if (!key) { document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Enter the STATS_KEY set in Cloudflare Pages → Settings → Variables and secrets.</p>'; return; }
   out.innerHTML = '<p class="note">Loading…</p>';
   let r;
-  try { r = await fetch('/api/visits?days=' + days, { headers: { 'X-Stats-Key': key } }); } catch (e) { out.innerHTML = '<p class="note">Network error.</p>'; return; }
+  // URL-encoded: a header value may carry only ISO-8859-1, so a key with Cyrillic or an
+  // emoji made fetch() throw before anything was sent ("Network error")
+  try { r = await fetch('/api/visits?days=' + days, { headers: { 'X-Stats-Key': encodeURIComponent(key) } }); }
+  catch (e) { out.innerHTML = '<p class="note">Request failed: ' + esc(e.message || e) + '. A content blocker may be hiding /api/visits — allow 4sq.pages.dev in it.</p>'; return; }
   if (r.status === 401) { ls('fsq_stats_key', null); document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Wrong key.</p>'; return; }
   const D = await r.json().catch(() => ({ error: 'bad response' }));
   if (D.error) { out.innerHTML = '<p class="note">' + esc(D.error) + '</p>'; return; }

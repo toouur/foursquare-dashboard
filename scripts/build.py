@@ -1161,12 +1161,12 @@ if __name__ == "__main__":
     # culture.html and the trip modal read the same result later.
     _culture: dict = {}
     try:
-        from culture_sources import load_imdb, load_scrobbles, load_vivino_any
+        from culture_sources import load_imdb_any, load_scrobbles, load_vivino_any
         from metrics.culture import compute_culture
         _cdir = Path(args.input).resolve().parent
         _culture = compute_culture(
             rows, trips,
-            films=load_imdb(_cdir / "imdb_export.csv"),
+            films=load_imdb_any(_cdir),
             wines=load_vivino_any(_cdir),
             scrobbles=load_scrobbles(_cdir / "lastfm"),
         )

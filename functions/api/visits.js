@@ -26,7 +26,9 @@ function sameKey(a, b) {
 }
 
 export async function onRequestGet({ request, env }) {
-  if (!env.STATS_KEY || !sameKey(request.headers.get('X-Stats-Key') || '', env.STATS_KEY)) {
+  // visits.html sends the key URL-encoded (a raw non-Latin-1 key cannot be a header value)
+  const sent = request.headers.get('X-Stats-Key') || '';
+  if (!env.STATS_KEY || !(sameKey(sent, encodeURIComponent(env.STATS_KEY)) || sameKey(sent, env.STATS_KEY))) {
     return json({ error: 'unauthorized' }, 401);
   }
   if (!env.DB) return json({ error: 'D1 unavailable' }, 503);

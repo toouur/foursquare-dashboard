@@ -25,8 +25,23 @@ export has the scan date only, and none for 62 wines). The same wine rated on se
 several ratings — what looked like duplicates in the CSV. The whole feed is re-walked weekly
 (`vivino.yml`, Sun 07:15 UTC, 8th data-repo writer); a walk >10 % smaller than the file is an
 API failure (exit 1, nothing written). `culture_sources.load_vivino_any` prefers the JSON over
-`full_wine_list.csv`. IMDb has no such public API: its pages sit behind AWS WAF and login is
-Amazon (CAPTCHA/OTP), so it stays a manual `imdb_export.csv` drop.
+`full_wine_list.csv`.
+
+## Fetch IMDb ratings (session cookie)
+IMDb has no public API, its pages sit behind AWS WAF and login is Amazon (CAPTCHA/OTP), so a
+password login from CI is not attempted. `fetch_imdb.py` reads the user's own ratings list
+(`/user/p.yx6kaorazm2bqhp4nwbhqrqsni/ratings/?sort=date_added,desc`) with the browser session
+cookie — secret `IMDB_COOKIE`, the whole `Cookie:` header of a logged-in imdb.com request. The
+page is Next.js; items are found inside `__NEXT_DATA__` by content (a `tt…` id + a 1..10 user
+rating), since the shape is undocumented. Newest first, so the first page catches what is new;
+`imdb_ratings.json` (one rating per line) is merged over the one-off `imdb_export.csv` by
+`culture_sources.load_imdb_any` (the page wins per title). `imdb.yml`: weekly Sun 07:30 UTC, 9th
+data-repo writer; a manual dispatch defaults to `probe` — page SHAPE only (key paths, counts, no
+titles) as `::notice` annotations, readable without run logs. Exit 2 = cookie refused / WAF
+challenge → the job fails so the secret gets refreshed.
+```bash
+IMDB_COOKIE='…' python scripts/fetch_imdb.py --out $DATA/imdb_ratings.json --probe
+```
 ```bash
 python scripts/fetch_vivino.py --out $DATA/vivino_ratings.json
 ```
