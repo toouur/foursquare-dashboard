@@ -517,7 +517,7 @@ function _renderTrip(t){
     `<div class="tl-day">
       <div class="tl-day-header">${day} &nbsp;·&nbsp; ${byDay[day].length} check-ins</div>
       ${byDay[day].map(c=>{
-        const fsUrl = c.venue_id ? `https://app.foursquare.com/v/${encodeURIComponent(c.venue.toLowerCase().replace(/\s+/g,'-'))}/${c.venue_id}` : null;
+        const fsUrl = c.venue_id ? `/venue.html#${c.venue_id}` : null;
         const cPhotos = (PIX_DIR && c.photos) ? c.photos : [];
         const galStart = cidGalStart[c.checkin_id||''] || 0;
         const photosHtml = cPhotos.length
@@ -526,7 +526,7 @@ function _renderTrip(t){
         return `<div class="tl-checkin" data-ts="${c.ts}">
           <div class="tl-checkin-time">${c.time}</div>
           <div class="tl-checkin-info">
-            <div class="tl-checkin-venue"><span class="tl-venue-name">${fsUrl?`<a href="${fsUrl}" target="_blank" rel="noopener">${c.venue}</a>`:c.venue}</span>${c.refurbished?`<span class="tl-refurb-stack"><span class="tl-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</span>${!c.venue_id?`<span class="tl-no-fsq" title="No Foursquare venue data — location from diary only">✕ no fsq data</span>`:''}</span>`:''}</div>
+            <div class="tl-checkin-venue"><span class="tl-venue-name">${fsUrl?`<a href="${fsUrl}">${c.venue}</a>`:c.venue}</span>${c.refurbished?`<span class="tl-refurb-stack"><span class="tl-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</span>${!c.venue_id?`<span class="tl-no-fsq" title="No Foursquare venue data — location from diary only">✕ no fsq data</span>`:''}</span>`:''}</div>
             <div class="tl-checkin-sub">${[c.category,c.city,c.country].filter(Boolean).join(' · ')}</div>
             ${photosHtml}
           </div>

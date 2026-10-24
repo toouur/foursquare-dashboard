@@ -219,6 +219,8 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
 /* ── TRIPS LINK ── */
 .trips-link-card{display:flex;align-items:center;justify-content:space-between;padding:20px 26px;background:linear-gradient(135deg,#12151f 0%,#1a1f30 100%);border:1px solid var(--border);border-radius:14px;cursor:pointer;text-decoration:none;transition:border-color 0.2s;}
 .trips-link-card:hover{border-color:var(--gold);}
+.tlc-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-self:start;}
+@media(max-width:700px){.tlc-pair{grid-template-columns:1fr;gap:14px;}}
 .tlc-left{display:flex;flex-direction:column;gap:4px;}
 .tlc-num{font-family:'Playfair Display',serif;font-size:2.4rem;font-weight:700;color:var(--gold);line-height:1;}
 .tlc-label{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.18em;color:var(--muted);}
@@ -734,6 +736,16 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
     </div>
     <div class="tlc-arrow">📊</div>
   </a>
+  <div class="tlc-pair">
+    <a class="trips-link-card" href="compare.html">
+      <div class="tlc-left"><div class="tlc-label">Compare &nbsp;&middot;&nbsp; years &amp; eras →</div></div>
+      <div class="tlc-arrow">⚖️</div>
+    </a>
+    <a class="trips-link-card" href="life.html">
+      <div class="tlc-left"><div class="tlc-label">Life in Stripes &nbsp;&middot;&nbsp; timeline →</div></div>
+      <div class="tlc-arrow">🧬</div>
+    </a>
+  </div>
 
   <div class="card full" id="s-map">
     <div class="card-title">Map <em>&middot;</em>
@@ -998,7 +1010,7 @@ function renderExplorer(cat){
   const data=explorerData[cat]||[];
   const max=data.length?data[0][2]:1;
   document.getElementById('explorerList').innerHTML=data.map(([name,city,count,vid],i)=>{
-    const vname=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(name)}</a>`:esc(name);
+    const vname=vid?`<a href="/venue.html#${vid}" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(name)}</a>`:esc(name);
     return `<div class="bar-row">
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(name)} · ${esc(city)}">${vname}<span class="city-tag">${esc(city||'')} </span></span>
@@ -1079,7 +1091,7 @@ document.getElementById('paneCityCheckins').addEventListener('click',function(e)
 (function(){
   const data=S.venues, max=data[0][1];
   document.getElementById('venuesList').innerHTML=data.map(([n,c,city,vid],i)=>{
-    const vname=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(n)}</a>`:esc(n);
+    const vname=vid?`<a href="/venue.html#${vid}" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(n)}</a>`:esc(n);
     return `<div class="bar-row" data-name="${n.toLowerCase().replace(/"/g,'')}${city?' '+city.toLowerCase():''}">
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(n)}${city?' · '+esc(city):''}">  ${vname}<span class="city-tag">${esc(city||'')} </span></span>
@@ -1144,7 +1156,7 @@ function filterList(id,q){
   // ── Foursquare app URL ──
   function fsUrl(r){
     if(!r.venue_id) return null;
-    return `https://app.foursquare.com/v/${encodeURIComponent(r.venue.toLowerCase().replace(/\s+/g,'-'))}/${r.venue_id}`;
+    return `/venue.html#${r.venue_id}`;
   }
 
   // ── Category icons: emoji + vivid colour, 100% self-contained, no CDN ──
@@ -1163,7 +1175,7 @@ function filterList(id,q){
     const vUrl=fsUrl(r);
     // Use div+onclick to avoid nested <a> (card link + venue link both being <a>)
     const cardClick=swarmUrl?` onclick="window.open('${swarmUrl}','_blank')"`:' onclick=""';
-    const venueLink=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(r.venue)||'Unknown venue'}</a>`:esc(r.venue)||'Unknown venue';
+    const venueLink=vUrl?`<a href="${vUrl}" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(r.venue)||'Unknown venue'}</a>`:esc(r.venue)||'Unknown venue';
     const streak=r.venue_id&&venueCounts[r.venue_id]>1
       ? `<div class="rc-streak">🔁 ${venueCounts[r.venue_id]}×</div>` : '';
     const f=r.country?flagHtml(r.country,'1em'):'';
@@ -1229,9 +1241,9 @@ function filterList(id,q){
     years.length+(years.length===1?' year · ':' years · ')+(minY===maxY?maxY:minY+'–'+maxY);
   const card=(r,i)=>{
     const swarmUrl=r.checkin_id?`https://www.swarmapp.com/user/{{SWARM_USER_ID}}/checkin/${r.checkin_id}`:null;
-    const vUrl=r.venue_id?`https://foursquare.com/v/${r.venue_id}`:'';
+    const vUrl=r.venue_id?`/venue.html#${r.venue_id}`:'';
     const cardClick=swarmUrl?` onclick="window.open('${swarmUrl}','_blank')"`:'';
-    const venueLink=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(r.venue)||'Unknown venue'}</a>`:esc(r.venue)||'Unknown venue';
+    const venueLink=vUrl?`<a href="${vUrl}" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(r.venue)||'Unknown venue'}</a>`:esc(r.venue)||'Unknown venue';
     const f=r.country?flagHtml(r.country,'1em'):'';
     const locStr=[r.city,r.country].filter(Boolean).join(', ');
     const ago=r.origin?'✨ first ever':(r.years_ago===1?'1 year ago':r.years_ago+' years ago');
@@ -1339,11 +1351,11 @@ function filterList(id,q){
   })();
   const scroll=document.getElementById('shoutsScroll');
   scroll.innerHTML=sh.items.map(s=>{
-    const vUrl=s.venue_id?`https://foursquare.com/v/${s.venue_id}`:'';
+    const vUrl=s.venue_id?`/venue.html#${s.venue_id}`:'';
     const swarmUrl=s.checkin_id?`https://www.swarmapp.com/user/{{SWARM_USER_ID}}/checkin/${s.checkin_id}`:'';
     const cardClick=swarmUrl?` onclick="window.open('${swarmUrl}','_blank')"`:'';
     const venueLink=vUrl
-      ? `<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(s.venue||'Unknown venue')}</a>`
+      ? `<a href="${vUrl}" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(s.venue||'Unknown venue')}</a>`
       : esc(s.venue||'Unknown venue');
     const f=s.country?flagHtml(s.country):'';
     const loc=[s.city,s.country].filter(Boolean).join(', ');
@@ -1480,8 +1492,8 @@ window._setAirlineLogo = function(img, iata) {
   document.addEventListener('keydown',e=>{if(!document.getElementById('rcGallery').classList.contains('open'))return;if(e.key==='ArrowLeft')rcgPrev();else if(e.key==='ArrowRight')rcgNext();else if(e.key==='Escape')rcgClose();});
 
   document.getElementById('photosScroll').innerHTML=photos.map((p,i)=>{
-    const vUrl=p.venue_id?`https://foursquare.com/v/${p.venue_id}`:'';
-    const venueEl=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(p.venue)}</a>`:esc(p.venue);
+    const vUrl=p.venue_id?`/venue.html#${p.venue_id}`:'';
+    const venueEl=vUrl?`<a href="${vUrl}" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='inherit'">${esc(p.venue)}</a>`:esc(p.venue);
     const badge=p.srcs.length>1?`<div class="photo-card-badge">+${p.srcs.length-1}</div>`:'';
     return `<div class="photo-card" onclick="rcgOpen(${i})">
       <img src="${p.srcs[0]}" loading="lazy" alt="${esc(p.venue)}">

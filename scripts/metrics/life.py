@@ -1,7 +1,7 @@
 # Copyright 2026 Andrei Patsiomkin
 # SPDX-License-Identifier: Apache-2.0
 
-""""Жизнь в полосах" — the whole history as parallel stripes, for life.html (metrics package).
+""""Life in stripes" — the whole history as parallel stripes, for life.html (metrics package).
 
 One shared time axis (local calendar days, first check-in → last) and a few bands:
 

@@ -291,7 +291,7 @@ function render(){
   document.getElementById('feedScroll').innerHTML=idx.map(i=>{
     const t=ALL[i];
     const{em,bg}=catIcon(t.category||'');
-    const vUrl=t.venue_id?`https://foursquare.com/v/${t.venue_id}`:'';
+    const vUrl=t.venue_id?`/venue.html#${t.venue_id}`:'';
     const tUrl=t.id?`https://foursquare.com/item/${t.id}`:'';
     const f=t.nc?flagHtml(t.nc):'';
     const loc=[t.nci||t.city,t.nc||t.country].filter(Boolean).join(', ');
@@ -299,7 +299,7 @@ function render(){
     const views=t.view_count>0?`<span class="tc-views">👁 ${t.view_count}</span>`:'';
     const closedBadge=t.closed?'<span class="tc-closed">CLOSED</span>':'';
     const deletedBadge=t.deleted?'<span class="tc-deleted">DELETED</span>':'';
-    const venueLabel=vUrl?`<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(t.venue||'Unknown venue')}</a>`:esc(t.venue||'Unknown venue');
+    const venueLabel=vUrl?`<a href="${vUrl}" onclick="event.stopPropagation()">${esc(t.venue||'Unknown venue')}</a>`:esc(t.venue||'Unknown venue');
     const photoEl=t.photo_url?`<img class="tc-photo" src="${t.photo_url}" loading="lazy" alt="" onclick="event.stopPropagation();openTipPhoto('${t.photo_url}')">`:'';
     return `<div class="tcard" id="tc_${i}" onclick="selectTip(${i})">
       ${photoEl}

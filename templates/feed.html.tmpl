@@ -770,7 +770,7 @@ function mkCard(i){
 
   const [ts,date,time,venue,city,country,cat,vid,lat,lng,cid,companions,refurb]=ci;
 
-  const vn=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(venue||'—')}</a>`:esc(venue||'—');
+  const vn=vid?`<a href="/venue.html#${vid}" onclick="event.stopPropagation()">${esc(venue||'—')}</a>`:esc(venue||'—');
 
   const ico=catIcon(cat);
 

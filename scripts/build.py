@@ -1261,7 +1261,7 @@ if __name__ == "__main__":
         except Exception as _cmpe:
             log.warning("gen_compare failed: %s", _cmpe)
 
-    # ── Generate life.html + life_data.json ("Жизнь в полосах") ────────────────
+    # ── Generate life.html + life_data.json ("Life in stripes") ─────────────────
     _gen_life = _SCRIPT_DIR / "gen_life.py"
     if _gen_life.exists():
         try:

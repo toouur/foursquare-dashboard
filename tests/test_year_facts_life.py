@@ -100,3 +100,29 @@ def test_pages_render(tmp_path):
         assert "{{" not in html            # a nested @media legitimately ends in "}}"
         assert f"fetch('{blob}?v=" in html
         json.loads((tmp_path / blob).read_text(encoding="utf-8"))
+
+
+def test_inline_js_parses(tmp_path):
+    """A stray bracket in a str.format template breaks the whole page silently."""
+    import re
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    import gen_venue_page
+
+    node = shutil.which("node") or ("C:/Program Files/nodejs/node.exe" if Path("C:/Program Files/nodejs/node.exe").exists() else None)
+    if not node:
+        import pytest
+        pytest.skip("node not installed — cannot syntax-check the page scripts")
+    rows = _rows()
+    gen_compare.build_page(out_path=str(tmp_path), rows=rows, home_city="Minsk", home_history=ERAS)
+    gen_life.build_page(out_path=str(tmp_path), rows=rows, home_city="Minsk", home_history=ERAS)
+    gen_venue_page.build_page(out_path=str(tmp_path), rows=rows)
+    for page in ("compare.html", "life.html", "venue.html"):
+        html = (tmp_path / page).read_text(encoding="utf-8")
+        for i, js in enumerate(re.findall(r"<script>([\s\S]*?)</script>", html)):
+            f = tmp_path / f"{page}.{i}.js"
+            f.write_text(js, encoding="utf-8")
+            proc = subprocess.run([node, "--check", str(f)], capture_output=True, timeout=30)
+            assert proc.returncode == 0, f"{page} script {i}: {proc.stderr.decode(errors='replace')}"

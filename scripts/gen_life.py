@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-gen_life.py — "Жизнь в полосах": the whole history as parallel stripes on one time axis.
+gen_life.py — "Life in stripes": the whole history as parallel stripes on one time axis.
 
 Writes ``life.html`` (static shell) + ``life_data.json`` (from `metrics.life`, fetched
 on load, cache-busted with a content hash). Each band is an SVG whose viewBox is
@@ -23,11 +23,11 @@ log = logging.getLogger(__name__)
 SITE_URL = "https://4sq.pages.dev"
 
 PAGE_TEMPLATE = r"""<!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Жизнь в полосах · Foursquare history</title>
+<title>Life in Stripes · Foursquare history</title>
 <meta name="description" content="Twenty years of check-ins as parallel stripes: home, country, trips, rhythm, people, music.">
 <link rel="canonical" href="{site}/life.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -60,6 +60,8 @@ a{{color:var(--teal);}}
 .ticks span{{position:absolute;top:4px;font-family:'DM Mono',monospace;font-size:.5rem;color:var(--muted);transform:translateX(3px);border-left:1px solid var(--border);padding-left:3px;}}
 .ov{{position:absolute;top:0;bottom:0;display:flex;align-items:center;overflow:hidden;white-space:nowrap;font-size:.62rem;padding:0 4px;color:#0a0c12;font-weight:600;}}
 .music .ov{{color:var(--text);font-weight:400;border-left:1px solid var(--border);}}
+.trip-link rect{{cursor:pointer;}}
+.trip-link:hover rect{{fill:#f5a3b1;}}
 .cursor{{position:absolute;top:0;bottom:0;width:1px;background:rgba(232,184,109,.7);pointer-events:none;display:none;}}
 .legend{{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:14px;font-size:.74rem;color:var(--muted);}}
 .legend i{{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;}}
@@ -70,14 +72,14 @@ a{{color:var(--teal);}}
 <body>
 <a class="crumb" href="/stats.html">← stats</a>
 <div class="wrap">
-<h1 class="hero-name">Жизнь в полосах</h1>
+<h1 class="hero-name">Life in Stripes</h1>
 <div class="hero-sub" id="sub">life in stripes</div>
 <div class="tools"><span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted)">zoom</span>
 <button data-z="1" class="on">1×</button><button data-z="2">2×</button><button data-z="4">4×</button><button data-z="10">10×</button>
 <div class="readout" id="readout" aria-live="polite"></div></div>
 <div class="chart"><div class="labels" id="labels"></div><div class="scroll" id="scroll"><div class="inner" id="inner"></div></div></div>
 <div class="legend" id="legend"></div>
-<p class="note">Country: the day's most-checked-in country; a day without check-ins keeps the previous one and is drawn faded. The most-lived countries get quiet colours so travel stands out. Density is check-ins per week; people rows show check-ins together per month.</p>
+<p class="note">Click a trip in the trips row to open it. Country: the day's most-checked-in country; a day without check-ins keeps the previous one and is drawn faded. The most-lived countries get quiet colours so travel stands out. Density is check-ins per week; people rows show check-ins together per month.</p>
 </div>
 <script>
 const VER = {ver_json};
@@ -112,7 +114,11 @@ function build() {{
   add('home', 30, svg(30, L.eras.map(e => {{ if (!(e[2] in eraFill)) eraFill[e[2]] = ['#e8b86d', '#4ec9b0', '#e8778a'][ek++ % 3]; return rect(e[0], e[1], 0, 30, eraFill[e[2]]); }})) +
     L.eras.map(e => '<div class="ov" style="left:' + pct(e[0]) + ';width:' + pct(e[1]) + '">' + esc(e[2]) + '</div>').join(''));
   add('country', 34, svg(34, L.country_runs.map(r => rect(r[0], r[1], 0, 34, COLORS[r[2]], r[3] ? ' fill-opacity=".45"' : ''))));
-  add('trips', 22, svg(22, L.trips.map(t => rect(t[0], t[1], 3, 16, '#e8778a'))));
+  // each trip is a real link with its own hit area; a click anywhere else does nothing
+  add('trips', 22, svg(22, L.trips.map(t => {{
+    const r = '<rect x="' + t[0] + '" width="' + t[1] + '" y="3" height="16" fill="#e8778a"><title>' + esc(t[2]) + '</title></rect>';
+    return t[3] != null ? '<a href="/trips.html#trip-' + t[3] + '" class="trip-link">' + r + '</a>' : r;
+  }})));
   const mx = Math.sqrt(Math.max(1, ...L.weeks));
   add('density', 40, svg(40, L.weeks.map((n, k) => n ? rect(k * 7, 7, 40 - 40 * Math.sqrt(n) / mx, 40 * Math.sqrt(n) / mx, '#e8b86d') : '')));
   if (L.people.length) {{
@@ -149,11 +155,6 @@ inner.addEventListener('mousemove', ev => {{
   out.textContent = readout(i);
 }});
 inner.addEventListener('mouseleave', () => {{ const c = document.getElementById('cursor'); if (c) c.style.display = 'none'; }});
-inner.addEventListener('click', ev => {{
-  const box = inner.getBoundingClientRect(), i = Math.floor((ev.clientX - box.left) / box.width * DAYS);
-  const t = L.trips.find(t => i >= t[0] && i < t[0] + t[1]);
-  if (t && t[3] != null) location.href = '/trips.html#trip-' + t[3];
-}});
 document.querySelectorAll('.tools button').forEach(b => b.onclick = () => {{
   const sc = document.getElementById('scroll'), mid = (sc.scrollLeft + sc.clientWidth / 2) / inner.offsetWidth;
   document.querySelectorAll('.tools button').forEach(x => x.classList.toggle('on', x === b));

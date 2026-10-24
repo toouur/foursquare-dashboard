@@ -75,6 +75,8 @@ section{{margin-top:48px;}}
 .visit-with{{font-size:.74rem;color:var(--muted);margin-top:3px;}}
 .visit img{{width:96px;height:72px;object-fit:cover;border-radius:8px;background:var(--card2);}}
 .rf{{font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:.1em;color:var(--rose);border:1px solid var(--rose);border-radius:4px;padding:1px 5px;margin-left:8px;}}
+.ext{{color:var(--teal);text-decoration:none;text-transform:none;letter-spacing:.04em;}}
+.ext:hover{{color:var(--gold);}}
 .note{{color:var(--muted);font-size:.85rem;margin-top:24px;}}
 @media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}.visit img{{width:72px;height:54px;}}}}
 </style>
@@ -126,7 +128,7 @@ function render(id, rec, f) {{
   const yrs = Object.entries(rec.years);
   const span = yrs.length ? (+yrs[yrs.length - 1][0] - +yrs[0][0] + 1) : 0;
   let h = '<div class="hero-cat">' + esc(rec.cat || 'Venue') + '</div><h1 class="hero-name">' + esc(rec.name) + '</h1>' +
-    '<div class="hero-sub">' + esc(place) + '</div><div class="kpis">' +
+    '<div class="hero-sub">' + esc(place) + ' · <a class="ext" href="https://foursquare.com/v/' + encodeURIComponent(id) + '" target="_blank" rel="noopener">Open on Foursquare ↗</a></div><div class="kpis">' +
     [[fmt(rec.n), rec.n === 1 ? 'visit' : 'visits'], [rec.first, 'first visit'], [rec.last, 'last visit'],
      [span, span === 1 ? 'year' : 'years span'], [fmt(rec.companions.length), 'companions'], [fmt(rec.photos), 'photos']]
       .map(([a, b]) => '<div class="kpi"><div class="kpi-num' + (/^\d{{4}}-/.test(a) ? ' sm' : '') + '">' + esc(a) + '</div><div class="kpi-lbl">' + esc(b) + '</div></div>').join('') + '</div>';
@@ -156,7 +158,13 @@ async function route() {{
   try {{
     const j = await loadShard(venueShard(id));
     const rec = j.v[id];
-    if (!rec) {{ app.innerHTML = '<p class="note">No check-ins at venue <code>' + esc(id) + '</code>. <a href="#">Most visited venues</a></p>'; return; }}
+    if (!rec) {{
+      document.title = 'Venue · Foursquare history';
+      app.innerHTML = '<div class="hero-cat">Venue</div><h1 class="hero-name">Not checked in here yet</h1>' +
+        '<p class="note">There are no check-ins at this venue in the history (a tip or a list can point at a place never visited). ' +
+        '<a href="https://foursquare.com/v/' + encodeURIComponent(id) + '" target="_blank" rel="noopener">Open it on Foursquare ↗</a> · <a href="#">Most visited venues</a></p>';
+      return;
+    }}
     render(id, rec, j.f);
     window.scrollTo(0, 0);
   }} catch (e) {{

@@ -352,7 +352,7 @@ function render(){
 
     const [name,city,country,cat,count,years,vid]=v;
 
-    const vlink=vid?`<a href="https://foursquare.com/v/${vid}" target="_blank" rel="noopener">${esc(name)}</a>`:esc(name);
+    const vlink=vid?`<a href="/venue.html#${vid}">${esc(name)}</a>`:esc(name);
 
     const yrs=years.map(y=>`<span class="yr">${y}</span>`).join('');
 

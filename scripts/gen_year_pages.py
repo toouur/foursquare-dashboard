@@ -1067,7 +1067,8 @@ const kObs = new IntersectionObserver(es => es.forEach(e => {{
   }});
   kObs.unobserve(e.target);
 }}), {{threshold: 0.3}});
-document.querySelectorAll('.kpi-grid').forEach(g => kObs.observe(g));
+// .music-hero too: its scrobble tile used to stay at the placeholder 0 forever
+document.querySelectorAll('.kpi-grid, .music-hero').forEach(g => kObs.observe(g));
 
 // ── Scrolling background photo cycle ──
 // Each section gets a data-bg-index; the corresponding img in #scrollBg becomes active.
@@ -1619,7 +1620,7 @@ def build_page(
                 if isinstance(name, tuple):
                     vid, vname = name
                     link = (
-                        f'<a href="https://foursquare.com/v/{_esc(vid)}" target="_blank" rel="noopener">{_esc(vname)}</a>'
+                        f'<a href="/venue.html#{_esc(vid)}">{_esc(vname)}</a>'
                         if with_link and vid else _esc(vname)
                     )
                     out_lines.append(
@@ -1790,7 +1791,7 @@ def build_page(
             a_name = (top_a.get("name") or "").strip()
             a_plays = int(top_a.get("plays", 0) or 0)
             tiles = (
-                f'<div class="kpi"><div class="kpi-num" data-count="{m_total}">0</div>'
+                f'<div class="kpi"><div class="kpi-num" data-count="{m_total}">{m_total:,}</div>'
                 f'<div class="kpi-lbl">Scrobbles</div>'
                 f'<div class="kpi-sub">tracks played</div></div>'
             )

@@ -240,11 +240,11 @@ function renderComments(list){
 
 function renderCard(s){
   const {em,bg} = catIcon(s.category||'');
-  const vUrl = s.venue_id ? `https://foursquare.com/v/${s.venue_id}` : '';
+  const vUrl = s.venue_id ? `/venue.html#${s.venue_id}` : '';
   const swarmUrl = (s.checkin_id && SWARM_USER_ID)
     ? `https://www.swarmapp.com/user/${SWARM_USER_ID}/checkin/${s.checkin_id}` : '';
   const venueLabel = vUrl
-    ? `<a href="${vUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(s.venue||'Unknown venue')}</a>`
+    ? `<a href="${vUrl}" onclick="event.stopPropagation()">${esc(s.venue||'Unknown venue')}</a>`
     : esc(s.venue||'Unknown venue');
   const loc = [s.city, s.country].filter(Boolean).join(', ');
   const f = s.country ? flagHtml(s.country) : '';
