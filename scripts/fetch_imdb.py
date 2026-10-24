@@ -39,6 +39,8 @@ USER = "p.yx6kaorazm2bqhp4nwbhqrqsni"
 URL = "https://www.imdb.com/user/{user}/ratings/?sort=date_added%2Cdesc"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 TT = re.compile(r"^tt\d{6,10}$")
+GQL = "https://api.graphql.imdb.com/"
+GQL_QUERY = "query($ids: [ID!]!) { titles(ids: $ids) { id userRating { value date } } }"
 NEXT = re.compile(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S)
 
 
@@ -139,6 +141,31 @@ def deep_shape(node, depth: int = 6) -> str:
     return ""
 
 
+def add_user_ratings(requests, titles: list[dict], headers: dict) -> str:
+    """The ratings page server-renders the titles but not the viewer's rating: the browser
+    asks the GraphQL API for it afterwards. Do the same and attach `userRating` to each
+    title dict in place. Returns '' or a short error (schema messages only, no values)."""
+    by_id = {t["id"]: t for t in titles if isinstance(t.get("id"), str) and TT.match(t["id"])}
+    ids = list(by_id)
+    for i in range(0, len(ids), 100):
+        try:
+            r = requests.post(GQL, timeout=30, headers={**headers, "Content-Type": "application/json",
+                              "Origin": "https://www.imdb.com", "Referer": "https://www.imdb.com/",
+                              "x-imdb-client-name": "imdb-web-next"},
+                              json={"query": GQL_QUERY, "variables": {"ids": ids[i:i + 100]}})
+        except Exception as e:
+            return f"graphql request failed: {e}"
+        if r.status_code != 200:
+            return f"graphql HTTP {r.status_code}"
+        body = r.json()
+        if body.get("errors"):
+            return "graphql errors: " + "; ".join(str(e.get("message", ""))[:200] for e in body["errors"][:3])
+        for t in (body.get("data") or {}).get("titles") or []:
+            if t and t.get("id") in by_id and t.get("userRating"):
+                by_id[t["id"]]["userRating"] = t["userRating"]
+    return ""
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="New IMDb ratings via the logged-in ratings page.")
     ap.add_argument("--user", default=USER)
@@ -175,6 +202,18 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     data = json.loads(m.group(1))
     items = find_items(data)
+    gql_err = ""
+    if not items:
+        pp0 = data.get("props", {}).get("pageProps", {}) or {}
+        edges0 = ((pp0.get("mainColumnData") or {}).get("advancedTitleSearch") or {}).get("edges") or []
+        titles = [(e.get("node") or {}).get("title") for e in edges0]
+        titles = [t for t in titles if isinstance(t, dict)]
+        if titles:
+            gql_err = add_user_ratings(requests, titles, {"User-Agent": UA, "Cookie": cookie,
+                                                          "Accept-Language": "en-US,en;q=0.9"})
+            items = find_items(data)
+            _note("error" if gql_err else "notice",
+                  f"graphql: {len(items)} of {len(titles)} page titles got a user rating" + (f" — {gql_err}" if gql_err else ""))
     if args.probe:
         paths = sorted({p for p, _ in items})
         _note("notice", f"probe: HTTP 200, page data {len(m.group(1)) // 1024} KB, {len(items)} rated items "
