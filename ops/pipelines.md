@@ -16,6 +16,21 @@ python scripts/fetch_flights.py --out C:/Users/toouur/Documents/GitHub/foursquar
 python scripts/fetch_flights.py --check   # probe auth, no write
 ```
 
+## Fetch Vivino ratings (no login)
+`fetch_vivino.py` mirrors the PUBLIC profile (user id 39350853, `visibility: all`) from
+`api.vivino.com/users/<id>/activities` (`limit=50`, `start_from=<last activity id>`; ~17
+requests for ~800 ratings) into `vivino_ratings.json` in the data repo, one rating per line.
+Each "reviewed user-vintage" is one rating, with BOTH `scanned_at` and `rated_at` (the CSV
+export has the scan date only, and none for 62 wines). The same wine rated on several days is
+several ratings — what looked like duplicates in the CSV. The whole feed is re-walked weekly
+(`vivino.yml`, Sun 07:15 UTC, 8th data-repo writer); a walk >10 % smaller than the file is an
+API failure (exit 1, nothing written). `culture_sources.load_vivino_any` prefers the JSON over
+`full_wine_list.csv`. IMDb has no such public API: its pages sit behind AWS WAF and login is
+Amazon (CAPTCHA/OTP), so it stays a manual `imdb_export.csv` drop.
+```bash
+python scripts/fetch_vivino.py --out $DATA/vivino_ratings.json
+```
+
 ## Fetch Last.fm scrobbles (per-year "year in sound")
 No CSV export — pulls `user.getRecentTracks` with `LASTFM_API_KEY`. Two-file model:
 `lastfm_state.json` (full per-year artist→plays counters + month histogram + `last_ts`

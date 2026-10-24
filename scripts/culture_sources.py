@@ -8,13 +8,17 @@ culture_sources.py — read the cultural exports that sit next to checkins.csv.
                            date is the RATING date, not the viewing date. A day
                            with ``BULK_DAY`` or more ratings is a catch-up session
                            (marking films seen long ago) and is flagged ``bulk``.
+* ``vivino_ratings.json`` written weekly by fetch_vivino.py from the public
+                           profile API — preferred: it has the rating time next
+                           to the scan time. Falls back to ↓ when absent.
 * ``full_wine_list.csv``  Vivino data export. Only wines carrying "Your rating"
                            are kept (the export also lists wines merely scanned or
                            wish-listed). ``Scan date`` is UTC — checked against
                            check-ins: scan-minus-nearest-bar/restaurant-check-in
                            peaks at 0 h when read as UTC, at +2/+3 h it would be
-                           local. Exact duplicate rows (same wine, vintage and
-                           scan second) are collapsed.
+                           local. Rows that look identical (same wine, vintage,
+                           scan second) are NOT duplicates: the API shows them as
+                           the same bottle rated again on other days.
 * ``lastfm/``              the raw scrobble layer written by fetch_lastfm.py.
 
 All loaders return [] for a missing file, so the build degrades to "no culture".
@@ -76,7 +80,7 @@ def load_vivino(path: str | Path) -> list[dict]:
     p = Path(path)
     if not p.exists():
         return []
-    out, seen = [], set()
+    out = []
     with p.open(encoding="utf-8-sig", newline="") as fh:
         for r in csv.DictReader(fh):
             rating = _num(r.get("Your rating"))
@@ -90,10 +94,6 @@ def load_vivino(path: str | Path) -> list[dict]:
                              .replace(tzinfo=timezone.utc).timestamp())
                 except ValueError:
                     log.warning("Vivino: unreadable scan date %r", scan)
-            key = ((r.get("Link to wine") or "").strip(), (r.get("Vintage") or "").strip(), scan)
-            if key in seen:
-                continue
-            seen.add(key)
             out.append({
                 "wine": (r.get("Wine name") or "").strip(),
                 "winery": (r.get("Winery") or "").strip(),
@@ -112,6 +112,40 @@ def load_vivino(path: str | Path) -> list[dict]:
     out.sort(key=lambda w: (w["ts"] is None, w["ts"] or 0))
     log.info("Vivino: %d rated wines (%d without a scan date)", len(out), sum(w["ts"] is None for w in out))
     return out
+
+
+def _iso_ts(s) -> int | None:
+    if not s:
+        return None
+    try:
+        return int(datetime.fromisoformat(str(s).replace("Z", "+00:00")).timestamp())
+    except ValueError:
+        return None
+
+
+def load_vivino_json(path: str | Path) -> list[dict]:
+    """vivino_ratings.json → the same rows as load_vivino(). `ts` is the scan
+    time (that is when the bottle was in front of you), else the rating time."""
+    p = Path(path)
+    if not p.exists():
+        return []
+    import json  # noqa: PLC0415
+    out = []
+    for r in json.loads(p.read_text(encoding="utf-8")).get("ratings", []):
+        row = {k: r.get(k) for k in ("wine", "winery", "vintage", "region", "country", "type",
+                                     "rating", "avg", "review", "url", "label")}
+        row["ts"] = _iso_ts(r.get("scanned_at")) or _iso_ts(r.get("rated_at"))
+        row["rated_ts"] = _iso_ts(r.get("rated_at"))
+        out.append(row)
+    out.sort(key=lambda w: (w["ts"] is None, w["ts"] or 0))
+    log.info("Vivino (API mirror): %d ratings (%d without any date)", len(out), sum(w["ts"] is None for w in out))
+    return out
+
+
+def load_vivino_any(data_dir: str | Path) -> list[dict]:
+    """The API mirror when present, else the CSV export."""
+    d = Path(data_dir)
+    return load_vivino_json(d / "vivino_ratings.json") or load_vivino(d / "full_wine_list.csv")
 
 
 def load_scrobbles(dir_: str | Path) -> list[tuple[int, str, str, str]]:

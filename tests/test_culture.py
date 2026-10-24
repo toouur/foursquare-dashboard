@@ -55,16 +55,16 @@ def _wine(name, rating, scan, link="https://www.vivino.com/wines/1", vintage="20
             f'Red Wine,,{link},https://images.vivino.com/x.jpg\n')
 
 
-def test_load_vivino_keeps_only_rated_and_dedups(tmp_path):
+def test_load_vivino_keeps_only_rated_and_repeat_ratings(tmp_path):
     p = tmp_path / "w.csv"
     p.write_text(VIVINO_HEAD + _wine("A", "3.8", "2024-05-01 18:00:00")
-                 + _wine("A", "3.8", "2024-05-01 18:00:00")            # exact duplicate row
+                 + _wine("A", "3.8", "2024-05-01 18:00:00")            # the same bottle rated again later
                  + _wine("Scanned only", "", "2024-05-02 18:00:00")    # never rated
                  + _wine("No date", "4.0", "", link="https://www.vivino.com/wines/2"), encoding="utf-8")
     wines = load_vivino(p)
-    assert [w["wine"] for w in wines] == ["A", "No date"]
+    assert [w["wine"] for w in wines] == ["A", "A", "No date"]
     assert wines[0]["ts"] == _ts("2024-05-01T18:00:00") and wines[0]["rating"] == 3.8
-    assert wines[1]["ts"] is None
+    assert wines[2]["ts"] is None
 
 
 def test_missing_files_mean_no_culture(tmp_path):

@@ -133,12 +133,12 @@ Full key-file map, implementation notes and deployment details. Moved out of CLA
   because that path is gitignored).
 - Pause switch: repo Variable `UPDATES_PAUSED=true` halts the hourly update job and the
   monthly Netlify mirror job.
-- **Shared data-repo pushes are concurrency-hardened.** Seven workflows commit to
+- **Shared data-repo pushes are concurrency-hardened.** Eight workflows commit to
   `toouur/foursquare-data` `main` — `update-dashboard.yml` (hourly), `warm-routes.yml`
   (daily 03:00 UTC), `recheck-enrich.yml` (daily 04:15 UTC), `fr24-flights.yml` (weekly
   Sun 05:00), `lastfm.yml` (weekly Sun 06:00), `telegram-on-this-day.yml` (daily 06:00,
   `otd_stories.json`), `telegram-checkin-echo.yml` (dispatched by each hourly poll with new check-ins + daily 05:45,
-  `checkin_echo_state.json`). Overlapping runs (e.g. the 03:00
+  `checkin_echo_state.json`), `vivino.yml` (weekly Sun 07:15, `vivino_ratings.json`). Overlapping runs (e.g. the 03:00
   route-warm still pushing as the 03:00 hourly build commits) caused non-fast-forward
   rejections (`! [rejected] main -> main (fetch first)`) that failed the run. Every
   data-repo commit step now wraps its push in the SAME bounded rebase-and-retry loop

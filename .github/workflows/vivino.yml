@@ -1,0 +1,89 @@
+# .github/workflows/vivino.yml
+#
+# Vivino ratings mirror (weekly, fully automated, no login).
+#
+# scripts/fetch_vivino.py walks the PUBLIC profile's activity feed
+# (api.vivino.com/users/39350853/activities, ~17 requests for ~800 ratings)
+# and rewrites vivino_ratings.json in the private data repo when it changed.
+# It carries both the scan time and the rating time, which the CSV data export
+# lacks; build.py prefers it over full_wine_list.csv (culture_sources.
+# load_vivino_any). A walk >10 % smaller than the file on disk is treated as an
+# API failure (exit 1, nothing written).
+#
+# 8th data-repo writer: commits only vivino_ratings.json, with the BUG-014
+# bounded rebase-and-retry push loop. Needs only DATA_REPO_PAT.
+
+name: Vivino ratings (weekly)
+
+on:
+  schedule:
+    - cron: '15 7 * * 0'   # Sunday 07:15 UTC — clear of the 03:00/04:15/05:45/06:00 writers
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vivino:
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout private data repo
+        uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install requests
+
+      - name: Fetch Vivino ratings
+        id: fetch
+        run: |
+          set +e
+          python scripts/fetch_vivino.py --out private-data/vivino_ratings.json 2>&1 | tee out.txt
+          CODE=${PIPESTATUS[0]}
+          set -e
+          CHANGED=$(grep -m1 '^CHANGED=' out.txt | cut -d= -f2)
+          echo "changed=${CHANGED:-false}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Vivino ratings — $(date -u +'%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "- **exit code**: \`${CODE}\` (0 ok · 1 failure)"
+            echo "- **changed**: \`${CHANGED:-false}\`"
+            grep -E 'Vivino:|failed|failure' out.txt | sed 's/^/    /' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$CODE" != "0" ]; then
+            echo "::error title=Vivino::$(grep -m1 -E 'ERROR' out.txt | sed 's/^ERROR *//')"
+            exit 1
+          fi
+
+      - name: Commit updated Vivino ratings
+        if: steps.fetch.outputs.changed == 'true'
+        run: |
+          cd private-data
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add vivino_ratings.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "chore: update Vivino ratings [$(date -u +'%Y-%m-%d %H:%M UTC')]"
+            # Other workflows push the same data-repo ref — rebase-and-retry (BUG-014).
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:main && break
+              [ "$i" = 5 ] && { echo "push failed after 5 attempts"; exit 1; }
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+            done
+          fi

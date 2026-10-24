@@ -51,7 +51,7 @@ Venue renames, monthly re-fetch and deletions: `ops/d1.md`.
 
 ### Run tests / lint
 ```bash
-# Offline suite (480 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (485 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 python -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 14 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -97,8 +97,8 @@ Full map: `ops/internals.md`. Most used:
   `gen_culture.py` + `culture_sources.py` (IMDb/Vivino exports + Last.fm raw layer), `gen_visits.py`
 - `scripts/build_backfill.py`, `scripts/refresh_backfill_venue.py`
 - `scripts/check_city_count.py`, `scripts/check_city_config.py`, `scripts/validate_html.py`
-- Tests: `tests/` — pytest suite (524 tests: 480 offline, 22 live API contract, 22 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
-- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 85 files) and must stay so.
+- Tests: `tests/` — pytest suite (529 tests: 485 offline, 22 live API contract, 22 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
+- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 86 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
   NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in `fetch_*` — drift from a newer local `requests`, not a code change.
 
@@ -131,7 +131,7 @@ Full map: `ops/internals.md`. Most used:
   hand — the archive workflow diff must see the old name. → `ops/pipelines.md`, `ops/d1.md`
 - **Py↔JS parity**: `collectCompanions()` in `functions/api/feed.js` mirrors
   `metrics.collect_companions`; bump the feed `_v=` tag when the tuple shape changes.
-- **Seven workflows push the data repo**; every commit step uses the BUG-014 bounded
+- **Eight workflows push the data repo** (the 8th: `vivino.yml`); every commit step uses the BUG-014 bounded
   rebase-and-retry loop, no repo-wide `concurrency` group. → `ops/internals.md`
 - **Last.fm raw layer is the truth** (`lastfm/scrobbles_<YYYY>.tsv`): repeats kept, every run
   replaces the last 14 days (late offline scrobbles), the year state is rebuilt from it. → `ops/pipelines.md`
