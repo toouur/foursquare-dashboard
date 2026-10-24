@@ -70,7 +70,7 @@ section{{margin-top:48px;}}
 .rank-sub{{color:var(--muted);font-size:.72rem;}}
 .rank-n{{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--teal);}}
 .pgrid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;}}
-.pgrid img{{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:var(--card2);cursor:zoom-in;transition:transform .15s,opacity .15s;}}
+.pgrid img{{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:var(--card2);cursor:pointer;transition:transform .15s,opacity .15s;}}
 .pgrid img:hover{{transform:scale(1.03);opacity:.9;}}
 details.yr{{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden;}}
 details.yr>summary{{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:14px;padding:14px 18px;}}
@@ -82,21 +82,27 @@ details.yr>summary:hover{{background:var(--card2);}}
 .yr-strip i{{display:block;width:5px;background:var(--teal);opacity:.7;border-radius:1px;min-height:1px;}}
 .yr-arrow{{color:var(--muted);transition:transform .2s;}}
 details[open] .yr-arrow{{transform:rotate(90deg);}}
-.tl{{position:relative;margin:0 18px 14px 28px;border-left:1px solid var(--border);}}
-.visit{{position:relative;padding:9px 0 9px 18px;}}
-.visit::before{{content:'';position:absolute;left:-4px;top:15px;width:7px;height:7px;border-radius:50%;background:var(--gold);}}
-.visit.rfv::before{{background:var(--rose);}}
-.visit-when{{font-family:'DM Mono',monospace;font-size:.64rem;color:var(--gold);letter-spacing:.04em;}}
-.visit-when .t{{color:var(--muted);margin-left:6px;}}
-.visit-shout{{font-family:'Playfair Display',serif;font-style:italic;font-size:.98rem;color:#e8e9ee;margin-top:3px;overflow-wrap:anywhere;}}
-.visit-with{{font-size:.74rem;color:var(--muted);margin-top:2px;}}
-.visit-pics{{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}}
-.visit-pics img{{width:92px;height:69px;object-fit:cover;border-radius:6px;background:var(--card2);cursor:zoom-in;border:1px solid var(--border);transition:transform .15s;}}
-.visit-pics img:hover{{transform:scale(1.04);}}
-.visit.chips{{display:flex;flex-wrap:wrap;gap:4px;padding-top:7px;padding-bottom:7px;}}
-.visit.chips::before{{background:var(--border);}}
-.chip{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--text);background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:2px 6px;white-space:nowrap;}}
-.chip b{{font-weight:400;color:var(--muted);margin-left:5px;}}
+.mon{{display:grid;grid-template-columns:96px 1fr;gap:0 18px;padding:12px 18px;border-top:1px solid var(--border);}}
+.mon-h{{padding-top:6px;}}
+.mon-name{{font-family:'DM Mono',monospace;font-size:.66rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text);}}
+.mon-n{{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);margin-top:3px;}}
+.vis{{display:grid;grid-template-columns:52px 1fr;gap:14px;padding:9px 0;align-items:start;}}
+.vis+.vis{{border-top:1px dashed var(--border);}}
+.vd{{text-align:center;}}
+.vd-n{{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:700;color:var(--gold);line-height:1;}}
+.vd-w{{font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:4px;white-space:nowrap;}}
+.vis.rfv .vd-n{{color:var(--rose);}}
+.vis-body{{min-width:0;padding-top:2px;}}
+.visit-shout{{font-family:'Playfair Display',serif;font-style:italic;font-size:1rem;color:#e8e9ee;overflow-wrap:anywhere;line-height:1.35;}}
+.visit-with{{font-size:.74rem;color:var(--muted);margin-top:3px;}}
+.visit-with b{{font-weight:400;color:var(--teal);}}
+.visit-pics{{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}}
+.visit-pics img{{width:96px;height:72px;object-fit:cover;border-radius:6px;background:var(--card2);cursor:pointer;border:1px solid var(--border);transition:transform .15s,opacity .15s;}}
+.visit-pics img:hover{{transform:scale(1.04);opacity:.9;}}
+.vis.plain{{grid-template-columns:1fr;}}
+.chips{{display:flex;flex-wrap:wrap;gap:5px;}}
+.chip{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;white-space:nowrap;}}
+.chip b{{font-weight:500;color:var(--text);margin:0 3px;}}
 .chip.rfc{{border-color:var(--rose);}}
 #gallery{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:9999;align-items:center;justify-content:center;}}
 #gallery.open{{display:flex;}}
@@ -111,7 +117,7 @@ details[open] .yr-arrow{{transform:rotate(90deg);}}
 .ext{{color:var(--teal);text-decoration:none;text-transform:none;letter-spacing:.04em;}}
 .ext:hover{{color:var(--gold);}}
 .note{{color:var(--muted);font-size:.85rem;margin-top:24px;}}
-@media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}.visit-pics img{{width:72px;height:54px;}}.tl{{margin:0 10px 12px 16px;}}.yr-strip{{display:none;}}}}
+@media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}.visit-pics img{{width:76px;height:57px;}}.mon{{grid-template-columns:1fr;padding:10px 14px;}}.mon-h{{display:flex;gap:10px;align-items:baseline;padding:0 0 4px;}}.mon-n{{margin:0;}}.yr-strip{{display:none;}}}}
 </style>
 </head>
 <body>
@@ -132,6 +138,9 @@ const TOP = {top_json};
 const app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[c]);
 const fmt = n => Number(n).toLocaleString('en-US');
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// weekday of a local 'YYYY-MM-DD HH:MM' string (built from its parts, so no timezone shift)
+const wd = s => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)).getDay()];
 // Mirrors metrics.venues.venue_shard (32-bit FNV-1a mod 256).
 function venueShard(id) {{
   let h = 0x811c9dc5;
@@ -205,25 +214,33 @@ function render(id, rec, f) {{
     const vs = byYear[y], months = Array(12).fill(0);
     vs.forEach(v => months[+v[ix.local].slice(5, 7) - 1]++);
     const mm = Math.max(1, ...months), pics = vs.reduce((s, v) => s + (v[ix.photos] || []).length, 0);
-    // every visit is listed: a visit with a shout, companions or photos is a full timeline entry;
-    // runs of plain repeat visits between them collapse into one row of date chips
-    let body = '', run = [];
-    const flush = () => {{ if (run.length) body += '<div class="visit chips">' + run.map(v => '<span class="chip' + (v[ix.rf] ? ' rfc' : '') + '" title="' + esc(v[ix.local]) + '">' +
-      esc(v[ix.local].slice(8, 10) + '.' + v[ix.local].slice(5, 7)) + '<b>' + esc(v[ix.local].slice(11)) + '</b></span>').join('') + '</div>'; run = []; }};
-    vs.forEach(v => {{
-      if (!(v[ix.shout] || v[ix.with].length || (v[ix.photos] || []).length)) {{ run.push(v); return; }}
+    // grouped by month; a visit with a shout, companions or photos gets its own row (big day number,
+    // weekday + time under it); runs of plain repeat visits collapse into one row of date chips
+    const byMon = {{}};
+    vs.forEach(v => (byMon[v[ix.local].slice(5, 7)] = byMon[v[ix.local].slice(5, 7)] || []).push(v));
+    const body = Object.keys(byMon).sort().reverse().map(mo => {{
+      const mv = byMon[mo];
+      let rows = '', run = [];
+      const flush = () => {{ if (run.length) rows += '<div class="vis plain"><div class="chips">' + run.map(v => '<span class="chip' + (v[ix.rf] ? ' rfc' : '') + '" title="' + esc(v[ix.local]) + '">' +
+        wd(v[ix.local]) + '<b>' + +v[ix.local].slice(8, 10) + '</b>' + esc(v[ix.local].slice(11)) + '</span>').join('') + '</div></div>'; run = []; }};
+      mv.forEach(v => {{
+        if (!(v[ix.shout] || v[ix.with].length || (v[ix.photos] || []).length)) {{ run.push(v); return; }}
+        flush();
+        rows += '<div class="vis' + (v[ix.rf] ? ' rfv' : '') + '"><div class="vd"><div class="vd-n">' + +v[ix.local].slice(8, 10) + '</div>' +
+          '<div class="vd-w">' + wd(v[ix.local]) + ' · ' + esc(v[ix.local].slice(11)) + '</div></div><div class="vis-body">' +
+          (v[ix.shout] ? '<div class="visit-shout">' + esc(v[ix.shout]) + '</div>' : '') +
+          (v[ix.with].length ? '<div class="visit-with">with ' + v[ix.with].map(n => '<b>' + esc(n) + '</b>').join(', ') + '</div>' : '') +
+          ((v[ix.photos] || []).length && PIX ? '<div class="visit-pics">' + v[ix.photos].map(p => thumb(p, '')).join('') + '</div>' : '') +
+          (v[ix.rf] ? '<span class="rf" style="margin-left:0">↺ reconstructed</span>' : '') + '</div></div>';
+      }});
       flush();
-      body += '<div class="visit' + (v[ix.rf] ? ' rfv' : '') + '"><div class="visit-when">' + esc(v[ix.local].slice(0, 10)) + '<span class="t">' + esc(v[ix.local].slice(11)) + '</span>' +
-        (v[ix.rf] ? '<span class="rf">↺ reconstructed</span>' : '') + '</div>' +
-        (v[ix.shout] ? '<div class="visit-shout">' + esc(v[ix.shout]) + '</div>' : '') +
-        (v[ix.with].length ? '<div class="visit-with">with ' + esc(v[ix.with].join(', ')) + '</div>' : '') +
-        ((v[ix.photos] || []).length && PIX ? '<div class="visit-pics">' + v[ix.photos].map(p => thumb(p, '')).join('') + '</div>' : '') + '</div>';
-    }});
-    flush();
+      return '<div class="mon"><div class="mon-h"><div class="mon-name">' + MONTHS[+mo - 1] + '</div><div class="mon-n">' +
+        mv.length + (mv.length === 1 ? ' visit' : ' visits') + '</div></div><div>' + rows + '</div></div>';
+    }}).join('');
     return '<details class="yr"' + (yi < 2 ? ' open' : '') + '><summary><span class="yr-y">' + y + '</span><span class="yr-meta">' +
       fmt(vs.length) + (vs.length === 1 ? ' visit' : ' visits') + (pics ? ' · ' + pics + ' photos' : '') + '</span>' +
-      '<span class="yr-strip" title="visits per month">' + months.map((n, m) => '<i style="height:' + Math.round(18 * n / mm) + 'px" title="' + (m + 1) + ': ' + n + '"></i>').join('') + '</span>' +
-      '<span class="yr-arrow">›</span></summary><div class="tl">' + body + '</div></details>';
+      '<span class="yr-strip" title="visits per month">' + months.map((n, m) => '<i style="height:' + Math.round(18 * n / mm) + 'px" title="' + MONTHS[m] + ': ' + n + '"></i>').join('') + '</span>' +
+      '<span class="yr-arrow">›</span></summary>' + body + '</details>';
   }}).join('') + '</section>';
   app.innerHTML = h;
   if (map) {{ map.remove(); map = null; }}
