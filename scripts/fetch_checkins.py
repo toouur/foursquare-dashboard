@@ -120,7 +120,49 @@ def request_checkins(token: str, params: dict, retries: int = 120) -> dict:
     raise RuntimeError("Too many API retries while fetching check-ins")
 
 
+# Likes seen on the check-ins this run touched: checkin_id → {"n": count, "by": [[id, name], …]}.
+# Kept OUT of checkins.csv (the monthly --full re-fetch rewrites that file and D1 copies it
+# column for column): save_likes() merges it into checkin_likes.json next to the CSV.
+LIKES_SEEN: dict[str, dict] = {}
+
+
+def note_likes(ci: dict) -> None:
+    cid = str(ci.get("id", "") or "")
+    lk = ci.get("likes")
+    if not cid or not isinstance(lk, dict) or "count" not in lk:
+        return
+    by = []
+    for g in lk.get("groups") or []:
+        for u in g.get("items") or []:
+            name = (u.get("firstName", "") + " " + u.get("lastName", "")).strip()
+            by.append([str(u.get("id", "")), name])
+    LIKES_SEEN[cid] = {"n": int(lk.get("count") or 0), "by": by}
+
+
+def save_likes(path: Path) -> bool:
+    """Merge LIKES_SEEN into `path` (only check-ins with likes are stored). → changed?"""
+    old: dict = {}
+    if path.exists():
+        try:
+            old = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            old = {}
+    new = dict(old)
+    for cid, v in LIKES_SEEN.items():
+        if v["n"]:
+            new[cid] = v
+        else:
+            new.pop(cid, None)
+    if new == old:
+        return False
+    body = ",\n".join(f"{json.dumps(k)}:{json.dumps(new[k], ensure_ascii=False, separators=(',', ':'))}"
+                      for k in sorted(new))
+    path.write_text("{\n" + body + "\n}\n", encoding="utf-8", newline="\n")
+    return True
+
+
 def api_to_row(ci: dict) -> dict:
+    note_likes(ci)
     venue = ci.get("venue", {})
     loc = venue.get("location", {})
     cats = venue.get("categories", [])
@@ -332,6 +374,7 @@ def enrich_overlaps(token: str, rows: list[dict], max_calls: int = 0,
             )
             resp.raise_for_status()
             ci = resp.json().get("response", {}).get("checkin", {})
+            note_likes(ci)
             overlap_items = ci.get("overlaps", {}).get("items", [])
             overlap_users = [item.get("user", {}) for item in overlap_items if item.get("user")]
             overlaps_name = ", ".join(
@@ -517,6 +560,12 @@ def main() -> None:
     parser.add_argument("--recheck-ids", default="",
                         help="Comma/space-separated check-in IDs or Swarm URLs to force "
                              "overlap re-fetch regardless of cached status")
+    parser.add_argument("--likes-recent-days", type=int, default=0,
+                        help="Also re-read the last N days of check-ins (1-2 list calls) only to "
+                             "refresh their likes in checkin_likes.json — likes arrive after a "
+                             "check-in is first fetched")
+    parser.add_argument("--likes-out", default="",
+                        help="Path of the likes sidecar (default: checkin_likes.json next to --csv)")
     args = parser.parse_args()
 
     token = resolve_token(args.token)
@@ -528,6 +577,7 @@ def main() -> None:
         return
 
     csv_path = Path(args.csv)
+    likes_path = Path(args.likes_out) if args.likes_out else csv_path.parent / "checkin_likes.json"
     existing_rows = load_existing(csv_path)
     existing_keys = {row_key(r) for r in existing_rows}
 
@@ -687,6 +737,7 @@ def main() -> None:
             log.info("No content changes after full fetch.")
 
         print(f"CHANGED={'true' if changed else 'false'}")
+        print(f"LIKES_CHANGED={'true' if save_likes(likes_path) else 'false'}")
         return
 
     log.info("Mode: INCREMENTAL (latest timestamp=%d)", after_ts)
@@ -697,6 +748,12 @@ def main() -> None:
         print("CHANGED=false")
         return
     log.info("API returned %d candidate rows", len(new_rows))
+    if args.likes_recent_days > 0:
+        try:
+            fetch_incremental(token, int(time.time()) - args.likes_recent_days * 86400)
+        except RuntimeError as exc:
+            log.warning("Likes refresh failed: %s", exc)
+    print(f"LIKES_CHANGED={'true' if save_likes(likes_path) else 'false'}")
 
     added = [r for r in new_rows if row_key(r) not in existing_keys]
     log.info("New (de-duped): %d", len(added))

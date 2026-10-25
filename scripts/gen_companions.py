@@ -55,8 +55,19 @@ def trips_lite(trips) -> list:
     return out
 
 
+def likers(likes_by_checkin) -> list:
+    """[[user_id, name, check-ins liked], …] — who likes your check-ins, most first."""
+    n: Counter = Counter()
+    names: dict = {}
+    for v in (likes_by_checkin or {}).values():
+        for uid, name in v.get("by") or []:
+            n[uid] += 1
+            names[uid] = name
+    return [[uid, names[uid], c] for uid, c in n.most_common(40)]
+
+
 def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None,
-               photos_by_checkin=None, pix_url="", trips=None):
+               photos_by_checkin=None, pix_url="", trips=None, likes_by_checkin=None):
     TEMPLATE = Path(tmpl_path).read_text(encoding="utf-8")
     sys.path.insert(0, str(Path(__file__).parent))
     from transform import load_mappings, apply_transforms, build_blank_city_resolver
@@ -129,6 +140,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None,
     html = html.replace('SOCIAL_STATS_PLACEHOLDER', social_json)
     html = html.replace('TRIPS_LITE_PLACEHOLDER', json.dumps(trips_lite(trips), ensure_ascii=False, separators=(',', ':')))
     html = html.replace('PIX_URL_PLACEHOLDER', json.dumps(pix_url or ""))
+    html = html.replace('LIKERS_PLACEHOLDER', json.dumps(likers(likes_by_checkin), ensure_ascii=False, separators=(',', ':')))
     Path(out_path).write_text(html, encoding='utf-8')
     print(f"companions.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB)")
 

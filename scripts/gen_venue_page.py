@@ -101,6 +101,7 @@ details[open] .yr-arrow{{transform:rotate(90deg);}}
 .vr-x .w{{display:block;color:var(--muted);font-size:.76rem;margin-top:1px;}}
 .vr-x .w:first-child{{margin-top:0;font-size:.82rem;}}
 .vr-x .w b{{font-weight:400;color:var(--teal);}}
+.vr-x .lk{{display:block;font-family:'DM Mono',monospace;font-size:.6rem;color:#ff8fbf;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
 .vr-x .rf{{margin-left:0;}}
 .vr-p{{display:flex;gap:4px;}}
 .vr-p span{{position:relative;display:block;width:52px;height:39px;border-radius:5px;overflow:hidden;cursor:pointer;border:1px solid var(--border);background:var(--card2);}}
@@ -236,7 +237,7 @@ function render(id, rec, f) {{
         }}).join('');
         return '<div class="vr' + (v[ix.rf] ? ' rfv' : '') + '"><div class="vr-d' + (d === 'Sat' || d === 'Sun' ? ' we' : '') + '"><div class="vr-day">' + d + '<b>' + +v[ix.local].slice(8, 10) + '</b></div>' +
           '<div class="vr-t">' + esc(v[ix.local].slice(11)) + '</div></div>' +
-          '<div class="vr-x">' + (v[ix.shout] ? '«' + esc(v[ix.shout]) + '»' : '') + w + (v[ix.rf] ? '<span class="rf">↺ reconstructed</span>' : '') + '</div>' +
+          '<div class="vr-x">' + (v[ix.shout] ? '«' + esc(v[ix.shout]) + '»' : '') + w + (v[ix.likes] ? '<span class="lk" title="' + esc(v[ix.likes][1]) + '">♥ ' + v[ix.likes][0] + (v[ix.likes][1] ? ' · ' + esc(v[ix.likes][1]) : '') + '</span>' : '') + (v[ix.rf] ? '<span class="rf">↺ reconstructed</span>' : '') + '</div>' +
           '<div class="vr-p">' + pics + '</div></div>';
       }}).join('');
     }}).join('') + '</div>';
@@ -285,12 +286,13 @@ def build_page(
     rows: list | None = None,
     photos_by_checkin: dict | None = None,
     pix_url: str = "",
+    likes_by_checkin: dict | None = None,
     **_extra,
 ) -> int:
     """Write venue.html + venue_data_<xx>.json shards. Returns the venue count."""
     out_dir = Path(out_path)
     out_dir.mkdir(parents=True, exist_ok=True)
-    venues = compute_venues(rows or [], photos_by_checkin)
+    venues = compute_venues(rows or [], photos_by_checkin, likes_by_checkin)
     ver = write_venue_shards(venues, str(out_dir))
     top = sorted(venues.items(), key=lambda kv: (-kv[1]["n"], kv[1]["name"]))[:TOP_N]
     top_json = json.dumps([{"id": vid, "name": r["name"], "city": r["city"], "n": r["n"]}

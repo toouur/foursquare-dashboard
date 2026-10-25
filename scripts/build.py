@@ -614,6 +614,17 @@ if __name__ == "__main__":
         )
         log.info("Wrote slim trips metadata → %s  (%d trips)", args.trips_out, len(_slim_trips))
 
+    # ── Likes on check-ins (checkin_likes.json, written by fetch_checkins.py next to
+    #    the CSV): checkin_id → {"n": count, "by": [[user_id, name], …]} ──
+    _checkin_likes: dict = {}
+    _likes_path = Path(args.input).resolve().parent / "checkin_likes.json"
+    if _likes_path.exists():
+        try:
+            _checkin_likes = json.loads(_likes_path.read_text(encoding="utf-8"))
+            log.info("Check-in likes: %d liked check-ins", len(_checkin_likes))
+        except (OSError, ValueError) as _lke:
+            log.warning("checkin_likes.json unreadable: %s", _lke)
+
     # ── Patch trips with photos per check-in from photos.json (if provided) ──
     _photos_by_checkin: dict = {}
     _pix_dir_uri: str = ""
@@ -1124,7 +1135,8 @@ if __name__ == "__main__":
     _gen_outputs: list[str] = []
     for gen_script, gen_out, gen_tmpl, gen_kwargs in [
         (_here / "gen_companions.py", "companions.html",   "companions.html.tmpl",   {"social_data": data, "photos_by_checkin": _photos_by_checkin,
-                                                                                      "pix_url": _pix_dir_uri, "trips": trips}),
+                                                                                      "pix_url": _pix_dir_uri, "trips": trips,
+                                                                                      "likes_by_checkin": _checkin_likes}),
         (_here / "gen_feed.py",       "feed.html",         "feed.html.tmpl",         {"swarm_user_id": fs_user_id}),
         (_here / "gen_worldcities.py","world_cities.html", "world_cities.html.tmpl", {"cities_data": data.get("cities"), "country_count": len(data['countries'])}),
         (_here / "gen_venues.py",     "venues.html",       "venues.html.tmpl",       {"photos_by_checkin": _photos_by_checkin, "pix_url": _pix_dir_uri}),
@@ -1302,6 +1314,7 @@ if __name__ == "__main__":
                 rows=rows,
                 photos_by_checkin=_photos_by_checkin,
                 pix_url=_pix_dir_uri,
+                likes_by_checkin=_checkin_likes,
             )
         except Exception as _ve:
             log.warning("gen_venue_page failed: %s", _ve)

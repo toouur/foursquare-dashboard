@@ -56,9 +56,11 @@ def venue_shard(venue_id: str) -> str:
     return f"{h & 0xFF:02x}"
 
 
-def compute_venues(rows: list[dict], photos_by_checkin: dict | None = None) -> dict[str, dict]:
+def compute_venues(rows: list[dict], photos_by_checkin: dict | None = None,
+                   likes_by_checkin: dict | None = None) -> dict[str, dict]:
     """venue_id → record (see module docstring). Visits are newest first."""
     photos_by_checkin = photos_by_checkin or {}
+    likes_by_checkin = likes_by_checkin or {}
     loc = _Localiser()
     by_vid: dict[str, list[tuple[float, object, dict]]] = defaultdict(list)
     for r in rows:
@@ -87,7 +89,8 @@ def compute_venues(rows: list[dict], photos_by_checkin: dict | None = None) -> d
             n_photos += len(pics)
             recent.append([ld.strftime("%Y-%m-%d %H:%M"),  # type: ignore[attr-defined]
                            clean_shout(r.get("shout"), people), people, list(pics),
-                           1 if (r.get("source_app") or "") == REFURB else 0])
+                           1 if (r.get("source_app") or "") == REFURB else 0,
+                           _likes(likes_by_checkin.get(r.get("checkin_id") or ""))])
         recent.reverse()
         out[vid] = {
             "name": last.get("venue") or "",
@@ -108,7 +111,14 @@ def compute_venues(rows: list[dict], photos_by_checkin: dict | None = None) -> d
     return out
 
 
-VISIT_FIELDS = ["local", "shout", "with", "photos", "rf"]
+VISIT_FIELDS = ["local", "shout", "with", "photos", "rf", "likes"]
+
+
+def _likes(v: dict | None):
+    """checkin_likes.json entry → [count, "Name, Name"] or 0 (no likes)."""
+    if not v or not v.get("n"):
+        return 0
+    return [int(v["n"]), ", ".join(n for _, n in v.get("by") or [] if n)]
 
 
 def write_venue_shards(venues: dict[str, dict], out_dir: str) -> str:

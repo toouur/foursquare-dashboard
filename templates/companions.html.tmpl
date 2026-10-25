@@ -71,7 +71,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .person-name{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,3.6rem);font-weight:900;line-height:1;color:var(--text);text-decoration:none;display:inline-block;margin-top:6px;}
 a.person-name:hover{color:var(--gold);}
 .person-meta{font-size:0.8rem;color:var(--muted);margin-top:8px;}
-.pf-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px;}
+.pf-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px;}
 .pf-kpi{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px 18px;}
 .pf-kpi b{display:block;font-family:'Playfair Display',serif;font-size:2rem;font-weight:900;line-height:1;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
 .pf-kpi:nth-child(2) b{background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;}
@@ -220,6 +220,8 @@ tr:hover td{background:rgba(255,255,255,.02);}
 const COMP=COMP_DATA_PLACEHOLDER;
 const TRIPS_LITE=TRIPS_LITE_PLACEHOLDER;   // [id, name, start_ts, end_ts, cover]
 const PIX=PIX_URL_PLACEHOLDER;
+const LIKERS=LIKERS_PLACEHOLDER;   // [user_id, name, check-ins of yours they liked]
+const LIKED_BY=Object.fromEntries(LIKERS.map(l=>[l[0],l[2]]));
 
 // Country → flag emoji map (inline, no fetch needed)
 const F={
@@ -385,6 +387,7 @@ function show(idx){
       <div class="pf-kpi"><b>${yrs<1?Math.max(1,Math.round(yrs*12))+' mo':Math.round(yrs)+' yr'+(Math.round(yrs)===1?'':'s')}</b><span>since the first one</span></div>
       <div class="pf-kpi"><b>${nCities}</b><span>cities · ${nCtry} countr${nCtry===1?'y':'ies'}</span></div>
       <div class="pf-kpi"><b>${together.length}</b><span>trips together</span></div>
+      ${LIKED_BY[uid]?`<div class="pf-kpi"><b>♥ ${LIKED_BY[uid].toLocaleString()}</b><span>of your check-ins liked</span></div>`:''}
     </div>
     <div class="bento">
       <div class="box s4"><h3>Check-ins together ${byLbl}</h3><div class="pf-bars">${bars}</div></div>
@@ -435,6 +438,11 @@ show(idx>=0?idx:0);
     <div class="card">
       <div class="card-title">Social Mix by Year <em>&middot; solo vs with others</em></div>
       <canvas id="socialYearChart" height="200"></canvas>
+    </div>
+
+    <div class="card full" id="likersCard" style="display:none">
+      <div class="card-title">Who likes your check-ins <em>&middot; check-ins of yours each person liked on Swarm</em></div>
+      <div class="cc-list" id="likersList"></div>
     </div>
 
     <div class="card full">
@@ -514,6 +522,15 @@ show(idx>=0?idx:0);
         },options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y}%`}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#1a1e2e'},ticks:{callback:v=>v+'%'},max:100}}}});
       }
     }
+  }
+
+  // ── Who likes your check-ins ──
+  if(LIKERS.length){
+    document.getElementById('likersCard').style.display='';
+    const mx=LIKERS[0][2];
+    document.getElementById('likersList').innerHTML=LIKERS.slice(0,20).map(([id,nm,c])=>`<div class="cc-row" style="grid-template-columns:200px 1fr 50px">
+      <div class="cc-name">${esc(nm)}</div><div style="height:6px;border-radius:3px;background:var(--card);overflow:hidden"><i style="display:block;height:100%;width:${Math.round(100*c/mx)}%;background:linear-gradient(90deg,#ff6fae,#ff9a6b)"></i></div>
+      <div style="font-family:'DM Mono',monospace;font-size:.7rem;color:#ff8fbf;text-align:right">♥ ${c.toLocaleString()}</div></div>`).join('');
   }
 
   // ── Companion Countries ───────────────────────────────────────────────────

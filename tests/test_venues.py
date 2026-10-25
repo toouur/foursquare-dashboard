@@ -87,7 +87,8 @@ def test_full_history_and_refurbished_flag():
     r = compute_venues(rows)["v"]
     assert r["n"] == 301 and len(r["v"]) == 301   # every visit, not the latest 60
     assert r["first"].startswith("2010")
-    assert r["v"][-1][-1] == 1 and all(x[-1] == 0 for x in r["v"][:-1])
+    rf = VISIT_FIELDS.index("rf")
+    assert r["v"][-1][rf] == 1 and all(x[rf] == 0 for x in r["v"][:-1])
 
 
 def test_shards_written_and_stale_removed(tmp_path):
@@ -125,3 +126,11 @@ def test_clean_shout():
     assert clean_shout("with Darya and a cake", ["Darya"]) == "with Darya and a cake"
     assert clean_shout("грузим на Дортмунд [geo_pinned]", []) == "грузим на Дортмунд"
     assert clean_shout("[coords_approx:pending_api]", []) == ""
+
+
+def test_visit_carries_its_likes():
+    t = _ts("2021-06-01T10:00:00")
+    rows = [_row(t, "v1", checkin_id="cL"), _row(t + 86400, "v1", checkin_id="cN")]
+    v = compute_venues(rows, None, {"cL": {"n": 2, "by": [["1", "Ana"], ["2", "Bo"]]}})["v1"]["v"]
+    ix = {k: i for i, k in enumerate(VISIT_FIELDS)}
+    assert v[1][ix["likes"]] == [2, "Ana, Bo"] and v[0][ix["likes"]] == 0

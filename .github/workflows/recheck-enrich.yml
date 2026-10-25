@@ -99,7 +99,7 @@ jobs:
             if [ -n "$RECHECK_IDS" ]; then IDS_ARG="--recheck-ids $RECHECK_IDS"; fi
             echo "Overlap re-scan window: ${RECHECK_HOURS}h"
             python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv \
-              --recheck-recent-hours "$RECHECK_HOURS" $IDS_ARG >> "$GITHUB_OUTPUT"
+              --recheck-recent-hours "$RECHECK_HOURS" $IDS_ARG \n              --likes-recent-days 30 >> "$GITHUB_OUTPUT"   # late likes on the last month (a few list calls)
           fi
 
       # ── 4b. Recheck photos (already-indexed recent check-ins, last 2 days) ───
@@ -146,6 +146,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add checkins.csv photos.json
+          [ -f checkin_likes.json ] && git add checkin_likes.json || true
           if git diff --cached --quiet; then
             echo "Nothing to commit in data repo."
           else

@@ -210,6 +210,7 @@ jobs:
 
           git add checkins.csv tips.json
           if [ -f backfill.csv ];       then git add backfill.csv;       fi
+          if [ -f checkin_likes.json ]; then git add checkin_likes.json; fi
           if [ -f venueRatings.json ];  then git add venueRatings.json;  fi
           if [ -f comments.json ];      then git add comments.json;      fi
           if [ -f photos.json ];        then git add photos.json;        fi
