@@ -246,6 +246,61 @@ a{{color:inherit;text-decoration:none;}}
   .gallery-grid{{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:3px;padding:8px 8px 32px;}}
   .load-more{{padding:9px 20px;font-size:.58rem;}}
 }}
+
+/* ── new look: same content, sorts and filters ── */
+.page-hero{{padding:42px 48px 6px;border-bottom:none;max-width:1500px;}}
+.ph-eyebrow{{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);}}
+.page-hero h1{{font-size:clamp(2.2rem,5.4vw,4.2rem);line-height:1.02;margin:10px 0 12px;color:#eef0f6;background:none;-webkit-text-fill-color:currentColor;}}
+.page-hero h1 em{{font-style:normal;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.ph-facts{{display:flex;gap:6px;flex-wrap:wrap;}}
+.ph-chip{{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.04em;padding:4px 10px;border-radius:999px;background:var(--card2);color:#d6d9e4;}}
+.ph-chip a{{color:var(--gold);}}
+.ph-bar{{position:sticky;top:57px;z-index:90;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 48px;background:linear-gradient(var(--bg) 72%,transparent);}}
+.sort-pills{{display:inline-flex;gap:0;margin:0;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:3px;}}
+.sort-pill{{border:none;background:none;border-radius:999px;padding:8px 16px;font-size:.62rem;color:var(--text2);}}
+.sort-pill.active{{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);color:#1a1206;border:none;}}
+.sort-pill:hover:not(.active){{color:var(--text);border:none;}}
+.ph-count{{margin-left:auto;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text2);}}
+.city-filter{{padding:4px 48px 0;max-width:1500px;}}
+.country-grid{{grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:6px;}}
+.country-row{{position:relative;overflow:hidden;gap:8px;padding:8px 10px;background:var(--card);border:1px solid var(--border);border-radius:12px;}}
+.country-row:hover,.country-row.open{{background:var(--card);border-color:rgba(255,154,107,.55);}}
+.country-row .fi{{font-size:1.05em!important;border-radius:3px!important;z-index:1;}}
+.country-label{{font-family:'DM Sans',sans-serif;font-size:.78rem;color:var(--text);z-index:1;}}
+.country-count{{font-size:.62rem;color:var(--gold);z-index:1;}}
+.country-arrow{{display:none;}}
+.country-share{{position:absolute;left:0;bottom:0;height:2px;background:linear-gradient(90deg,#f6d38b,#ff9a6b 60%,#ff6fae);opacity:.75;}}
+.cities-panel{{gap:6px;padding:12px 48px 4px;border-top:none;}}
+.city-pill{{padding:5px 11px;font-size:.6rem;border-radius:999px;}}
+.city-pill.active{{background:#2fd6b5;border-color:#2fd6b5;}}
+.city-pill-all:hover,.city-pill-all.active{{background:linear-gradient(135deg,#f6d38b,#ff9a6b);border-color:transparent;}}
+.gallery-grid{{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;padding:18px 48px 72px;max-width:1500px;}}
+.ph-item{{border-radius:14px;cursor:zoom-in;}}
+.ph-item img{{transition:transform .5s,filter .3s;}}
+.ph-item:hover img{{transform:scale(1.06);opacity:1;filter:saturate(1.1);}}
+.ph-tooltip{{padding:28px 12px 10px;background:linear-gradient(transparent,rgba(9,11,16,.92));font-size:.8rem;transform:translateY(6px);transition:opacity .25s,transform .25s;}}
+.ph-item:hover .ph-tooltip{{transform:none;}}
+.ph-tooltip .pv{{color:#fff;}}
+.ph-tooltip .pd{{display:flex;align-items:center;gap:5px;font-size:.58rem;color:#d0d4e0;margin-top:3px;}}
+.load-more{{border-radius:999px;padding:11px 28px;color:var(--text);background:var(--card2);}}
+#tipPhotosSection{{max-width:1500px;padding:0 48px 24px!important;}}
+/* keep clear of the fixed side rail on wide screens */
+@media(min-width:901px){{.city-filter,.gallery-grid,.cities-panel,.ph-bar{{padding-right:76px;}}}}
+@media(max-width:700px){{
+  .page-hero{{padding:26px 14px 4px;}}
+  .ph-bar{{top:49px;padding:10px 14px;}}
+  .ph-count{{margin-left:0;width:100%;}}
+  .city-filter{{padding:4px 0 0 14px;}}
+  .country-grid{{display:flex;overflow-x:auto;scrollbar-width:none;padding-right:14px;}}
+  .country-grid::-webkit-scrollbar{{display:none;}}
+  .country-row{{flex:0 0 auto;}}
+  .country-label{{overflow:visible;}}
+  .cities-panel{{padding:10px 14px 4px;}}
+  .gallery-grid{{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:12px 8px 40px;}}
+  .ph-item{{border-radius:8px;aspect-ratio:1;}}
+  .ph-tooltip{{display:none;}}
+  #tipPhotosSection{{padding:0 8px 24px!important;}}
+}}
 </style>
 </head>
 <body>
@@ -260,13 +315,17 @@ a{{color:inherit;text-decoration:none;}}
 </div>
 
 <div class="page-hero">
-  <h1>Photos</h1>
-  <div class="page-hero-sub">{total + len(tip_photos):,} photos{f' · <a href="#tipPhotosSection" style="color:var(--gold);text-decoration:none;">+ {len(tip_photos)} tip photos ↓</a>' if tip_photos else ''}</div>
+  <div class="ph-eyebrow">Photos · every picture from a check-in</div>
+  <h1>{total + len(tip_photos):,} photos, <em id="phCountries">all countries</em></h1>
+  <div class="ph-facts"><span class="ph-chip" id="phCities"></span><span class="ph-chip" id="phYears"></span>{f'<span class="ph-chip"><a href="#tipPhotosSection">+ {len(tip_photos)} tip photos ↓</a></span>' if tip_photos else ''}</div>
+</div>
+<div class="ph-bar">
   <div class="sort-pills">
     <div class="sort-pill active" id="sAll" onclick="resetAll()">All Photos</div>
     <div class="sort-pill" id="sNewest" onclick="setSort('newest')">Newest first</div>
     <div class="sort-pill" id="sOldest" onclick="setSort('oldest')">Oldest first</div>
   </div>
+  <span class="ph-count" id="phCount"></span>
 </div>
 
 <div class="city-filter" id="cityFilter"></div>
@@ -312,11 +371,12 @@ const citiesPanel = document.getElementById('citiesPanel');
   const grid = document.createElement('div');
   grid.className = 'country-grid';
   wrap.appendChild(grid);
+  const maxCtr = Math.max(1, ...COUNTRIES.map(c => c.count));
   COUNTRIES.forEach(ctr => {{
     const row = document.createElement('div');
     row.className = 'country-row';
     row.id = 'ctr-' + ctr.country;
-    row.innerHTML = `${{flag(ctr.country)}}<span class="country-label">${{esc(ctr.country)}}</span><span class="country-count">${{ctr.count}}</span><span class="country-arrow">▶</span>`;
+    row.innerHTML = `${{flag(ctr.country)}}<span class="country-label">${{esc(ctr.country)}}</span><span class="country-count">${{ctr.count}}</span><span class="country-arrow">▶</span><i class="country-share" style="width:${{Math.max(4, Math.round(100 * ctr.count / maxCtr))}}%"></i>`;
     row.onclick = () => toggleCountry(ctr);
     grid.appendChild(row);
   }});
@@ -425,7 +485,7 @@ function renderBatch(start, end){{
     const p=sorted[i];
     const div=document.createElement('div');
     div.className='ph-item';
-    div.innerHTML=`<img src="${{p.src}}" loading="lazy" alt="${{esc(p.venue)}}"><div class="ph-tooltip"><div class="pv">${{esc(p.venue)}}</div><div class="pd">${{esc(p.city||p.country||'')}}${{p.city&&p.date?' · ':''}}${{esc(p.date||'')}}</div></div>`;
+    div.innerHTML=`<img src="${{p.src}}" loading="lazy" alt="${{esc(p.venue)}}"><div class="ph-tooltip"><div class="pv">${{esc(p.venue)}}</div><div class="pd">${{flag(p.country)}} ${{esc(p.city||p.country||'')}}${{p.city&&p.date?' · ':''}}${{esc(p.date||'')}}</div></div>`;
     div.onclick=(()=>{{const idx=i;return()=>openGallery(idx);}})();
     frag.appendChild(div);
   }}
@@ -436,9 +496,18 @@ function loadMore(){{
   const end=Math.min(loaded+PAGE, sorted.length);
   renderBatch(loaded, end);
   loaded=end;
+  document.getElementById('phCount').textContent=sorted.length.toLocaleString('en-US')+' photos'+(activeCity?' · '+activeCity:(openCountry?' · '+openCountry:' · tap a country to filter'));
   document.getElementById('loadMore').style.display=loaded>=sorted.length?'none':'block';
 }}
 loadMore();
+(function(){{
+  // distinct cities of the photos themselves (COUNTRIES only lists each country's top cities)
+  const nCities=new Set(PHOTOS_NEWEST.map(p=>(p.city||'')+'|'+(p.country||'')).filter(k=>k[0]!=='|')).size;
+  document.getElementById('phCountries').textContent=COUNTRIES.length+' countries';
+  document.getElementById('phCities').textContent=nCities.toLocaleString('en-US')+' cities';
+  const ys=PHOTOS_NEWEST.map(p=>p.ts).filter(Boolean);
+  if(ys.length) document.getElementById('phYears').textContent=new Date(Math.min(...ys)*1000).getUTCFullYear()+' – '+new Date(Math.max(...ys)*1000).getUTCFullYear();
+}})();
 
 function openGallery(idx){{galMode='photos';galleryIdx=idx;showGalItem();document.getElementById('gallery').classList.add('open');}}
 function showGalItem(){{
