@@ -140,6 +140,33 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   .tc-venue{font-size:.82rem;}
   .tc-views{display:none;}
 }
+
+/* ── new look (same lists, sorts, filters and map) ── */
+.topbar{gap:8px;padding:14px 18px 10px;background:none;border-bottom:none;}
+.topbar h1{font-size:clamp(1.6rem,3vw,2.3rem)!important;margin-right:10px;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;}
+.sbtn{border-radius:999px;padding:7px 13px;font-size:.66rem;background:var(--card);}
+.sbtn.act{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);color:#1a1206;border-color:transparent;}
+.sbtn:hover:not(.act){border-color:#ff9a6b;color:var(--text);}
+.srch{border-radius:999px;padding:9px 16px;font-size:.8rem;width:260px;background:var(--card);}
+.srch:focus{border-color:#ff9a6b;}
+.badge{font-size:.6rem;background:var(--card2);padding:4px 10px;border-radius:999px;}
+.page-insight{background:none;border-bottom:none;padding:0 18px 8px;}
+.feed-scroll{padding:6px 10px 12px;}
+.leaflet-container{background:#0c0e14;}
+@media(max-width:700px){.topbar{padding:10px 12px 6px;}.srch{width:100%;order:10;}.page-insight{padding:0 12px 6px;}}
+
+.tabs-wrap{background:none;border-bottom:none;padding:0 12px 6px;}
+.tab-btn{border:1px solid var(--border);border-radius:999px;padding:5px 11px;font-size:.72rem;color:var(--text);background:var(--card);}
+.tab-btn.act{border-color:#ff9a6b;color:var(--text);background:rgba(255,154,107,.12);}
+.tab-count{color:#ffc29b;opacity:1;}
+.tcard{border-radius:18px;padding:14px 16px 12px;}
+.tcard::after{display:none;}
+.tcard:hover{border-color:rgba(255,154,107,.35);}
+.tcard.sel{border-color:#ff9a6b;box-shadow:0 0 0 3px rgba(255,154,107,.12);}
+.tc-cat-icon{width:32px;height:32px;border-radius:11px;font-size:15px;}
+.tc-text{font-family:'Playfair Display',serif;font-style:italic;font-size:1rem;line-height:1.42;color:#eef0f6;position:relative;padding-left:14px;margin:8px 0 10px;-webkit-line-clamp:5;}
+.tc-text::before{content:'';position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:2px;background:linear-gradient(180deg,#f6d38b,#ff6fae);}
+.tc-photo{border-radius:12px;height:150px;}
 </style>
 </head>
 <body>

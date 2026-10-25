@@ -110,6 +110,28 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   .badge{display:none;}
   .vcard{padding:10px 12px 9px;}
 }
+
+/* ── new look (same lists, sorts, filters and map) ── */
+.topbar{gap:8px;padding:14px 18px 10px;background:none;border-bottom:none;}
+.topbar h1{font-size:clamp(1.6rem,3vw,2.3rem)!important;margin-right:10px;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;}
+.sbtn{border-radius:999px;padding:7px 13px;font-size:.66rem;background:var(--card);}
+.sbtn.act{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);color:#1a1206;border-color:transparent;}
+.sbtn:hover:not(.act){border-color:#ff9a6b;color:var(--text);}
+.srch{border-radius:999px;padding:9px 16px;font-size:.8rem;width:260px;background:var(--card);}
+.srch:focus{border-color:#ff9a6b;}
+.badge{font-size:.6rem;background:var(--card2);padding:4px 10px;border-radius:999px;}
+.page-insight{background:none;border-bottom:none;padding:0 18px 8px;}
+.feed-scroll{padding:6px 10px 12px;}
+.leaflet-container{background:#0c0e14;}
+@media(max-width:700px){.topbar{padding:10px 12px 6px;}.srch{width:100%;order:10;}.page-insight{padding:0 12px 6px;}}
+
+.vcard{border-radius:18px;padding:13px 16px 11px;}
+.vcard::after{display:none;}
+.vcard:hover{border-color:rgba(255,154,107,.35);}
+.vcard.sel{border-color:#ff9a6b;box-shadow:0 0 0 3px rgba(255,154,107,.12);}
+.vc-cat-icon{width:32px;height:32px;border-radius:11px;font-size:15px;}
+.vc-rating{width:34px;height:34px;border-radius:50%;display:inline-flex!important;align-items:center;justify-content:center;font-size:1rem;background:rgba(255,111,174,.15);flex-shrink:0;}
+.yr-hdr{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:900;letter-spacing:0;text-transform:none;opacity:1;border-bottom:none;padding:12px 4px 4px;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
 </style>
 </head>
 <body>
