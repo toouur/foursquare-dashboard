@@ -186,6 +186,37 @@ a{color:inherit;}
   .ms-tags{justify-content:flex-start;}
   .cov-grid .heatmap-cell{height:11px;}
 }
+
+/* ── Overview + tabs ── */
+.page-header{padding:40px 56px 18px;border-bottom:none;background:none;}
+.ph-eyebrow{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);}
+.page-header h1{font-size:clamp(2.2rem,5vw,4rem);line-height:1.02;margin-top:10px;color:var(--text);background:none;-webkit-text-fill-color:currentColor;}
+.page-header h1 em{font-style:normal;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.page-insight{background:none;border-bottom:none;padding:0 56px 10px;max-width:1500px;}
+.st-tabs{position:sticky;top:0;z-index:60;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:12px 56px;background:linear-gradient(var(--bg) 75%,transparent);}
+.st-tabs::-webkit-scrollbar{display:none;}
+.st-tabs button{white-space:nowrap;background:var(--card2);border:1px solid var(--border);border-radius:999px;padding:8px 16px;font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:.06em;color:var(--text);cursor:pointer;}
+.st-tabs button:hover{border-color:var(--gold);}
+.st-tabs button.on{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);color:#1a1206;border-color:transparent;}
+.st-tabs button b{font-weight:400;opacity:.6;margin-left:5px;}
+.ins-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:6px 56px 0;margin-bottom:14px;max-width:1500px;}
+.ins-grid[hidden]{display:none;}
+.ins{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px 18px;min-width:0;}
+.ins span{display:block;font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+.ins b{display:block;font-family:'Playfair Display',serif;font-weight:900;font-size:1.9rem;line-height:1.05;margin:10px 0 6px;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ins:nth-child(4n+2) b{background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;}
+.ins:nth-child(4n+3) b{background:linear-gradient(135deg,#2fd6b5,#4cb8ff);-webkit-background-clip:text;background-clip:text;}
+.ins small{font-size:.74rem;color:var(--text2,#c3c7d6);}
+.card{border-radius:20px;}
+#statGrid[data-active="overview"] .card:not([data-tab~="overview"]),
+#statGrid[data-active="time"] .card:not([data-tab~="time"]),
+#statGrid[data-active="places"] .card:not([data-tab~="places"]),
+#statGrid[data-active="movement"] .card:not([data-tab~="movement"]),
+#statGrid[data-active="people"] .card:not([data-tab~="people"]),
+#statGrid[data-active="words"] .card:not([data-tab~="words"]),
+#statGrid[data-active="data"] .card:not([data-tab~="data"]){display:none !important;}
+@media(max-width:900px){.page-header{padding:26px 18px 12px;}.page-insight{padding:0 18px 8px;}.st-tabs{padding:10px 18px;}.ins-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding:6px 18px 0;}}
+@media(max-width:520px){.ins b{font-size:1.45rem;}}
 </style>
 </head>
 <body>
@@ -200,9 +231,14 @@ a{color:inherit;}
 </div>
 
 <div class="page-header">
-  <h1>Statistics</h1>
-  <p>Deep-dive analytics &nbsp;&middot;&nbsp; all check-ins</p>
+  <div class="ph-eyebrow" id="phEyebrow">Statistics</div>
+  <h1 id="phTitle">Statistics</h1>
 </div>
+<div class="st-tabs" id="stTabs">
+  <button data-t="overview" class="on">Overview</button><button data-t="time">Time</button><button data-t="places">Places</button>
+  <button data-t="movement">Movement</button><button data-t="people">People</button><button data-t="words">Words</button><button data-t="data">Data</button>
+</div>
+<div class="ins-grid" id="insGrid"></div>
 
 <div class="page-insight" id="page-insight"></div>
 
@@ -210,47 +246,47 @@ a{color:inherit;}
 
 {{ANOMALIES}}
 
-<div class="grid">
+<div class="grid" id="statGrid" data-active="overview">
 
   <!-- 1. Check-ins by Year -->
-  <div class="card">
+  <div data-tab="overview time" class="card">
     <div class="card-title">Check-ins by Year</div>
     <canvas id="yearChart" height="210"></canvas>
     <div id="yoyTable" style="margin-top:14px;overflow-x:auto;"></div>
   </div>
 
   <!-- 2. Monthly Trend -->
-  <div class="card">
+  <div data-tab="time" class="card">
     <div class="card-title">Monthly Trend</div>
     <canvas id="monthChart" height="210"></canvas>
   </div>
 
   <!-- 3. Hour of Day -->
-  <div class="card">
+  <div data-tab="overview time" class="card">
     <div class="card-title">Hour of Day</div>
     <canvas id="hourChart" height="200"></canvas>
   </div>
 
   <!-- 4. Day of Week -->
-  <div class="card">
+  <div data-tab="overview time" class="card">
     <div class="card-title">Day of Week</div>
     <canvas id="dowChart" height="200"></canvas>
   </div>
 
   <!-- 5. Distance per Year -->
-  <div class="card">
+  <div data-tab="movement" class="card">
     <div class="card-title">Distance per Year <em>&middot; km between consecutive check-ins</em></div>
     <canvas id="distChart" height="210"></canvas>
   </div>
 
   <!-- 6. Countries per Year -->
-  <div class="card">
+  <div data-tab="movement" class="card">
     <div class="card-title">Countries per Year</div>
     <canvas id="ctrPerYearChart" height="210"></canvas>
   </div>
 
   <!-- 7. Activity Streaks -->
-  <div class="card">
+  <div data-tab="time" class="card">
     <div class="card-title">Activity Streaks</div>
     <div class="streak-row">
       <div class="streak-stat"><div class="s-num" id="longestStreak">—</div><div class="s-lbl">Longest Streak (days)</div></div>
@@ -260,183 +296,183 @@ a{color:inherit;}
   </div>
 
   <!-- 8. Category Mix by Year -->
-  <div class="card">
+  <div data-tab="places" class="card">
     <div class="card-title">Category Mix by Year <em>&middot; share of top 7 groups</em></div>
     <canvas id="catDriftChart" height="280"></canvas>
   </div>
 
   <!-- 9. Discovery Rate (full-width) -->
-  <div class="card full">
+  <div data-tab="places" class="card full">
     <div class="card-title">Discovery Rate <em>&middot; new vs revisited venues per month</em></div>
     <canvas id="discoveryChart" height="200"></canvas>
   </div>
 
   <!-- 10. Venue Loyalty (full-width) -->
-  <div class="card full">
+  <div data-tab="places" class="card full">
     <div class="card-title">Venue Loyalty <em>&middot; places visited in 3+ different years</em></div>
     <div class="loyalty-list" id="loyaltyGrid"></div>
   </div>
 
   <!-- 11. Regular Haunts (full-width) -->
-  <div class="card full">
+  <div data-tab="places" class="card full">
     <div class="card-title">Regular Haunts <em>&middot; venues visited in the most distinct calendar months</em></div>
     <div class="reg-list" id="regularsListEl"></div>
   </div>
 
   <!-- 12. Venue Visit Frequency -->
-  <div class="card">
+  <div data-tab="places" class="card">
     <div class="card-title">Venue Visit Frequency <em>&middot; how many venues visited N times</em></div>
     <canvas id="freqDistChart" height="220"></canvas>
   </div>
 
   <!-- 13. Revisit Intervals -->
-  <div class="card">
+  <div data-tab="places" class="card">
     <div class="card-title">Revisit Intervals <em>&middot; time between return visits</em></div>
     <canvas id="revisitChart" height="220"></canvas>
   </div>
 
   <!-- 14. Activity Calendar (full-width) -->
-  <div class="card full">
+  <div data-tab="overview time" class="card full">
     <div class="card-title">Activity Calendar <em>&middot; GitHub-style heatmap by day</em></div>
     <div class="heatmap-outer" id="heatmapCont"></div>
   </div>
 
   <!-- 15. Place Categories (full-width) -->
-  <div class="card full">
+  <div data-tab="overview places" class="card full">
     <div class="card-title">Place Categories <em>&middot; by group</em></div>
     <canvas id="catChart" height="85"></canvas>
   </div>
 
   <!-- 16. Hour × Category heatmap (full-width) -->
-  <div class="card full" id="hourCatCard" style="display:none;">
+  <div data-tab="time" class="card full" id="hourCatCard" style="display:none;">
     <div class="card-title">Hour of Day × Category <em>&middot; local time, top 8 groups</em></div>
     <div id="hourCatHeat" style="overflow-x:auto;"></div>
   </div>
 
   <!-- 17. Day of Week × Category -->
-  <div class="card full" id="dowCatCard" style="display:none;">
+  <div data-tab="time" class="card full" id="dowCatCard" style="display:none;">
     <div class="card-title">Day of Week × Category <em>&middot; local time</em></div>
     <div id="dowCatHeat" style="overflow-x:auto;"></div>
   </div>
 
   <!-- 18. Country hour profiles -->
-  <div class="card full" id="ctryHourCard" style="display:none;">
+  <div data-tab="time" class="card full" id="ctryHourCard" style="display:none;">
     <div class="card-title">Country Hour Profiles <em>&middot; % of country's check-ins per local hour &middot; top 12 by volume</em></div>
     <div id="ctryHourHeat" style="overflow-x:auto;"></div>
   </div>
 
   <!-- 19. Shout KPIs + emojis + sentiment + language (full-width) -->
-  <div class="card full" id="shoutKpiCard" style="display:none;">
+  <div data-tab="words" class="card full" id="shoutKpiCard" style="display:none;">
     <div class="card-title">Shouts <em>&middot; free-text notes you wrote with check-ins</em></div>
     <div class="streak-row" id="shoutKpiRow"></div>
   </div>
 
-  <div class="card" id="shoutEmojiCard" style="display:none;">
+  <div data-tab="words" class="card" id="shoutEmojiCard" style="display:none;">
     <div class="card-title">Top Emojis <em>&middot; you used in shouts</em></div>
     <div id="shoutEmojiList" style="line-height:2;"></div>
   </div>
 
-  <div class="card" id="shoutLangCard" style="display:none;">
+  <div data-tab="words" class="card" id="shoutLangCard" style="display:none;">
     <div class="card-title">Language Mix by Year <em>&middot; cyrillic vs latin in shouts</em></div>
     <canvas id="shoutLangChart" height="230"></canvas>
   </div>
 
-  <div class="card" id="shoutSentimentCard" style="display:none;">
+  <div data-tab="words" class="card" id="shoutSentimentCard" style="display:none;">
     <div class="card-title">Shout Mood by Year <em>&middot; emoji-based sentiment</em></div>
     <canvas id="shoutSentChart" height="230"></canvas>
   </div>
 
-  <div class="card" id="shoutCountCard" style="display:none;">
+  <div data-tab="words" class="card" id="shoutCountCard" style="display:none;">
     <div class="card-title">Shouts per Year <em>&middot; count &amp; avg length</em></div>
     <canvas id="shoutCountChart" height="230"></canvas>
   </div>
 
-  <div class="card full" id="shoutWordsCard" style="display:none;">
+  <div data-tab="words" class="card full" id="shoutWordsCard" style="display:none;">
     <div class="card-title">Top Words <em>&middot; most-used non-stopword tokens in your shouts</em></div>
     <div id="shoutWordsList"></div>
   </div>
 
-  <div class="card full" id="shoutWordsByCountryCard" style="display:none;">
+  <div data-tab="words" class="card full" id="shoutWordsByCountryCard" style="display:none;">
     <div class="card-title">Top Words by Country <em>&middot; top 10 countries by shout volume</em></div>
     <div id="shoutWordsCountryList"></div>
   </div>
 
   <!-- 21. Transport Modes (full-width) -->
-  <div class="card full" id="transportCard" style="display:none;">
+  <div data-tab="movement" class="card full" id="transportCard" style="display:none;">
     <div class="card-title">Transport Modes <em>&middot; km/year classified by speed between consecutive check-ins</em></div>
     <div class="streak-row" id="transportKpis"></div>
     <canvas id="transportChart" height="240"></canvas>
   </div>
 
   <!-- 22. Carbon Footprint -->
-  <div class="card" id="carbonCard" style="display:none;">
+  <div data-tab="movement" class="card" id="carbonCard" style="display:none;">
     <div class="card-title">Travel Carbon <em>&middot; kg CO₂e per year, est.</em></div>
     <canvas id="carbonChart" height="220"></canvas>
   </div>
 
   <!-- 23. Distance from Home -->
-  <div class="card" id="distHomeCard" style="display:none;">
+  <div data-tab="movement" class="card" id="distHomeCard" style="display:none;">
     <div class="card-title">Distance from Home <em>&middot; daily mean km from home centroid</em></div>
     <div class="streak-row" id="nomadKpis"></div>
     <canvas id="distHomeChart" height="220"></canvas>
   </div>
 
   <!-- 24. Daily Extremes (full-width) -->
-  <div class="card full" id="dayExtCard" style="display:none;">
+  <div data-tab="time" class="card full" id="dayExtCard" style="display:none;">
     <div class="card-title">First &amp; Last Check-in of Day <em>&middot; median local hour per year</em></div>
     <canvas id="dayExtChart" height="240"></canvas>
   </div>
 
   <!-- 25. Cohort Retention (full-width) -->
-  <div class="card full" id="cohortCard" style="display:none;">
+  <div data-tab="places" class="card full" id="cohortCard" style="display:none;">
     <div class="card-title">Cohort Venue Retention <em>&middot; venues discovered each year &middot; % revisited later</em></div>
     <div id="cohortHeat" style="overflow-x:auto;"></div>
   </div>
 
   <!-- 26. Activity Trajectory (absolute counts, full-width) -->
-  <div class="card full" id="trajectoryCard" style="display:none;">
+  <div data-tab="places" class="card full" id="trajectoryCard" style="display:none;">
     <div class="card-title">Category Trajectory <em>&middot; absolute check-in count per category group per year</em></div>
     <canvas id="trajectoryChart" height="260"></canvas>
   </div>
 
   <!-- 27. City Funnel -->
-  <div class="card" id="cityFunnelCard" style="display:none;">
+  <div data-tab="places" class="card" id="cityFunnelCard" style="display:none;">
     <div class="card-title">City Graduation <em>&middot; cities by total check-in count</em></div>
     <canvas id="cityFunnelChart" height="240"></canvas>
   </div>
 
   <!-- 28. Diversity Index -->
-  <div class="card" id="diversityCard" style="display:none;">
+  <div data-tab="places" class="card" id="diversityCard" style="display:none;">
     <div class="card-title">Diversity Index <em>&middot; Shannon entropy of category mix per year</em></div>
     <canvas id="diversityChart" height="240"></canvas>
   </div>
 
   <!-- 29. Companion Lifecycle (full-width) -->
-  <div class="card full" id="compLifeCard" style="display:none;">
+  <div data-tab="people" class="card full" id="compLifeCard" style="display:none;">
     <div class="card-title">Companion Lifecycle <em>&middot; first &amp; last seen, active span, top venue</em></div>
     <div id="compLifeList"></div>
   </div>
 
   <!-- 30. Source App Trends -->
-  <div class="card" id="srcAppCard" style="display:none;">
+  <div data-tab="data" class="card" id="srcAppCard" style="display:none;">
     <div class="card-title">Source App Trends <em>&middot; check-ins per client per year</em></div>
     <canvas id="srcAppChart" height="220"></canvas>
   </div>
 
   <!-- 31. City inferred (data quality) -->
-  <div class="card" id="cityInferredCard" style="display:none;">
+  <div data-tab="data" class="card" id="cityInferredCard" style="display:none;">
     <div class="card-title">Data Quality <em>&middot; city values filled by centroid resolver</em></div>
     <div class="streak-row" id="cityInferredKpis"></div>
   </div>
 
   <!-- 32. Dormant Venues (full-width) -->
-  <div class="card full" id="dormantCard" style="display:none;">
+  <div data-tab="places" class="card full" id="dormantCard" style="display:none;">
     <div class="card-title">What You Miss <em>&middot; 10+ visit venues you haven't been to in over a year</em></div>
     <div id="dormantList"></div>
   </div>
 
   <!-- 33. Records & Milestones -->
-  <div class="card full" id="milestonesCard" style="display:none;">
+  <div data-tab="overview time" class="card full" id="milestonesCard" style="display:none;">
     <div class="card-title">Records &amp; Milestones <em>&middot; personal bests and the echo bot's labels over all history</em></div>
     <div class="streak-row" id="msRecords"></div>
     <div class="ms-chips" id="msCounts"></div>
@@ -444,7 +480,7 @@ a{color:inherit;}
   </div>
 
   <!-- 34. City coverage & radius of gyration -->
-  <div class="card full" id="coverageCard" style="display:none;">
+  <div data-tab="movement" class="card full" id="coverageCard" style="display:none;">
     <div class="card-title">Coverage &amp; Radius <em>&middot; how far each month reached from home (radius of gyration, km)</em></div>
     <div class="cov-grid" id="covGrid"></div>
     <div class="cov-legend" id="covLegend"></div>
@@ -1367,6 +1403,47 @@ function gsOpen(){document.getElementById('gsOverlay').classList.add('open');doc
 function gsClose(){document.getElementById('gsOverlay').classList.remove('open');}
 document.getElementById('gsInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&this.value.trim()){location.href='search.html?q='+encodeURIComponent(this.value.trim());}if(e.key==='Escape')gsClose();});
 document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();gsOpen();}if(e.key==='Escape'&&document.getElementById('gsOverlay').classList.contains('open'))gsClose();});
+
+// ── Overview insight tiles + tabs: a tab only toggles which cards are visible ──
+(function(){
+  const n=x=>Number(x||0).toLocaleString('en-US');
+  const by=S.by_year||[], peak=by.reduce((m,r)=>r[1]>m[1]?r:m,['—',0]);
+  const dow=(S.by_dow||[]).map(r=>r[1]), hr=(S.by_hour||[]).map(r=>r[1]);
+  const sum=a=>a.reduce((x,y)=>x+y,0);
+  const ph=hr.length?hr.indexOf(Math.max(...hr)):0;
+  const once=((S.venue_freq_dist||[])[0]||[0,0])[1], up=S.unique_places_count||1;
+  const loyal=(S.venue_loyalty||[])[0];
+  const nk=S.nomad_kpis||{};
+  const tiles=[
+    ['Peak year',peak[0],n(peak[1])+' check-ins'],
+    ['Longest streak',n(S.longest_streak)+' days','current: '+n(S.current_streak)+' days'],
+    ['Weekend share',(dow.length?Math.round(100*(dow[5]+dow[6])/sum(dow)):0)+'%','of all check-ins fall on Sat–Sun'],
+    ['Busiest hour',ph+':00',n(hr[ph])+' check-ins in that hour'],
+    ['One-time places',Math.round(100*once/up)+'%',n(once)+' of '+n(up)+' visited once'],
+    ['Around the Earth',((S.total_km||0)/40075).toFixed(1)+'×',n(S.total_km)+' km between check-ins'],
+    ['Days away',(nk.nomad_pct||0)+'%',n(nk.nomad_days)+' days away from home'],
+    ['Most loyal',loyal?loyal[0]:'—',loyal?(loyal[2]||[]).length+' different years · '+(loyal[1]||''):''],
+  ];
+  const esc2=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  document.getElementById('insGrid').innerHTML=tiles.map(([a,b,c])=>'<div class="ins"><span>'+a+'</span><b title="'+esc2(b)+'">'+esc2(b)+'</b><small>'+esc2(c)+'</small></div>').join('');
+  document.getElementById('phEyebrow').textContent='Statistics · '+(S.date_min||'').slice(0,4)+' – '+(S.date_max||'').slice(0,4);
+  document.getElementById('phTitle').innerHTML=n(S.total)+' check-ins, <em>the patterns</em>';
+  const grid=document.getElementById('statGrid'), tabs=[...document.querySelectorAll('#stTabs button')];
+  tabs.forEach(b=>{const k=b.dataset.t;const c=[...grid.querySelectorAll('.card')].filter(x=>(x.dataset.tab||'').split(' ').includes(k)).length;if(k!=='overview')b.insertAdjacentHTML('beforeend','<b>'+c+'</b>');});
+  function show(k){
+    if(!tabs.some(b=>b.dataset.t===k)) k='overview';
+    grid.dataset.active=k;
+    tabs.forEach(b=>b.classList.toggle('on',b.dataset.t===k));
+    document.getElementById('insGrid').hidden=k!=='overview';
+    // charts built while their card was hidden keep a zero/stale size: re-measure every one
+    requestAnimationFrame(()=>{ if(window.Chart&&Chart.instances) Object.values(Chart.instances).forEach(c=>{ try{ c.resize(); }catch(e){} }); });
+  }
+  window.addEventListener('hashchange',()=>show((location.hash||'').slice(1)));
+  window.addEventListener('load',()=>show(grid.dataset.active));
+  tabs.forEach(b=>b.onclick=()=>{history.replaceState(null,'','#'+b.dataset.t);show(b.dataset.t);
+    const top=document.getElementById('stTabs').getBoundingClientRect().top+scrollY;if(scrollY>top)scrollTo({top:top});});
+  show((location.hash||'').slice(1));
+})();
 </script>
 <nav class="side-nav" aria-label="Page shortcuts">
   <a href="index.html"><span class="sn-icon">🏠</span><span class="sn-lbl">HOME</span></a>
@@ -1385,7 +1462,8 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
   <a href="companions.html"><span class="sn-icon">👥</span><span class="sn-lbl">WITH</span></a>
   <a class="active" href="stats.html"><span class="sn-icon">📊</span><span class="sn-lbl">STATS</span></a>
   <a href="compare.html"><span class="sn-icon">⚖️</span><span class="sn-lbl">COMPARE</span></a>
-  <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
+  <a href="life.html"><span class="sn-icon">🧬</span><span class="sn-lbl">LIFE</span></a>
+
   <a href="culture.html"><span class="sn-icon">🍷</span><span class="sn-lbl">CULTURE</span></a>
   <div class="sn-sep"></div>
   <button id="snThemeToggle"><span class="sn-icon" id="snThemeIcon">☀️</span><span class="sn-lbl" id="snThemeLbl">LIGHT</span></button>
