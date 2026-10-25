@@ -34,6 +34,10 @@ on:
         description: "Max missing routes to fetch this run (backlog drain budget)"
         required: false
         default: "400"
+      max_fetch_all:
+        description: "Max missing routes for legs outside trips (feed day routes; paced 1/s)"
+        required: false
+        default: "2500"
 
 permissions:
   contents: write
@@ -43,6 +47,7 @@ jobs:
     # Honor the same pause switch as the hourly update job.
     if: vars.UPDATES_PAUSED != 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 120   # the paced 1 request/second drain is ~45 min for 2,500
 
     steps:
       - uses: actions/checkout@v4
@@ -73,6 +78,10 @@ jobs:
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
           RMF="${{ github.event.inputs.max_fetch || '400' }}"
+          # Legs outside trips (every real check-in → the next, for the feed's day
+          # routes): a larger nightly budget, paced at 1 request/second inside
+          # build.py (~45 min for 2,500), so the ~27k backlog drains in ~11 nights.
+          RMF_ALL="${{ github.event.inputs.max_fetch_all || '2500' }}"
           PIX_URL_ARG=""; [ -n "$R2_PUBLIC_URL" ] && PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"
           PHOTOS_ARG="";  [ -f private-data/photos.json ]       && PHOTOS_ARG="--photos private-data/photos.json"
           RATINGS_ARG=""; [ -f private-data/venueRatings.json ] && RATINGS_ARG="--ratings private-data/venueRatings.json"
@@ -83,6 +92,7 @@ jobs:
             --output-dir . \
             --routes-cache private-data/routes_cache.json \
             --routes-max-fetch "$RMF" \
+            --routes-all-max-fetch "$RMF_ALL" \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
       # ── Persist the warmed cache to the data repo ─────────────────────────────

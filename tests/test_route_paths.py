@@ -131,6 +131,25 @@ def test_attach_routes_cache_hit_skips_fetch():
     assert len(out2) == 1
 
 
+def test_attach_routes_paces_requests_across_workers(monkeypatch):
+    """min_interval_s spaces the requests themselves (not the batch), whatever the pool size."""
+    t0 = 1591012800
+    cks = [ci(t0 + 3600 * k, lat=50.0 + k * 2 / KM_PER_DEG, m="C" if k else "") for k in range(4)]
+    stamps = []
+    clock = [100.0]
+    monkeypatch.setattr(rp.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(rp.time, "sleep", lambda s: clock.__setitem__(0, clock[0] + s))
+
+    def stamped(profile, a, b):
+        stamps.append(clock[0])
+        return _fetch_ok(profile, a, b)
+
+    out = rp.attach_routes(trip(*cks), rp.RouteCache(None), fetcher=stamped, sleep_s=0,
+                           workers=2, min_interval_s=1.0)
+    assert len(out) == 3
+    assert all(b - a >= 1.0 - 1e-9 for a, b in zip(sorted(stamps), sorted(stamps)[1:]))
+
+
 def test_attach_routes_noroute_cached_error_not():
     t0 = 1591012800
     trips = trip(ci(t0), ci(t0 + 3600, lat=50.0 + 5 / KM_PER_DEG, m="W"))

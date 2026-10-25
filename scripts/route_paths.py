@@ -234,7 +234,7 @@ class RouteCache:
 
 def attach_routes(trips: list[dict], cache: RouteCache, max_fetch: int = 250,
                   fetcher=None, sleep_s: float = FETCH_SLEEP_S,
-                  workers: int = FETCH_WORKERS) -> dict[str, list]:
+                  workers: int = FETCH_WORKERS, min_interval_s: float = 0.0) -> dict[str, list]:
     """→ {"<ts_a>-<ts_b>": [polyline5, routed_km]} for every routable segment.
 
     Walks each trip's coord-bearing check-in pairs with the same
@@ -296,8 +296,20 @@ def attach_routes(trips: list[dict], cache: RouteCache, max_fetch: int = 250,
     # path: "error" is left uncached (retried next build), everything else is
     # cached (real geometry, or {"x":1} for a genuine or absurd no-route).
     if need:
+        import threading
+        _gate = threading.Lock()
+        _next = [0.0]
+
         def _do(item):
             key, (profile, a, b) = item
+            if min_interval_s:
+                # one request per `min_interval_s` across all workers (bulk drains
+                # keep the community servers at their ~1 request/second ask)
+                with _gate:
+                    wait = _next[0] - time.monotonic()
+                    if wait > 0:
+                        time.sleep(wait)
+                    _next[0] = time.monotonic() + min_interval_s
             return key, profile, a, b, fetch(profile, a, b)
 
         n_workers = max(1, min(workers, len(need)))

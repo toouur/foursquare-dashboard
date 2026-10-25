@@ -249,6 +249,11 @@ if __name__ == "__main__":
     parser.add_argument("--routes-max-fetch", type=int, default=250,
                         help="Max missing routes to fetch per build (default 250); "
                              "the cache warms up over successive CI builds.")
+    parser.add_argument("--routes-all-max-fetch", type=int, default=0,
+                        help="Max missing routes to fetch for legs OUTSIDE trips "
+                             "(every real check-in → the next; feed day routes). "
+                             "Default 0 = serve only what the cache already has; the "
+                             "nightly warm-routes job drains the backlog politely.")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
@@ -660,20 +665,56 @@ if __name__ == "__main__":
     # routes.json is ALWAYS written (empty when --routes-cache is unset) so the
     # template's fetch never 404s.
     _routes: dict = {}
+    _all_routes: dict = {}
     if args.routes_cache:
         try:
             import route_paths as _rp
             _rc = _rp.RouteCache(args.routes_cache)
             _routes = _rp.attach_routes(trips, _rc, max_fetch=args.routes_max_fetch)
+            # Every leg between two consecutive REAL check-ins (reconstructed rf* rows
+            # have approximate places and times — they stay straight chords), for the
+            # feed's day routes. Same cache, so a leg a trip already routed is free;
+            # the backlog is spent newest-first, at most one request a second — the
+            # OSRM/BRouter community servers ask for about that.
+            _real = sorted(({"ts": int(r.get("date") or 0), "lat": r.get("lat"), "lng": r.get("lng"),
+                             "category": r.get("category", "")}
+                            for r in rows
+                            if not str(r.get("checkin_id") or "").startswith("rf") and r.get("date")),
+                           key=lambda c: c["ts"])
+            try:
+                _modes_all = _tm.classify_segments(_real, _tm_windows, model=_tm_model)
+            except Exception:
+                _modes_all = [""] * len(_real)
+            for _c, _m in zip(_real, _modes_all):
+                if _m:
+                    _c["m"] = _m
+            _all_routes = _rp.attach_routes([{"checkins": _real}], _rc,
+                                            max_fetch=args.routes_all_max_fetch,
+                                            workers=2, sleep_s=0, min_interval_s=1.0)
             _rc.save()
-            log.info("Route geometry: %d segments routed (cache %s: %d entries)",
-                     len(_routes), args.routes_cache, len(_rc.data))
+            log.info("Route geometry: %d trip segments + %d check-in legs routed (cache %s: %d entries)",
+                     len(_routes), len(_all_routes), args.routes_cache, len(_rc.data))
         except Exception as _rpe:
             log.warning("route-geometry attachment failed: %s", _rpe)
     os.makedirs(args.output_dir, exist_ok=True)
     Path(os.path.join(args.output_dir, "routes.json")).write_text(
         json.dumps(_routes, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8")
+    # Feed day routes, one shard per UTC month of the leg's arrival:
+    # routes_m_<YYYY-MM>.json  {"tsA-tsB": [polyline5, km]}; the feed fetches the
+    # month(s) of the day it draws. Stale shards are removed first.
+    import glob as _glob
+    for _stale in _glob.glob(os.path.join(args.output_dir, "routes_m_*.json")):
+        os.remove(_stale)
+    _by_month: dict = {}
+    for _k, _v in _all_routes.items():
+        _ym = datetime.fromtimestamp(int(_k.split("-")[1]), tz=timezone.utc).strftime("%Y-%m")
+        _by_month.setdefault(_ym, {})[_k] = _v
+    for _ym, _part in _by_month.items():
+        Path(os.path.join(args.output_dir, f"routes_m_{_ym}.json")).write_text(
+            json.dumps(_part, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    Path(os.path.join(args.output_dir, "routes_months.json")).write_text(
+        json.dumps(sorted(_by_month)), encoding="utf-8")
 
     # ── Load tips for recent section ─────────────────────────────────────────
     # Resolve tips.json next to the input CSV so CI (private-data/checkins.csv →
