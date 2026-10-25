@@ -52,7 +52,7 @@ def test_collect_excludes_owner_and_windows(monkeypatch):
 
 def test_dry_run_deletes_nothing(monkeypatch, capsys):
     calls = []
-    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: calls.append(sql) or [])
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None, **kw: calls.append(sql) or [])
     monkeypatch.setattr(vr, "collect", lambda now: _collected())
     assert vr.main(["--dry-run"]) == 0
     assert not any(s.startswith("DELETE") for s in calls)
@@ -100,21 +100,36 @@ def test_pages_functions_parse(tmp_path):
 
 def test_report_creates_the_visits_table_itself():
     ddl = vr.visits_ddl()
-    assert len(ddl) == 2
     assert ddl[0].startswith("CREATE TABLE IF NOT EXISTS visits") and "ip" in ddl[0]
     assert ddl[1] == "CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts)"
+    added = {s.split()[-2] for s in ddl[2:]}                     # the analytics columns migrated in
+    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur"}
+    assert all(s.startswith("ALTER TABLE visits ADD COLUMN") for s in ddl[2:])
+
+
+def test_a_column_that_already_exists_is_not_an_error(monkeypatch):
+    def fake(sql, params=None, **kw):
+        if sql.startswith("ALTER"):
+            raise RuntimeError("D1 error: duplicate column name: lang")
+        return []
+    monkeypatch.setattr(vr.d1, "query", fake)
+    vr.run_ddl("ALTER TABLE visits ADD COLUMN lang TEXT")       # swallowed
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None, **kw: (_ for _ in ()).throw(RuntimeError("no such table")))
+    import pytest
+    with pytest.raises(RuntimeError):
+        vr.run_ddl("CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts)")
 
 
 def test_main_runs_the_ddl_before_reading(monkeypatch, capsys):
     calls = []
-    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: calls.append(sql) or [])
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None, **kw: calls.append(sql) or [])
     assert vr.main(["--dry-run"]) == 0
     assert calls[0].startswith("CREATE TABLE IF NOT EXISTS visits")
     assert "No visits recorded this week." in capsys.readouterr().out
 
 
 def test_failures_surface_as_annotations(monkeypatch, capsys):
-    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: [])
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None, **kw: [])
     monkeypatch.setattr(vr, "collect", lambda now: _collected())
     monkeypatch.setenv("GITHUB_ACTIONS", "true")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
@@ -165,7 +180,7 @@ def test_ping_marks_returning_visitors_in_one_query(monkeypatch):
 
 def test_ping_without_visitors_sends_nothing_and_moves_the_watermark(monkeypatch):
     calls = []
-    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: calls.append(sql) or [])
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None, **kw: calls.append(sql) or [])
     monkeypatch.setattr(vr.requests, "post", lambda *a, **k: (_ for _ in ()).throw(AssertionError("sent")))
     assert vr.main(["--ping"]) == 0
     assert calls[-1].startswith("INSERT OR REPLACE INTO sync_state")
@@ -174,7 +189,7 @@ def test_ping_without_visitors_sends_nothing_and_moves_the_watermark(monkeypatch
 
 def test_ping_watermark_moves_only_after_a_send(monkeypatch):
     calls = []
-    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None: calls.append(sql) or [])
+    monkeypatch.setattr(vr.d1, "query", lambda sql, params=None, **kw: calls.append(sql) or [])
     monkeypatch.setattr(vr, "collect_ping", lambda since, now: _ping_rows())
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "t")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "1")

@@ -174,6 +174,24 @@ def visits_ddl(schema_path: Path = Path(__file__).with_name("d1_schema.sql")) ->
             if st.strip() and re.search(r"\b(TABLE|ON)\s+(IF NOT EXISTS\s+)?visits\b", st)]
 
 
+def run_ddl(stmt: str) -> None:
+    """One visits DDL statement; an ALTER TABLE that adds a column the table already
+    has is the normal case after the first run (as in d1_client.apply_schema)."""
+    is_alter = stmt.upper().lstrip().startswith("ALTER TABLE")
+    try:
+        d1.query(stmt, silent=is_alter)
+    except Exception as err:
+        text = str(err).lower()
+        resp = getattr(err, "response", None)
+        if resp is not None:
+            try:
+                text += str(resp.json()).lower()
+            except Exception:
+                pass
+        if not (is_alter and ("duplicate column" in text or "already exists" in text)):
+            raise
+
+
 def _fail(msg: str) -> int:
     """Log the failure and, in GitHub Actions, raise it as an ::error annotation —
     annotations are readable through the public API without the run logs."""
@@ -197,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
         # that step only runs on a deploy, and a deploy only follows new data —
         # so the first report could meet a database without it ("no such table").
         for stmt in visits_ddl():
-            d1.query(stmt)
+            run_ddl(stmt)
         if args.ping:
             since = ping_since(now)
             rows = collect_ping(since, now)

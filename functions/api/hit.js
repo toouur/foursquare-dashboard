@@ -11,6 +11,10 @@
  *   r  document.referrer
  *   v  random visitor id from localStorage (no cookie)
  *   o  1 when this browser belongs to the owner (set by opening visits.html)
+ *   l  navigator.language · z  the device's timezone · s  screen "WxH@dpr"
+ *   d  phone / tablet / desktop · m  Android model from client hints (if given)
+ * When the page is hidden a second beacon {t:'leave', p, v, dur} writes the
+ * seconds it was visible onto that view's row (no new row).
  * IP, country, city, region, ASN/organisation and timezone come from the
  * request itself (CF-Connecting-IP + request.cf), never from the client.
  *
@@ -53,6 +57,16 @@ export async function onRequestPost({ request, env }) {
     if (body.v && !vid) return noContent();
     const cf = request.cf || {};
     const now = Math.floor(Date.now() / 1000);
+    // leave beacon: how long the page was visible, written onto that view's row
+    if (body.t === 'leave') {
+      const dur = Math.round(Number(body.dur));
+      if (vid && Number.isFinite(dur) && dur >= 0 && dur <= 86400) {
+        await env.DB.prepare('UPDATE visits SET dur = ? WHERE id = (SELECT id FROM visits WHERE ts >= ? AND vid = ? AND path = ? ORDER BY ts DESC LIMIT 1)')
+          .bind(dur, now - 6 * 3600, vid, path).run();
+      }
+      return noContent();
+    }
+    const dev = ['phone', 'tablet', 'desktop'].includes(body.d) ? body.d : null;
     const ip = request.headers.get('CF-Connecting-IP') || null;
     if (ip) {
       const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM visits WHERE ts >= ? AND ip = ?')
@@ -60,14 +74,16 @@ export async function onRequestPost({ request, env }) {
       if (recent && recent.n >= MAX_PER_IP) return noContent();
     }
     await env.DB.prepare(
-      'INSERT INTO visits (ts, path, ref, ip, country, city, region, asn, org, tz, ua, vid, owner) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO visits (ts, path, ref, ip, country, city, region, asn, org, tz, ua, vid, owner, lang, dtz, scr, dev, model, postal) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       now, path, clip(body.r, 300) || null,
       ip,
       cf.country || null, cf.city || null, cf.region || null,
       Number.isFinite(cf.asn) ? cf.asn : null, clip(cf.asOrganization, 120) || null,
       cf.timezone || null, clip(ua, 300), vid, body.o ? 1 : 0,
+      clip(body.l, 35) || null, clip(body.z, 64) || null, clip(body.s, 24) || null, dev,
+      clip(body.m, 60) || null, clip(cf.postalCode, 16) || null,
     ).run();
     if (Math.random() < 0.005) {
       await env.DB.prepare('DELETE FROM visits WHERE ts < ?').bind(now - RETENTION_S).run();
