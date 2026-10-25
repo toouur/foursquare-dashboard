@@ -52,6 +52,10 @@ td.n{text-align:right;font-family:'DM Mono',monospace;color:var(--teal);white-sp
 .full{grid-column:1/-1;} .muted{color:var(--muted);font-size:.72rem;}
 .note{color:var(--muted);font-size:.85rem;margin-top:14px;}
 .local{display:inline-block;font-family:'DM Mono',monospace;font-size:.6rem;color:#1a1206;background:linear-gradient(135deg,#f6d38b,#ff9a6b);border-radius:999px;padding:1px 7px;}
+.engagement-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;}
+.engagement-stat{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;min-width:0;}
+.engagement-stat b{display:block;font-family:'Playfair Display',serif;font-size:1.25rem;color:var(--gold);overflow-wrap:anywhere;}
+.engagement-stat span{display:block;font-size:.68rem;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -131,11 +135,6 @@ async function load() {
     [countries.length, 'countries'], [fmtDuration(engagement.avg_seconds), 'avg visible time'],
     [sessions.avg_pages == null ? '—' : Number(sessions.avg_pages).toFixed(1), 'pages / session']
   ];
-  const durationRows = [{
-    measured: engagement.measured, avg: engagement.avg_seconds, max: engagement.max_seconds,
-    sessions: sessions.sessions, avgPages: sessions.avg_pages, maxPages: sessions.max_pages,
-    avgSessionTime: sessions.avg_visible_seconds
-  }];
   out.innerHTML =
     '<div class="kpis">' + kpis.map(([a, b]) => '<div class="kpi"><b>' + esc(typeof a === 'number' ? a.toLocaleString('en-US') : (a ?? '—')) + '</b><span>' + esc(b) + '</span></div>').join('') + '</div>' +
     '<div class="chart" title="views per day (UTC)">' + daily.map(x => '<i style="height:' + Math.round(100 * (Number(x.views) || 0) / mx) + '%" title="' + esc(x.d) + ': ' + esc(x.views) + ' views, ' + esc(x.visitors) + ' visitors"></i>').join('') + '</div>' +
@@ -151,15 +150,15 @@ async function load() {
     table('Device time zones · local vs Cloudflare', arr('deviceTimezones'), [['dtz', 0, r => esc(r.dtz || '—') + (r.tz && r.tz !== r.dtz ? '<br><span class="muted">IP timezone: ' + esc(r.tz) + '</span>' : (r.tz ? '<br><span class="muted">IP timezone agrees</span>' : ''))], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
     table('Android models (when reported)', arr('models'), [['model'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
     table('Approx. postal areas', arr('postals'), [['postal', 0, r => esc(r.postal || '—') + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + '</span>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
-    table('Engagement · time the page was visible', durationRows, [
-      ['measured', 0, r => 'Measured views: ' + fmtNumber(r.measured)],
-      ['avg', 0, r => 'Average page time: ' + fmtDuration(r.avg)],
-      ['max', 0, r => 'Longest page time: ' + fmtDuration(r.max)],
-      ['sessions', 0, r => 'Sessions: ' + fmtNumber(r.sessions)],
-      ['avgPages', 0, r => 'Average pages/session: ' + fmtNumber(r.avgPages)],
-      ['maxPages', 0, r => 'Max pages/session: ' + fmtNumber(r.maxPages)],
-      ['avgSessionTime', 0, r => 'Average measured session time: ' + fmtDuration(r.avgSessionTime)]
-    ], 'full') +
+    '<div class="card full engagement"><h2>Engagement · visible page time and sessions</h2><div class="engagement-grid">' + [
+      [fmtNumber(engagement.measured), 'measured page views'],
+      [fmtDuration(engagement.avg_seconds), 'average visible time / page'],
+      [fmtDuration(engagement.max_seconds), 'longest visible time / page'],
+      [fmtNumber(sessions.sessions), 'sessions · 30-min gap'],
+      [fmtNumber(sessions.avg_pages), 'average pages / session'],
+      [fmtNumber(sessions.max_pages), 'maximum pages / session'],
+      [fmtDuration(sessions.avg_visible_seconds), 'average measured session time']
+    ].map(([value, label]) => '<div class="engagement-stat"><b>' + esc(value) + '</b><span>' + esc(label) + '</span></div>').join('') + '</div></div>' +
     table('Latest views', arr('recent'), [['ts', 0, r => '<span class="muted">' + when(r.ts) + '</span>'], ['path', 0, r => esc(r.path)],
       ['ip', 0, r => esc(r.ip) + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + (r.postal ? ' · ZIP ' + esc(r.postal) : '') + ' · ' + esc(r.org || '') + '</span>'],
       ['ua', 0, r => {

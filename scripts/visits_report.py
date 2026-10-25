@@ -94,7 +94,7 @@ def collect(now: int) -> dict:
         f"SUM(CASE WHEN dur IS NOT NULL THEN dur ELSE 0 END) AS visible_seconds "
         f"FROM visits {w} GROUP BY who ORDER BY first DESC LIMIT 10", [a])
     session_sql = (
-        "WITH base AS (SELECT id, ts, COALESCE(vid, ip, 'unknown') AS who, dur FROM visits " + w + "), "
+        "WITH base AS (SELECT id, ts, COALESCE(vid, ip, 'unknown-' || id) AS who, dur FROM visits " + w + "), "
         "lagged AS (SELECT *, LAG(ts) OVER (PARTITION BY who ORDER BY ts, id) AS prev_ts FROM base), "
         "marked AS (SELECT *, CASE WHEN prev_ts IS NULL OR ts - prev_ts > 1800 THEN 1 ELSE 0 END AS starts FROM lagged), "
         "numbered AS (SELECT *, SUM(starts) OVER (PARTITION BY who ORDER BY ts, id "

@@ -39,7 +39,7 @@ export async function onRequestGet({ request, env }) {
     // One session = consecutive views by the same visitor with no gap over 30 minutes.
     const sessionSql =
       'WITH base AS (' +
-        "SELECT id, ts, COALESCE(vid, ip, 'unknown') AS who, dur FROM visits " + W +
+        "SELECT id, ts, COALESCE(vid, ip, 'unknown-' || id) AS who, dur FROM visits " + W +
       '), lagged AS (' +
         'SELECT *, LAG(ts) OVER (PARTITION BY who ORDER BY ts, id) AS prev_ts FROM base' +
       '), marked AS (' +
