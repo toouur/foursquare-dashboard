@@ -1516,18 +1516,29 @@ try {
   try { tz=Intl.DateTimeFormat().resolvedOptions().timeZone||''; } catch(e){}
   try { var sc=window.screen; if(sc) scr=String(sc.width)+'x'+String(sc.height)+'@'+String(window.devicePixelRatio||1); } catch(e){}
   function send(data){try{navigator.sendBeacon('/api/hit',JSON.stringify(data))}catch(e){}}
-  send({p:p,r:document.referrer||'',v:v,k:k,o:s.getItem('fsq_owner')==='1'?1:0,
-    l:navigator.language||'',z:tz,s:scr,d:dev,u:u});
+  var viewSent=false;
+  function view(m){
+    if(viewSent) return; viewSent=true;
+    send({p:p,r:document.referrer||'',v:v,k:k,o:s.getItem('fsq_owner')==='1'?1:0,
+      l:navigator.language||'',z:tz,s:scr,d:dev,u:u,m:m||''});
+  }
   // High-entropy client hints expose the Android model only in browsers that permit it.
+  // The view waits up to 500 ms for it so the row is written with the model at once;
+  // a later answer still patches it in through the {t:'meta'} beacon.
   try {
     if(navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      var hintWait=setTimeout(function(){view('')},500);
       navigator.userAgentData.getHighEntropyValues(['model']).then(function(h){
-        if(h && h.model) send({t:'meta',p:p,v:v,k:k,m:String(h.model).slice(0,60),l:navigator.language||'',z:tz,s:scr,d:dev});
-      }).catch(function(){});
-    }
-  } catch(e){}
+        clearTimeout(hintWait);
+        var m=h && h.model ? String(h.model).slice(0,60) : '';
+        if(!viewSent) view(m);
+        else if(m) send({t:'meta',p:p,v:v,k:k,m:m,l:navigator.language||'',z:tz,s:scr,d:dev});
+      }).catch(function(){clearTimeout(hintWait);view('')});
+    } else view('');
+  } catch(e){view('')}
   var visibleStart=document.visibilityState==='hidden'?0:Date.now(), visibleMs=0;
   function durationBeacon(){
+    view('');
     if(visibleStart){visibleMs+=Math.max(0,Date.now()-visibleStart);visibleStart=0;}
     send({t:'leave',p:p,v:v,k:k,dur:Math.min(86400,Math.round(visibleMs/1000))});
   }

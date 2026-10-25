@@ -28,8 +28,10 @@ deletes nothing. Exit 0 ok, 1 on a D1 or Telegram failure.
 from __future__ import annotations
 
 import argparse
+import functools
 import html
 import ipaddress
+import json
 import logging
 import os
 import re
@@ -45,6 +47,24 @@ import d1_client as d1
 log = logging.getLogger("visits_report")
 RETENTION_DAYS = 90
 # a referrer on the visitor's own machine or LAN: they clicked through from a local copy of the site
+DEVICE_NAMES = Path(__file__).resolve().parents[1] / "config" / "device_names.json"
+
+
+@functools.lru_cache(maxsize=1)
+def _device_names() -> dict:
+    try:
+        return json.loads(DEVICE_NAMES.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def model_name(code: object) -> str:
+    """'ELI-NX9' → 'HONOR 200 (ELI-NX9)' via config/device_names.json; unknown codes stay raw."""
+    code = str(code or "")
+    name = _device_names().get(code)
+    return f"{name} ({code})" if name else code
+
+
 def is_local_referrer(value: object) -> bool:
     """Whether a referrer points to a local file, loopback, or private LAN host."""
     if not isinstance(value, str) or not value:
@@ -187,7 +207,7 @@ def render(c: dict, site: str = "https://4sq.pages.dev") -> str:
     block("Screen sizes (CSS px @ DPR)", c.get("screens", []), lambda r: e(r.get("scr")))
     block("Device time zones · device / IP", c.get("device_timezones", []),
           lambda r: f"{e(r.get('dtz'))}" + (f" / {e(r.get('tz'))}" if r.get("tz") else ""))
-    block("Android models (when reported)", c.get("models", []), lambda r: e(r.get("model")))
+    block("Android models (when reported)", c.get("models", []), lambda r: e(model_name(r.get("model"))))
     block("Approx. postal areas", c.get("postals", []),
           lambda r: f"{e(r.get('postal'))} · {e(r.get('city'))}, {e(r.get('region'))}, {e(r.get('country'))}")
 
@@ -212,7 +232,7 @@ def render(c: dict, site: str = "https://4sq.pages.dev") -> str:
             for key, label in (("dev", ""), ("model", "model "), ("lang", "lang "),
                                ("dtz", "device TZ "), ("scr", "screen "), ("postal", "ZIP ")):
                 if r.get(key):
-                    details.append(label + str(r[key]))
+                    details.append(label + (model_name(r[key]) if key == "model" else str(r[key])))
             line = (f"• {time.strftime('%d.%m %H:%M', time.gmtime(int(r['first'])))} UTC · "
                     f"{e(r.get('ip'))} · {e(r.get('city'))}, {e(r.get('country'))} · "
                     f"{e(r.get('org'))} · {r['n']} views")
@@ -283,7 +303,7 @@ def render_ping(rows: list[dict], since: int, site: str = "https://4sq.pages.dev
         if r.get("dev"):
             details.append(str(r["dev"]))
         if r.get("model"):
-            details.append("model " + str(r["model"]))
+            details.append("model " + model_name(r["model"]))
         if r.get("lang"):
             details.append("lang " + str(r["lang"]))
         if r.get("dtz"):

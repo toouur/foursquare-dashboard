@@ -16,6 +16,68 @@ const SESSION_ROWS = 3000;     // newest views grouped into the session list
 const SESSION_LIST = 60;       // sessions returned, newest first
 const SESSION_PAGES = 80;      // pages kept per session
 
+// ── Network flags: heuristics read from what every row already has, never proof ──
+//   vpn    the IP belongs to a VPN / hosting / datacenter network (ASN list or org name)
+//   relay  a privacy relay egress (iCloud Private Relay, Cloudflare WARP: Cloudflare,
+//          Akamai, Fastly) — the real place is hidden, the country is usually kept
+//   tz     the device clock's UTC offset differs from the IP location's: a VPN, or a
+//          traveller / a phone set to another country (residential ISPs too)
+const VPN_ASNS = new Set([
+  9009, 60068, 212238,            // M247, Datacamp/CDN77 — most commercial VPN exits
+  136787, 147049, 207137,         // Tefincom, PacketHub (NordVPN)
+  39351, 209854,                  // 31173 Services (Mullvad), Cyberzone (Surfshark)
+  16509, 14618, 15169, 396982, 8075, 31898, 45102, 132203,   // AWS, Google, Microsoft, Oracle, Alibaba, Tencent
+  14061, 24940, 213230, 16276, 63949, 20473, 51167, 60781, 28753, 62240, 49981, 202425,
+  // DigitalOcean, Hetzner, OVH, Linode, Vultr, Contabo, Leaseweb, Clouvider, WorldStream, IP Volume
+]);
+const RELAY_ASNS = new Set([13335, 36183, 20940, 16625, 54113]);   // Cloudflare, Akamai ×3, Fastly
+const VPN_ORG_RE = /vpn|hosting|datacent|data cent|\bvps\b|colocat|m247|datacamp|cdn77|hetzner|\bovh|digitalocean|linode|vultr|choopa|contabo|leaseweb|packethub|tefincom|proton|mullvad|amazon|google cloud|microsoft|oracle|alibaba|tencent/i;
+const offsetFmt = new Map();
+function tzOffset(zone, ts) {
+  if (!zone) return null;
+  try {
+    let f = offsetFmt.get(zone);
+    if (!f) { f = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' }); offsetFmt.set(zone, f); }
+    const part = f.formatToParts(new Date(ts * 1000)).find(x => x.type === 'timeZoneName');
+    return part ? part.value : null;
+  } catch { return null; }
+}
+function netFlags(r) {
+  const flags = [];
+  const asn = Number(r.asn);
+  if (RELAY_ASNS.has(asn)) flags.push('relay');
+  else if (VPN_ASNS.has(asn) || (r.org && VPN_ORG_RE.test(r.org))) flags.push('vpn');
+  if (r.dtz && r.tz && r.dtz !== r.tz) {
+    const a = tzOffset(r.dtz, r.ts), b = tzOffset(r.tz, r.ts);
+    if (a && b && a !== b) flags.push('tz');
+  }
+  return flags;
+}
+
+// Views per flag, and countries counted without the views whose IP hides the real place.
+function netSummary(rows) {
+  const flagTally = new Map(), ctry = new Map();
+  for (const r of rows) {
+    const who = r.vid || r.ip || 'unknown-' + r.id;
+    const flags = netFlags(r);
+    // 'clean' needs the device timezone; rows without it (older beacon) only had the network check
+    for (const f of flags.length ? flags : [r.dtz ? 'clean' : 'no-tz']) {
+      const t = flagTally.get(f) || { flag: f, views: 0, who: new Set() };
+      t.views += 1; t.who.add(who); flagTally.set(f, t);
+    }
+    const c = r.country || '—';
+    const t = ctry.get(c) || { country: c, n: 0, hidden: 0, who: new Set() };
+    if (flags.includes('vpn') || flags.includes('relay')) t.hidden += 1;
+    else { t.n += 1; t.who.add(who); }
+    ctry.set(c, t);
+  }
+  return {
+    networkFlags: [...flagTally.values()].map(t => ({ flag: t.flag, views: t.views, u: t.who.size })).sort((a, b) => b.views - a.views),
+    countriesClean: [...ctry.values()].map(t => ({ country: t.country, n: t.n, u: t.who.size, hidden: t.hidden }))
+      .sort((a, b) => b.n - a.n || b.hidden - a.hidden),
+  };
+}
+
 const hostOf = (u) => { try { return new URL(u).host; } catch { return null; } };
 
 // Where a session came from: its utm tags, else an off-site referrer, else
@@ -57,7 +119,9 @@ function buildSessions(rows, ownHost) {
       pages: v.slice(0, SESSION_PAGES).map(x => ({ ts: x.ts, path: x.path, dur: x.dur })),
       source: sessionSource(v, ownHost),
       ip: pick('ip'), city: pick('city'), country: pick('country'), org: pick('org'),
-      dev: pick('dev'), model: pick('model'), lang: pick('lang'), ua: pick('ua'),
+      dev: pick('dev'), model: pick('model'), lang: pick('lang'), ua: pick('ua'), scr: pick('scr'),
+      dtz: pick('dtz'), tz: pick('tz'),
+      net: [...new Set(v.flatMap(netFlags))],
       owner: v.some(x => x.owner) ? 1 : 0,
     };
   });
@@ -169,7 +233,7 @@ export async function onRequestGet({ request, env }) {
         " AND fp IS NOT NULL AND fp != '' GROUP BY fp ORDER BY views DESC, last_seen DESC LIMIT 100"),
       q('SELECT COUNT(dur) AS measured, ROUND(AVG(dur), 0) AS avg_seconds, MAX(dur) AS max_seconds FROM visits ' + W + ' AND dur IS NOT NULL'),
       q(sessionSql),
-      q('SELECT id, ts, path, ref, utm, ip, city, country, org, vid, owner, dev, model, lang, ua, dur FROM visits ' + W +
+      q('SELECT id, ts, path, ref, utm, ip, city, country, asn, org, tz, dtz, scr, vid, owner, dev, model, lang, ua, dur FROM visits ' + W +
         ' ORDER BY ts DESC, id DESC LIMIT ' + SESSION_ROWS),
       // off-site referrers only: links between our own pages are navigation, not a source
       env.DB.prepare('SELECT ref, COUNT(*) AS n, COUNT(DISTINCT COALESCE(vid, ip)) AS u FROM visits ' + W +
@@ -178,6 +242,8 @@ export async function onRequestGet({ request, env }) {
       top('utm', 30),
     ]);
     const sessionData = buildSessions(sessionRows, ownHost);
+    const net = netSummary(sessionRows);
+    for (const r of recent) r.net = netFlags(r);
     return json({
       days,
       totals: tot[0] || {}, daily, paths, countries, cities, refs, orgs, recent,
@@ -185,7 +251,7 @@ export async function onRequestGet({ request, env }) {
       engagement: engagement[0] || {},
       sessions: sessions[0] || {},
       sessionList: sessionData.list, sources: sessionData.sources, sessionRows: sessionData.rows,
-      externalRefs, utms,
+      externalRefs, utms, networkFlags: net.networkFlags, countriesClean: net.countriesClean,
     });
   } catch (e) {
     return json({ error: 'D1 query failed', detail: String(e && e.message || e) }, 503);

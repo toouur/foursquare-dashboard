@@ -151,7 +151,8 @@ def test_pages_functions_parse(tmp_path):
 
 def test_visits_page_renders_extended_analytics():
     page = (Path(__file__).resolve().parents[1] / "scripts" / "gen_visits.py").read_text(encoding="utf-8")
-    for marker in ("Sources · where sessions start", "Off-site referrers", "UTM tags", "Sessions · page sequence",
+    for marker in ("Network · VPN / relay / timezone check", "Countries without VPN / relay views", "device-names.json",
+                   "iphoneGuess", "Sources · where sessions start", "Off-site referrers", "UTM tags", "Sessions · page sequence",
                    "owner-toggle", "with-owner", "Clear all visits", "Browser languages", "Device types", "Screen sizes", "Device time zones",
                    "Android models", "Approx. postal areas", "engagement-grid", "average pages / session", "IP addresses · visits per IP", "Device fingerprints", "visible "):
         assert marker in page, marker
@@ -310,7 +311,7 @@ def _node_or_skip():
     return node
 
 
-def _run_beacon(node, search):
+def _run_beacon(node, search, ua_data=""):
     """Run the generated hit snippet under stubbed browser globals; return (beacon, owner flag, URL after)."""
     import subprocess
     build = (Path(__file__).resolve().parents[1] / "scripts" / "build.py").read_text(encoding="utf-8")
@@ -321,14 +322,14 @@ def _run_beacon(node, search):
         "let url=null, sent=[];"
         "globalThis.location={pathname:'/trips',search:" + json.dumps(search) + ",hash:'#t1'};"
         "globalThis.history={state:null,replaceState:(s,t,u)=>{url=u}};"
-        "Object.defineProperty(globalThis,'navigator',{value:{userAgent:'UA',language:'ru',sendBeacon:(u,b)=>sent.push(JSON.parse(b))}});"
+        "Object.defineProperty(globalThis,'navigator',{value:{userAgent:'UA',language:'ru',sendBeacon:(u,b)=>sent.push(JSON.parse(b))" + ua_data + "}});"
         "globalThis.screen={width:1,height:2}; globalThis.window=globalThis;"
         "globalThis.document={referrer:'',visibilityState:'visible',addEventListener(){}};"
         "globalThis.addEventListener=()=>{};"
     )
-    tail = ";console.log(JSON.stringify([sent[0], store.fsq_owner||null, url]))"
+    tail = ";setTimeout(()=>console.log(JSON.stringify([sent[0], store.fsq_owner||null, url, sent.length])),50)"
     out = subprocess.run([node, "-e", stub + snippet + tail], capture_output=True, text=True, check=True).stdout
-    return json.loads(out)
+    return json.loads(out)[:3] if not ua_data else json.loads(out)
 
 
 def test_hit_beacon_sends_utm_tags():
@@ -396,3 +397,65 @@ def test_visits_clear_needs_key_and_confirm_word(tmp_path):
     assert [s for s, _ in res["out"]] == [401, 401, 400, 200]
     assert res["out"][3][1]["deleted"] == 7
     assert res["seen"] == [["DELETE FROM visits WHERE ts <= ?", 1]]   # only the confirmed call touched D1
+
+
+def test_hit_beacon_writes_the_model_with_the_view():
+    """The view waits for client hints, so the row has the model at once — no second beacon."""
+    node = _node_or_skip()
+    hints = ",userAgentData:{mobile:true,getHighEntropyValues:async()=>({model:'ELI-NX9'})}"
+    beacon, _, _, n = _run_beacon(node, "", hints)
+    assert beacon["m"] == "ELI-NX9" and "t" not in beacon and n == 1
+    refused = ",userAgentData:{mobile:true,getHighEntropyValues:()=>Promise.reject(new Error('no'))}"
+    beacon, _, _, n = _run_beacon(node, "", refused)
+    assert beacon["m"] == "" and n == 1
+
+
+def test_model_codes_get_marketing_names():
+    assert vr.model_name("ELI-NX9") == "HONOR 200 (ELI-NX9)"
+    assert vr.model_name("SM-S928B") == "Samsung Galaxy S24 Ultra (SM-S928B)"
+    assert vr.model_name("Pixel 8") == "Pixel 8"                  # already readable: not in the table
+    assert vr.model_name("XYZ-UNKNOWN") == "XYZ-UNKNOWN" and vr.model_name(None) == ""
+
+
+def test_device_names_table_from_play_csv(tmp_path):
+    import update_device_names as udn
+    text = ('Retail Branding,Marketing Name,Device,Model\n'
+            '"Honor","HONOR 200","HNELIX","ELI-NX9"\n'
+            '"Samsung","Galaxy S24 Ultra","e3q","SM-S928B"\n'
+            '"Google","Pixel 8","shiba","Pixel 8"\n'
+            '"","","FJL21","FJL21"\n')
+    assert udn.build_map(text) == {"ELI-NX9": "HONOR 200", "SM-S928B": "Samsung Galaxy S24 Ultra"}
+    assert udn.decode(text.encode("utf-16")) == text
+    small = tmp_path / "small.csv"
+    small.write_text(text, encoding="utf-8")
+    out = tmp_path / "names.json"
+    assert udn.main(["--csv", str(small), "--out", str(out)]) == 1 and not out.exists()   # too few rows: refused
+
+
+def test_visits_api_network_flags(tmp_path):
+    import subprocess
+    node = _node_or_skip()
+    src = (Path(__file__).resolve().parents[1] / "functions" / "api" / "visits.js").read_text(encoding="utf-8")
+    mod = tmp_path / "visits.mjs"
+    mod.write_text(src + "\nexport { netFlags, netSummary };\n", encoding="utf-8")
+    oct25 = 1792940000            # Chisinau already back on UTC+2, Minsk stays UTC+3
+    rows = [
+        {"id": 1, "ts": oct25, "vid": "a", "country": "MD", "asn": 31252, "org": "SC STARNET SRL", "tz": "Europe/Chisinau", "dtz": "Europe/Minsk"},
+        {"id": 2, "ts": oct25, "vid": "b", "country": "NL", "asn": 9009, "org": "M247 Europe SRL", "tz": "Europe/Amsterdam", "dtz": "Europe/Chisinau"},
+        {"id": 3, "ts": oct25, "vid": "c", "country": "MD", "asn": 13335, "org": "Cloudflare, Inc.", "tz": "Europe/Chisinau", "dtz": "Europe/Chisinau"},
+        {"id": 4, "ts": oct25, "vid": "d", "country": "MD", "asn": 25454, "org": "Orange Moldova Network", "tz": "Europe/Chisinau", "dtz": "Europe/Chisinau"},
+        {"id": 5, "ts": oct25, "vid": "e", "country": "DE", "asn": 1, "org": "Some Hosting GmbH", "tz": "Europe/Berlin", "dtz": None},
+    ]
+    js = ("import { netFlags, netSummary } from " + json.dumps(mod.as_uri()) + ";"
+          "const rows=" + json.dumps(rows) + ";"
+          "console.log(JSON.stringify({flags: rows.map(netFlags), sum: netSummary(rows)}));")
+    out = json.loads(subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, text=True, check=True).stdout)
+    assert out["flags"] == [["tz"], ["vpn", "tz"], ["relay"], [], ["vpn"]]
+    ctry = {c["country"]: c for c in out["sum"]["countriesClean"]}
+    assert ctry["MD"]["n"] == 2 and ctry["MD"]["hidden"] == 1 and ctry["NL"]["n"] == 0 and ctry["NL"]["hidden"] == 1
+    flags = {f["flag"]: f["views"] for f in out["sum"]["networkFlags"]}
+    assert flags == {"tz": 2, "vpn": 2, "relay": 1, "clean": 1}
+    old = [{"id": 9, "ts": oct25, "vid": "z", "country": "MD", "asn": 25454, "org": "Orange", "tz": "Europe/Chisinau", "dtz": None}]
+    js2 = ("import { netSummary } from " + json.dumps(mod.as_uri()) + ";console.log(JSON.stringify(netSummary(" + json.dumps(old) + ")));")
+    out2 = json.loads(subprocess.run([node, "--input-type=module", "-e", js2], capture_output=True, text=True, check=True).stdout)
+    assert [f["flag"] for f in out2["networkFlags"]] == ["no-tz"]                # unchecked is not "clean"

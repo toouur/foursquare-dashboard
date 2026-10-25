@@ -13,10 +13,16 @@ leave them out; a toggle switches it back to "visitor" (to test the counter),
 and `?fsq_owner=1|0` on any page does the same without the key. It also lists
 sessions (page sequence and duration) and where they came from (utm tags and
 off-site referrers). "Clear all visits" deletes every recorded view (after a typed
-confirmation) to start monitoring from zero. noindex, not in the nav or the sitemap.
+confirmation) to start monitoring from zero. Android model codes are shown with
+their marketing name (device-names.json, written next to the page from
+config/device_names.json — refresh it with update_device_names.py); an iPhone,
+which never reports its model, gets a family guessed from its screen. Network
+flags (VPN / relay / timezone mismatch) come from /api/visits.
+noindex, not in the nav or the sitemap.
 """
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -66,6 +72,8 @@ td.n{text-align:right;font-family:'DM Mono',monospace;color:var(--teal);white-sp
 .tag{display:inline-block;font-family:'DM Mono',monospace;font-size:.6rem;border-radius:999px;padding:1px 7px;border:1px solid var(--border);color:var(--muted);}
 .tag.utm{color:#1a1206;background:var(--teal);border-color:var(--teal);} .tag.referrer{color:var(--gold);border-color:var(--gold);}
 .tag.owner{color:var(--rose);border-color:var(--rose);}
+.tag.vpn{color:#1a0a0e;background:var(--rose);border-color:var(--rose);} .tag.relay{color:var(--rose);border-color:var(--rose);}
+.tag.tz{color:var(--gold);border-color:var(--gold);} .tag.clean{color:var(--teal);border-color:var(--teal);}
 .bar button.danger{color:var(--rose);border-color:var(--rose);} .bar button.danger:hover{background:var(--rose);color:#1a0a0e;}
 </style>
 </head>
@@ -126,6 +134,33 @@ const refHtml = u => {
   const h = host(u) || 'local file';
   return '<span class="local" title="opened from a local copy: ' + esc(u) + '">⌂ local copy</span> ' + esc(h);
 };
+// Android model code → marketing name (Google Play's supported-devices list), loaded once.
+let deviceNames = {};
+const namesReady = fetch('/device-names.json').then(r => r.ok ? r.json() : {}).then(m => { deviceNames = m || {}; }).catch(() => {});
+const modelName = code => code ? (deviceNames[code] ? deviceNames[code] + ' (' + code + ')' : code) : '';
+// iPhones never report a model; the CSS screen size narrows it to a family.
+const IPHONE_SCREENS = {
+  '375x667': 'iPhone SE / 6–8', '414x736': 'iPhone 6–8 Plus', '375x812': 'iPhone X / XS / 11 Pro / 12–13 mini',
+  '414x896': 'iPhone XR / XS Max / 11 / 11 Pro Max', '390x844': 'iPhone 12–14 / 12–13 Pro / 16e',
+  '428x926': 'iPhone 12–13 Pro Max / 14 Plus', '393x852': 'iPhone 14 Pro / 15 / 15 Pro / 16',
+  '430x932': 'iPhone 14 Pro Max / 15 Plus / 15 Pro Max / 16 Plus', '402x874': 'iPhone 16 Pro / 17 / 17 Pro',
+  '440x956': 'iPhone 16 Pro Max / 17 Pro Max', '420x912': 'iPhone Air',
+};
+const iphoneGuess = (ua, scr) => {
+  if (!/iPhone/.test(ua || '') || !scr) return '';
+  const g = IPHONE_SCREENS[String(scr).split('@')[0]];
+  return g ? '≈ ' + g + ' (by screen)' : '';
+};
+const deviceLabel = r => modelName(r.model) || iphoneGuess(r.ua, r.scr);
+const NET_TITLES = {
+  vpn: 'VPN / hosting network: the IP location is not where the person is',
+  relay: 'privacy relay (iCloud Private Relay, WARP): city hidden, country usually kept',
+  tz: 'device timezone has another UTC offset than the IP location: VPN, or a traveller / phone set to another country',
+  clean: 'ordinary network, device timezone agrees',
+  'no-tz': 'ordinary network; no device timezone sent (older counter), so the timezone was not checked',
+};
+const NET_LABELS = { vpn: 'VPN', relay: 'relay', tz: 'TZ≠IP', clean: 'clean', 'no-tz': 'no TZ' };
+const netTags = flags => (flags || []).map(f => '<span class="tag ' + esc(f) + '" title="' + esc(NET_TITLES[f] || f) + '">' + esc(NET_LABELS[f] || f) + '</span>').join(' ');
 const when = ts => new Date(ts * 1000).toISOString().replace('T', ' ').slice(0, 16);
 const fmtDuration = value => {
   const n = Number(value);
@@ -154,6 +189,11 @@ async function load() {
   if (r.status === 401) { ls('fsq_stats_key', null); document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Wrong key.</p>'; return; }
   const D = await r.json().catch(() => ({ error: 'bad response' }));
   if (D.error) { out.innerHTML = '<p class="note">' + esc(D.error) + '</p>'; return; }
+  await namesReady;
+  // the export carries the readable names too
+  for (const k of ['recent', 'sessionList', 'fingerprints', 'models']) for (const row of (Array.isArray(D[k]) ? D[k] : [])) {
+    const name = deviceLabel(row); if (name && name !== row.model) row.model_name = name;
+  }
   exportData = D;
   exportButton.disabled = false;
   const arr = name => Array.isArray(D[name]) ? D[name] : [];
@@ -178,7 +218,9 @@ async function load() {
     table('Device types', arr('devices'), [['dev'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
     table('Screen sizes (CSS px @ DPR)', arr('screens'), [['scr'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
     table('Device time zones · local vs Cloudflare', arr('deviceTimezones'), [['dtz', 0, r => esc(r.dtz || '—') + (r.tz && r.tz !== r.dtz ? '<br><span class="muted">IP timezone: ' + esc(r.tz) + '</span>' : (r.tz ? '<br><span class="muted">IP timezone agrees</span>' : ''))], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
-    table('Android models (when reported)', arr('models'), [['model'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Android models (when reported)', arr('models'), [['model', 0, r => esc(modelName(r.model))], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Network · VPN / relay / timezone check', arr('networkFlags'), [['flag', 0, r => netTags([r.flag]) + ' <span class="muted">' + esc(NET_TITLES[r.flag] || '') + '</span>'], ['views', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Countries without VPN / relay views', arr('countriesClean'), [['country'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u'], ['hidden', 1, r => r.hidden ? '<span title="views from VPN / relay IPs in this country, left out">+' + fmtNumber(r.hidden) + ' VPN</span>' : '']]) +
     table('Approx. postal areas', arr('postals'), [['postal', 0, r => esc(r.postal || '—') + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + '</span>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
     '<div class="card full engagement"><h2>Engagement · visible page time and sessions</h2><div class="engagement-grid">' + [
       [fmtNumber(engagement.measured), 'measured page views'],
@@ -197,8 +239,8 @@ async function load() {
     table('Sessions · page sequence (newest ' + arr('sessionList').length + ' of the last ' + fmtNumber(D.sessionRows) + ' views)', arr('sessionList'), [
       ['start', 0, r => '<span class="muted">' + when(r.start) + '</span><br><b>' + esc(fmtDuration(r.seconds)) + '</b>' +
         '<br><span class="muted">' + fmtNumber(r.views) + (r.views === 1 ? ' view' : ' views') + (r.visible_seconds != null ? ' · visible ' + esc(fmtDuration(r.visible_seconds)) : '') + '</span>'],
-      ['who', 0, r => '<code>' + esc(String(r.who || '').slice(0, 6)) + '</code>' + (r.owner ? ' <span class="tag owner">owner</span>' : '') +
-        '<br><span class="muted">' + esc([agent(r.ua), r.dev, r.model ? 'model ' + r.model : '', r.lang].filter(Boolean).join(' · ')) +
+      ['who', 0, r => '<code>' + esc(String(r.who || '').slice(0, 6)) + '</code>' + (r.owner ? ' <span class="tag owner">owner</span>' : '') + ' ' + netTags(r.net) +
+        '<br><span class="muted">' + esc([agent(r.ua), r.dev, deviceLabel(r), r.lang, r.dtz && r.dtz !== r.tz ? 'device TZ ' + r.dtz : ''].filter(Boolean).join(' · ')) +
         '<br>' + esc([r.city, r.country].filter(Boolean).join(', ')) + (r.org ? ' · ' + esc(r.org) : '') + '</span>'],
       ['source', 0, r => { const s = r.source || {}; return '<span class="tag ' + esc(s.kind) + '">' + esc(s.kind || '?') + '</span><br>' +
         (s.kind === 'referrer' ? '<span title="' + esc(s.ref) + '">' + refHtml(s.ref) + '</span>' : '<span class="muted">' + esc(s.kind === 'utm' ? s.utm : '') + '</span>'); }],
@@ -217,7 +259,7 @@ async function load() {
       ['org', 0, r => esc(r.org || '—')]
     ], 'full') +
     table('Device fingerprints · coarse profile match', arr('fingerprints'), [
-      ['fp', 0, r => '<code title="' + esc(r.fp) + '">' + esc((r.fp || '').slice(0, 12)) + '…</code><br><span class="muted">' + esc([r.dev, r.model, r.scr, r.lang, r.dtz].filter(Boolean).join(' · ')) + '</span>'],
+      ['fp', 0, r => '<code title="' + esc(r.fp) + '">' + esc((r.fp || '').slice(0, 12)) + '…</code><br><span class="muted">' + esc([r.dev, modelName(r.model), r.scr, r.lang, r.dtz].filter(Boolean).join(' · ')) + '</span>'],
       ['views', 1, r => fmtNumber(r.views)],
       ['ips', 1, r => fmtNumber(r.ips)],
       ['browser_ids', 1, r => fmtNumber(r.browser_ids)],
@@ -229,14 +271,14 @@ async function load() {
       ['ip', 0, r => esc(r.ip) + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + (r.postal ? ' · ZIP ' + esc(r.postal) : '') + ' · ' + esc(r.org || '') + '</span>'],
       ['ua', 0, r => {
         const meta = [r.utm ? 'utm ' + r.utm : '', r.owner ? 'owner' : '',
-          r.dev || '', r.model ? 'model ' + r.model : '', r.scr ? 'screen ' + r.scr : '',
+          r.dev || '', deviceLabel(r), r.scr ? 'screen ' + r.scr : '',
           r.lang ? 'lang ' + r.lang : '', r.dtz ? 'device TZ ' + r.dtz : '',
           r.tz ? 'IP TZ ' + r.tz : '', r.dur !== null && r.dur !== undefined ? 'visible ' + fmtDuration(r.dur) : ''
         ].filter(Boolean).map(esc).join(' · ');
-        return '<span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + refHtml(r.ref) : '') +
+        return netTags(r.net) + ' <span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + refHtml(r.ref) : '') +
           ' · ' + esc((r.vid || '').slice(0, 6)) + (meta ? '<br>' + meta : '') + '</span>';
       }]], 'full') +
-    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes; its duration runs from the first view to the end of the last one (that page’s visible time, when measured). Source = the session’s utm tags, else its off-site referrer; “internal” = it starts from one of this site’s pages (a reopened tab, or a visit begun before the window), “direct” = no referrer at all. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model. Device fingerprints are SHA-256 signatures of already-collected browser metadata, not proof of a unique physical device. IP visit counts split activity into sessions after 30 minutes of inactivity.</p>';
+    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes; its duration runs from the first view to the end of the last one (that page’s visible time, when measured). Source = the session’s utm tags, else its off-site referrer; “internal” = it starts from one of this site’s pages (a reopened tab, or a visit begun before the window), “direct” = no referrer at all. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model. Device fingerprints are SHA-256 signatures of already-collected browser metadata, not proof of a unique physical device. IP visit counts split activity into sessions after 30 minutes of inactivity. Network flags are heuristics: VPN = a known VPN / hosting network, relay = iCloud Private Relay / WARP, TZ≠IP = the device clock disagrees with the IP location (VPN or a traveller). Precise GPS location would need a permission prompt for every visitor and is not collected.</p>';
 }
 exportButton.onclick = () => {
   if (!exportData) return;
@@ -289,8 +331,17 @@ load();
 </html>"""
 
 
+DEVICE_NAMES = Path(__file__).resolve().parents[1] / "config" / "device_names.json"
+
+
 def build_page(out_path: str = "", **_extra) -> None:
     out_dir = Path(out_path)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "visits.html").write_text(PAGE, encoding="utf-8")
-    log.info("visits.html written (private, STATS_KEY-gated)")
+    try:
+        names = json.loads(DEVICE_NAMES.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as err:   # no table: the page just shows raw model codes
+        log.warning("device names unavailable (%s)", err)
+        names = {}
+    (out_dir / "device-names.json").write_text(json.dumps(names, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    log.info("visits.html written (private, STATS_KEY-gated), %d device names", len(names))
