@@ -1685,7 +1685,8 @@ def build_page(
         # ── Trips ──
         if trips_y:
             trip_cards = "".join(
-                f'<a class="trip-card" href="trip-{t.get("id")}.html">'
+                # per-trip pages are no longer built; trips.html opens the trip from its hash
+                f'<a class="trip-card" href="/trips.html#trip-{t.get("id")}">'
                 f'<div class="trip-name">{_esc(t.get("name", "Trip"))}</div>'
                 f'<div class="trip-meta">{_esc(t.get("start_date", ""))} → {_esc(t.get("end_date", ""))} · {t.get("duration", 0)} days · {t.get("checkin_count", 0)} check-ins</div>'
                 f'<div class="trip-countries">{" · ".join(_esc(c) for c in (t.get("countries") or [])[:5])}</div>'

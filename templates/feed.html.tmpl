@@ -880,7 +880,10 @@ async function activate(i, doScroll=true){
 
   if(lat&&lng){
 
-    map.flyTo([lat,lng],15,{animate:true,duration:0.35});
+    // flyTo divides by the container size: on phones the map is hidden (0×0) and it
+    // threw "Invalid LatLng (NaN, NaN)" for every card scrolled past
+    if(map.getContainer().offsetWidth) map.flyTo([lat,lng],15,{animate:true,duration:0.35});
+    else map.setView([lat,lng],15,{animate:false});
 
     if(curMark)map.removeLayer(curMark);
 
