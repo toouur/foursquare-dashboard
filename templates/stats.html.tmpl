@@ -110,11 +110,11 @@ a{color:inherit;}
 .heatmap-week{display:flex;flex-direction:column;gap:3px;}
 .heatmap-cell{width:11px;height:11px;border-radius:2px;background:var(--card2);}
 .heatmap-cell[data-v="0"]{background:#151820;}
-.heatmap-cell[data-v="1"]{background:#1a3a1a;}
-.heatmap-cell[data-v="2"]{background:#1e5c1e;}
-.heatmap-cell[data-v="3"]{background:#c97a20;}
-.heatmap-cell[data-v="4"]{background:#e8b86d;}
-.heatmap-cell[data-v="5"]{background:#f5d48a;}
+.heatmap-cell[data-v="1"]{background:rgba(47,214,181,.22);}
+.heatmap-cell[data-v="2"]{background:rgba(47,214,181,.5);}
+.heatmap-cell[data-v="3"]{background:#2fd6b5;}
+.heatmap-cell[data-v="4"]{background:#ff9a6b;}
+.heatmap-cell[data-v="5"]{background:#ffd08a;}
 .heatmap-tooltip{position:fixed;pointer-events:none;background:rgba(11,13,19,0.96);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-family:'DM Mono',monospace;font-size:0.64rem;color:var(--text);z-index:9999;display:none;}
 
 /* ── SCROLLBAR on generic lists ── */
@@ -247,6 +247,7 @@ a{color:inherit;}
 {{ANOMALIES}}
 
 <div class="grid" id="statGrid" data-active="overview">
+<script>document.getElementById('statGrid').dataset.active=(function(){const h=(location.hash||'').slice(1);return ['overview','time','places','movement','people','words','data'].includes(h)?h:'overview';})();</script>
 
   <!-- 1. Check-ins by Year -->
   <div data-tab="overview time" class="card">
@@ -512,12 +513,70 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 
 // ── Chart.js defaults ───────────────────────────────────────────────────────
 Chart.defaults.color='#7a85a8';
-Chart.defaults.borderColor='#1e2335';
+Chart.defaults.borderColor='rgba(255,255,255,.05)';
+Chart.defaults.elements.bar.borderRadius=6;
+Chart.defaults.elements.bar.borderSkipped='bottom';
+Chart.defaults.elements.line.tension=.3;
+Chart.defaults.elements.point.radius=0;
+Chart.defaults.elements.point.hoverRadius=4;
+Chart.defaults.plugins.tooltip.backgroundColor='rgba(14,16,24,.96)';
+Chart.defaults.plugins.tooltip.borderColor='rgba(255,255,255,.08)';
+Chart.defaults.plugins.tooltip.borderWidth=1;
+Chart.defaults.plugins.tooltip.padding=10;
+Chart.defaults.plugins.tooltip.cornerRadius=10;
+// old palette → the site's new one (alpha is kept), so every chart follows without editing each config
+const RECOLOR={'232,184,109':'255,154,107','78,205,196':'47,214,181','230,57,70':'255,122,107','196,77,255':'155,123,255',
+  '244,131,31':'255,179,107','69,183,209':'76,184,255','150,206,180':'184,230,92','168,216,168':'94,224,240',
+  '245,212,138':'246,211,139','255,107,157':'255,111,174','77,121,255':'109,139,255','255,77,77':'255,92,122','26,30,46':'255,255,255,.05'};
+function recolor(c){
+  if(typeof c!=='string')return c;
+  let m=c.match(/^#([0-9a-f]{6})$/i), rgb, a=1;
+  if(m){const h=m[1];rgb=[0,2,4].map(i=>parseInt(h.substr(i,2),16)).join(',');}
+  else if((m=c.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)$/i))){rgb=m[1]+','+m[2]+','+m[3];a=m[4]==null?1:+m[4];}
+  else return c;
+  const to=RECOLOR[rgb]; if(!to)return c;
+  if(a>=.4&&a<.8)a=.85;   // half-transparent fills of the new, lighter hues read brown on the dark cards
+  return to.split(',').length===4?'rgba('+to+')':(a===1?'rgb('+to+')':'rgba('+to+','+a+')');
+}
+const withAlpha=(c,a)=>{const m=String(c).match(/^rgba?\((\d+),(\d+),(\d+)/);return m?'rgba('+m[1]+','+m[2]+','+m[3]+','+a+')':c;};
+Chart.register({id:'sitePalette',beforeInit(chart){
+  const scs=(chart.config.options&&chart.config.options.scales)||{};
+  // stacked bars: a per-segment gradient over the whole plot turns the lower segments muddy
+  const stacked=Object.values(scs).some(a=>a&&a.stacked);
+  (chart.config.data.datasets||[]).forEach(ds=>{
+    if(stacked&&ds.borderRadius===undefined)ds.borderRadius=0;
+    ['backgroundColor','borderColor','pointBackgroundColor','hoverBackgroundColor'].forEach(k=>{
+      if(Array.isArray(ds[k]))ds[k]=ds[k].map(recolor); else if(typeof ds[k]==='string')ds[k]=recolor(ds[k]);
+    });
+    const type=ds.type||chart.config.type;
+    if(type==='bar'&&!stacked&&typeof ds.backgroundColor==='string'&&/^rgba?\(/.test(ds.backgroundColor)){
+      const top=ds.backgroundColor;
+      ds.backgroundColor=ctx=>{const ca=ctx.chart.chartArea;if(!ca)return top;const g=ctx.chart.ctx.createLinearGradient(0,ca.top,0,ca.bottom);g.addColorStop(0,top);g.addColorStop(1,withAlpha(top,.35));return g;};
+    }
+  });
+  const sc=chart.config.options&&chart.config.options.scales;
+  if(sc)Object.values(sc).forEach(a=>{if(a&&a.grid&&a.grid.color)a.grid.color=recolor(a.grid.color);});
+}});
+// A chart whose card sits in a tab that is not open is built when that tab opens:
+// all 23 charts used to render on load. None of them is kept in a variable, so
+// handing back a placeholder is safe.
+const _Chart=Chart, DEFERRED=[];
+const tabNow=()=>{const h=(location.hash||'').slice(1);return ['overview','time','places','movement','people','words','data'].includes(h)?h:'overview';};
+window.Chart=new Proxy(_Chart,{construct(T,args){
+  const el=typeof args[0]==='string'?document.getElementById(args[0]):args[0];
+  const card=el&&el.closest&&el.closest('.card[data-tab]');
+  const active=(document.getElementById('statGrid')||{}).dataset?.active||tabNow();
+  if(card&&!card.dataset.tab.split(' ').includes(active)){DEFERRED.push([card,args]);return {deferred:true};}
+  return new T(...args);
+}});
+function buildDeferred(tab){
+  for(let i=DEFERRED.length-1;i>=0;i--){const [card,args]=DEFERRED[i];if(card.dataset.tab.split(' ').includes(tab)){DEFERRED.splice(i,1);try{new _Chart(...args);}catch(e){}}}
+}
 Chart.defaults.font.family="'DM Mono',monospace";
 Chart.defaults.font.size=11;
 
-const PAL=['#e63946','#f4831f','#e8b86d','#f5d48a','#a8d8a8','#4ecdc4','#45b7d1','#96ceb4','#ff6b9d','#c44dff','#4d79ff','#ff4d4d','#ffaa00','#00c9a7'];
-const CC=['#e8b86d','#4ecdc4','#e63946','#45b7d1','#a8d8a8','#c44dff','#f4831f','#96ceb4'];
+const PAL=['#ff7a6b','#ffb36b','#ff9a6b','#f6d38b','#b8e65c','#2fd6b5','#4cb8ff','#5ee0f0','#ff6fae','#9b7bff','#6d8bff','#ff5c7a','#f6c25b','#34d399'];
+const CC=['#ff9a6b','#2fd6b5','#ff6fae','#4cb8ff','#b8e65c','#9b7bff','#f6c25b','#5ee0f0'];
 
 // ── 1. Check-ins by Year ────────────────────────────────────────────────────
 new Chart(document.getElementById('yearChart'),{
@@ -1435,8 +1494,9 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
     grid.dataset.active=k;
     tabs.forEach(b=>b.classList.toggle('on',b.dataset.t===k));
     document.getElementById('insGrid').hidden=k!=='overview';
-    // charts built while their card was hidden keep a zero/stale size: re-measure every one
-    requestAnimationFrame(()=>{ if(window.Chart&&Chart.instances) Object.values(Chart.instances).forEach(c=>{ try{ c.resize(); }catch(e){} }); });
+    buildDeferred(k);
+    // a chart that was built in a card hidden by another tab keeps a stale size: re-measure
+    requestAnimationFrame(()=>{ Object.values(_Chart.instances||{}).forEach(c=>{ try{ c.resize(); }catch(e){} }); });
   }
   window.addEventListener('hashchange',()=>show((location.hash||'').slice(1)));
   window.addEventListener('load',()=>show(grid.dataset.active));
