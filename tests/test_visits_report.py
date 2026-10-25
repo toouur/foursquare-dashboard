@@ -87,6 +87,9 @@ def test_hit_endpoint_guards():
     vjs = (Path(__file__).resolve().parents[1] / "functions" / "api" / "visits.js").read_text(encoding="utf-8")
     assert "env.STATS_KEY" in vjs and "401" in vjs                    # closed by default
     assert "deviceTimezones" in vjs and "languages" in vjs and "postals" in vjs
+    assert "ipStats, fingerprints" in vjs
+    assert "PARTITION BY ip ORDER BY ts, id" in vjs and "AS visits" in vjs
+    assert "COUNT(DISTINCT fp)" in vjs and "GROUP BY fp" in vjs
     assert "LAG(ts) OVER" in vjs and "avg_pages" in vjs and "dur" in vjs
     assert "'unknown-' || id" in vjs
 
@@ -144,7 +147,7 @@ def test_pages_functions_parse(tmp_path):
 def test_visits_page_renders_extended_analytics():
     page = (Path(__file__).resolve().parents[1] / "scripts" / "gen_visits.py").read_text(encoding="utf-8")
     for marker in ("Browser languages", "Device types", "Screen sizes", "Device time zones",
-                   "Android models", "Approx. postal areas", "engagement-grid", "average pages / session", "visible "):
+                   "Android models", "Approx. postal areas", "engagement-grid", "average pages / session", "IP addresses · visits per IP", "Device fingerprints", "visible "):
         assert marker in page, marker
 
 def test_report_creates_the_visits_table_itself():
@@ -152,7 +155,7 @@ def test_report_creates_the_visits_table_itself():
     assert ddl[0].startswith("CREATE TABLE IF NOT EXISTS visits") and "ip" in ddl[0]
     assert ddl[1] == "CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts)"
     added = {s.split()[-2] for s in ddl[2:]}                     # the analytics columns migrated in
-    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur", "view_id"}
+    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur", "view_id", "fp"}
     assert all(s.startswith("ALTER TABLE visits ADD COLUMN") for s in ddl[2:])
 
 

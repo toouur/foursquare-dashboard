@@ -159,6 +159,24 @@ async function load() {
       [fmtNumber(sessions.max_pages), 'maximum pages / session'],
       [fmtDuration(sessions.avg_visible_seconds), 'average measured session time']
     ].map(([value, label]) => '<div class="engagement-stat"><b>' + esc(value) + '</b><span>' + esc(label) + '</span></div>').join('') + '</div></div>' +
+    table('IP addresses · visits per IP', arr('ipStats'), [
+      ['ip', 0, r => '<code>' + esc(r.ip) + '</code><br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + (r.postal ? ' · ZIP ' + esc(r.postal) : '') + '</span>'],
+      ['views', 1, r => fmtNumber(r.views)],
+      ['visits', 1, r => fmtNumber(r.visits)],
+      ['fingerprints', 1, r => fmtNumber(r.fingerprints)],
+      ['first_seen', 0, r => '<span class="muted">' + when(r.first_seen) + '</span>'],
+      ['last_seen', 0, r => '<span class="muted">' + when(r.last_seen) + '</span>'],
+      ['org', 0, r => esc(r.org || '—')]
+    ], 'full') +
+    table('Device fingerprints · coarse profile match', arr('fingerprints'), [
+      ['fp', 0, r => '<code title="' + esc(r.fp) + '">' + esc((r.fp || '').slice(0, 12)) + '…</code><br><span class="muted">' + esc([r.dev, r.model, r.scr, r.lang, r.dtz].filter(Boolean).join(' · ')) + '</span>'],
+      ['views', 1, r => fmtNumber(r.views)],
+      ['ips', 1, r => fmtNumber(r.ips)],
+      ['browser_ids', 1, r => fmtNumber(r.browser_ids)],
+      ['first_seen', 0, r => '<span class="muted">' + when(r.first_seen) + '</span>'],
+      ['last_seen', 0, r => '<span class="muted">' + when(r.last_seen) + '</span>'],
+      ['country', 0]
+    ], 'full') +
     table('Latest views', arr('recent'), [['ts', 0, r => '<span class="muted">' + when(r.ts) + '</span>'], ['path', 0, r => esc(r.path)],
       ['ip', 0, r => esc(r.ip) + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + (r.postal ? ' · ZIP ' + esc(r.postal) : '') + ' · ' + esc(r.org || '') + '</span>'],
       ['ua', 0, r => {
@@ -170,7 +188,7 @@ async function load() {
         return '<span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + refHtml(r.ref) : '') +
           ' · ' + esc((r.vid || '').slice(0, 6)) + (meta ? '<br>' + meta : '') + '</span>';
       }]], 'full') +
-    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model.</p>';
+    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model. Device fingerprints are SHA-256 signatures of already-collected browser metadata, not proof of a unique physical device. IP visit counts split activity into sessions after 30 minutes of inactivity.</p>';
 }
 document.getElementById('save').onclick = () => { const v = document.getElementById('key').value.trim(); if (v) { ls('fsq_stats_key', v); document.getElementById('keybar').hidden = true; load(); } };
 document.getElementById('key').onkeydown = e => { if (e.key === 'Enter') document.getElementById('save').click(); };

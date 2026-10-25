@@ -1509,7 +1509,7 @@ try {
   try {
     if(navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
       navigator.userAgentData.getHighEntropyValues(['model']).then(function(h){
-        if(h && h.model) send({t:'meta',p:p,v:v,k:k,m:String(h.model).slice(0,60)});
+        if(h && h.model) send({t:'meta',p:p,v:v,k:k,m:String(h.model).slice(0,60),l:navigator.language||'',z:tz,s:scr,d:dev});
       }).catch(function(){});
     }
   } catch(e){}

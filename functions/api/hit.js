@@ -39,6 +39,21 @@ const noContent = () => new Response(null, { status: 204, headers: { 'Cache-Cont
 
 const clip = (s, n) => (typeof s === 'string' ? s.slice(0, n) : null);
 
+// Coarse device signature from metadata already collected for ordinary analytics.
+// It groups similar browser profiles; it is not a guaranteed physical-device ID.
+async function deviceFingerprint(ua, body) {
+  try {
+    const parts = [
+      ua.slice(0, 300), clip(body.l, 35) || '', clip(body.z, 64) || '',
+      clip(body.s, 24) || '', ['phone', 'tablet', 'desktop'].includes(body.d) ? body.d : '',
+      clip(body.m, 60) || ''
+    ];
+    const bytes = new TextEncoder().encode(parts.join('|'));
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  } catch { return null; }
+}
+
 export async function onRequestPost({ request, env }) {
   try {
     if (!env.DB) return noContent();
@@ -72,9 +87,10 @@ export async function onRequestPost({ request, env }) {
           }
         } else {
           const model = clip(body.m, 60);
-          if (model) {
-            await env.DB.prepare('UPDATE visits SET model = ?' + match)
-              .bind(model, now - 26 * 3600, vid, path, viewId).run();
+          const fp = await deviceFingerprint(ua, body);
+          if (model || fp) {
+            await env.DB.prepare('UPDATE visits SET model = COALESCE(?, model), fp = COALESCE(?, fp)' + match)
+              .bind(model, fp, now - 26 * 3600, vid, path, viewId).run();
           }
         }
       }
@@ -88,9 +104,10 @@ export async function onRequestPost({ request, env }) {
         .bind(now - 600, ip).first();
       if (recent && recent.n >= MAX_PER_IP) return noContent();
     }
+    const fp = await deviceFingerprint(ua, body);
     await env.DB.prepare(
-      'INSERT INTO visits (ts, path, ref, ip, country, city, region, asn, org, tz, ua, vid, owner, view_id, lang, dtz, scr, dev, model, postal) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO visits (ts, path, ref, ip, country, city, region, asn, org, tz, ua, vid, owner, view_id, lang, dtz, scr, dev, model, postal, fp) ' +
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       now, path, clip(body.r, 300) || null,
       ip,
@@ -98,7 +115,7 @@ export async function onRequestPost({ request, env }) {
       Number.isFinite(cf.asn) ? cf.asn : null, clip(cf.asOrganization, 120) || null,
       cf.timezone || null, clip(ua, 300), vid, body.o ? 1 : 0, viewId,
       clip(body.l, 35) || null, clip(body.z, 64) || null, clip(body.s, 24) || null, dev,
-      clip(body.m, 60) || null, clip(cf.postalCode, 16) || null,
+      clip(body.m, 60) || null, clip(cf.postalCode, 16) || null, fp,
     ).run();
     if (Math.random() < 0.005) {
       await env.DB.prepare('DELETE FROM visits WHERE ts < ?').bind(now - RETENTION_S).run();

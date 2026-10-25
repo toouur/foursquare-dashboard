@@ -55,7 +55,7 @@ export async function onRequestGet({ request, env }) {
     const [
       tot, daily, paths, countries, cities, refs, orgs, recent,
       languages, devices, screens, deviceTimezones, models, postals,
-      engagement, sessions,
+      ipStats, fingerprints, engagement, sessions,
     ] = await Promise.all([
       q('SELECT COUNT(*) AS views, COUNT(DISTINCT COALESCE(vid, ip)) AS visitors, COUNT(DISTINCT ip) AS ips FROM visits ' + W),
       q("SELECT date(ts, 'unixepoch') AS d, COUNT(*) AS views, COUNT(DISTINCT COALESCE(vid, ip)) AS visitors FROM visits " + W + ' GROUP BY d ORDER BY d'),
@@ -73,13 +73,23 @@ export async function onRequestGet({ request, env }) {
       top('model', 12),
       q('SELECT postal, city, region, country, COUNT(*) AS n, COUNT(DISTINCT COALESCE(vid, ip)) AS u FROM visits ' + W +
         " AND postal IS NOT NULL AND postal != '' GROUP BY postal, city, region, country ORDER BY n DESC LIMIT 20"),
+      q('WITH base AS (SELECT id, ts, ip, city, region, country, postal, org, fp, vid FROM visits ' + W +
+        " AND ip IS NOT NULL AND ip != ''), lagged AS (SELECT *, LAG(ts) OVER (PARTITION BY ip ORDER BY ts, id) AS prev_ts FROM base) " +
+        "SELECT ip, COUNT(*) AS views, SUM(CASE WHEN prev_ts IS NULL OR ts - prev_ts > 1800 THEN 1 ELSE 0 END) AS visits, " +
+        "COUNT(DISTINCT fp) AS fingerprints, COUNT(DISTINCT vid) AS browser_ids, MIN(ts) AS first_seen, MAX(ts) AS last_seen, " +
+        "MAX(city) AS city, MAX(region) AS region, MAX(country) AS country, MAX(postal) AS postal, MAX(org) AS org " +
+        "FROM lagged GROUP BY ip ORDER BY views DESC, last_seen DESC LIMIT 100"),
+      q('SELECT fp, COUNT(*) AS views, COUNT(DISTINCT ip) AS ips, COUNT(DISTINCT vid) AS browser_ids, ' +
+        'MIN(ts) AS first_seen, MAX(ts) AS last_seen, MAX(dev) AS dev, MAX(model) AS model, MAX(scr) AS scr, ' +
+        'MAX(lang) AS lang, MAX(dtz) AS dtz, MAX(country) AS country FROM visits ' + W +
+        " AND fp IS NOT NULL AND fp != '' GROUP BY fp ORDER BY views DESC, last_seen DESC LIMIT 100"),
       q('SELECT COUNT(dur) AS measured, ROUND(AVG(dur), 0) AS avg_seconds, MAX(dur) AS max_seconds FROM visits ' + W + ' AND dur IS NOT NULL'),
       q(sessionSql),
     ]);
     return json({
       days,
       totals: tot[0] || {}, daily, paths, countries, cities, refs, orgs, recent,
-      languages, devices, screens, deviceTimezones, models, postals,
+      languages, devices, screens, deviceTimezones, models, postals, ipStats, fingerprints,
       engagement: engagement[0] || {},
       sessions: sessions[0] || {},
     });
