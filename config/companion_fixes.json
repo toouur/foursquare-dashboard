@@ -8,7 +8,8 @@
   },
 
   "51deee63498eb0b755cdfc0f": {
-    "with_name": "Anna Grosu",
-    "_note": "Moldexpo, 2013-07-11 ('Типо Земфира.'). The Swarm app shows 'with Anna' and the check-in's score says 'first check-in with Anna', but the API returns no `with` field for it (her account is gone / no longer resolvable), so no id."
+    "with_name": "Anna Grosul",
+    "with_id": "21870766",
+    "_note": "Moldexpo, 2013-07-11 ('Типо Земфира.'). The Swarm app shows 'with Anna' and the score says 'first check-in with Anna', but the API returns no `with` field for this check-in (she is not a Swarm friend). Profile app.foursquare.com/share/profile/21870766 (@reinannx)."
   }
 }
