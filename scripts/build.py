@@ -1490,6 +1490,9 @@ if __name__ == "__main__":
     # visible duration onto that exact row. ?fsq_owner=1 / ?fsq_owner=0 on any page
     # marks this browser as the owner's (not counted) or a visitor's, then drops
     # the parameter from the address bar — handy on a phone without the STATS_KEY.
+    # The leave beacon also carries scroll depth and Web Vitals (LCP/INP/CLS/TTFB);
+    # site-search queries (once typing pauses for 2 s) and outbound link clicks go
+    # as small {t:'ev'} events. No template needs to call anything.
     _hit_js = r"""<script>(function(){
 try {
   var s=localStorage, v=s.getItem('fsq_vid');
@@ -1536,11 +1539,62 @@ try {
       }).catch(function(){clearTimeout(hintWait);view('')});
     } else view('');
   } catch(e){view('')}
+  function ev(kind,data){send({t:'ev',p:p,v:v,k:k,o:s.getItem('fsq_owner')==='1'?1:0,e:kind,x:String(data).slice(0,200)});}
+  // Site search: the global box (#gsInput), search.html (#qInput) or any type=search field.
+  var lastQ='', qWait=0;
+  document.addEventListener('input',function(e){
+    var el=e.target;
+    if(!el||!el.matches||!el.matches('#qInput,#gsInput,input[type=search]')) return;
+    clearTimeout(qWait);
+    qWait=setTimeout(function(){
+      var q=String(el.value||'').trim();
+      if(q.length>=2&&q!==lastQ){lastQ=q;ev('search',(el.id||'search')+':'+q);}
+    },2000);
+  },true);
+  // Outbound clicks (left or middle button) on links to another host.
+  function outClick(e){
+    var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
+    if(!a) return;
+    var h=a.href||'';
+    if(!/^https?:/i.test(h)) return;
+    try { if(new URL(h).host===location.host) return; } catch(x){ return; }
+    ev('out',h);
+  }
+  document.addEventListener('click',outClick,true);
+  document.addEventListener('auxclick',outClick,true);
+  // Scroll depth: the deepest point of the page reached, in %.
+  var maxScroll=0;
+  function trackScroll(){
+    try {
+      var de=document.documentElement, b=document.body;
+      var h=Math.max(de.scrollHeight,b?b.scrollHeight:0), vh=window.innerHeight||de.clientHeight;
+      var pct=h<=vh?100:Math.round(100*((window.scrollY||de.scrollTop||0)+vh)/h);
+      if(pct>maxScroll) maxScroll=Math.min(100,pct);
+    } catch(e){}
+  }
+  window.addEventListener('scroll',trackScroll,{passive:true});
+  window.addEventListener('load',trackScroll);
+  // Web Vitals of this view: LCP, INP (slowest interaction), CLS (×1000), TTFB.
+  var vit={};
+  try { var nav=performance.getEntriesByType('navigation')[0]; if(nav&&nav.responseStart>0) vit.ttfb=Math.round(nav.responseStart); } catch(e){}
+  function observe(type,cb,opts){
+    try {
+      var o=new PerformanceObserver(function(list){list.getEntries().forEach(cb)});
+      var cfg={type:type,buffered:true}; for(var key in (opts||{})) cfg[key]=opts[key];
+      o.observe(cfg);
+    } catch(e){}
+  }
+  observe('largest-contentful-paint',function(en){vit.lcp=Math.round(en.startTime)});
+  var clsSum=0;
+  observe('layout-shift',function(en){if(!en.hadRecentInput){clsSum+=en.value;vit.cls=Math.round(clsSum*1000)}});
+  observe('event',function(en){if(en.interactionId&&(!vit.inp||en.duration>vit.inp))vit.inp=Math.round(en.duration)},{durationThreshold:40});
   var visibleStart=document.visibilityState==='hidden'?0:Date.now(), visibleMs=0;
   function durationBeacon(){
     view('');
+    trackScroll();
     if(visibleStart){visibleMs+=Math.max(0,Date.now()-visibleStart);visibleStart=0;}
-    send({t:'leave',p:p,v:v,k:k,dur:Math.min(86400,Math.round(visibleMs/1000))});
+    send({t:'leave',p:p,v:v,k:k,dur:Math.min(86400,Math.round(visibleMs/1000)),sc:maxScroll,
+      lcp:vit.lcp,cls:vit.cls,inp:vit.inp,ttfb:vit.ttfb});
   }
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='hidden') durationBeacon();

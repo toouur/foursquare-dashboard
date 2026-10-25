@@ -217,6 +217,29 @@ ALTER TABLE visits ADD COLUMN dur INTEGER;
 ALTER TABLE visits ADD COLUMN view_id TEXT;
 ALTER TABLE visits ADD COLUMN fp TEXT;
 ALTER TABLE visits ADD COLUMN utm TEXT;
+-- Patched by the {t:'leave'} beacon in the same UPDATE as dur (no extra row
+-- written): scroll = deepest point reached, % of the page; Web Vitals of the
+-- view: lcp / inp / ttfb in ms, cls ×1000 (an integer, 100 = 0.1).
+ALTER TABLE visits ADD COLUMN scroll INTEGER;
+ALTER TABLE visits ADD COLUMN lcp INTEGER;
+ALTER TABLE visits ADD COLUMN cls INTEGER;
+ALTER TABLE visits ADD COLUMN inp INTEGER;
+ALTER TABLE visits ADD COLUMN ttfb INTEGER;
+-- In-page events from the same snippet: kind = 'search' (a site search query,
+-- data "field:query", sent once the typing pauses) or 'out' (an outbound link
+-- click, data = the URL). Same 90-day retention and owner flag as visits.
+CREATE TABLE IF NOT EXISTS visit_events (
+    id      INTEGER PRIMARY KEY,
+    ts      INTEGER NOT NULL,
+    vid     TEXT,
+    ip      TEXT,
+    country TEXT,
+    path    TEXT,
+    kind    TEXT    NOT NULL,
+    data    TEXT,
+    owner   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_visit_events_ts ON visit_events(ts);
 
 
 CREATE VIRTUAL TABLE IF NOT EXISTS venues_fts USING fts5(name, category, city, country, content='venues', content_rowid='rowid');

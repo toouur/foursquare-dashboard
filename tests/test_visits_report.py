@@ -151,7 +151,8 @@ def test_pages_functions_parse(tmp_path):
 
 def test_visits_page_renders_extended_analytics():
     page = (Path(__file__).resolve().parents[1] / "scripts" / "gen_visits.py").read_text(encoding="utf-8")
-    for marker in ("Network · VPN / relay / timezone check", "Countries without VPN / relay views", "device-names.json",
+    for marker in ("Now on site", "Top venues", "Site searches", "Outbound clicks", "Scroll depth", "Web Vitals",
+                   "people (ids merged)", "browser ids", "new</span> / <span", "Network · VPN / relay / timezone check", "Countries without VPN / relay views", "device-names.json",
                    "iphoneGuess", "Sources · where sessions start", "Off-site referrers", "UTM tags", "Sessions · page sequence",
                    "owner-toggle", "with-owner", "Clear all visits", "Browser languages", "Device types", "Screen sizes", "Device time zones",
                    "Android models", "Approx. postal areas", "engagement-grid", "average pages / session", "IP addresses · visits per IP", "Device fingerprints", "visible "):
@@ -161,9 +162,14 @@ def test_report_creates_the_visits_table_itself():
     ddl = vr.visits_ddl()
     assert ddl[0].startswith("CREATE TABLE IF NOT EXISTS visits") and "ip" in ddl[0]
     assert ddl[1] == "CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts)"
-    added = {s.split()[-2] for s in ddl[2:]}                     # the analytics columns migrated in
-    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur", "view_id", "fp", "utm"}
-    assert all(s.startswith("ALTER TABLE visits ADD COLUMN") for s in ddl[2:])
+    alters = [s for s in ddl[2:] if s.startswith("ALTER TABLE")]
+    added = {s.split()[-2] for s in alters}                      # the analytics columns migrated in
+    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur", "view_id", "fp", "utm",
+                     "scroll", "lcp", "cls", "inp", "ttfb"}
+    assert all(s.startswith("ALTER TABLE visits ADD COLUMN") for s in alters)
+    rest = [s for s in ddl[2:] if not s.startswith("ALTER TABLE")]   # the in-page events table
+    assert rest[0].startswith("CREATE TABLE IF NOT EXISTS visit_events") and "kind" in rest[0]
+    assert rest[1] == "CREATE INDEX IF NOT EXISTS idx_visit_events_ts ON visit_events(ts)"
 
 
 def test_a_column_that_already_exists_is_not_an_error(monkeypatch):
@@ -396,7 +402,8 @@ def test_visits_clear_needs_key_and_confirm_word(tmp_path):
     res = json.loads(subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, text=True, check=True).stdout)
     assert [s for s, _ in res["out"]] == [401, 401, 400, 200]
     assert res["out"][3][1]["deleted"] == 7
-    assert res["seen"] == [["DELETE FROM visits WHERE ts <= ?", 1]]   # only the confirmed call touched D1
+    assert res["seen"] == [["DELETE FROM visits WHERE ts <= ?", 1],    # only the confirmed call touched D1
+                           ["DELETE FROM visit_events WHERE ts <= ?", 1]]
 
 
 def test_hit_beacon_writes_the_model_with_the_view():
@@ -459,3 +466,93 @@ def test_visits_api_network_flags(tmp_path):
     js2 = ("import { netSummary } from " + json.dumps(mod.as_uri()) + ";console.log(JSON.stringify(netSummary(" + json.dumps(old) + ")));")
     out2 = json.loads(subprocess.run([node, "--input-type=module", "-e", js2], capture_output=True, text=True, check=True).stdout)
     assert [f["flag"] for f in out2["networkFlags"]] == ["no-tz"]                # unchecked is not "clean"
+
+
+def test_hit_beacon_events_scroll_and_vitals():
+    """search queries after a 2 s pause, outbound clicks, and scroll/vitals on the leave beacon."""
+    import subprocess
+    node = _node_or_skip()
+    build = (Path(__file__).resolve().parents[1] / "scripts" / "build.py").read_text(encoding="utf-8")
+    html = re.search(r'_hit_js = r"""(.*?)"""', build, re.S).group(1)
+    snippet = html[len("<script>"):html.rfind("</script>")]
+    stub = (
+        "const store={}; globalThis.localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v)}};"
+        "const sent=[], docL={}, winL={};"
+        "globalThis.location={pathname:'/',search:'',hash:'',host:'4sq.pages.dev'};"
+        "globalThis.history={replaceState(){}};"
+        "Object.defineProperty(globalThis,'navigator',{value:{userAgent:'UA',language:'ru',sendBeacon:(u,b)=>sent.push(JSON.parse(b))}});"
+        "globalThis.screen={width:1,height:2}; globalThis.window=globalThis; globalThis.innerHeight=500; globalThis.scrollY=0;"
+        "globalThis.document={referrer:'',visibilityState:'visible',documentElement:{scrollHeight:2000,clientHeight:500,scrollTop:0},body:{scrollHeight:2000},"
+        "  addEventListener:(t,f)=>{(docL[t]=docL[t]||[]).push(f)}};"
+        "globalThis.addEventListener=(t,f)=>{(winL[t]=winL[t]||[]).push(f)};"
+    )
+    drive = (
+        ";const input={id:'gsInput',value:'Kyiv',matches:s=>s.includes('#gsInput')};"
+        "docL.input.forEach(f=>f({target:input}));"
+        "const link={href:'https://t.me/x',closest:()=>link}; docL.click.forEach(f=>f({target:{closest:()=>link}}));"
+        "const own={href:'https://4sq.pages.dev/trips'}; docL.click.forEach(f=>f({target:{closest:()=>own}}));"
+        "globalThis.scrollY=1000; winL.scroll.forEach(f=>f());"
+        "setTimeout(()=>{winL.pagehide.forEach(f=>f()); console.log(JSON.stringify(sent));},2100);"
+    )
+    sent = json.loads(subprocess.run([node, "-e", stub + snippet + drive], capture_output=True, text=True, check=True, timeout=30).stdout)
+    evs = [s for s in sent if s.get("t") == "ev"]
+    assert [(e["e"], e["x"]) for e in evs] == [("out", "https://t.me/x"), ("search", "gsInput:Kyiv")]   # own-host link skipped
+    leave = [s for s in sent if s.get("t") == "leave"][-1]
+    assert leave["sc"] == 75 and leave["dur"] >= 0
+
+
+def test_visits_api_people_vitals_and_now(tmp_path):
+    import subprocess
+    node = _node_or_skip()
+    src = (Path(__file__).resolve().parents[1] / "functions" / "api" / "visits.js").read_text(encoding="utf-8")
+    mod = tmp_path / "visits.mjs"
+    mod.write_text(src + "\nexport { personMap, vitalsTable, nowOnSite, buildSessions };\n", encoding="utf-8")
+    rows = [  # newest first
+        {"id": 3, "ts": 300, "path": "/", "vid": "new", "fp": "F", "ip": "1.1.1.1"},
+        {"id": 2, "ts": 200, "path": "/", "vid": "other", "fp": "F", "ip": "2.2.2.2"},     # same fp, other IP: not merged
+        {"id": 1, "ts": 100, "path": "/", "vid": "old", "fp": "F", "ip": "1.1.1.1"},
+    ]
+    vit = [{"path": "/", "lcp": v, "inp": None, "cls": 50, "ttfb": 100} for v in (1000, 2000, 3000, 4000)] + \
+          [{"path": "/trips", "lcp": 900, "inp": 300, "cls": None, "ttfb": None}]
+    js = ("import { personMap, vitalsTable, nowOnSite, buildSessions } from " + json.dumps(mod.as_uri()) + ";"
+          "const rows=" + json.dumps(rows) + ";"
+          "console.log(JSON.stringify({p:Object.fromEntries(personMap(rows)), v:vitalsTable(" + json.dumps(vit) + "),"
+          " n:nowOnSite(rows), s:buildSessions(rows,'x')}));")
+    out = json.loads(subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, text=True, check=True).stdout)
+    assert out["p"] == {"new": "old", "other": "other", "old": "old"}
+    assert out["s"]["people"] == 2 and out["s"]["merged"] == 1
+    allp = out["v"][0]
+    assert allp["path"] == "(all pages)" and allp["views"] == 5 and allp["lcp"] == 3000 and allp["inp"] == 300
+    home = next(r for r in out["v"] if r["path"] == "/")
+    assert home["lcp"] == 3000 and home["lcp_n"] == 4 and home["inp"] is None and home["cls"] == 50
+    assert [n["who"] for n in out["n"]] == ["new", "other", "old"]
+
+
+def test_hit_alerts_and_events_are_guarded():
+    js = (Path(__file__).resolve().parents[1] / "functions" / "api" / "hit.js").read_text(encoding="utf-8")
+    assert "env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID" in js and "!body.o" in js     # owner never alerts
+    assert "waitUntil(job)" in js and "EVENT_KINDS.includes(body.e)" in js and "MAX_EVENTS" in js
+    assert "DELETE FROM visit_events WHERE ts < ?" in js
+
+
+def test_hit_sends_one_alert_for_a_new_country(tmp_path):
+    import subprocess
+    node = _node_or_skip()
+    src = (Path(__file__).resolve().parents[1] / "functions" / "api" / "hit.js").read_text(encoding="utf-8")
+    mod = tmp_path / "hit.mjs"
+    mod.write_text(src, encoding="utf-8")
+    js = ("import { onRequestPost } from " + json.dumps(mod.as_uri()) + ";"
+          "const sql=[], tg=[]; globalThis.fetch=async (u,o)=>{tg.push(JSON.parse(o.body).text);return {ok:true}};"
+          "const db={prepare:s=>({bind:(...a)=>({first:async()=>{sql.push(s);return s.includes('COUNT')?{n:0}:(s.includes('country = ?')?null:{x:1})},"
+          "  run:async()=>{sql.push(s);return {}}})})};"
+          "const jobs=[]; const call=(o,secret)=>onRequestPost({env:{DB:db,...(secret?{TELEGRAM_BOT_TOKEN:'t',TELEGRAM_CHAT_ID:'1'}:{})},waitUntil:j=>jobs.push(j),"
+          "  request:Object.assign(new Request('https://4sq.pages.dev/api/hit',{method:'POST',headers:{Origin:'https://4sq.pages.dev','User-Agent':'Mozilla','CF-Connecting-IP':'9.9.9.9'},"
+          "  body:JSON.stringify({p:'/',v:'abcdefgh12',k:'view12345a',o})}),{cf:{country:'JP',city:'Tokyo',asOrganization:'NTT'}})});"
+          "await call(0,true); await Promise.all(jobs); const a=tg.length;"
+          "await call(1,true); await Promise.all(jobs); const b=tg.length;"            # owner: no alert
+          "await call(0,false); await Promise.all(jobs);"                            # no secrets: no alert, no lookups
+          "console.log(JSON.stringify({a,b,c:tg.length,text:tg[0],lookups:sql.filter(s=>s.includes('LIMIT 1')).length}));")
+    out = json.loads(subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, text=True, check=True).stdout)
+    assert out["a"] == 1 and out["b"] == 1 and out["c"] == 1
+    assert "new country JP" in out["text"] and "Tokyo, JP · NTT" in out["text"]
+    assert out["lookups"] == 1                                                    # only the first, alert-enabled view looked

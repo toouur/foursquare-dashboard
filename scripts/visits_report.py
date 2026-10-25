@@ -336,7 +336,7 @@ def visits_ddl(schema_path: Path = Path(__file__).with_name("d1_schema.sql")) ->
     sql = "\n".join(ln for ln in schema_path.read_text(encoding="utf-8").splitlines()
                     if not ln.strip().startswith("--"))
     return [st.strip() for st in sql.split(";")
-            if st.strip() and re.search(r"\b(TABLE|ON)\s+(IF NOT EXISTS\s+)?visits\b", st)]
+            if st.strip() and re.search(r"\b(TABLE|ON)\s+(IF NOT EXISTS\s+)?visit(s|_events)\b", st)]
 
 
 def run_ddl(stmt: str) -> None:
@@ -393,6 +393,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             if not args.dry_run:
                 d1.query("DELETE FROM visits WHERE ts < ?", [now - RETENTION_DAYS * 86400])
+                d1.query("DELETE FROM visit_events WHERE ts < ?", [now - RETENTION_DAYS * 86400])
             text = render(collect(now))
     except Exception as exc:
         return _fail(f"D1 failed: {exc}")

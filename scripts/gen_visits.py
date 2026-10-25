@@ -17,7 +17,10 @@ confirmation) to start monitoring from zero. Android model codes are shown with
 their marketing name (device-names.json, written next to the page from
 config/device_names.json — refresh it with update_device_names.py); an iPhone,
 which never reports its model, gets a family guessed from its screen. Network
-flags (VPN / relay / timezone mismatch) come from /api/visits.
+flags (VPN / relay / timezone mismatch) come from /api/visits, and so do: who is
+on the site now, new vs returning visitors per day, top venues with names, site
+searches, outbound clicks, scroll depth and Web Vitals (p75), and browser ids
+merged into one person when they share a fingerprint and an IP.
 noindex, not in the nav or the sitemap.
 """
 from __future__ import annotations
@@ -40,6 +43,7 @@ PAGE = r"""<!DOCTYPE html>
 <style>
 :root{--bg:#0a0c12;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#7a85a8;--gold:#e8b86d;--teal:#4ec9b0;--rose:#e8778a;}
 *{box-sizing:border-box;margin:0;padding:0;}
+[hidden]{display:none!important;}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.5;}
 a{color:var(--teal);text-decoration:none;}
 .wrap{max-width:1200px;margin:0 auto;padding:40px 22px 100px;}
@@ -54,7 +58,7 @@ h1{font-family:'Playfair Display',serif;font-size:2.6rem;font-weight:900;color:v
 .chart{display:flex;align-items:flex-end;gap:2px;height:140px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:24px;}
 .chart i{flex:1;background:linear-gradient(180deg,#f5d48a,#b97c30);border-radius:2px 2px 0 0;min-height:1px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;min-width:0;overflow-x:auto;}
 .card h2{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);margin-bottom:10px;}
 table{width:100%;border-collapse:collapse;font-size:.8rem;}
 td{padding:4px 6px;border-bottom:1px solid var(--border);vertical-align:top;overflow-wrap:anywhere;}
@@ -74,6 +78,10 @@ td.n{text-align:right;font-family:'DM Mono',monospace;color:var(--teal);white-sp
 .tag.owner{color:var(--rose);border-color:var(--rose);}
 .tag.vpn{color:#1a0a0e;background:var(--rose);border-color:var(--rose);} .tag.relay{color:var(--rose);border-color:var(--rose);}
 .tag.tz{color:var(--gold);border-color:var(--gold);} .tag.clean{color:var(--teal);border-color:var(--teal);}
+.vg{color:var(--teal);} .vn{color:var(--gold);} .vp{color:var(--rose);}
+.chart.nr i{display:flex;flex-direction:column-reverse;background:none;} .chart.nr b{display:block;background:linear-gradient(180deg,#f5d48a,#b97c30);} .chart.nr u{display:block;background:var(--teal);text-decoration:none;}
+.now{background:var(--card);border:1px solid var(--teal);border-radius:12px;padding:10px 14px;margin:0 0 18px;font-size:.8rem;}
+.now b{color:var(--teal);font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.14em;}
 .bar button.danger{color:var(--rose);border-color:var(--rose);} .bar button.danger:hover{background:var(--rose);color:#1a0a0e;}
 </style>
 </head>
@@ -200,15 +208,42 @@ async function load() {
   const T = D.totals || {}, engagement = D.engagement || {}, sessions = D.sessions || {};
   const daily = arr('daily'), countries = arr('countries'), cities = arr('cities');
   const mx = Math.max(1, ...daily.map(x => Number(x.views) || 0));
+  const nowList = arr('nowOnSite'), nr = arr('newReturning');
+  const nrMax = Math.max(1, ...nr.map(x => (Number(x.new) || 0) + (Number(x.returning) || 0)));
+  // Web Vitals thresholds (good / needs improvement), web.dev: LCP 2.5/4 s, INP 200/500 ms, CLS 0.1/0.25, TTFB 0.8/1.8 s
+  const VT = { lcp: [2500, 4000], inp: [200, 500], cls: [100, 250], ttfb: [800, 1800] };
+  const vital = (k, v, n) => {
+    if (v === null || v === undefined) return '<span class="muted">—</span>';
+    const cls = v <= VT[k][0] ? 'vg' : v <= VT[k][1] ? 'vn' : 'vp';
+    const shown = k === 'cls' ? (v / 1000).toFixed(2) : (v >= 1000 ? (v / 1000).toFixed(1) + ' s' : v + ' ms');
+    return '<span class="' + cls + '">' + esc(shown) + '</span> <span class="muted">' + esc(n) + '</span>';
+  };
   const kpis = [
-    [T.views, 'page views'], [T.visitors, 'unique visitors'], [T.ips, 'unique IPs'],
+    [T.views, 'page views'], [T.visitors, 'unique visitors'],
+    [D.people == null ? '—' : D.people, 'people (ids merged)'], [T.ips, 'unique IPs'],
     [countries.length, 'countries'], [fmtDuration(engagement.avg_seconds), 'avg visible time'],
     [sessions.avg_pages == null ? '—' : Number(sessions.avg_pages).toFixed(1), 'pages / session']
   ];
   out.innerHTML =
     '<div class="kpis">' + kpis.map(([a, b]) => '<div class="kpi"><b>' + esc(typeof a === 'number' ? a.toLocaleString('en-US') : (a ?? '—')) + '</b><span>' + esc(b) + '</span></div>').join('') + '</div>' +
+    '<div class="now"><b>Now on site · last 5 min</b> ' + (nowList.length ? nowList.map(n =>
+      '<br><code>' + esc(String(n.who || '').slice(0, 6)) + '</code> ' + (n.owner ? '<span class="tag owner">owner</span> ' : '') +
+      '<a href="' + esc(n.path) + '">' + esc(n.path) + '</a> <span class="muted">' + esc([when(n.last).slice(11), n.views + ' views', [n.city, n.country].filter(Boolean).join(', '), n.dev, deviceLabel(n)].filter(Boolean).join(' · ')) + '</span>').join('')
+      : '<span class="muted">nobody right now</span>') + '</div>' +
     '<div class="chart" title="views per day (UTC)">' + daily.map(x => '<i style="height:' + Math.round(100 * (Number(x.views) || 0) / mx) + '%" title="' + esc(x.d) + ': ' + esc(x.views) + ' views, ' + esc(x.visitors) + ' visitors"></i>').join('') + '</div>' +
+    (nr.length ? '<div class="muted" style="margin:-14px 0 4px">visitors per day · <span class="vn">new</span> / <span class="vg">returning</span></div>' +
+      '<div class="chart nr" style="height:90px">' + nr.map(x => { const a = Number(x.new) || 0, b = Number(x.returning) || 0;
+        return '<i style="height:' + Math.round(100 * (a + b) / nrMax) + '%" title="' + esc(x.d) + ': ' + a + ' new, ' + b + ' returning"><b style="flex:' + a + '"></b><u style="flex:' + b + '"></u></i>'; }).join('') + '</div>' : '') +
     '<div class="grid">' +
+    table('Top venues', arr('topVenues'), [['id', 0, r => '<a href="/venue#' + esc(r.id) + '">' + esc(r.name || r.id) + '</a><br><span class="muted">' + esc([r.category, r.city, r.country].filter(Boolean).join(' · ')) + '</span>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Site searches', arr('searches'), [['data', 0, r => { const s = String(r.data || ''), i = s.indexOf(':');
+      return esc(i >= 0 ? s.slice(i + 1) : s) + ' <span class="muted">' + esc(i >= 0 ? s.slice(0, i) : '') + ' · ' + when(r.last) + '</span>'; }], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Outbound clicks', arr('outbound'), [['data', 0, r => '<a href="' + esc(r.data) + '" rel="noopener noreferrer" target="_blank">' + esc(host(r.data)) + '</a> <span class="muted">' + esc(r.data) + '</span>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Scroll depth · how far down', arr('scrollDepth'), [['path', 0, r => esc(r.path)], ['avg_scroll', 1, r => fmtNumber(r.avg_scroll) + '% avg'],
+      ['reached_end', 1, r => (Number(r.measured) ? Math.round(100 * Number(r.reached_end) / Number(r.measured)) : 0) + '% to end'], ['measured', 1, r => fmtNumber(r.measured) + ' views']]) +
+    table('Web Vitals · p75 per page (green good, gold needs work, red poor; small = samples)', arr('vitals'), [['path', 0, r => esc(r.path) + ' <span class="muted">' + fmtNumber(r.views) + ' views</span>'],
+      ['lcp', 1, r => 'LCP ' + vital('lcp', r.lcp, r.lcp_n)], ['inp', 1, r => 'INP ' + vital('inp', r.inp, r.inp_n)],
+      ['cls', 1, r => 'CLS ' + vital('cls', r.cls, r.cls_n)], ['ttfb', 1, r => 'TTFB ' + vital('ttfb', r.ttfb, r.ttfb_n)]], 'full') +
     table('Pages', arr('paths'), [['path', 0, r => '<a href="' + esc(r.path) + '">' + esc(r.path) + '</a>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
     table('Countries', countries, [['country'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
     table('Cities', cities, [['city', 0, r => esc(r.city || '—') + ' <span class="muted">' + esc(r.country || '') + '</span>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
@@ -240,6 +275,7 @@ async function load() {
       ['start', 0, r => '<span class="muted">' + when(r.start) + '</span><br><b>' + esc(fmtDuration(r.seconds)) + '</b>' +
         '<br><span class="muted">' + fmtNumber(r.views) + (r.views === 1 ? ' view' : ' views') + (r.visible_seconds != null ? ' · visible ' + esc(fmtDuration(r.visible_seconds)) : '') + '</span>'],
       ['who', 0, r => '<code>' + esc(String(r.who || '').slice(0, 6)) + '</code>' + (r.owner ? ' <span class="tag owner">owner</span>' : '') + ' ' + netTags(r.net) +
+        ((r.vids || []).length > 1 ? ' <span class="tag" title="browser ids with the same fingerprint and IP: ' + esc(r.vids.join(', ')) + '">' + r.vids.length + ' browser ids</span>' : '') +
         '<br><span class="muted">' + esc([agent(r.ua), r.dev, deviceLabel(r), r.lang, r.dtz && r.dtz !== r.tz ? 'device TZ ' + r.dtz : ''].filter(Boolean).join(' · ')) +
         '<br>' + esc([r.city, r.country].filter(Boolean).join(', ')) + (r.org ? ' · ' + esc(r.org) : '') + '</span>'],
       ['source', 0, r => { const s = r.source || {}; return '<span class="tag ' + esc(s.kind) + '">' + esc(s.kind || '?') + '</span><br>' +
@@ -278,7 +314,7 @@ async function load() {
         return netTags(r.net) + ' <span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + refHtml(r.ref) : '') +
           ' · ' + esc((r.vid || '').slice(0, 6)) + (meta ? '<br>' + meta : '') + '</span>';
       }]], 'full') +
-    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes; its duration runs from the first view to the end of the last one (that page’s visible time, when measured). Source = the session’s utm tags, else its off-site referrer; “internal” = it starts from one of this site’s pages (a reopened tab, or a visit begun before the window), “direct” = no referrer at all. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model. Device fingerprints are SHA-256 signatures of already-collected browser metadata, not proof of a unique physical device. IP visit counts split activity into sessions after 30 minutes of inactivity. Network flags are heuristics: VPN = a known VPN / hosting network, relay = iCloud Private Relay / WARP, TZ≠IP = the device clock disagrees with the IP location (VPN or a traveller). Precise GPS location would need a permission prompt for every visitor and is not collected.</p>';
+    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes; its duration runs from the first view to the end of the last one (that page’s visible time, when measured). Source = the session’s utm tags, else its off-site referrer; “internal” = it starts from one of this site’s pages (a reopened tab, or a visit begun before the window), “direct” = no referrer at all. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model. Device fingerprints are SHA-256 signatures of already-collected browser metadata, not proof of a unique physical device. IP visit counts split activity into sessions after 30 minutes of inactivity. Network flags are heuristics: VPN = a known VPN / hosting network, relay = iCloud Private Relay / WARP, TZ≠IP = the device clock disagrees with the IP location (VPN or a traveller). Precise GPS location would need a permission prompt for every visitor and is not collected. People = browser ids merged when they share a device fingerprint and an IP (cleared storage, private window). New / returning: a visitor counts as new on the day of their first view kept. Now on site = views in the last 5 minutes. Scroll depth and Web Vitals come with the leave beacon of each view.</p>';
 }
 exportButton.onclick = () => {
   if (!exportData) return;
@@ -293,6 +329,7 @@ exportButton.onclick = () => {
     for (const row of (payload.ipStats || [])) row.ip = mask(row.ip);
     for (const row of (payload.recent || [])) row.ip = mask(row.ip);
     for (const row of (payload.sessionList || [])) row.ip = mask(row.ip);
+    for (const row of (payload.nowOnSite || [])) row.ip = mask(row.ip);
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -321,7 +358,7 @@ document.getElementById('clear').onclick = async () => {
     D = await r.json().catch(() => ({ error: 'bad response' }));
   } catch (e) { alert('Request failed: ' + (e.message || e)); return; }
   if (!r.ok || D.error) { alert('Not cleared: ' + (D.error || r.status)); return; }
-  alert('Cleared ' + D.deleted + ' views. Monitoring starts from zero.');
+  alert('Cleared ' + D.deleted + ' views' + (D.events ? ' and ' + D.events + ' events' : '') + '. Monitoring starts from zero.');
   load();
 };
 document.querySelectorAll('#ctl button[data-d]').forEach(b => b.onclick = () => { days = +b.dataset.d; document.querySelectorAll('#ctl button[data-d]').forEach(x => x.classList.toggle('on', x === b)); load(); });

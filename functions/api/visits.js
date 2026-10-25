@@ -4,8 +4,10 @@
 /**
  * Private aggregates for the owner's visits.html, backed by /api/hit.
  * Guarded by STATS_KEY; no-store; always return structured JSON errors.
- * POST {action:'clear', confirm:'clear'} (same key) deletes every view recorded
- * so far, so the owner can start monitoring from zero.
+ * POST {action:'clear', confirm:'clear'} (same key) deletes every view and event
+ * recorded so far, so the owner can start monitoring from zero.
+ * Queries on newer tables/columns (visit_events, scroll, vitals, venues) degrade
+ * to empty lists, so a not-yet-migrated database still renders the rest.
  */
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
   status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -78,6 +80,66 @@ function netSummary(rows) {
   };
 }
 
+// Browser ids that share a device fingerprint AND an IP are one person who cleared
+// storage or used a private window: map each id to the earliest one of its group.
+function personMap(rows) {
+  const parent = new Map();
+  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  const first = new Map(), byKey = new Map();
+  for (const r of rows) {
+    if (!r.vid) continue;
+    if (!parent.has(r.vid)) parent.set(r.vid, r.vid);
+    first.set(r.vid, Math.min(first.get(r.vid) ?? Infinity, r.ts));
+    if (r.fp && r.ip) {
+      const key = r.fp + '|' + r.ip, other = byKey.get(key);
+      if (!other) byKey.set(key, r.vid);
+      else {
+        const a = find(other), b = find(r.vid);
+        if (a !== b) { if (first.get(a) <= first.get(b)) parent.set(b, a); else parent.set(a, b); }
+      }
+    }
+  }
+  const out = new Map();
+  for (const v of parent.keys()) out.set(v, find(v));
+  return out;
+}
+
+// 75th percentile per page (and over all pages) of each Web Vital.
+const VITALS = ['lcp', 'inp', 'cls', 'ttfb'];
+function p75(values) {
+  if (!values.length) return null;
+  const s = values.slice().sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.ceil(0.75 * s.length) - 1)];
+}
+function vitalsTable(rows) {
+  const groups = new Map([['(all pages)', []]]);
+  for (const r of rows) {
+    groups.get('(all pages)').push(r);
+    if (!groups.has(r.path)) groups.set(r.path, []);
+    groups.get(r.path).push(r);
+  }
+  return [...groups.entries()].map(([path, list]) => {
+    const row = { path, views: list.length };
+    for (const k of VITALS) {
+      const vals = list.map(x => x[k]).filter(x => x !== null && x !== undefined);
+      row[k] = p75(vals); row[k + '_n'] = vals.length;
+    }
+    return row;
+  }).sort((a, b) => (a.path === '(all pages)' ? -1 : b.path === '(all pages)' ? 1 : b.views - a.views)).slice(0, 25);
+}
+
+// Who is on the site: views in the last 5 minutes, one line per visitor.
+function nowOnSite(rows) {
+  const by = new Map();
+  for (const r of rows) {   // newest first
+    const who = r.vid || r.ip || 'unknown-' + r.id;
+    const cur = by.get(who);
+    if (!cur) by.set(who, { who, last: r.ts, path: r.path, views: 1, city: r.city, country: r.country, dev: r.dev, model: r.model, ua: r.ua, scr: r.scr, owner: r.owner });
+    else cur.views += 1;
+  }
+  return [...by.values()];
+}
+
 const hostOf = (u) => { try { return new URL(u).host; } catch { return null; } };
 
 // Where a session came from: its utm tags, else an off-site referrer, else
@@ -96,9 +158,9 @@ function sessionSource(views, ownHost) {
 
 // rows: newest first. Returns the newest sessions plus a per-source tally over all of them.
 function buildSessions(rows, ownHost) {
-  const open = new Map(), all = [];
+  const open = new Map(), all = [], person = personMap(rows);
   for (const r of rows.slice().reverse()) {
-    const who = r.vid || r.ip || 'unknown-' + r.id;
+    const who = (r.vid && person.get(r.vid)) || r.vid || r.ip || 'unknown-' + r.id;
     let s = open.get(who);
     if (!s || r.ts - s.end > SESSION_GAP) {
       s = { who, start: r.ts, end: r.ts, views: [] };
@@ -122,6 +184,7 @@ function buildSessions(rows, ownHost) {
       dev: pick('dev'), model: pick('model'), lang: pick('lang'), ua: pick('ua'), scr: pick('scr'),
       dtz: pick('dtz'), tz: pick('tz'),
       net: [...new Set(v.flatMap(netFlags))],
+      vids: [...new Set(v.map(x => x.vid).filter(Boolean))],
       owner: v.some(x => x.owner) ? 1 : 0,
     };
   });
@@ -135,7 +198,9 @@ function buildSessions(rows, ownHost) {
   const sources = [...tally.values()]
     .map(t => ({ kind: t.kind, source: t.source, sessions: t.sessions, views: t.views, u: t.who.size }))
     .sort((a, b) => b.sessions - a.sessions || b.views - a.views);
-  return { list: sessions.sort((a, b) => b.start - a.start).slice(0, SESSION_LIST), sources, rows: rows.length };
+  const merged = new Set([...person.entries()].filter(([v, root]) => v !== root).map(([v]) => v)).size;
+  return { list: sessions.sort((a, b) => b.start - a.start).slice(0, SESSION_LIST), sources, rows: rows.length,
+    people: new Set(all.map(s => s.who)).size, merged };
 }
 
 function sameKey(a, b) {
@@ -160,7 +225,8 @@ export async function onRequestPost({ request, env }) {
   try {
     const now = Math.floor(Date.now() / 1000);
     const r = await env.DB.prepare('DELETE FROM visits WHERE ts <= ?').bind(now).run();
-    return json({ deleted: (r && r.meta && r.meta.changes) || 0, before: now });
+    const e = await env.DB.prepare('DELETE FROM visit_events WHERE ts <= ?').bind(now).run().catch(() => null);
+    return json({ deleted: (r && r.meta && r.meta.changes) || 0, events: (e && e.meta && e.meta.changes) || 0, before: now });
   } catch (e) {
     return json({ error: 'D1 delete failed', detail: String(e && e.message || e) }, 503);
   }
@@ -178,6 +244,8 @@ export async function onRequestGet({ request, env }) {
     const W = 'WHERE ts >= ?' + own;
     const ownHost = url.host;
     const q = (sql) => env.DB.prepare(sql).bind(since).all().then(r => r.results || []);
+    const soft = (sql, ...args) => env.DB.prepare(sql).bind(...args).all().then(r => r.results || []).catch(() => []);
+    const now = Math.floor(Date.now() / 1000);
     const top = (column, limit = 12) => q(
       'SELECT ' + column + ', COUNT(*) AS n, COUNT(DISTINCT COALESCE(vid, ip)) AS u ' +
       'FROM visits ' + W + ' AND ' + column + " IS NOT NULL AND " + column + " != '' " +
@@ -204,6 +272,7 @@ export async function onRequestGet({ request, env }) {
       tot, daily, paths, countries, cities, refs, orgs, recent,
       languages, devices, screens, deviceTimezones, models, postals,
       ipStats, fingerprints, engagement, sessions, sessionRows, externalRefs, utms,
+      venueViews, searches, outbound, scrollDepth, vitalRows, nowRows, newReturning,
     ] = await Promise.all([
       q('SELECT COUNT(*) AS views, COUNT(DISTINCT COALESCE(vid, ip)) AS visitors, COUNT(DISTINCT ip) AS ips FROM visits ' + W),
       q("SELECT date(ts, 'unixepoch') AS d, COUNT(*) AS views, COUNT(DISTINCT COALESCE(vid, ip)) AS visitors FROM visits " + W + ' GROUP BY d ORDER BY d'),
@@ -233,14 +302,40 @@ export async function onRequestGet({ request, env }) {
         " AND fp IS NOT NULL AND fp != '' GROUP BY fp ORDER BY views DESC, last_seen DESC LIMIT 100"),
       q('SELECT COUNT(dur) AS measured, ROUND(AVG(dur), 0) AS avg_seconds, MAX(dur) AS max_seconds FROM visits ' + W + ' AND dur IS NOT NULL'),
       q(sessionSql),
-      q('SELECT id, ts, path, ref, utm, ip, city, country, asn, org, tz, dtz, scr, vid, owner, dev, model, lang, ua, dur FROM visits ' + W +
+      q('SELECT id, ts, path, ref, utm, ip, city, country, asn, org, tz, dtz, scr, fp, vid, owner, dev, model, lang, ua, dur FROM visits ' + W +
         ' ORDER BY ts DESC, id DESC LIMIT ' + SESSION_ROWS),
       // off-site referrers only: links between our own pages are navigation, not a source
       env.DB.prepare('SELECT ref, COUNT(*) AS n, COUNT(DISTINCT COALESCE(vid, ip)) AS u FROM visits ' + W +
         " AND ref IS NOT NULL AND ref != '' AND ref NOT LIKE ? GROUP BY ref ORDER BY n DESC LIMIT 40")
         .bind(since, url.origin + '/%').all().then(r => r.results || []),
       top('utm', 30),
+      soft("SELECT substr(path, instr(path, '#') + 1) AS id, COUNT(*) AS n, COUNT(DISTINCT COALESCE(vid, ip)) AS u FROM visits " + W +
+        " AND path LIKE '/venue%#%' GROUP BY id ORDER BY n DESC LIMIT 30", since),
+      soft('SELECT data, COUNT(*) AS n, COUNT(DISTINCT COALESCE(vid, ip)) AS u, MAX(ts) AS last FROM visit_events ' + W +
+        " AND kind = 'search' GROUP BY data ORDER BY n DESC, last DESC LIMIT 40", since),
+      soft('SELECT data, COUNT(*) AS n, COUNT(DISTINCT COALESCE(vid, ip)) AS u, MAX(ts) AS last FROM visit_events ' + W +
+        " AND kind = 'out' GROUP BY data ORDER BY n DESC, last DESC LIMIT 40", since),
+      soft('SELECT path, COUNT(scroll) AS measured, ROUND(AVG(scroll), 0) AS avg_scroll, ' +
+        'SUM(CASE WHEN scroll >= 90 THEN 1 ELSE 0 END) AS reached_end FROM visits ' + W +
+        ' AND scroll IS NOT NULL GROUP BY path ORDER BY measured DESC LIMIT 30', since),
+      soft('SELECT path, lcp, cls, inp, ttfb FROM visits ' + W +
+        ' AND (lcp IS NOT NULL OR inp IS NOT NULL OR cls IS NOT NULL OR ttfb IS NOT NULL) ORDER BY ts DESC LIMIT 3000', since),
+      soft('SELECT id, ts, path, vid, ip, city, country, dev, model, ua, scr, owner FROM visits WHERE ts >= ?' + own +
+        ' ORDER BY ts DESC LIMIT 200', now - 300),
+      // a visitor is "new" on the day of their first view kept (90 days), "returning" after it
+      soft('WITH f AS (SELECT COALESCE(vid, ip) AS who, MIN(ts) AS first FROM visits WHERE 1 = 1' + own + ' GROUP BY who), ' +
+        "d AS (SELECT date(ts, 'unixepoch') AS d, COALESCE(vid, ip) AS who FROM visits " + W + ' GROUP BY d, who) ' +
+        "SELECT d.d AS d, SUM(CASE WHEN date(f.first, 'unixepoch') = d.d THEN 1 ELSE 0 END) AS new, " +
+        "SUM(CASE WHEN date(f.first, 'unixepoch') < d.d THEN 1 ELSE 0 END) AS returning " +
+        'FROM d JOIN f ON f.who = d.who GROUP BY d.d ORDER BY d.d', since),
     ]);
+    // venue names from the venues table (same database), for the venue ids viewed
+    const ids = venueViews.map(v => v.id).filter(Boolean);
+    const names = ids.length
+      ? await soft('SELECT id, name, category, city, country FROM venues WHERE id IN (' + ids.map(() => '?').join(', ') + ')', ...ids)
+      : [];
+    const byId = new Map(names.map(n => [n.id, n]));
+    const topVenues = venueViews.map(v => ({ ...v, ...(byId.get(v.id) || {}) }));
     const sessionData = buildSessions(sessionRows, ownHost);
     const net = netSummary(sessionRows);
     for (const r of recent) r.net = netFlags(r);
@@ -252,6 +347,9 @@ export async function onRequestGet({ request, env }) {
       sessions: sessions[0] || {},
       sessionList: sessionData.list, sources: sessionData.sources, sessionRows: sessionData.rows,
       externalRefs, utms, networkFlags: net.networkFlags, countriesClean: net.countriesClean,
+      people: sessionData.people, mergedBrowsers: sessionData.merged,
+      topVenues, searches, outbound, scrollDepth, vitals: vitalsTable(vitalRows),
+      nowOnSite: nowOnSite(nowRows), newReturning,
     });
   } catch (e) {
     return json({ error: 'D1 query failed', detail: String(e && e.message || e) }, 503);
