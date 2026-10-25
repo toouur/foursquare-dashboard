@@ -207,5 +207,13 @@ def test_ping_watermark_moves_only_after_a_send(monkeypatch):
 def test_ping_marks_a_local_copy_referrer():
     rows = [{**_ping_rows()[1], "ref": "http://127.0.0.1:8766/"}]
     assert "⌂ from a local copy (http://127.0.0.1:8766/)" in vr.render_ping(rows, 1792790000)
-    assert vr.LOCAL_REF.match("http://192.168.1.5:8000/x") and vr.LOCAL_REF.match("file:///C:/site/index.html")
-    assert not vr.LOCAL_REF.match("https://t.me/") and not vr.LOCAL_REF.match("https://10times.com/")
+    assert vr.is_local_referrer("http://192.168.1.5:8000/x")
+    assert vr.is_local_referrer("http://localhost:8000?debug=1")
+    assert vr.is_local_referrer("http://[::1]:8000/")
+    assert vr.is_local_referrer("http://[fd12::2]/")
+    assert vr.is_local_referrer("http://printer.local/")
+    assert vr.is_local_referrer("file:///C:/site/index.html")
+    assert not vr.is_local_referrer("https://t.me/")
+    assert not vr.is_local_referrer("https://10times.com/")
+    assert not vr.is_local_referrer("http://127.999.0.1/")
+    assert not vr.is_local_referrer(None)

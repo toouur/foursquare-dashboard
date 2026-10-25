@@ -28,12 +28,14 @@ from __future__ import annotations
 
 import argparse
 import html
+import ipaddress
 import logging
 import os
 import re
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import requests
 
@@ -42,7 +44,26 @@ import d1_client as d1
 log = logging.getLogger("visits_report")
 RETENTION_DAYS = 90
 # a referrer on the visitor's own machine or LAN: they clicked through from a local copy of the site
-LOCAL_REF = re.compile(r"^(file:|https?://(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?(/|$))", re.I)
+def is_local_referrer(value: object) -> bool:
+    """Whether a referrer points to a local file, loopback, or private LAN host."""
+    if not isinstance(value, str) or not value:
+        return False
+    if value.lower().startswith("file:"):
+        return True
+    try:
+        parsed = urlsplit(value)
+        host = (parsed.hostname or "").rstrip(".").lower()
+    except ValueError:
+        return False
+    if parsed.scheme.lower() not in {"http", "https"} or not host:
+        return False
+    if host == "localhost" or host.endswith((".localhost", ".local")):
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return bool(address.is_private or address.is_loopback or address.is_link_local or address.is_unspecified)
 WEEK = 7 * 86400
 
 
@@ -151,7 +172,7 @@ def render_ping(rows: list[dict], since: int, site: str = "https://4sq.pages.dev
         paths = ", ".join(e(p, 40) for p in str(r.get("paths") or "").split(",")[:4])
         lines.append(f"• {time.strftime('%H:%M', time.gmtime(int(r['first'])))} · {e(r['city'])}, {e(r['country'])} · "
                      f"{e(r['org'], 40)}{' · ↺ returning' if r.get('back') else ''}\n   {paths}"
-                     + ((" · ⌂ from a local copy (" + e(r["ref"], 40) + ")" if LOCAL_REF.match(r["ref"]) else f" · from {e(r['ref'], 40)}") if r.get("ref") else ""))
+                     + ((" · ⌂ from a local copy (" + e(r["ref"], 40) + ")" if is_local_referrer(r["ref"]) else f" · from {e(r['ref'], 40)}") if r.get("ref") else ""))
     if len(rows) > 12:
         lines.append(f"… and {len(rows) - 12} more")
     lines.append(f'<a href="{site}/visits.html">Full stats</a>')

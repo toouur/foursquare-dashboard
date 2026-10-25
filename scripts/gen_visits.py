@@ -73,8 +73,29 @@ function table(title, rows, cols, cls) {
 }
 const host = u => { try { return new URL(u).host; } catch (e) { return u; } };
 // a referrer on the visitor's own machine or LAN: someone clicked through from a local copy of the site
-const LOCAL_RE = /^(file:|https?:\/\/(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?(\/|$))/i;
-const refHtml = u => LOCAL_RE.test(u || '') ? '<span class="local" title="opened from a local copy: ' + esc(u) + '">⌂ local copy</span> ' + esc(host(u)) : esc(host(u));
+function isLocalReferrer(raw) {
+  if (typeof raw !== 'string' || !raw) return false;
+  if (/^file:/i.test(raw)) return true;
+  let u;
+  try { u = new URL(raw); } catch (e) { return false; }
+  if (!['http:', 'https:'].includes(u.protocol)) return false;
+  const h = u.hostname.toLowerCase().replace(/^\\[|\\]$/g, '').replace(/\\.$/, '');
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
+  if (h.includes(':')) {
+    // IPv6 loopback, unspecified, unique-local (fc00::/7), and link-local (fe80::/10).
+    return h === '::1' || h === '::' || /^f[cd]/.test(h) || /^fe[89ab]/.test(h);
+  }
+  const parts = h.split('.');
+  if (parts.length !== 4 || parts.some(p => !/^\\d{1,3}$/.test(p) || Number(p) > 255)) return false;
+  const [a, b] = parts.map(Number);
+  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+const refHtml = u => {
+  if (!isLocalReferrer(u)) return esc(host(u));
+  const h = host(u) || 'local file';
+  return '<span class="local" title="opened from a local copy: ' + esc(u) + '">⌂ local copy</span> ' + esc(h);
+};
 const when = ts => new Date(ts * 1000).toISOString().replace('T', ' ').slice(0, 16);
 const agent = ua => { ua = ua || ''; const b = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '?';
   const o = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '?'; return b + ' · ' + o; };
