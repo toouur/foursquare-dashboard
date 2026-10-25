@@ -88,6 +88,7 @@ def test_hit_endpoint_guards():
     # the late model beacon must not re-hash the row: one browser = one fingerprint
     fp_fn = js[js.index("async function deviceFingerprint"):js.index("export async function")]
     assert "body.m" not in fp_fn and "fp = COALESCE" not in js
+    assert "', utm'" in js and "/utm/i.test" in js                    # tags stored; a missing column still counts the view
     vjs = (Path(__file__).resolve().parents[1] / "functions" / "api" / "visits.js").read_text(encoding="utf-8")
     assert "env.STATS_KEY" in vjs and "401" in vjs                    # closed by default
     assert "deviceTimezones" in vjs and "languages" in vjs and "postals" in vjs
@@ -150,7 +151,8 @@ def test_pages_functions_parse(tmp_path):
 
 def test_visits_page_renders_extended_analytics():
     page = (Path(__file__).resolve().parents[1] / "scripts" / "gen_visits.py").read_text(encoding="utf-8")
-    for marker in ("Browser languages", "Device types", "Screen sizes", "Device time zones",
+    for marker in ("Sources · where sessions start", "Off-site referrers", "UTM tags", "Sessions · page sequence",
+                   "owner-toggle", "with-owner", "Browser languages", "Device types", "Screen sizes", "Device time zones",
                    "Android models", "Approx. postal areas", "engagement-grid", "average pages / session", "IP addresses · visits per IP", "Device fingerprints", "visible "):
         assert marker in page, marker
 
@@ -159,7 +161,7 @@ def test_report_creates_the_visits_table_itself():
     assert ddl[0].startswith("CREATE TABLE IF NOT EXISTS visits") and "ip" in ddl[0]
     assert ddl[1] == "CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts)"
     added = {s.split()[-2] for s in ddl[2:]}                     # the analytics columns migrated in
-    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur", "view_id", "fp"}
+    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur", "view_id", "fp", "utm"}
     assert all(s.startswith("ALTER TABLE visits ADD COLUMN") for s in ddl[2:])
 
 
@@ -198,7 +200,8 @@ def _ping_rows():
     return [{"who": "a", "first": 1792800000, "n": 3, "city": "Bălți", "country": "MD", "org": "Orange <SA>",
              "ref": "https://t.me/", "paths": "/index.html,/trips.html", "back": True,
              "dev": "phone", "lang": "ru-RU", "dtz": "Europe/Chisinau",
-             "scr": "390x844@3", "model": "Pixel 9", "postal": "2001", "dur": 42},
+             "scr": "390x844@3", "model": "Pixel 9", "postal": "2001", "dur": 42,
+             "utm": "source=tg&medium=post"},
             {"who": "b", "first": 1792803600, "n": 1, "city": "Minsk", "country": "BY", "org": "A1",
              "ref": None, "paths": "/venue.html", "back": False}]
 
@@ -208,7 +211,7 @@ def test_render_ping():
     assert text.startswith("<b>👀 2 visitors · 4 views</b> since ")
     assert "Bălți, MD · Orange &lt;SA&gt; · ↺ returning" in text and "/index.html, /trips.html · from https://t.me/" in text
     assert "Minsk, BY · A1\n" in text and "returning" not in text.split("Minsk")[1]
-    assert "phone · model Pixel 9 · lang ru-RU · device TZ Europe/Chisinau" in text
+    assert "utm source=tg&amp;medium=post · phone · model Pixel 9 · lang ru-RU · device TZ Europe/Chisinau" in text
     assert "screen 390x844@3 · ZIP 2001 · visible 42s" in text
 
 
@@ -295,3 +298,81 @@ def test_hit_beacon_keeps_venue_hash_on_pretty_urls():
           "console.log(JSON.stringify(cases.map(([pathname,hash])=>{const location={pathname,hash};return " + expr + ";})));")
     out = subprocess.run([node, "-e", js], capture_output=True, text=True, check=True).stdout
     assert json.loads(out) == ["/venue#abc", "/venue.html#abc", "/venues", "/"]
+
+
+def _node_or_skip():
+    import shutil
+
+    import pytest
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not installed")
+    return node
+
+
+def _run_beacon(node, search):
+    """Run the generated hit snippet under stubbed browser globals; return (beacon, owner flag, URL after)."""
+    import subprocess
+    build = (Path(__file__).resolve().parents[1] / "scripts" / "build.py").read_text(encoding="utf-8")
+    html = re.search(r'_hit_js = r"""(.*?)"""', build, re.S).group(1)
+    snippet = html[len("<script>"):html.rfind("</script>")]
+    stub = (
+        "const store={}; globalThis.localStorage={getItem:k=>k in store?store[k]:null,setItem:(k,v)=>{store[k]=String(v)}};"
+        "let url=null, sent=[];"
+        "globalThis.location={pathname:'/trips',search:" + json.dumps(search) + ",hash:'#t1'};"
+        "globalThis.history={state:null,replaceState:(s,t,u)=>{url=u}};"
+        "Object.defineProperty(globalThis,'navigator',{value:{userAgent:'UA',language:'ru',sendBeacon:(u,b)=>sent.push(JSON.parse(b))}});"
+        "globalThis.screen={width:1,height:2}; globalThis.window=globalThis;"
+        "globalThis.document={referrer:'',visibilityState:'visible',addEventListener(){}};"
+        "globalThis.addEventListener=()=>{};"
+    )
+    tail = ";console.log(JSON.stringify([sent[0], store.fsq_owner||null, url]))"
+    out = subprocess.run([node, "-e", stub + snippet + tail], capture_output=True, text=True, check=True).stdout
+    return json.loads(out)
+
+
+def test_hit_beacon_sends_utm_tags():
+    node = _node_or_skip()
+    beacon, owner, url = _run_beacon(node, "?utm_source=telegram&utm_medium=post&utm_campaign=oct&x=1")
+    assert beacon["u"] == "source=telegram&medium=post&campaign=oct" and beacon["o"] == 0
+    assert owner is None and url is None                          # nothing to strip, flag untouched
+    beacon, _, _ = _run_beacon(node, "")
+    assert beacon["u"] == ""
+
+
+def test_hit_beacon_owner_secret_mark():
+    node = _node_or_skip()
+    beacon, owner, url = _run_beacon(node, "?fsq_owner=1&utm_source=x")
+    assert owner == "1" and beacon["o"] == 1                      # this very view is already the owner's
+    assert url == "/trips?utm_source=x#t1"                        # the mark leaves the address bar
+    beacon, owner, url = _run_beacon(node, "?fsq_owner=0")
+    assert owner == "0" and beacon["o"] == 0 and url == "/trips#t1"
+
+
+def test_visits_api_builds_sessions_and_sources(tmp_path):
+    import subprocess
+    node = _node_or_skip()
+    src = (Path(__file__).resolve().parents[1] / "functions" / "api" / "visits.js").read_text(encoding="utf-8")
+    mod = tmp_path / "visits.mjs"
+    mod.write_text(src + "\nexport { buildSessions };\n", encoding="utf-8")
+    rows = [  # newest first, as the query returns them
+        {"id": 6, "ts": 9000, "path": "/", "ref": None, "vid": "b", "dur": None},
+        {"id": 5, "ts": 1300, "path": "/venue#x", "ref": "https://4sq.pages.dev/trips", "vid": "a", "dur": 30, "model": "ELI-NX9"},
+        {"id": 4, "ts": 1200, "path": "/trips", "ref": "https://t.me/", "vid": "a", "dur": 20},
+        {"id": 3, "ts": 1100, "path": "/", "ref": None, "vid": "c", "utm": "source=tg&medium=post", "dur": None},
+        {"id": 2, "ts": 1000, "path": "/", "ref": "https://4sq.pages.dev/", "vid": "b", "dur": 5},
+        {"id": 1, "ts": -1000, "path": "/", "ref": None, "vid": "a", "dur": 4},
+    ]
+    js = ("import { buildSessions } from " + json.dumps(mod.as_uri()) + ";"
+          "console.log(JSON.stringify(buildSessions(" + json.dumps(rows) + ", '4sq.pages.dev')));")
+    out = json.loads(subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, text=True, check=True).stdout)
+    by = {(s["who"], s["start"]): s for s in out["list"]}
+    a2 = by[("a", 1200)]                                          # 2200 s gap after ts -1000 → a new session
+    assert [p["path"] for p in a2["pages"]] == ["/trips", "/venue#x"]
+    assert a2["seconds"] == 130 and a2["visible_seconds"] == 50 and a2["model"] == "ELI-NX9"
+    assert a2["source"] == {"kind": "referrer", "label": "t.me", "ref": "https://t.me/"}
+    assert by[("c", 1100)]["source"]["label"] == "tg / post"
+    assert by[("b", 1000)]["source"]["kind"] == "internal" and by[("b", 9000)]["source"]["kind"] == "direct"
+    assert [s["start"] for s in out["list"]] == sorted((s["start"] for s in out["list"]), reverse=True)
+    tally = {(s["kind"], s["source"]): s["sessions"] for s in out["sources"]}
+    assert tally == {("direct", "direct"): 2, ("referrer", "t.me"): 1, ("utm", "tg / post"): 1, ("internal", "internal"): 1}

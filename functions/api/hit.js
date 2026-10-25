@@ -13,6 +13,7 @@
  *   o  1 when this browser belongs to the owner (set by opening visits.html)
  *   k  unique page-view id · l navigator.language · z device timezone
  *   s  screen "WxH@dpr" · d device type · m Android model (high-entropy client hints)
+ *   u  utm_* tags of the landing URL, "source=x&medium=y&campaign=z" (empty when none)
  * A {t:'meta'} beacon patches in the model when reported; {t:'leave'} writes
  * visible seconds to the exact view row. Neither update creates another view.
  * IP, country, city, region, ASN/organisation and timezone come from the
@@ -105,10 +106,7 @@ export async function onRequestPost({ request, env }) {
       if (recent && recent.n >= MAX_PER_IP) return noContent();
     }
     const fp = await deviceFingerprint(ua, body);
-    await env.DB.prepare(
-      'INSERT INTO visits (ts, path, ref, ip, country, city, region, asn, org, tz, ua, vid, owner, view_id, lang, dtz, scr, dev, model, postal, fp) ' +
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(
+    const values = [
       now, path, clip(body.r, 300) || null,
       ip,
       cf.country || null, cf.city || null, cf.region || null,
@@ -116,7 +114,18 @@ export async function onRequestPost({ request, env }) {
       cf.timezone || null, clip(ua, 300), vid, body.o ? 1 : 0, viewId,
       clip(body.l, 35) || null, clip(body.z, 64) || null, clip(body.s, 24) || null, dev,
       clip(body.m, 60) || null, clip(cf.postalCode, 16) || null, fp,
-    ).run();
+    ];
+    const cols = 'ts, path, ref, ip, country, city, region, asn, org, tz, ua, vid, owner, view_id, lang, dtz, scr, dev, model, postal, fp';
+    const insert = (extra, extraValues) => env.DB.prepare(
+      'INSERT INTO visits (' + cols + extra + ') VALUES (' + values.concat(extraValues).map(() => '?').join(', ') + ')'
+    ).bind(...values, ...extraValues).run();
+    try {
+      await insert(', utm', [clip(body.u, 300) || null]);
+    } catch (e) {
+      // the utm column not migrated yet: still count the view, just without its tags
+      if (!/utm/i.test(String(e && e.message || e))) throw e;
+      await insert('', []);
+    }
     if (Math.random() < 0.005) {
       await env.DB.prepare('DELETE FROM visits WHERE ts < ?').bind(now - RETENTION_S).run();
     }

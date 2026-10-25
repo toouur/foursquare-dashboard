@@ -9,7 +9,10 @@ localStorage), fetches /api/visits, and draws traffic totals, browser/device pro
 postal areas, engagement/session metrics, and the latest views with IP and location.
 Opening it also marks this browser as the owner's (localStorage
 `fsq_owner`), so the hit snippet flags these views `owner = 1` and the stats
-leave them out. noindex, not in the nav or the sitemap.
+leave them out; a toggle switches it back to "visitor" (to test the counter),
+and `?fsq_owner=1|0` on any page does the same without the key. It also lists
+sessions (page sequence and duration) and where they came from (utm tags and
+off-site referrers). noindex, not in the nav or the sitemap.
 """
 from __future__ import annotations
 
@@ -56,20 +59,37 @@ td.n{text-align:right;font-family:'DM Mono',monospace;color:var(--teal);white-sp
 .engagement-stat{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;min-width:0;}
 .engagement-stat b{display:block;font-family:'Playfair Display',serif;font-size:1.25rem;color:var(--gold);overflow-wrap:anywhere;}
 .engagement-stat span{display:block;font-size:.68rem;color:var(--muted);}
+.seq{display:flex;flex-wrap:wrap;gap:3px 4px;align-items:center;font-size:.74rem;}
+.seq a{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:0 6px;}
+.seq i{font-style:normal;color:var(--muted);font-size:.62rem;}
+.tag{display:inline-block;font-family:'DM Mono',monospace;font-size:.6rem;border-radius:999px;padding:1px 7px;border:1px solid var(--border);color:var(--muted);}
+.tag.utm{color:#1a1206;background:var(--teal);border-color:var(--teal);} .tag.referrer{color:var(--gold);border-color:var(--gold);}
+.tag.owner{color:var(--rose);border-color:var(--rose);}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>Visits</h1>
-<div class="muted">private · views of this site from /api/hit · the owner's own browser is excluded</div>
+<div class="muted">private · views of this site from /api/hit · <span id="owner-note">the owner's own browsers are excluded</span></div>
 <div class="bar" id="keybar" hidden><input id="key" type="password" placeholder="STATS_KEY" autocomplete="off"><button id="save">Unlock</button></div>
 <div class="bar" id="ctl"><button data-d="1">24 h</button><button data-d="7">7 days</button><button data-d="30" class="on">30 days</button><button data-d="90">90 days</button><button id="export" disabled>Download JSON</button><label style="font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:5px"><input id="mask-ips" type="checkbox" checked style="accent-color:var(--teal)"> Mask IPs in export</label><button id="forget">Forget key</button></div>
+<div class="bar" id="own"><button id="owner-toggle" title="Owner browsers are flagged owner = 1 and left out of the stats. Any page also accepts ?fsq_owner=1 or ?fsq_owner=0."></button><label style="font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:5px"><input id="with-owner" type="checkbox" style="accent-color:var(--teal)"> Include owner views</label></div>
 <div id="out"><p class="note">Loading…</p></div>
 </div>
 <script>
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } };
-ls('fsq_owner', '1');                       // this browser is the owner's: its own views stop counting
+// Opening this page marks the browser as the owner's (its views stop counting) unless the
+// toggle below has explicitly set it back to '0' to test the counter as a visitor.
+if (ls('fsq_owner') === null) ls('fsq_owner', '1');
+const ownerToggle = document.getElementById('owner-toggle');
+function paintOwner() {
+  const mine = ls('fsq_owner') === '1';
+  ownerToggle.textContent = mine ? 'This browser: owner · not counted' : 'This browser: visitor · counted';
+  ownerToggle.classList.toggle('on', mine);
+}
+ownerToggle.onclick = () => { ls('fsq_owner', ls('fsq_owner') === '1' ? '0' : '1'); paintOwner(); };
+paintOwner();
 let days = 30;
 let exportData = null;
 const exportButton = document.getElementById('export');
@@ -125,7 +145,9 @@ async function load() {
   if (!key) { document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Enter the STATS_KEY set in Cloudflare Pages → Settings → Variables and secrets.</p>'; return; }
   out.innerHTML = '<p class="note">Loading…</p>';
   let r;
-  try { r = await fetch('/api/visits?days=' + days, { headers: { 'X-Stats-Key': encodeURIComponent(key) } }); }
+  const withOwner = document.getElementById('with-owner').checked;
+  document.getElementById('owner-note').textContent = withOwner ? 'owner views included (marked owner)' : "the owner's own browsers are excluded";
+  try { r = await fetch('/api/visits?days=' + days + (withOwner ? '&owner=1' : ''), { headers: { 'X-Stats-Key': encodeURIComponent(key) } }); }
   catch (e) { out.innerHTML = '<p class="note">Request failed: ' + esc(e.message || e) + '. A content blocker may be hiding /api/visits — allow 4sq.pages.dev in it.</p>'; return; }
   if (r.status === 401) { ls('fsq_stats_key', null); document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Wrong key.</p>'; return; }
   const D = await r.json().catch(() => ({ error: 'bad response' }));
@@ -165,6 +187,24 @@ async function load() {
       [fmtNumber(sessions.max_pages), 'maximum pages / session'],
       [fmtDuration(sessions.avg_visible_seconds), 'average measured session time']
     ].map(([value, label]) => '<div class="engagement-stat"><b>' + esc(value) + '</b><span>' + esc(label) + '</span></div>').join('') + '</div></div>' +
+    table('Sources · where sessions start', arr('sources'), [
+      ['source', 0, r => '<span class="tag ' + esc(r.kind) + '">' + esc(r.kind) + '</span> ' + (r.kind === 'referrer' ? refHtml('https://' + r.source + '/') : esc(r.source))],
+      ['sessions', 1, r => fmtNumber(r.sessions) + ' sess'], ['views', 1, r => fmtNumber(r.views)], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Off-site referrers', arr('externalRefs'), [['ref', 0, r => '<span title="' + esc(r.ref) + '">' + refHtml(r.ref) + '</span> <span class="muted">' + esc(r.ref) + '</span>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('UTM tags', arr('utms'), [['utm', 0, r => '<code>' + esc(r.utm) + '</code>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Sessions · page sequence (newest ' + arr('sessionList').length + ' of the last ' + fmtNumber(D.sessionRows) + ' views)', arr('sessionList'), [
+      ['start', 0, r => '<span class="muted">' + when(r.start) + '</span><br><b>' + esc(fmtDuration(r.seconds)) + '</b>' +
+        '<br><span class="muted">' + fmtNumber(r.views) + (r.views === 1 ? ' view' : ' views') + (r.visible_seconds != null ? ' · visible ' + esc(fmtDuration(r.visible_seconds)) : '') + '</span>'],
+      ['who', 0, r => '<code>' + esc(String(r.who || '').slice(0, 6)) + '</code>' + (r.owner ? ' <span class="tag owner">owner</span>' : '') +
+        '<br><span class="muted">' + esc([agent(r.ua), r.dev, r.model ? 'model ' + r.model : '', r.lang].filter(Boolean).join(' · ')) +
+        '<br>' + esc([r.city, r.country].filter(Boolean).join(', ')) + (r.org ? ' · ' + esc(r.org) : '') + '</span>'],
+      ['source', 0, r => { const s = r.source || {}; return '<span class="tag ' + esc(s.kind) + '">' + esc(s.kind || '?') + '</span><br>' +
+        (s.kind === 'referrer' ? '<span title="' + esc(s.ref) + '">' + refHtml(s.ref) + '</span>' : '<span class="muted">' + esc(s.kind === 'utm' ? s.utm : '') + '</span>'); }],
+      ['pages', 0, r => '<div class="seq">' + (r.pages || []).map((pg, i) => (i ? '<i>→</i>' : '') +
+        '<a href="' + esc(pg.path) + '" title="' + esc(when(pg.ts)) + '">' + esc(pg.path) + '</a>' +
+        (pg.dur != null ? '<i>' + esc(fmtDuration(pg.dur)) + '</i>' : '')).join('') +
+        (r.views > (r.pages || []).length ? '<i>… +' + (r.views - r.pages.length) + '</i>' : '') + '</div>']
+    ], 'full') +
     table('IP addresses · visits per IP', arr('ipStats'), [
       ['ip', 0, r => '<code>' + esc(r.ip) + '</code><br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + (r.postal ? ' · ZIP ' + esc(r.postal) : '') + '</span>'],
       ['views', 1, r => fmtNumber(r.views)],
@@ -186,7 +226,7 @@ async function load() {
     table('Latest views', arr('recent'), [['ts', 0, r => '<span class="muted">' + when(r.ts) + '</span>'], ['path', 0, r => esc(r.path)],
       ['ip', 0, r => esc(r.ip) + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + (r.postal ? ' · ZIP ' + esc(r.postal) : '') + ' · ' + esc(r.org || '') + '</span>'],
       ['ua', 0, r => {
-        const meta = [
+        const meta = [r.utm ? 'utm ' + r.utm : '', r.owner ? 'owner' : '',
           r.dev || '', r.model ? 'model ' + r.model : '', r.scr ? 'screen ' + r.scr : '',
           r.lang ? 'lang ' + r.lang : '', r.dtz ? 'device TZ ' + r.dtz : '',
           r.tz ? 'IP TZ ' + r.tz : '', r.dur !== null && r.dur !== undefined ? 'visible ' + fmtDuration(r.dur) : ''
@@ -194,7 +234,7 @@ async function load() {
         return '<span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + refHtml(r.ref) : '') +
           ' · ' + esc((r.vid || '').slice(0, 6)) + (meta ? '<br>' + meta : '') + '</span>';
       }]], 'full') +
-    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model. Device fingerprints are SHA-256 signatures of already-collected browser metadata, not proof of a unique physical device. IP visit counts split activity into sessions after 30 minutes of inactivity.</p>';
+    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes; its duration runs from the first view to the end of the last one (that page’s visible time, when measured). Source = the session’s utm tags, else its off-site referrer; “internal” = it starts from one of this site’s pages (a reopened tab, or a visit begun before the window), “direct” = no referrer at all. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model. Device fingerprints are SHA-256 signatures of already-collected browser metadata, not proof of a unique physical device. IP visit counts split activity into sessions after 30 minutes of inactivity.</p>';
 }
 exportButton.onclick = () => {
   if (!exportData) return;
@@ -208,6 +248,7 @@ exportButton.onclick = () => {
     };
     for (const row of (payload.ipStats || [])) row.ip = mask(row.ip);
     for (const row of (payload.recent || [])) row.ip = mask(row.ip);
+    for (const row of (payload.sessionList || [])) row.ip = mask(row.ip);
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -222,6 +263,7 @@ exportButton.onclick = () => {
 document.getElementById('save').onclick = () => { const v = document.getElementById('key').value.trim(); if (v) { ls('fsq_stats_key', v); document.getElementById('keybar').hidden = true; load(); } };
 document.getElementById('key').onkeydown = e => { if (e.key === 'Enter') document.getElementById('save').click(); };
 document.getElementById('forget').onclick = () => { ls('fsq_stats_key', null); load(); };
+document.getElementById('with-owner').onchange = load;
 document.querySelectorAll('#ctl button[data-d]').forEach(b => b.onclick = () => { days = +b.dataset.d; document.querySelectorAll('#ctl button[data-d]').forEach(x => x.classList.toggle('on', x === b)); load(); });
 load();
 </script>

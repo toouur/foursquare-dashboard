@@ -241,7 +241,7 @@ def collect_ping(since: int, now: int) -> list[dict]:
               "MAX(city) AS city, MAX(country) AS country, MAX(org) AS org, MAX(ref) AS ref, "
               "GROUP_CONCAT(DISTINCT path) AS paths, MAX(lang) AS lang, MAX(dtz) AS dtz, "
               "MAX(scr) AS scr, MAX(dev) AS dev, MAX(model) AS model, MAX(postal) AS postal, "
-              "MAX(dur) AS dur FROM visits WHERE ts > ? AND ts <= ? AND owner = 0 "
+              "MAX(dur) AS dur, MAX(utm) AS utm FROM visits WHERE ts > ? AND ts <= ? AND owner = 0 "
               "GROUP BY who ORDER BY first", [since, now])
     if rows:
         whos = [r["who"] for r in rows][:90]
@@ -278,6 +278,8 @@ def render_ping(rows: list[dict], since: int, site: str = "https://4sq.pages.dev
                 f"{e(r.get('org'), 40)}{' · ↺ returning' if r.get('back') else ''}\n   {paths}"
                 + ((" · ⌂ from a local copy (" + e(r["ref"], 40) + ")" if is_local_referrer(r["ref"]) else f" · from {e(r['ref'], 40)}") if r.get("ref") else ""))
         details = []
+        if r.get("utm"):
+            details.append("utm " + str(r["utm"]))
         if r.get("dev"):
             details.append(str(r["dev"]))
         if r.get("model"):

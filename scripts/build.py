@@ -1485,12 +1485,25 @@ if __name__ == "__main__":
                   "data-cf-beacon='{\"token\": \"096ba3d9093f4c629948d81ef8438a34\"}'></script><!-- End Cloudflare Web Analytics -->")
     # Plus our own counter (functions/api/hit.js → D1 `visits`, private view in
     # visits.html): one page-view beacon with path/referrer/visitor ID plus browser
-    # language, device timezone, screen, device type and owner flag. Later beacons
-    # patch the Android model (when exposed) and visible duration onto that exact row.
+    # language, device timezone, screen, device type, owner flag and the landing
+    # URL's utm_* tags. Later beacons patch the Android model (when exposed) and
+    # visible duration onto that exact row. ?fsq_owner=1 / ?fsq_owner=0 on any page
+    # marks this browser as the owner's (not counted) or a visitor's, then drops
+    # the parameter from the address bar — handy on a phone without the STATS_KEY.
     _hit_js = r"""<script>(function(){
 try {
   var s=localStorage, v=s.getItem('fsq_vid');
   if(!v){v=Math.random().toString(36).slice(2)+Date.now().toString(36);s.setItem('fsq_vid',v)}
+  var u='';
+  try {
+    var q=new URLSearchParams(location.search), om=q.get('fsq_owner'), tags=[];
+    if(om==='1'||om==='0'){
+      s.setItem('fsq_owner',om); q.delete('fsq_owner');
+      history.replaceState(history.state,'',location.pathname+(q.toString()?'?'+q.toString():'')+location.hash);
+    }
+    ['source','medium','campaign','content','term'].forEach(function(n){var x=q.get('utm_'+n);if(x)tags.push(n+'='+x.slice(0,60))});
+    u=tags.join('&');
+  } catch(e){}
   var p=location.pathname+(/\/venue(\.html)?$/.test(location.pathname)?location.hash:'');  // Pages serves /venue without .html
   var k=Math.random().toString(36).slice(2,12)+Date.now().toString(36);
   var ua=navigator.userAgent||'', mobile=false, tablet=false;
@@ -1504,7 +1517,7 @@ try {
   try { var sc=window.screen; if(sc) scr=String(sc.width)+'x'+String(sc.height)+'@'+String(window.devicePixelRatio||1); } catch(e){}
   function send(data){try{navigator.sendBeacon('/api/hit',JSON.stringify(data))}catch(e){}}
   send({p:p,r:document.referrer||'',v:v,k:k,o:s.getItem('fsq_owner')==='1'?1:0,
-    l:navigator.language||'',z:tz,s:scr,d:dev});
+    l:navigator.language||'',z:tz,s:scr,d:dev,u:u});
   // High-entropy client hints expose the Android model only in browsers that permit it.
   try {
     if(navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
