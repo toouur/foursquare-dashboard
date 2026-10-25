@@ -79,7 +79,8 @@ function isLocalReferrer(raw) {
   let u;
   try { u = new URL(raw); } catch (e) { return false; }
   if (!['http:', 'https:'].includes(u.protocol)) return false;
-  const h = u.hostname.toLowerCase().replace(/^\\[|\\]$/g, '').replace(/\\.$/, '');
+  let h = u.hostname.toLowerCase().replace(/\\.$/, '');
+  if (h.startsWith('[') && h.endsWith(']')) h = h.slice(1, -1);
   if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
   if (h.includes(':')) {
     // IPv6 loopback, unspecified, unique-local (fc00::/7), and link-local (fe80::/10).
