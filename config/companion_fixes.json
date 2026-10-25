@@ -5,5 +5,10 @@
     "with_name": "Ghennadi Rips",
     "with_id": "1416805649",
     "_note": "Taproom by Litra & Friends, 2026-08-10. Tagged on Swarm after our fetch; row has empty shout+with_name and overlaps_id='-' (Ghennadi did not check in separately)."
+  },
+
+  "51deee63498eb0b755cdfc0f": {
+    "with_name": "Anna Grosu",
+    "_note": "Moldexpo, 2013-07-11 ('Типо Земфира.'). The Swarm app shows 'with Anna' and the check-in's score says 'first check-in with Anna', but the API returns no `with` field for it (her account is gone / no longer resolvable), so no id."
   }
 }
