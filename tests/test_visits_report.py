@@ -187,3 +187,10 @@ def test_ping_watermark_moves_only_after_a_send(monkeypatch):
     R.ok = True
     assert vr.main(["--ping"]) == 0
     assert calls[-1].startswith("INSERT OR REPLACE INTO sync_state")
+
+
+def test_ping_marks_a_local_copy_referrer():
+    rows = [{**_ping_rows()[1], "ref": "http://127.0.0.1:8766/"}]
+    assert "⌂ from a local copy (http://127.0.0.1:8766/)" in vr.render_ping(rows, 1792790000)
+    assert vr.LOCAL_REF.match("http://192.168.1.5:8000/x") and vr.LOCAL_REF.match("file:///C:/site/index.html")
+    assert not vr.LOCAL_REF.match("https://t.me/") and not vr.LOCAL_REF.match("https://10times.com/")

@@ -51,6 +51,7 @@ td{padding:4px 6px;border-bottom:1px solid var(--border);vertical-align:top;over
 td.n{text-align:right;font-family:'DM Mono',monospace;color:var(--teal);white-space:nowrap;}
 .full{grid-column:1/-1;} .muted{color:var(--muted);font-size:.72rem;}
 .note{color:var(--muted);font-size:.85rem;margin-top:14px;}
+.local{display:inline-block;font-family:'DM Mono',monospace;font-size:.6rem;color:#1a1206;background:linear-gradient(135deg,#f6d38b,#ff9a6b);border-radius:999px;padding:1px 7px;}
 </style>
 </head>
 <body>
@@ -71,6 +72,9 @@ function table(title, rows, cols, cls) {
   return '<div class="card ' + (cls || '') + '"><h2>' + title + '</h2><table>' + (rows.length ? rows.map(r => '<tr>' + cols.map(([k, n, f]) => '<td' + (n ? ' class="n"' : '') + '>' + (f ? f(r) : esc(r[k] ?? '—')) + '</td>').join('') + '</tr>').join('') : '<tr><td class="muted">nothing yet</td></tr>') + '</table></div>';
 }
 const host = u => { try { return new URL(u).host; } catch (e) { return u; } };
+// a referrer on the visitor's own machine or LAN: someone clicked through from a local copy of the site
+const LOCAL_RE = /^(file:|https?:\/\/(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?(\/|$))/i;
+const refHtml = u => LOCAL_RE.test(u || '') ? '<span class="local" title="opened from a local copy: ' + esc(u) + '">⌂ local copy</span> ' + esc(host(u)) : esc(host(u));
 const when = ts => new Date(ts * 1000).toISOString().replace('T', ' ').slice(0, 16);
 const agent = ua => { ua = ua || ''; const b = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '?';
   const o = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '?'; return b + ' · ' + o; };
@@ -94,11 +98,11 @@ async function load() {
     table('Pages', D.paths, [['path', 0, r => '<a href="' + esc(r.path) + '">' + esc(r.path) + '</a>'], ['n', 1], ['u', 1, r => r.u + ' u']]) +
     table('Countries', D.countries, [['country'], ['n', 1], ['u', 1, r => r.u + ' u']]) +
     table('Cities', D.cities, [['city', 0, r => esc(r.city || '—') + ' <span class="muted">' + esc(r.country || '') + '</span>'], ['n', 1], ['u', 1, r => r.u + ' u']]) +
-    table('Referrers', D.refs, [['ref', 0, r => '<span title="' + esc(r.ref) + '">' + esc(host(r.ref)) + '</span>'], ['n', 1]]) +
+    table('Referrers', D.refs, [['ref', 0, r => '<span title="' + esc(r.ref) + '">' + refHtml(r.ref) + '</span>'], ['n', 1]]) +
     table('Networks', D.orgs, [['org', 0, r => esc(r.org || '—') + ' <span class="muted">AS' + esc(r.asn || '?') + '</span>'], ['n', 1], ['ips', 1, r => r.ips + ' IPs']]) +
     table('Latest views', D.recent, [['ts', 0, r => '<span class="muted">' + when(r.ts) + '</span>'], ['path', 0, r => esc(r.path)],
       ['ip', 0, r => esc(r.ip) + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + ' · ' + esc(r.org || '') + '</span>'],
-      ['ua', 0, r => '<span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + esc(host(r.ref)) : '') + ' · ' + esc((r.vid || '').slice(0, 6)) + '</span>']], 'full') +
+      ['ua', 0, r => '<span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + refHtml(r.ref) : '') + ' · ' + esc((r.vid || '').slice(0, 6)) + '</span>']], 'full') +
     '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or the IP when the browser keeps no storage).</p>';
 }
 document.getElementById('save').onclick = () => { const v = document.getElementById('key').value.trim(); if (v) { ls('fsq_stats_key', v); document.getElementById('keybar').hidden = true; load(); } };

@@ -41,6 +41,8 @@ import d1_client as d1
 
 log = logging.getLogger("visits_report")
 RETENTION_DAYS = 90
+# a referrer on the visitor's own machine or LAN: they clicked through from a local copy of the site
+LOCAL_REF = re.compile(r"^(file:|https?://(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?(/|$))", re.I)
 WEEK = 7 * 86400
 
 
@@ -149,7 +151,7 @@ def render_ping(rows: list[dict], since: int, site: str = "https://4sq.pages.dev
         paths = ", ".join(e(p, 40) for p in str(r.get("paths") or "").split(",")[:4])
         lines.append(f"• {time.strftime('%H:%M', time.gmtime(int(r['first'])))} · {e(r['city'])}, {e(r['country'])} · "
                      f"{e(r['org'], 40)}{' · ↺ returning' if r.get('back') else ''}\n   {paths}"
-                     + (f" · from {e(r['ref'], 40)}" if r.get("ref") else ""))
+                     + ((" · ⌂ from a local copy (" + e(r["ref"], 40) + ")" if LOCAL_REF.match(r["ref"]) else f" · from {e(r['ref'], 40)}") if r.get("ref") else ""))
     if len(rows) > 12:
         lines.append(f"… and {len(rows) - 12} more")
     lines.append(f'<a href="{site}/visits.html">Full stats</a>')
