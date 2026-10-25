@@ -1128,7 +1128,7 @@ window.openLB = src => {{ document.getElementById('lbImg').src = src; document.g
 function setLogo(img, iata) {{
   if (!iata) {{ img.style.display='none'; const fb=img.nextElementSibling; if(fb)fb.style.display='flex'; return; }}
   const cdns = [
-    'https://images.kiwi.com/airlines/64/'+iata+'.png',
+    'https://images.kiwi.com/airlines/64x64/'+iata+'.png',
     'https://www.gstatic.com/flights/airline_logos/70px/'+iata+'.png',
     'https://content.airhex.com/content/logos/airlines_'+iata+'_70_70_s.png',
   ];
