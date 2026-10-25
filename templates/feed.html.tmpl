@@ -511,13 +511,39 @@ let curMark=null;
 
 // the active card's day, oldest stop first; the current stop drawn large
 let dayLayer=null, dayShown=null;
+// Real street / rail geometry for a segment where trips.html has it: routes.json
+// ("tsA-tsB" → [polyline5, km], scripts/route_paths.py) covers trip segments;
+// other legs stay straight dashed chords. Fetched on the first drawn day.
+let ROUTES=null, ROUTES_P=null;
+function loadRoutes(){
+  if(!ROUTES_P) ROUTES_P=fetch('routes.json').then(r=>r.ok?r.json():{}).then(j=>{ROUTES=j||{};}).catch(()=>{ROUTES={};});
+  return ROUTES_P;
+}
+function decPoly(s){ // polyline5 → [[lat,lng],…]
+  const pts=[];let i=0,lat=0,lng=0;
+  while(i<s.length){
+    for(let k=0;k<2;k++){
+      let sh=0,res=0,b;
+      do{b=s.charCodeAt(i++)-63;res|=(b&0x1f)<<sh;sh+=5;}while(b>=0x20);
+      const d=(res&1)?~(res>>1):(res>>1);
+      if(k)lng+=d;else lat+=d;
+    }
+    pts.push([lat/1e5,lng/1e5]);
+  }
+  return pts;
+}
 function drawDay(i){
   const ci=DATA[i]; if(!ci) return;
   const o=DAYS[ci[1]], leg=document.getElementById('dayLegend');
   if(dayLayer){map.removeLayer(dayLayer);dayLayer=null;}
   if(!o||!o.pts.length){leg.innerHTML='';return;}
   dayLayer=L.layerGroup().addTo(map);
-  if(o.pts.length>1) L.polyline(o.pts.map(p=>[p[0],p[1]]),{color:'#ff9a6b',weight:3,opacity:.8,dashArray:'6 6'}).addTo(dayLayer);
+  for(let k=1;k<o.pts.length;k++){
+    const a=o.pts[k-1], b=o.pts[k], rt=ROUTES&&ROUTES[DATA[a[2]][0]+'-'+DATA[b[2]][0]];
+    if(rt) L.polyline(decPoly(rt[0]),{color:'#ff9a6b',weight:3.5,opacity:.9}).addTo(dayLayer);
+    else L.polyline([[a[0],a[1]],[b[0],b[1]]],{color:'#ff9a6b',weight:3,opacity:.75,dashArray:'6 6'}).addTo(dayLayer);
+  }
+  if(!ROUTES) loadRoutes().then(()=>{ if(activeIdx===i) drawDay(i); });
   o.pts.forEach((p,k)=>{const cur=p[2]===i;
     L.marker([p[0],p[1]],{zIndexOffset:cur?1000:0,icon:L.divIcon({className:'',html:`<div class="stop-dot${cur?' cur':''}">${k+1}</div>`,iconSize:cur?[30,30]:[20,20],iconAnchor:cur?[15,15]:[10,10]})})
       .on('click',()=>activate(p[2],true)).addTo(dayLayer);});
