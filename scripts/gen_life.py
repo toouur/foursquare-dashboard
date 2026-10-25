@@ -197,7 +197,7 @@ function build() {{
     document.getElementById('clane').innerHTML = countryLane();
   }});
   const abroad = L.country_runs.filter(r => order.indexOf(r[2]) >= 2 && !r[3]).reduce((s, r) => s + r[1], 0);
-  document.getElementById('kpis').innerHTML = [[DAYS.toLocaleString('en-US'), 'days on the record'], [L.countries.length, 'countries'], [L.trips.length, 'trips'],
+  document.getElementById('kpis').innerHTML = [[DAYS.toLocaleString('en-US'), 'days on the record'], [L.countries_total || L.countries.length, 'countries'], [L.trips.length, 'trips'],
     [abroad.toLocaleString('en-US'), 'days abroad'], [L.eras.length, 'home eras']].map(([a, b]) => '<div class="kpi"><b>' + a + '</b><span>' + b + '</span></div>').join('');
   document.getElementById('sub').textContent = L.start + ' → ' + dayStr(DAYS - 1);
   ticks();
@@ -254,12 +254,16 @@ def build_page(
     home_city: str = "",
     home_history: list | None = None,
     music_by_year: dict | None = None,
+    country_total: int = 0,
     **_extra,
 ) -> int:
     """Write life.html + life_data.json. Returns the number of days on the axis."""
     out_dir = Path(out_path)
     out_dir.mkdir(parents=True, exist_ok=True)
     life = compute_life(rows or [], home_city, home_history, trips=trips, music_by_year=music_by_year)
+    # the stripes only know countries that were some day's majority country (a transit
+    # stop never is), so the headline count comes from the site-wide figure
+    life["countries_total"] = country_total or len(life.get("countries", []))
     body = json.dumps(life, ensure_ascii=False, separators=(",", ":"))
     (out_dir / "life_data.json").write_text(body, encoding="utf-8")
     ver = hashlib.sha1(body.encode("utf-8")).hexdigest()[:8]

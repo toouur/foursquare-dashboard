@@ -1306,6 +1306,7 @@ if __name__ == "__main__":
                 home_city=home_city,
                 home_history=home_history,
                 music_by_year=_life_music,
+                country_total=len(data['countries']),
             )
         except Exception as _le:
             log.warning("gen_life failed: %s", _le)
