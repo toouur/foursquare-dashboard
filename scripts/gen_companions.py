@@ -39,8 +39,9 @@ def companion_country(name: str, rows: list, overrides: dict) -> str:
 
 
 def trips_lite(trips) -> list:
-    """[id, name, start_ts, end_ts, cover photo key] — what the profile needs to
-    find the trips a companion was on (a cover from the middle of the trip)."""
+    """[id, name, start_ts, end_ts, cover photo key, check-ins, days] — what the
+    profile needs to decide which trips a companion was really on (a cover from
+    the middle of the trip)."""
     out = []
     for t in trips or []:
         try:
@@ -49,7 +50,8 @@ def trips_lite(trips) -> list:
         except (KeyError, ValueError):
             continue
         shots = [c["photos"][0] for c in t.get("checkins") or [] if c.get("photos")]
-        out.append([t["id"], t.get("name", ""), a, b, shots[len(shots) // 2] if shots else ""])
+        out.append([t["id"], t.get("name", ""), a, b, shots[len(shots) // 2] if shots else "",
+                    int(t.get("checkin_count") or 0), int(t.get("duration") or 1)])
     return out
 
 
