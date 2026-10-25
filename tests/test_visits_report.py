@@ -4,6 +4,7 @@
 """visits_report — the weekly private digest of /api/hit page views."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import visits_report as vr
@@ -18,8 +19,17 @@ def _collected(views=12):
         "cities": [{"city": "Chișinău", "country": "MD", "n": 9, "u": 3}],
         "refs": [{"ref": "https://t.me/", "n": 3, "u": 2}],
         "orgs": [{"org": "Moldtelecom <SA>", "n": 6, "u": 2}],
+        "languages": [{"lang": "ru-RU", "n": 8, "u": 3}],
+        "devices": [{"dev": "phone", "n": 5, "u": 3}],
+        "screens": [{"scr": "390x844@3", "n": 4, "u": 2}],
+        "device_timezones": [{"dtz": "Europe/Chisinau", "tz": "Europe/Chisinau", "n": 4, "u": 2}],
+        "models": [{"model": "Pixel 9", "n": 1, "u": 1}],
+        "postals": [{"postal": "2001", "city": "Chișinău", "region": "Chișinău", "country": "MD", "n": 2, "u": 1}],
+        "engagement": {"measured": 4, "avg_seconds": 71, "max_seconds": 300},
+        "sessions": {"sessions": 4, "avg_pages": 2.25, "max_pages": 5, "avg_visible_seconds": 120},
         "newest": [{"vid": "a", "first": 1792800000, "n": 3, "ip": "1.2.3.4", "city": "Bălți",
-                    "country": "MD", "org": "Orange"}],
+                    "country": "MD", "org": "Orange", "dev": "phone", "lang": "ru-RU",
+                    "dtz": "Europe/Chisinau", "scr": "390x844@3", "model": "Pixel 9", "postal": "2001"}],
     }
 
 
@@ -30,6 +40,12 @@ def test_render_report():
     assert "• /index.html — 7 (4 u)" in text and "• Chișinău, MD — 9 (3 u)" in text
     assert "Moldtelecom &lt;SA&gt;" in text                      # HTML-escaped for parse_mode=HTML
     assert "1.2.3.4 · Bălți, MD · Orange · 3 views" in text
+    assert "Browser languages" in text and "ru-RU — 8 (3 u)" in text
+    assert "Device types" in text and "phone — 5 (3 u)" in text
+    assert "390x844@3 — 4 (2 u)" in text and "Pixel 9 — 1 (1 u)" in text
+    assert "2001 · Chișinău, Chișinău, MD — 2 (1 u)" in text
+    assert "Visible page time: avg 1m 11s, longest 5m 0s" in text
+    assert "Sessions (30-min inactivity rule): 4" in text and "2.25 pages/session" in text
     assert 'href="https://4sq.pages.dev/visits.html"' in text
 
 
@@ -48,6 +64,8 @@ def test_collect_excludes_owner_and_windows(monkeypatch):
     vr.collect(1_000_000)
     assert all("owner = 0" in sql for sql, _ in seen)
     assert all(p[0] in (1_000_000 - vr.WEEK, 1_000_000 - 2 * vr.WEEK) for _, p in seen)
+    assert any("LAG(ts) OVER" in sql and "dur" in sql for sql, _ in seen)
+    assert any("postal" in sql and "lang" in sql for sql, _ in seen)
 
 
 def test_dry_run_deletes_nothing(monkeypatch, capsys):
@@ -63,9 +81,12 @@ def test_hit_endpoint_guards():
     js = (Path(__file__).resolve().parents[1] / "functions" / "api" / "hit.js").read_text(encoding="utf-8")
     assert "CF-Connecting-IP" in js and "90 * 86400" in js
     assert "BOT_RE.test(ua)" in js and "new URL(origin).host" in js   # bots and foreign origins dropped
-    assert "MAX_PER_IP" in js and "VID_RE" in js and "startsWith('//')" in js
+    assert "MAX_PER_IP" in js and "VID_RE" in js and "VIEW_ID_RE" in js and "startsWith('//')" in js
+    assert "body.t === 'meta'" in js and "view_id" in js and "body.t === 'leave'" in js
     vjs = (Path(__file__).resolve().parents[1] / "functions" / "api" / "visits.js").read_text(encoding="utf-8")
     assert "env.STATS_KEY" in vjs and "401" in vjs                    # closed by default
+    assert "deviceTimezones" in vjs and "languages" in vjs and "postals" in vjs
+    assert "LAG(ts) OVER" in vjs and "avg_pages" in vjs and "dur" in vjs
 
 
 def test_long_report_is_cut_at_a_line_break():
@@ -83,27 +104,53 @@ def test_labels_are_clipped():
 
 
 def test_pages_functions_parse(tmp_path):
-    """A Function with a syntax error is not deployed at all — /api/* would 404."""
+    """A syntax error in a Pages Function or inline private-page script breaks it at deploy."""
     import shutil
     import subprocess
 
     import pytest
     node = shutil.which("node") or ("C:/Program Files/nodejs/node.exe" if Path("C:/Program Files/nodejs/node.exe").exists() else None)
     if not node:
-        pytest.skip("node not installed — cannot syntax-check functions/")
-    for js in sorted((Path(__file__).resolve().parents[1] / "functions").rglob("*.js")):
-        mjs = tmp_path / (js.stem + ".mjs")             # ES-module syntax (export) needs .mjs
-        mjs.write_text(js.read_text(encoding="utf-8"), encoding="utf-8")
-        proc = subprocess.run([node, "--check", str(mjs)], capture_output=True, timeout=30)
-        assert proc.returncode == 0, f"{js.name}: {proc.stderr.decode(errors='replace')}"
+        pytest.skip("node not installed — cannot syntax-check JavaScript")
 
+    repo = Path(__file__).resolve().parents[1]
+    scripts = []
+    for js in sorted((repo / "functions").rglob("*.js")):
+        scripts.append((js.name, js.read_text(encoding="utf-8")))
+
+    build = (repo / "scripts" / "build.py").read_text(encoding="utf-8")
+    hit = re.search(r'_hit_js = r"""(.*?)"""', build, re.S)
+    assert hit, "build.py must define the generated page-view beacon"
+    hit_html = hit.group(1)
+    hit_js = hit_html[len("<script>"):hit_html.rfind("</script>")]
+    scripts.append(("generated-hit-beacon.js", hit_js))
+
+    page_src = (repo / "scripts" / "gen_visits.py").read_text(encoding="utf-8")
+    page = re.search(r'PAGE = r"""(.*?)"""', page_src, re.S)
+    assert page, "gen_visits.py must contain the private visits page"
+    inline_scripts = re.findall(r"<script>(.*?)</script>", page.group(1), re.S)
+    assert inline_scripts, "visits.html needs an inline controller"
+    scripts.extend((f"visits-page-{i}.js", js) for i, js in enumerate(inline_scripts))
+
+    for name, code in scripts:
+        mjs = tmp_path / (name.replace("/", "_").replace(".", "_") + ".mjs")
+        mjs.write_text(code, encoding="utf-8")
+        proc = subprocess.run([node, "--check", str(mjs)], capture_output=True, timeout=30)
+        assert proc.returncode == 0, f"{name}: {proc.stderr.decode(errors='replace')}"
+
+
+def test_visits_page_renders_extended_analytics():
+    page = (Path(__file__).resolve().parents[1] / "scripts" / "gen_visits.py").read_text(encoding="utf-8")
+    for marker in ("Browser languages", "Device types", "Screen sizes", "Device time zones",
+                   "Android models", "Approx. postal areas", "Average pages/session", "visible "):
+        assert marker in page, marker
 
 def test_report_creates_the_visits_table_itself():
     ddl = vr.visits_ddl()
     assert ddl[0].startswith("CREATE TABLE IF NOT EXISTS visits") and "ip" in ddl[0]
     assert ddl[1] == "CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts)"
     added = {s.split()[-2] for s in ddl[2:]}                     # the analytics columns migrated in
-    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur"}
+    assert added == {"lang", "dtz", "scr", "dev", "model", "postal", "dur", "view_id"}
     assert all(s.startswith("ALTER TABLE visits ADD COLUMN") for s in ddl[2:])
 
 
@@ -140,7 +187,9 @@ def test_failures_surface_as_annotations(monkeypatch, capsys):
 
 def _ping_rows():
     return [{"who": "a", "first": 1792800000, "n": 3, "city": "Bălți", "country": "MD", "org": "Orange <SA>",
-             "ref": "https://t.me/", "paths": "/index.html,/trips.html", "back": True},
+             "ref": "https://t.me/", "paths": "/index.html,/trips.html", "back": True,
+             "dev": "phone", "lang": "ru-RU", "dtz": "Europe/Chisinau",
+             "scr": "390x844@3", "model": "Pixel 9", "postal": "2001", "dur": 42},
             {"who": "b", "first": 1792803600, "n": 1, "city": "Minsk", "country": "BY", "org": "A1",
              "ref": None, "paths": "/venue.html", "back": False}]
 
@@ -150,6 +199,8 @@ def test_render_ping():
     assert text.startswith("<b>👀 2 visitors · 4 views</b> since ")
     assert "Bălți, MD · Orange &lt;SA&gt; · ↺ returning" in text and "/index.html, /trips.html · from https://t.me/" in text
     assert "Minsk, BY · A1\n" in text and "returning" not in text.split("Minsk")[1]
+    assert "phone · model Pixel 9 · lang ru-RU · device TZ Europe/Chisinau" in text
+    assert "screen 390x844@3 · ZIP 2001 · visible 42s" in text
 
 
 def test_ping_window_from_the_watermark(monkeypatch):

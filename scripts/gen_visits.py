@@ -5,9 +5,9 @@
 gen_visits.py — visits.html, the owner's private view of /api/visits.
 
 A static shell with no data in it: it asks for the STATS_KEY once (kept in
-localStorage), fetches /api/visits, and draws totals, a daily chart and the
-top paths / countries / cities / referrers / networks plus the latest views
-with IPs. Opening it also marks this browser as the owner's (localStorage
+localStorage), fetches /api/visits, and draws traffic totals, browser/device profile, approximate
+postal areas, engagement/session metrics, and the latest views with IP and location.
+Opening it also marks this browser as the owner's (localStorage
 `fsq_owner`), so the hit snippet flags these views `owner = 1` and the stats
 leave them out. noindex, not in the nav or the sitemap.
 """
@@ -88,7 +88,7 @@ function isLocalReferrer(raw) {
     return h === '::1' || h === '::' || /^f[cd]/.test(h) || /^fe[89ab]/.test(h);
   }
   const parts = h.split('.');
-  if (parts.length !== 4 || parts.some(p => !/^\\d{1,3}$/.test(p) || Number(p) > 255)) return false;
+  if (parts.length !== 4 || parts.some(p => !/^\d{1,3}$/.test(p) || Number(p) > 255)) return false;
   const [a, b] = parts.map(Number);
   return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) ||
     (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
@@ -99,6 +99,17 @@ const refHtml = u => {
   return '<span class="local" title="opened from a local copy: ' + esc(u) + '">⌂ local copy</span> ' + esc(h);
 };
 const when = ts => new Date(ts * 1000).toISOString().replace('T', ' ').slice(0, 16);
+const fmtDuration = value => {
+  const n = Number(value);
+  if (value === null || value === undefined || value === '' || !Number.isFinite(n) || n < 0) return '—';
+  const sec = Math.round(n);
+  if (sec < 60) return sec + 's';
+  const min = Math.floor(sec / 60), rem = sec % 60;
+  if (min < 60) return min + 'm ' + rem + 's';
+  return Math.floor(min / 60) + 'h ' + (min % 60) + 'm';
+};
+const fmtNumber = value => value === null || value === undefined || value === '' || !Number.isFinite(Number(value))
+  ? '—' : Number(value).toLocaleString('en-US', { maximumFractionDigits: 2 });
 const agent = ua => { ua = ua || ''; const b = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '?';
   const o = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '?'; return b + ' · ' + o; };
 async function load() {
@@ -106,27 +117,61 @@ async function load() {
   if (!key) { document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Enter the STATS_KEY set in Cloudflare Pages → Settings → Variables and secrets.</p>'; return; }
   out.innerHTML = '<p class="note">Loading…</p>';
   let r;
-  // URL-encoded: a header value may carry only ISO-8859-1, so a key with Cyrillic or an
-  // emoji made fetch() throw before anything was sent ("Network error")
   try { r = await fetch('/api/visits?days=' + days, { headers: { 'X-Stats-Key': encodeURIComponent(key) } }); }
   catch (e) { out.innerHTML = '<p class="note">Request failed: ' + esc(e.message || e) + '. A content blocker may be hiding /api/visits — allow 4sq.pages.dev in it.</p>'; return; }
   if (r.status === 401) { ls('fsq_stats_key', null); document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Wrong key.</p>'; return; }
   const D = await r.json().catch(() => ({ error: 'bad response' }));
   if (D.error) { out.innerHTML = '<p class="note">' + esc(D.error) + '</p>'; return; }
-  const T = D.totals || {}, mx = Math.max(1, ...D.daily.map(x => x.views));
+  const arr = name => Array.isArray(D[name]) ? D[name] : [];
+  const T = D.totals || {}, engagement = D.engagement || {}, sessions = D.sessions || {};
+  const daily = arr('daily'), countries = arr('countries'), cities = arr('cities');
+  const mx = Math.max(1, ...daily.map(x => Number(x.views) || 0));
+  const kpis = [
+    [T.views, 'page views'], [T.visitors, 'unique visitors'], [T.ips, 'unique IPs'],
+    [countries.length, 'countries'], [fmtDuration(engagement.avg_seconds), 'avg visible time'],
+    [sessions.avg_pages == null ? '—' : Number(sessions.avg_pages).toFixed(1), 'pages / session']
+  ];
+  const durationRows = [{
+    measured: engagement.measured, avg: engagement.avg_seconds, max: engagement.max_seconds,
+    sessions: sessions.sessions, avgPages: sessions.avg_pages, maxPages: sessions.max_pages,
+    avgSessionTime: sessions.avg_visible_seconds
+  }];
   out.innerHTML =
-    '<div class="kpis">' + [[T.views, 'views'], [T.visitors, 'unique visitors'], [T.ips, 'unique IPs'], [D.countries.length, 'countries'], [D.cities.length, 'cities']].map(([a, b]) => '<div class="kpi"><b>' + (a ?? 0).toLocaleString('en-US') + '</b><span>' + b + '</span></div>').join('') + '</div>' +
-    '<div class="chart" title="views per day (UTC)">' + D.daily.map(x => '<i style="height:' + Math.round(100 * x.views / mx) + '%" title="' + esc(x.d) + ': ' + x.views + ' views, ' + x.visitors + ' visitors"></i>').join('') + '</div>' +
+    '<div class="kpis">' + kpis.map(([a, b]) => '<div class="kpi"><b>' + esc(typeof a === 'number' ? a.toLocaleString('en-US') : (a ?? '—')) + '</b><span>' + esc(b) + '</span></div>').join('') + '</div>' +
+    '<div class="chart" title="views per day (UTC)">' + daily.map(x => '<i style="height:' + Math.round(100 * (Number(x.views) || 0) / mx) + '%" title="' + esc(x.d) + ': ' + esc(x.views) + ' views, ' + esc(x.visitors) + ' visitors"></i>').join('') + '</div>' +
     '<div class="grid">' +
-    table('Pages', D.paths, [['path', 0, r => '<a href="' + esc(r.path) + '">' + esc(r.path) + '</a>'], ['n', 1], ['u', 1, r => r.u + ' u']]) +
-    table('Countries', D.countries, [['country'], ['n', 1], ['u', 1, r => r.u + ' u']]) +
-    table('Cities', D.cities, [['city', 0, r => esc(r.city || '—') + ' <span class="muted">' + esc(r.country || '') + '</span>'], ['n', 1], ['u', 1, r => r.u + ' u']]) +
-    table('Referrers', D.refs, [['ref', 0, r => '<span title="' + esc(r.ref) + '">' + refHtml(r.ref) + '</span>'], ['n', 1]]) +
-    table('Networks', D.orgs, [['org', 0, r => esc(r.org || '—') + ' <span class="muted">AS' + esc(r.asn || '?') + '</span>'], ['n', 1], ['ips', 1, r => r.ips + ' IPs']]) +
-    table('Latest views', D.recent, [['ts', 0, r => '<span class="muted">' + when(r.ts) + '</span>'], ['path', 0, r => esc(r.path)],
-      ['ip', 0, r => esc(r.ip) + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + ' · ' + esc(r.org || '') + '</span>'],
-      ['ua', 0, r => '<span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + refHtml(r.ref) : '') + ' · ' + esc((r.vid || '').slice(0, 6)) + '</span>']], 'full') +
-    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or the IP when the browser keeps no storage).</p>';
+    table('Pages', arr('paths'), [['path', 0, r => '<a href="' + esc(r.path) + '">' + esc(r.path) + '</a>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Countries', countries, [['country'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Cities', cities, [['city', 0, r => esc(r.city || '—') + ' <span class="muted">' + esc(r.country || '') + '</span>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Referrers', arr('refs'), [['ref', 0, r => '<span title="' + esc(r.ref) + '">' + refHtml(r.ref) + '</span>'], ['n', 1]]) +
+    table('Networks', arr('orgs'), [['org', 0, r => esc(r.org || '—') + ' <span class="muted">AS' + esc(r.asn || '?') + '</span>'], ['n', 1], ['ips', 1, r => fmtNumber(r.ips) + ' IPs']]) +
+    table('Browser languages', arr('languages'), [['lang'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Device types', arr('devices'), [['dev'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Screen sizes (CSS px @ DPR)', arr('screens'), [['scr'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Device time zones · local vs Cloudflare', arr('deviceTimezones'), [['dtz', 0, r => esc(r.dtz || '—') + (r.tz && r.tz !== r.dtz ? '<br><span class="muted">IP timezone: ' + esc(r.tz) + '</span>' : (r.tz ? '<br><span class="muted">IP timezone agrees</span>' : ''))], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Android models (when reported)', arr('models'), [['model'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Approx. postal areas', arr('postals'), [['postal', 0, r => esc(r.postal || '—') + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + '</span>'], ['n', 1], ['u', 1, r => fmtNumber(r.u) + ' u']]) +
+    table('Engagement · time the page was visible', durationRows, [
+      ['measured', 0, r => 'Measured views: ' + fmtNumber(r.measured)],
+      ['avg', 0, r => 'Average page time: ' + fmtDuration(r.avg)],
+      ['max', 0, r => 'Longest page time: ' + fmtDuration(r.max)],
+      ['sessions', 0, r => 'Sessions: ' + fmtNumber(r.sessions)],
+      ['avgPages', 0, r => 'Average pages/session: ' + fmtNumber(r.avgPages)],
+      ['maxPages', 0, r => 'Max pages/session: ' + fmtNumber(r.maxPages)],
+      ['avgSessionTime', 0, r => 'Average measured session time: ' + fmtDuration(r.avgSessionTime)]
+    ], 'full') +
+    table('Latest views', arr('recent'), [['ts', 0, r => '<span class="muted">' + when(r.ts) + '</span>'], ['path', 0, r => esc(r.path)],
+      ['ip', 0, r => esc(r.ip) + '<br><span class="muted">' + esc([r.city, r.region, r.country].filter(Boolean).join(', ')) + (r.postal ? ' · ZIP ' + esc(r.postal) : '') + ' · ' + esc(r.org || '') + '</span>'],
+      ['ua', 0, r => {
+        const meta = [
+          r.dev || '', r.model ? 'model ' + r.model : '', r.scr ? 'screen ' + r.scr : '',
+          r.lang ? 'lang ' + r.lang : '', r.dtz ? 'device TZ ' + r.dtz : '',
+          r.tz ? 'IP TZ ' + r.tz : '', r.dur !== null && r.dur !== undefined ? 'visible ' + fmtDuration(r.dur) : ''
+        ].filter(Boolean).map(esc).join(' · ');
+        return '<span class="muted">' + esc(agent(r.ua)) + (r.ref ? ' · from ' + refHtml(r.ref) : '') +
+          ' · ' + esc((r.vid || '').slice(0, 6)) + (meta ? '<br>' + meta : '') + '</span>';
+      }]], 'full') +
+    '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model.</p>';
 }
 document.getElementById('save').onclick = () => { const v = document.getElementById('key').value.trim(); if (v) { ls('fsq_stats_key', v); document.getElementById('keybar').hidden = true; load(); } };
 document.getElementById('key').onkeydown = e => { if (e.key === 'Enter') document.getElementById('save').click(); };

@@ -1484,13 +1484,47 @@ if __name__ == "__main__":
     _cf_beacon = ("<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' "
                   "data-cf-beacon='{\"token\": \"096ba3d9093f4c629948d81ef8438a34\"}'></script><!-- End Cloudflare Web Analytics -->")
     # Plus our own counter (functions/api/hit.js → D1 `visits`, private view in
-    # visits.html): one sendBeacon per page view with the path, referrer, a random
-    # visitor id from localStorage and the owner flag. Every failure is swallowed.
-    _hit_js = ("<script>(function(){try{var s=localStorage,v=s.getItem('fsq_vid');"
-               "if(!v){v=Math.random().toString(36).slice(2)+Date.now().toString(36);s.setItem('fsq_vid',v)}"
-               "var p=location.pathname+(/venue\\.html$/.test(location.pathname)?location.hash:'');"
-               "navigator.sendBeacon('/api/hit',JSON.stringify({p:p,r:document.referrer||'',v:v,"
-               "o:s.getItem('fsq_owner')==='1'?1:0}))}catch(e){}})();</script>")
+    # visits.html): one page-view beacon with path/referrer/visitor ID plus browser
+    # language, device timezone, screen, device type and owner flag. Later beacons
+    # patch the Android model (when exposed) and visible duration onto that exact row.
+    _hit_js = r"""<script>(function(){
+try {
+  var s=localStorage, v=s.getItem('fsq_vid');
+  if(!v){v=Math.random().toString(36).slice(2)+Date.now().toString(36);s.setItem('fsq_vid',v)}
+  var p=location.pathname+(/venue\.html$/.test(location.pathname)?location.hash:'');
+  var k=Math.random().toString(36).slice(2,12)+Date.now().toString(36);
+  var ua=navigator.userAgent||'', mobile=false, tablet=false;
+  try { if(navigator.userAgentData && typeof navigator.userAgentData.mobile==='boolean') mobile=navigator.userAgentData.mobile; } catch(e){}
+  tablet=/iPad|Tablet|PlayBook|Silk/i.test(ua) ||
+    (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1) ||
+    (/Android/i.test(ua) && !/Mobile/i.test(ua));
+  var dev=tablet?'tablet':((mobile||/Mobi|iPhone|iPod|Windows Phone/i.test(ua))?'phone':'desktop');
+  var tz='', scr='';
+  try { tz=Intl.DateTimeFormat().resolvedOptions().timeZone||''; } catch(e){}
+  try { var sc=window.screen; if(sc) scr=String(sc.width)+'x'+String(sc.height)+'@'+String(window.devicePixelRatio||1); } catch(e){}
+  function send(data){try{navigator.sendBeacon('/api/hit',JSON.stringify(data))}catch(e){}}
+  send({p:p,r:document.referrer||'',v:v,k:k,o:s.getItem('fsq_owner')==='1'?1:0,
+    l:navigator.language||'',z:tz,s:scr,d:dev});
+  // High-entropy client hints expose the Android model only in browsers that permit it.
+  try {
+    if(navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      navigator.userAgentData.getHighEntropyValues(['model']).then(function(h){
+        if(h && h.model) send({t:'meta',p:p,v:v,k:k,m:String(h.model).slice(0,60)});
+      }).catch(function(){});
+    }
+  } catch(e){}
+  var visibleStart=document.visibilityState==='hidden'?0:Date.now(), visibleMs=0;
+  function durationBeacon(){
+    if(visibleStart){visibleMs+=Math.max(0,Date.now()-visibleStart);visibleStart=0;}
+    send({t:'leave',p:p,v:v,k:k,dur:Math.min(86400,Math.round(visibleMs/1000))});
+  }
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='hidden') durationBeacon();
+    else if(!visibleStart) visibleStart=Date.now();
+  });
+  window.addEventListener('pagehide',durationBeacon);
+} catch(e){}
+})();</script>"""
     _n_beacon = _n_hit = 0
     for _html in Path(args.output_dir).glob("*.html"):
         _txt = _html.read_text(encoding="utf-8")

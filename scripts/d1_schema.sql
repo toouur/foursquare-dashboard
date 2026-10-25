@@ -201,8 +201,8 @@ CREATE INDEX IF NOT EXISTS idx_visits_ts ON visits(ts);
 -- lang = navigator.language, dtz = the device's own timezone (vs tz from the IP),
 -- scr = screen "WxH@dpr", dev = phone / tablet / desktop, model = Android model
 -- from client hints when the browser gives it, postal = Cloudflare's postal code
--- for the IP (coarse), dur = seconds the page was visible (a second beacon on
--- leave updates the row: one more row written per view, no extra index).
+-- for the IP (coarse), dur = visible seconds; view_id lets later model/time
+-- beacons update the exact row without another index or extra page-view row.
 ALTER TABLE visits ADD COLUMN lang TEXT;
 ALTER TABLE visits ADD COLUMN dtz TEXT;
 ALTER TABLE visits ADD COLUMN scr TEXT;
@@ -210,6 +210,7 @@ ALTER TABLE visits ADD COLUMN dev TEXT;
 ALTER TABLE visits ADD COLUMN model TEXT;
 ALTER TABLE visits ADD COLUMN postal TEXT;
 ALTER TABLE visits ADD COLUMN dur INTEGER;
+ALTER TABLE visits ADD COLUMN view_id TEXT;
 
 
 CREATE VIRTUAL TABLE IF NOT EXISTS venues_fts USING fts5(name, category, city, country, content='venues', content_rowid='rowid');
