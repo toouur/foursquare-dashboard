@@ -7,7 +7,7 @@
  * Own page-view counter (Cloudflare Web Analytics has no IPs, cities or unique
  * visitors). Every page sends one navigator.sendBeacon('/api/hit', {p, r, v, o})
  * — the snippet is injected by build.py next to the Web Analytics beacon:
- *   p  path (+ #hash on venue.html, where the hash IS the page)
+ *   p  path (+ #hash on /venue[.html], where the hash IS the page)
  *   r  document.referrer
  *   v  random visitor id from localStorage (no cookie)
  *   o  1 when this browser belongs to the owner (set by opening visits.html)
@@ -41,12 +41,13 @@ const clip = (s, n) => (typeof s === 'string' ? s.slice(0, n) : null);
 
 // Coarse device signature from metadata already collected for ordinary analytics.
 // It groups similar browser profiles; it is not a guaranteed physical-device ID.
+// The model is left out on purpose: it arrives later in the {t:'meta'} beacon and
+// only sometimes, so hashing it would split one browser into two fingerprints.
 async function deviceFingerprint(ua, body) {
   try {
     const parts = [
       ua.slice(0, 300), clip(body.l, 35) || '', clip(body.z, 64) || '',
-      clip(body.s, 24) || '', ['phone', 'tablet', 'desktop'].includes(body.d) ? body.d : '',
-      clip(body.m, 60) || ''
+      clip(body.s, 24) || '', ['phone', 'tablet', 'desktop'].includes(body.d) ? body.d : ''
     ];
     const bytes = new TextEncoder().encode(parts.join('|'));
     const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -87,10 +88,9 @@ export async function onRequestPost({ request, env }) {
           }
         } else {
           const model = clip(body.m, 60);
-          const fp = await deviceFingerprint(ua, body);
-          if (model || fp) {
-            await env.DB.prepare('UPDATE visits SET model = COALESCE(?, model), fp = COALESCE(?, fp)' + match)
-              .bind(model, fp, now - 26 * 3600, vid, path, viewId).run();
+          if (model) {
+            await env.DB.prepare('UPDATE visits SET model = ?' + match)
+              .bind(model, now - 26 * 3600, vid, path, viewId).run();
           }
         }
       }

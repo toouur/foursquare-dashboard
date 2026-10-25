@@ -1491,7 +1491,7 @@ if __name__ == "__main__":
 try {
   var s=localStorage, v=s.getItem('fsq_vid');
   if(!v){v=Math.random().toString(36).slice(2)+Date.now().toString(36);s.setItem('fsq_vid',v)}
-  var p=location.pathname+(/venue\.html$/.test(location.pathname)?location.hash:'');
+  var p=location.pathname+(/\/venue(\.html)?$/.test(location.pathname)?location.hash:'');  // Pages serves /venue without .html
   var k=Math.random().toString(36).slice(2,12)+Date.now().toString(36);
   var ua=navigator.userAgent||'', mobile=false, tablet=false;
   try { if(navigator.userAgentData && typeof navigator.userAgentData.mobile==='boolean') mobile=navigator.userAgentData.mobile; } catch(e){}

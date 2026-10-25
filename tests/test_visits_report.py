@@ -4,6 +4,7 @@
 """visits_report — the weekly private digest of /api/hit page views."""
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -84,6 +85,9 @@ def test_hit_endpoint_guards():
     assert "BOT_RE.test(ua)" in js and "new URL(origin).host" in js   # bots and foreign origins dropped
     assert "MAX_PER_IP" in js and "VID_RE" in js and "VIEW_ID_RE" in js and "startsWith('//')" in js
     assert "body.t === 'meta'" in js and "view_id" in js and "body.t === 'leave'" in js
+    # the late model beacon must not re-hash the row: one browser = one fingerprint
+    fp_fn = js[js.index("async function deviceFingerprint"):js.index("export async function")]
+    assert "body.m" not in fp_fn and "fp = COALESCE" not in js
     vjs = (Path(__file__).resolve().parents[1] / "functions" / "api" / "visits.js").read_text(encoding="utf-8")
     assert "env.STATS_KEY" in vjs and "401" in vjs                    # closed by default
     assert "deviceTimezones" in vjs and "languages" in vjs and "postals" in vjs
@@ -273,3 +277,21 @@ def test_ping_marks_a_local_copy_referrer():
     assert not vr.is_local_referrer("https://10times.com/")
     assert not vr.is_local_referrer("http://127.999.0.1/")
     assert not vr.is_local_referrer(None)
+
+
+def test_hit_beacon_keeps_venue_hash_on_pretty_urls():
+    """Cloudflare Pages serves venue.html as /venue — the #id must survive both forms."""
+    import shutil
+    import subprocess
+
+    import pytest
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not installed")
+    build = (Path(__file__).resolve().parents[1] / "scripts" / "build.py").read_text(encoding="utf-8")
+    line = next(ln for ln in build.splitlines() if "var p=location.pathname" in ln).strip()
+    expr = line[len("var p="):line.index(";")]
+    js = ("const cases=[['/venue','#abc'],['/venue.html','#abc'],['/venues','#x'],['/','#y']];"
+          "console.log(JSON.stringify(cases.map(([pathname,hash])=>{const location={pathname,hash};return " + expr + ";})));")
+    out = subprocess.run([node, "-e", js], capture_output=True, text=True, check=True).stdout
+    assert json.loads(out) == ["/venue#abc", "/venue.html#abc", "/venues", "/"]
