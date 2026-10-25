@@ -7,12 +7,22 @@
 # (TELEGRAM_CHAT_ID, never the public on-this-day channel). The same run deletes
 # rows older than 90 days. Reads/writes D1 only; never touches the data repo.
 #
-# Every 3 h the same job runs `--ping`: a short note of the visitors since the
-# previous ping (watermark in D1 sync_state), sent only when there were any.
+# On tracking/schema pushes, run an idempotent D1 migration as --dry-run before
+# relying on new columns. It prints diagnostics but never sends a message or prunes.
+# Every 3 h the same job runs `--ping`: visitors since the previous ping (watermark
+# in D1 sync_state), sent only when there were any.
 
 name: Visits report (weekly)
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/api/hit.js'
+      - 'functions/api/visits.js'
+      - 'scripts/d1_schema.sql'
+      - 'scripts/visits_report.py'
+      - '.github/workflows/visits-report.yml'
   schedule:
     - cron: '0 7 * * 1'      # Monday 07:00 UTC — the weekly digest
     - cron: '20 */3 * * *'   # every 3 h — the short ping (silent without visitors)
@@ -58,4 +68,4 @@ jobs:
           cd scripts
           python visits_report.py \
             ${{ (github.event.schedule == '20 */3 * * *' || inputs.ping) && '--ping' || '' }} \
-            ${{ inputs.dry_run && '--dry-run' || '' }}
+            ${{ (inputs.dry_run || github.event_name == 'push') && '--dry-run' || '' }}
