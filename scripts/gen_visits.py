@@ -63,7 +63,7 @@ td.n{text-align:right;font-family:'DM Mono',monospace;color:var(--teal);white-sp
 <h1>Visits</h1>
 <div class="muted">private · views of this site from /api/hit · the owner's own browser is excluded</div>
 <div class="bar" id="keybar" hidden><input id="key" type="password" placeholder="STATS_KEY" autocomplete="off"><button id="save">Unlock</button></div>
-<div class="bar" id="ctl"><button data-d="1">24 h</button><button data-d="7">7 days</button><button data-d="30" class="on">30 days</button><button data-d="90">90 days</button><button id="forget">Forget key</button></div>
+<div class="bar" id="ctl"><button data-d="1">24 h</button><button data-d="7">7 days</button><button data-d="30" class="on">30 days</button><button data-d="90">90 days</button><button id="export" disabled>Download JSON</button><label style="font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:5px"><input id="mask-ips" type="checkbox" checked style="accent-color:var(--teal)"> Mask IPs in export</label><button id="forget">Forget key</button></div>
 <div id="out"><p class="note">Loading…</p></div>
 </div>
 <script>
@@ -71,6 +71,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } };
 ls('fsq_owner', '1');                       // this browser is the owner's: its own views stop counting
 let days = 30;
+let exportData = null;
+const exportButton = document.getElementById('export');
 const out = document.getElementById('out');
 function table(title, rows, cols, cls) {
   return '<div class="card ' + (cls || '') + '"><h2>' + title + '</h2><table>' + (rows.length ? rows.map(r => '<tr>' + cols.map(([k, n, f]) => '<td' + (n ? ' class="n"' : '') + '>' + (f ? f(r) : esc(r[k] ?? '—')) + '</td>').join('') + '</tr>').join('') : '<tr><td class="muted">nothing yet</td></tr>') + '</table></div>';
@@ -117,6 +119,8 @@ const fmtNumber = value => value === null || value === undefined || value === ''
 const agent = ua => { ua = ua || ''; const b = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '?';
   const o = /iPhone|iPad/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '?'; return b + ' · ' + o; };
 async function load() {
+  exportData = null;
+  exportButton.disabled = true;
   const key = ls('fsq_stats_key');
   if (!key) { document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Enter the STATS_KEY set in Cloudflare Pages → Settings → Variables and secrets.</p>'; return; }
   out.innerHTML = '<p class="note">Loading…</p>';
@@ -126,6 +130,8 @@ async function load() {
   if (r.status === 401) { ls('fsq_stats_key', null); document.getElementById('keybar').hidden = false; out.innerHTML = '<p class="note">Wrong key.</p>'; return; }
   const D = await r.json().catch(() => ({ error: 'bad response' }));
   if (D.error) { out.innerHTML = '<p class="note">' + esc(D.error) + '</p>'; return; }
+  exportData = D;
+  exportButton.disabled = false;
   const arr = name => Array.isArray(D[name]) ? D[name] : [];
   const T = D.totals || {}, engagement = D.engagement || {}, sessions = D.sessions || {};
   const daily = arr('daily'), countries = arr('countries'), cities = arr('cities');
@@ -190,6 +196,29 @@ async function load() {
       }]], 'full') +
     '</div><p class="note">Kept 90 days. Times UTC. “u” = distinct visitors (browser id, or IP if storage is unavailable). A session groups page views separated by no more than 30 minutes. Page time counts visible-tab time, not time left open in a background tab. Postal code is an approximate Cloudflare IP-derived area; client hints may omit the device model. Device fingerprints are SHA-256 signatures of already-collected browser metadata, not proof of a unique physical device. IP visit counts split activity into sessions after 30 minutes of inactivity.</p>';
 }
+exportButton.onclick = () => {
+  if (!exportData) return;
+  const payload = JSON.parse(JSON.stringify(exportData));
+  if (document.getElementById('mask-ips').checked) {
+    const mask = ip => {
+      if (!ip) return ip;
+      if (String(ip).includes(':')) return String(ip).split(':').slice(0, 4).join(':') + '::';
+      const parts = String(ip).split('.');
+      return parts.length === 4 ? parts.slice(0, 3).join('.') + '.x' : ip;
+    };
+    for (const row of (payload.ipStats || [])) row.ip = mask(row.ip);
+    for (const row of (payload.recent || [])) row.ip = mask(row.ip);
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '4sq-visits-' + days + 'd-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 document.getElementById('save').onclick = () => { const v = document.getElementById('key').value.trim(); if (v) { ls('fsq_stats_key', v); document.getElementById('keybar').hidden = true; load(); } };
 document.getElementById('key').onkeydown = e => { if (e.key === 'Enter') document.getElementById('save').click(); };
 document.getElementById('forget').onclick = () => { ls('fsq_stats_key', null); load(); };
