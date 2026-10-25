@@ -180,6 +180,84 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   .dh-name{font-size:.90rem;}
   .vcard{padding:8px 10px 7px;}
 }
+
+/* ── new look: an index of cover tiles, then one list with its map ── */
+.page-insight{display:none;}
+.lists-hero{padding:26px 28px 6px;flex-shrink:0;}
+.lh-eyebrow{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);}
+.lists-hero h1{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(1.9rem,4.4vw,3.4rem);line-height:1.02;margin:8px 0 6px;color:#eef0f6;}
+.lists-hero h1 em{font-style:normal;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.lists-hero p{color:var(--text2,#9aa3bd);font-size:.88rem;}
+.content.mode-index .detail-panel{display:none;}
+.content.mode-index .lists-panel{width:100%;border-right:none;background:none;display:flex;}
+.content.mode-detail .lists-panel{display:none !important;}
+.content.mode-detail ~ .lists-hero,.page.detail .lists-hero{display:none;}
+.lists-panel .lists-search-wrap,.lists-panel .sort-bar{border-bottom:none;padding:8px 28px 4px;}
+.lists-panel .lists-search-wrap{display:flex;}
+.lists-search{border-radius:999px;padding:10px 16px;font-size:.84rem;background:var(--card);}
+.sort-bar{gap:0;}
+.sort-bar{display:inline-flex;align-self:flex-start;margin-left:28px;padding:3px !important;background:var(--card);border:1px solid var(--border) !important;border-radius:999px;}
+.sort-btn{border:none;border-radius:999px;padding:7px 14px;font-size:.58rem;}
+.sort-btn.active{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);color:#1a1206;border:none;}
+.sort-btn:hover:not(.active){border:none;color:var(--text);}
+/* the grid sits in an inner box: in the fixed-height scroller itself its rows were squeezed to fit */
+.lists-scroll{padding:14px 80px 40px 28px;}
+.lt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+.lt{position:relative;display:block;aspect-ratio:4/3;border-radius:18px;overflow:hidden;color:#fff;text-decoration:none;isolation:isolate;cursor:pointer;background:linear-gradient(135deg,#4cb8ff,#9b7bff);}
+.lt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2;transition:transform .6s;}
+.lt:hover img{transform:scale(1.06);}
+.lt::after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(9,11,16,.05) 30%,rgba(9,11,16,.93));}
+.lt-ph{position:absolute;inset:0;display:grid;place-items:center;font-size:2.2rem;z-index:-1;opacity:.6;}
+.lt-b{position:absolute;left:0;right:0;bottom:0;padding:14px;}
+.lt-b .fi{border-radius:3px;margin-bottom:6px;}
+.lt-n{font-family:'Playfair Display',serif;font-weight:900;font-size:1.22rem;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lt-m{font-family:'DM Mono',monospace;font-size:.56rem;color:#d0d4e0;margin:4px 0 8px;}
+.lt-pr{height:5px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden;}
+.lt-pr i{display:block;height:100%;background:linear-gradient(90deg,#2fd6b5,#4cb8ff);}
+.lt-pv{font-family:'DM Mono',monospace;font-size:.55rem;color:#9ff0de;margin-top:5px;}
+.lists-empty{grid-column:1/-1;}
+/* one list: header + places on the left, the map beside them */
+.content.mode-detail .detail-panel{padding:16px 76px 16px 20px;}
+.content.mode-detail #detailContent{display:grid !important;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);grid-template-rows:auto auto minmax(0,1fr);gap:0 16px;background:var(--card);border:1px solid var(--border);border-radius:22px;padding:16px;overflow:hidden;}
+.content.mode-detail .detail-header{grid-column:1;grid-row:1;padding:0 0 10px;border-bottom:none;background:none;}
+.content.mode-detail #geobar{grid-column:1;grid-row:2;border-bottom:none;background:none;padding:0 0 8px;}
+.content.mode-detail #map{grid-column:2;grid-row:1/4;height:auto;min-height:420px;border-radius:16px;}
+.content.mode-detail .venues-scroll{grid-column:1;grid-row:3;padding:0 4px 0 0;}
+.dh-back{font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text2,#9aa3bd);background:none;border:none;cursor:pointer;padding:0 0 10px;}
+.dh-back:hover{color:var(--gold);}
+.dh-row{display:flex;gap:14px;align-items:center;}
+.dh-ring{position:relative;width:86px;height:86px;flex-shrink:0;}
+.dh-ring svg{width:100%;height:100%;transform:rotate(-90deg);}
+.dh-ring div{position:absolute;inset:0;display:grid;place-items:center;text-align:center;}
+.dh-ring b{display:block;font-family:'Playfair Display',serif;font-weight:900;font-size:1.05rem;line-height:1;background:linear-gradient(135deg,#2fd6b5,#4cb8ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.dh-ring span{font-family:'DM Mono',monospace;font-size:.44rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.dh-name{font-size:1.7rem;color:#eef0f6;}
+.dh-name a:hover{color:var(--gold);opacity:1;}
+.add-venue-btn{border-radius:999px;padding:6px 12px;font-size:.56rem;}
+.locate-btn{border-radius:999px;padding:6px 12px;}
+.vcard{border-radius:14px;}
+.vcard::after{display:none;}
+.vc-visited{border-radius:999px;padding:2px 7px;background:rgba(47,214,181,.15);border-color:transparent;color:#7ff0d8;}
+.vc-saved{border-radius:999px;padding:2px 7px;background:rgba(155,123,255,.15);border-color:transparent;color:#c7b6ff;}
+@media(min-width:700px){.content.mode-detail ~ #addVenueBar,#addVenueBar{left:20px;}}
+@media(max-width:900px){
+  .content.mode-detail .detail-panel{padding:10px;}
+  .content.mode-detail #detailContent{grid-template-columns:1fr;grid-template-rows:auto auto 260px auto;padding:12px;overflow:visible;}
+  .content.mode-detail #map{grid-column:1;grid-row:3;min-height:0;height:260px;}
+  .content.mode-detail .venues-scroll{grid-row:4;overflow:visible;}
+  .content.mode-detail{overflow-y:auto;}
+}
+@media(max-width:700px){
+  .content.mode-index .lists-panel{display:flex;}
+  .lists-hero{padding:18px 14px 4px;}
+  .lists-panel .lists-search-wrap{padding:6px 14px 4px;}
+  .sort-bar{margin-left:14px;}
+  .lists-scroll{padding:12px 14px 30px;}
+  .lt-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .lt-n{font-size:1rem;}
+  .lt-m{display:none;}
+  .dh-name{font-size:1.3rem;}
+}
 </style>
 </head>
 <body>
@@ -193,7 +271,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="gs-modal"><div class="gs-input-wrap"><span class="gs-icon">⌕</span><input class="gs-input" id="gsInput" type="text" placeholder="Search venues, cities, trips…" autocomplete="off" spellcheck="false"><span class="gs-esc-hint" onclick="gsClose()">esc</span></div></div>
 </div>
 <div class="page-insight" id="page-insight"></div>
-  <div class="content">
+  <div class="lists-hero" id="listsHero"><div class="lh-eyebrow">Lists · curated on Foursquare</div><h1 id="lhTitle">Lists</h1><p id="lhSub"></p></div>
+  <div class="content mode-index" id="contentEl">
     <div class="lists-panel" id="listsPanel">
       <div class="lists-search-wrap">
         <input class="lists-search" id="listSearch" type="text" placeholder="Filter lists…" oninput="filterLists(this.value)" autocomplete="off">
@@ -593,14 +672,18 @@ function renderListItems(){
     el.innerHTML = '<div class="lists-empty">No lists found</div>';
     return;
   }
-  el.innerHTML = filteredLists.map((lst, fi)=>{
+  el.innerHTML = '<div class="lt-grid">' + filteredLists.map((lst, fi)=>{
     const origIdx = LISTS.indexOf(lst);
-    const thumb = lst.cover
-      ? `<img class="li-thumb" src="${esc(lst.cover)}" alt="" loading="lazy" onerror="this.style.display='none'">`
-      : `<div class="li-thumb-ph">📋</div>`;
-    const sel = origIdx === selIdx ? ' sel' : '';
-    return `<div class="list-item${sel}" onclick="selectList(${origIdx})">${thumb}<div class="li-body"><div class="li-name">${esc(lst.name)}</div><div class="li-count">${lst.count} venues</div></div></div>`;
-  }).join('');
+    // the list's own cover, asked at 600×400 instead of the 100×100 thumbnail
+    const cover = lst.cover ? `<img src="${esc(lst.cover.replace('/100x100/','/600x400/'))}" alt="" loading="lazy" onerror="this.remove()">` : '';
+    const v = (lst.venues||[]).filter(x=>x.visited).length, pct = Math.round(100*v/Math.max(1,lst.count||0));
+    const ct = {}; (lst.venues||[]).forEach(x=>{const c=x.nc||x.country; if(c) ct[c]=(ct[c]||0)+1;});
+    const top = Object.entries(ct).sort((a,b)=>b[1]-a[1])[0];
+    const upd = lst.updatedAt ? new Date(lst.updatedAt*1000).toLocaleDateString('en-GB',{month:'short',year:'numeric'}) : '';
+    return `<a class="lt" onclick="selectList(${origIdx})">${cover||'<span class="lt-ph">📋</span>'}<div class="lt-b">${top?flagHtml(top[0]):''}
+      <div class="lt-n" title="${esc(lst.name)}">${esc(lst.name)}</div><div class="lt-m">${(lst.count||0).toLocaleString('en-US')} places${upd?' · updated '+upd:''}</div>
+      <div class="lt-pr"><i style="width:${pct}%"></i></div><div class="lt-pv">${v.toLocaleString('en-US')} visited · ${pct}%</div></div></a>`;
+  }).join('') + '</div>';
 }
 
 function filterLists(q){
@@ -608,11 +691,19 @@ function filterLists(q){
   renderListItems();
 }
 
+function showIndex(){
+  document.getElementById('contentEl').className='content mode-index';
+  document.getElementById('listsHero').style.display='';
+  if(location.hash) history.replaceState(null,'',location.pathname);
+}
 function selectList(idx){
   selIdx = idx;
-  renderListItems();
   const lst = LISTS[idx];
   if(!lst) return;
+  document.getElementById('contentEl').className='content mode-detail';
+  document.getElementById('listsHero').style.display='none';
+  history.replaceState(null,'','#list-'+lst.id);
+  window.scrollTo(0,0);
 
   // Reset add bar for new list
   _customListId = lst.id;
@@ -631,14 +722,19 @@ function selectList(idx){
   // Header
   const visitedCount = (lst.venues||[]).filter(v=>v.visited).length;
   const withCoords = (lst.venues||[]).filter(v=>v.lat&&v.lng).length;
+  const pctV = visitedCount/Math.max(1,lst.count||0), RR=36, CC=2*Math.PI*RR;
   document.getElementById('detailHeader').innerHTML = `
+    <button class="dh-back" onclick="showIndex()">← All lists</button>
+    <div class="dh-row"><div class="dh-ring"><svg viewBox="0 0 86 86"><circle cx="43" cy="43" r="${RR}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="8"/>
+      <circle cx="43" cy="43" r="${RR}" fill="none" stroke="#2fd6b5" stroke-width="8" stroke-linecap="round" stroke-dasharray="${(CC*pctV).toFixed(1)} ${CC.toFixed(1)}"/></svg>
+      <div><div><b>${Math.round(100*pctV)}%</b><span>visited</span></div></div></div><div style="min-width:0">
     <div class="dh-name">${lst.url?`<a href="${esc(lst.url)}" target="_blank" rel="noopener">${esc(lst.name)}</a>`:esc(lst.name)}</div>
     <div class="dh-meta">
       <span>${lst.count} venues</span>
-      <span class="dh-visited">✓ ${visitedCount} visited</span>
+      <span class="dh-visited">✓ ${visitedCount} visited</span><span>${(lst.count||0)-visitedCount} to go</span>
       ${withCoords?`<span>${withCoords} on map</span>`:''}
     </div>
-    <button class="add-venue-btn" id="addVenueToggle" onclick="toggleAddBar()">+ Add venue</button>`;
+    <button class="add-venue-btn" id="addVenueToggle" onclick="toggleAddBar()">+ Add venue</button></div></div>`;
 
   // Map
   const mapEl = document.getElementById('map');
@@ -654,7 +750,7 @@ function selectList(idx){
     const bounds = [];
     (lst.venues||[]).forEach((v,vi)=>{
       if(!v.lat||!v.lng) return;
-      const col = v.visited ? '#4ec9b0' : '#e8b86d';
+      const col = v.visited ? '#2fd6b5' : '#9b7bff';   // been · to go (same as the badges)
       const m = L.circleMarker([parseFloat(v.lat),parseFloat(v.lng)],{radius:5,fillColor:col,fillOpacity:.75,color:col,weight:1,_baseCol:col}).addTo(map);
       const loc = [v.nci||v.city,v.nc||v.country].filter(Boolean).join(', ');
       const fsqLink = v.u ? `<br><a href="${esc(v.u)}" target="_blank" rel="noopener" style="font-size:.72rem;color:#4ec9b0;">Foursquare ↗</a>` : '';
@@ -1063,7 +1159,14 @@ function _renderCustomVenues(customs) {
 
 _applySortFilter('');
 renderListItems();
-if(filteredLists.length) selectList(LISTS.indexOf(filteredLists[0]));
+(function(){
+  const tv=LISTS.reduce((a,l)=>a+(l.count||0),0), vv=LISTS.reduce((a,l)=>a+(l.venues||[]).filter(v=>v.visited).length,0);
+  document.getElementById('lhTitle').innerHTML=LISTS.length+' lists, <em>'+tv.toLocaleString('en-US')+' places</em>';
+  document.getElementById('lhSub').textContent=vv.toLocaleString('en-US')+' of them already visited ('+Math.round(100*vv/Math.max(1,tv))+'%). Open a list for its map and places.';
+  const m=(location.hash||'').match(/^#list-(.+)$/);
+  const i=m?LISTS.findIndex(l=>l.id===m[1]):-1;
+  if(i>=0) selectList(i);
+})();
 </script>
 <script>
 function gsOpen(){document.getElementById('gsOverlay').classList.add('open');document.getElementById('gsInput').focus();}
