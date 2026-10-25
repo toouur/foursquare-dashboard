@@ -4,6 +4,8 @@
 /**
  * Private aggregates for the owner's visits.html, backed by /api/hit.
  * Guarded by STATS_KEY; no-store; always return structured JSON errors.
+ * POST {action:'clear', confirm:'clear'} (same key) deletes every view recorded
+ * so far, so the owner can start monitoring from zero.
  */
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
   status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -79,11 +81,29 @@ function sameKey(a, b) {
   return d === 0;
 }
 
-export async function onRequestGet({ request, env }) {
+function authorized(request, env) {
   const sent = request.headers.get('X-Stats-Key') || '';
-  if (!env.STATS_KEY || !(sameKey(sent, encodeURIComponent(env.STATS_KEY)) || sameKey(sent, env.STATS_KEY))) {
-    return json({ error: 'unauthorized' }, 401);
+  return !!env.STATS_KEY && (sameKey(sent, encodeURIComponent(env.STATS_KEY)) || sameKey(sent, env.STATS_KEY));
+}
+
+export async function onRequestPost({ request, env }) {
+  if (!authorized(request, env)) return json({ error: 'unauthorized' }, 401);
+  if (!env.DB) return json({ error: 'D1 unavailable' }, 503);
+  let body = {};
+  try { body = JSON.parse(await request.text()); } catch { body = {}; }
+  // the literal confirm word keeps a stray or replayed request from wiping the table
+  if (body.action !== 'clear' || body.confirm !== 'clear') return json({ error: 'expected {action:"clear", confirm:"clear"}' }, 400);
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const r = await env.DB.prepare('DELETE FROM visits WHERE ts <= ?').bind(now).run();
+    return json({ deleted: (r && r.meta && r.meta.changes) || 0, before: now });
+  } catch (e) {
+    return json({ error: 'D1 delete failed', detail: String(e && e.message || e) }, 503);
   }
+}
+
+export async function onRequestGet({ request, env }) {
+  if (!authorized(request, env)) return json({ error: 'unauthorized' }, 401);
   if (!env.DB) return json({ error: 'D1 unavailable' }, 503);
 
   try {

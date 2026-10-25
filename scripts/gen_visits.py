@@ -12,7 +12,8 @@ Opening it also marks this browser as the owner's (localStorage
 leave them out; a toggle switches it back to "visitor" (to test the counter),
 and `?fsq_owner=1|0` on any page does the same without the key. It also lists
 sessions (page sequence and duration) and where they came from (utm tags and
-off-site referrers). noindex, not in the nav or the sitemap.
+off-site referrers). "Clear all visits" deletes every recorded view (after a typed
+confirmation) to start monitoring from zero. noindex, not in the nav or the sitemap.
 """
 from __future__ import annotations
 
@@ -65,6 +66,7 @@ td.n{text-align:right;font-family:'DM Mono',monospace;color:var(--teal);white-sp
 .tag{display:inline-block;font-family:'DM Mono',monospace;font-size:.6rem;border-radius:999px;padding:1px 7px;border:1px solid var(--border);color:var(--muted);}
 .tag.utm{color:#1a1206;background:var(--teal);border-color:var(--teal);} .tag.referrer{color:var(--gold);border-color:var(--gold);}
 .tag.owner{color:var(--rose);border-color:var(--rose);}
+.bar button.danger{color:var(--rose);border-color:var(--rose);} .bar button.danger:hover{background:var(--rose);color:#1a0a0e;}
 </style>
 </head>
 <body>
@@ -73,7 +75,7 @@ td.n{text-align:right;font-family:'DM Mono',monospace;color:var(--teal);white-sp
 <div class="muted">private · views of this site from /api/hit · <span id="owner-note">the owner's own browsers are excluded</span></div>
 <div class="bar" id="keybar" hidden><input id="key" type="password" placeholder="STATS_KEY" autocomplete="off"><button id="save">Unlock</button></div>
 <div class="bar" id="ctl"><button data-d="1">24 h</button><button data-d="7">7 days</button><button data-d="30" class="on">30 days</button><button data-d="90">90 days</button><button id="export" disabled>Download JSON</button><label style="font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:5px"><input id="mask-ips" type="checkbox" checked style="accent-color:var(--teal)"> Mask IPs in export</label><button id="forget">Forget key</button></div>
-<div class="bar" id="own"><button id="owner-toggle" title="Owner browsers are flagged owner = 1 and left out of the stats. Any page also accepts ?fsq_owner=1 or ?fsq_owner=0."></button><label style="font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:5px"><input id="with-owner" type="checkbox" style="accent-color:var(--teal)"> Include owner views</label></div>
+<div class="bar" id="own"><button id="owner-toggle" title="Owner browsers are flagged owner = 1 and left out of the stats. Any page also accepts ?fsq_owner=1 or ?fsq_owner=0."></button><label style="font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:5px"><input id="with-owner" type="checkbox" style="accent-color:var(--teal)"> Include owner views</label><button id="clear" class="danger" title="Delete every recorded view (all periods, owner views too) and start from zero">Clear all visits…</button></div>
 <div id="out"><p class="note">Loading…</p></div>
 </div>
 <script>
@@ -264,6 +266,22 @@ document.getElementById('save').onclick = () => { const v = document.getElementB
 document.getElementById('key').onkeydown = e => { if (e.key === 'Enter') document.getElementById('save').click(); };
 document.getElementById('forget').onclick = () => { ls('fsq_stats_key', null); load(); };
 document.getElementById('with-owner').onchange = load;
+document.getElementById('clear').onclick = async () => {
+  const key = ls('fsq_stats_key');
+  if (!key) { load(); return; }
+  const typed = prompt('Delete ALL recorded visits (every period, owner views too)? This cannot be undone — download the JSON first if you need it.\n\nType clear to confirm:');
+  if (typed === null) return;
+  if (typed.trim().toLowerCase() !== 'clear') { alert('Not cleared: the confirmation word did not match.'); return; }
+  let r, D;
+  try {
+    r = await fetch('/api/visits', { method: 'POST', headers: { 'X-Stats-Key': encodeURIComponent(key), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'clear', confirm: 'clear' }) });
+    D = await r.json().catch(() => ({ error: 'bad response' }));
+  } catch (e) { alert('Request failed: ' + (e.message || e)); return; }
+  if (!r.ok || D.error) { alert('Not cleared: ' + (D.error || r.status)); return; }
+  alert('Cleared ' + D.deleted + ' views. Monitoring starts from zero.');
+  load();
+};
 document.querySelectorAll('#ctl button[data-d]').forEach(b => b.onclick = () => { days = +b.dataset.d; document.querySelectorAll('#ctl button[data-d]').forEach(x => x.classList.toggle('on', x === b)); load(); });
 load();
 </script>

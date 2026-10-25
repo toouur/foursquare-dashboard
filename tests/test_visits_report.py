@@ -152,7 +152,7 @@ def test_pages_functions_parse(tmp_path):
 def test_visits_page_renders_extended_analytics():
     page = (Path(__file__).resolve().parents[1] / "scripts" / "gen_visits.py").read_text(encoding="utf-8")
     for marker in ("Sources · where sessions start", "Off-site referrers", "UTM tags", "Sessions · page sequence",
-                   "owner-toggle", "with-owner", "Browser languages", "Device types", "Screen sizes", "Device time zones",
+                   "owner-toggle", "with-owner", "Clear all visits", "Browser languages", "Device types", "Screen sizes", "Device time zones",
                    "Android models", "Approx. postal areas", "engagement-grid", "average pages / session", "IP addresses · visits per IP", "Device fingerprints", "visible "):
         assert marker in page, marker
 
@@ -376,3 +376,23 @@ def test_visits_api_builds_sessions_and_sources(tmp_path):
     assert [s["start"] for s in out["list"]] == sorted((s["start"] for s in out["list"]), reverse=True)
     tally = {(s["kind"], s["source"]): s["sessions"] for s in out["sources"]}
     assert tally == {("direct", "direct"): 2, ("referrer", "t.me"): 1, ("utm", "tg / post"): 1, ("internal", "internal"): 1}
+
+
+def test_visits_clear_needs_key_and_confirm_word(tmp_path):
+    """POST /api/visits wipes the table only with STATS_KEY and the literal confirm word."""
+    import subprocess
+    node = _node_or_skip()
+    src = (Path(__file__).resolve().parents[1] / "functions" / "api" / "visits.js").read_text(encoding="utf-8")
+    mod = tmp_path / "visits.mjs"
+    mod.write_text(src, encoding="utf-8")
+    js = ("import { onRequestPost } from " + json.dumps(mod.as_uri()) + ";"
+          "const seen=[]; const env={STATS_KEY:'k', DB:{prepare:s=>({bind:(...a)=>({run:async()=>{seen.push([s,a.length]);return {meta:{changes:7}}}})})}};"
+          "const req=(key,body)=>new Request('https://x/api/visits',{method:'POST',headers:key?{'X-Stats-Key':key}:{},body:JSON.stringify(body)});"
+          "const out=[];"
+          "for (const [k,b] of [[null,{action:'clear',confirm:'clear'}],['bad',{action:'clear',confirm:'clear'}],['k',{action:'clear'}],['k',{action:'clear',confirm:'clear'}]]) {"
+          "  const r=await onRequestPost({request:req(k,b),env}); out.push([r.status, await r.json()]); }"
+          "console.log(JSON.stringify({out, seen}));")
+    res = json.loads(subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, text=True, check=True).stdout)
+    assert [s for s, _ in res["out"]] == [401, 401, 400, 200]
+    assert res["out"][3][1]["deleted"] == 7
+    assert res["seen"] == [["DELETE FROM visits WHERE ts <= ?", 1]]   # only the confirmed call touched D1
