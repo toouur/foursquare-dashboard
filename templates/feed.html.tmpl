@@ -177,6 +177,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 /* ── Gap indicators ── */
 
+/* thin divider where the day changes (weekday · date · check-ins · km that day) */
+.day-row{position:absolute;left:10px;right:10px;display:flex;align-items:center;gap:8px;pointer-events:none;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.06em;color:var(--muted);white-space:nowrap;overflow:hidden;}
+.day-row b{font-family:'Playfair Display',serif;font-size:.86rem;font-weight:700;letter-spacing:0;color:#ffc29b;}
+.day-row::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(255,154,107,.45),transparent);}
+.fc-stop{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:.55rem;font-weight:600;background:rgba(255,154,107,.16);color:#ffc29b;margin-top:1px;}
+.fcard.active .fc-stop{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);color:#1a1206;}
+.day-legend{position:absolute;z-index:500;top:14px;left:14px;max-width:calc(100% - 28px);background:rgba(14,16,24,.92);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:14px;padding:9px 14px;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text);pointer-events:none;}
+.day-legend:empty{display:none;}
+.day-legend b{display:block;font-family:'Playfair Display',serif;font-size:1rem;margin-bottom:2px;}
+.day-legend span{color:var(--muted);}
+.stop-dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 9px 'DM Mono',monospace;color:#1a1206;background:#ffc29b;box-shadow:0 0 0 2px rgba(9,11,16,.85);}
+.stop-dot.cur{width:30px;height:30px;font-size:11px;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);box-shadow:0 0 0 3px rgba(9,11,16,.9),0 0 18px rgba(255,111,174,.7);}
 .gap-row{position:absolute;left:10px;right:10px;display:flex;align-items:center;gap:7px;pointer-events:none;}
 
 .gap-line{flex:1;height:1px;}
@@ -205,7 +217,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
   position:absolute;left:8px;right:8px;
 
-  background:var(--card);border:1px solid var(--border);border-radius:11px;
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
 
   overflow:hidden;cursor:pointer;
 
@@ -219,7 +231,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 .fcard:hover{border-color:rgba(232,184,109,.3);}
 
-.fcard.active{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,184,109,.12),0 2px 16px rgba(232,184,109,.08);}
+.fcard.active{border-color:#ff9a6b;box-shadow:0 0 0 3px rgba(255,154,107,.12),0 8px 28px rgba(255,111,174,.10);}
 
 
 
@@ -376,6 +388,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
       <div id="map"></div>
 
+      <div class="day-legend" id="dayLegend"></div>
+
       <div class="prog"><div class="prog-fill" id="progFill"></div></div>
 
     </div>
@@ -495,6 +509,24 @@ const pinIcon=L.divIcon({className:'',html:'<div style="font-size:20px;filter:dr
 
 let curMark=null;
 
+// the active card's day, oldest stop first; the current stop drawn large
+let dayLayer=null, dayShown=null;
+function drawDay(i){
+  const ci=DATA[i]; if(!ci) return;
+  const o=DAYS[ci[1]], leg=document.getElementById('dayLegend');
+  if(dayLayer){map.removeLayer(dayLayer);dayLayer=null;}
+  if(!o||!o.pts.length){leg.innerHTML='';return;}
+  dayLayer=L.layerGroup().addTo(map);
+  if(o.pts.length>1) L.polyline(o.pts.map(p=>[p[0],p[1]]),{color:'#ff9a6b',weight:3,opacity:.8,dashArray:'6 6'}).addTo(dayLayer);
+  o.pts.forEach((p,k)=>{const cur=p[2]===i;
+    L.marker([p[0],p[1]],{zIndexOffset:cur?1000:0,icon:L.divIcon({className:'',html:`<div class="stop-dot${cur?' cur':''}">${k+1}</div>`,iconSize:cur?[30,30]:[20,20],iconAnchor:cur?[15,15]:[10,10]})})
+      .on('click',()=>activate(p[2],true)).addTo(dayLayer);});
+  leg.innerHTML=`<b>${esc(weekday(ci[1]))} · ${esc(ci[1])}</b>stop ${STOP[i]} of ${o.n}${o.km>=0.1?' · '+(o.km<100?o.km.toFixed(1):Math.round(o.km))+' km that day':''} <span>· ${esc(ci[3]||'')}</span>`;
+  // a new day frames the whole route; within the same day the map only pans
+  if(map.getContainer().offsetWidth&&dayShown!==ci[1]&&o.pts.length>1) map.fitBounds(o.pts.map(p=>[p[0],p[1]]),{padding:[70,70],maxZoom:15,animate:true});
+  dayShown=ci[1];
+}
+
 
 
 // Weather cache — hourly arrays keyed by lat,lng,date (matches index.html)
@@ -536,6 +568,8 @@ const GAP_PAD=8;
 const ITEM_STEP=CARD_H+6;
 
 const G={sm:14,md:22,lg:32};
+
+const DAY_H=30;   // the day divider above the first card of a day
 
 
 
@@ -626,11 +660,32 @@ const GAP_NEAR=80;
 
 const AVG_ITEM_H=ITEM_STEP+6; // ~132px average, used for unloaded region estimation
 
+// per local date (the feed's date string): check-ins, km between them, and each
+// check-in's stop number (1 = the day's first) — over what is loaded, so a day cut
+// by the loaded window counts only its loaded part
+let DAYS={}, STOP=[];
+function buildDays(data){
+  DAYS={}; STOP=new Array(data.length);
+  for(let i=data.length-1;i>=0;i--){
+    const d=data[i][1]; let o=DAYS[d];
+    if(!o){o=DAYS[d]={n:0,km:0,pts:[],last:null};}
+    o.n++; STOP[i]=o.n;
+    if(data[i][8]&&data[i][9]){
+      if(o.last){const k=havNum(o.last[0],o.last[1],data[i][8],data[i][9]);if(k)o.km+=k;}
+      o.last=[data[i][8],data[i][9]]; o.pts.push([data[i][8],data[i][9],i]);
+    }
+  }
+}
+const dayStart=(data,i)=>i===0||data[i-1][1]!==data[i][1];
+const WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],MONI={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+function weekday(d){const p=String(d).split(' ');const t=Date.UTC(+p[2],MONI[p[1]],+p[0]);return isNaN(t)?'':WD[new Date(t).getUTCDay()];}
 function buildPos(data){
+  buildDays(data);
   pos=new Array(data.length);
   let y=GAP_PAD;
   for(let i=0;i<data.length;i++){
     if(i>0){const gp=gapFor(data[i-1][0]-data[i][0]);if(gp)y+=gp.h;}
+    if(dayStart(data,i))y+=DAY_H;
     pos[i]=y; y+=ITEM_STEP;
   }
   const loadedH=data.length?y+GAP_PAD:0;
@@ -696,12 +751,17 @@ function renderVis(){
 
         const miStr=mi?`<span class="gap-mode">${mi}</span> `:'';
 
-        html+=`<div class="gap-row g-${gp.g}" style="top:${pos[i]-gp.h+1}px;height:${gp.h-2}px;"><div class="gap-line"></div><span class="gap-lbl">${miStr}${gp.t}${distStr}</span><div class="gap-line"></div></div>`;
+        const dh=dayStart(DATA,i)?DAY_H:0;
+        html+=`<div class="gap-row g-${gp.g}" style="top:${pos[i]-dh-gp.h+1}px;height:${gp.h-2}px;"><div class="gap-line"></div><span class="gap-lbl">${miStr}${gp.t}${distStr}</span><div class="gap-line"></div></div>`;
 
       }
 
     }
 
+    if(dayStart(DATA,i)){
+      const o=DAYS[DATA[i][1]]||{n:0,km:0};
+      html+=`<div class="day-row" style="top:${pos[i]-DAY_H+4}px;height:${DAY_H-8}px;"><b>${weekday(DATA[i][1])}</b><span>${esc(DATA[i][1])} · ${o.n} check-in${o.n===1?'':'s'}${o.km>=0.1?' · '+(o.km<100?o.km.toFixed(1):Math.round(o.km))+' km':''}</span></div>`;
+    }
     html+=mkCard(i);
 
   }
@@ -798,7 +858,7 @@ function mkCard(i){
 
   return `<div class="fcard${isActive?' active':''}" id="fc${i}" onclick="onCardClick(${i})" onmouseenter="onCardHover(${i})" style="top:${pos[i]}px;height:${CARD_H}px;">
 
-    <div class="fc-venue-row"><div class="fc-venue">${vn}</div>${refurb?`<div class="fc-refurb-stack"><div class="fc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>${!vid?`<div class="fc-no-fsq" title="No Foursquare venue data — location from diary only">✕ no fsq data</div>`:''}</div>`:ico}</div>
+    <div class="fc-venue-row"><div class="fc-venue">${vn}</div>${STOP[i]?`<span class="fc-stop" title="stop ${STOP[i]} of ${(DAYS[date]||{}).n||STOP[i]} that day">${STOP[i]}</span>`:''}${refurb?`<div class="fc-refurb-stack"><div class="fc-refurb" title="Reconstructed from travel history — not a live app check-in">↺ reconstructed</div>${!vid?`<div class="fc-no-fsq" title="No Foursquare venue data — location from diary only">✕ no fsq data</div>`:''}</div>`:ico}</div>
 
     <div class="fc-cat">${esc(cat)}</div>
 
@@ -882,12 +942,14 @@ async function activate(i, doScroll=true){
 
     // flyTo divides by the container size: on phones the map is hidden (0×0) and it
     // threw "Invalid LatLng (NaN, NaN)" for every card scrolled past
-    if(map.getContainer().offsetWidth) map.flyTo([lat,lng],15,{animate:true,duration:0.35});
+    const sameDay=dayShown===date&&(DAYS[date]||{pts:[]}).pts.length>1;
+    if(map.getContainer().offsetWidth){ if(sameDay) map.panTo([lat,lng],{animate:true,duration:0.35}); else if(!((DAYS[date]||{pts:[]}).pts.length>1)) map.flyTo([lat,lng],15,{animate:true,duration:0.35}); }
     else map.setView([lat,lng],15,{animate:false});
 
     if(curMark)map.removeLayer(curMark);
 
-    curMark=L.marker([lat,lng],{icon:pinIcon}).addTo(map);
+    curMark=null;
+    drawDay(i);
 
   }
 
