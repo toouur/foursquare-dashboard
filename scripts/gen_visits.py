@@ -79,7 +79,8 @@ function isLocalReferrer(raw) {
   let u;
   try { u = new URL(raw); } catch (e) { return false; }
   if (!['http:', 'https:'].includes(u.protocol)) return false;
-  let h = u.hostname.toLowerCase().replace(/\\.$/, '');
+  let h = u.hostname.toLowerCase();
+  if (h.endsWith('.')) h = h.slice(0, -1);
   if (h.startsWith('[') && h.endsWith(']')) h = h.slice(1, -1);
   if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
   if (h.includes(':')) {
