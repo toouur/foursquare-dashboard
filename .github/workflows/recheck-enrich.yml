@@ -99,7 +99,8 @@ jobs:
             if [ -n "$RECHECK_IDS" ]; then IDS_ARG="--recheck-ids $RECHECK_IDS"; fi
             echo "Overlap re-scan window: ${RECHECK_HOURS}h"
             python scripts/fetch_checkins.py --token "$FOURSQUARE_TOKEN" --csv private-data/checkins.csv \
-              --recheck-recent-hours "$RECHECK_HOURS" $IDS_ARG \n              --likes-recent-days 30 >> "$GITHUB_OUTPUT"   # late likes on the last month (a few list calls)
+              --recheck-recent-hours "$RECHECK_HOURS" $IDS_ARG \
+              --likes-recent-days 30 >> "$GITHUB_OUTPUT"   # late likes on the last month (a few list calls)
           fi
 
       # ── 4b. Recheck photos (already-indexed recent check-ins, last 2 days) ───
