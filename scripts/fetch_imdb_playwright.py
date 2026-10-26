@@ -42,10 +42,25 @@ def main() -> int:
                 except Exception:
                     pass
             page.wait_for_timeout(1000)
-            email = page.locator('input[name="email"], input[type="email"]').first
-            email.wait_for(state="visible", timeout=15000)
+            email = page.locator(
+                'input[name="email"], input[type="email"], input#ap_email, input[name="username"]'
+            ).first
+            try:
+                email.wait_for(state="visible", timeout=15000)
+            except Exception:
+                # Report the page we actually received, without dumping form values/cookies.
+                title = page.title()[:160]
+                url = page.url[:240]
+                body = " ".join(page.locator("body").inner_text(timeout=5000).split())[:700]
+                lowered = (title + " " + url + " " + body).lower()
+                if any(x in lowered for x in ("captcha", "robot check", "security challenge",
+                                               "verify you are human", "automated access")):
+                    print("::error title=IMDb Playwright::IMDb showed a security/challenge page before sign-in; stopping without bypass")
+                else:
+                    print(f"::error title=IMDb Playwright::Sign-in form not found. title={title!r}; url={url!r}; body preview={body!r}")
+                return 2
             email.fill(username)
-            page.locator('input[name="password"], input[type="password"]').first.fill(password)
+            page.locator('input[name="password"], input[type="password"], input#ap_password').first.fill(password)
             page.locator('input[type="submit"], button[type="submit"], button:has-text("Sign in")').first.click()
             page.wait_for_load_state("domcontentloaded", timeout=30000)
             page.wait_for_timeout(1500)
