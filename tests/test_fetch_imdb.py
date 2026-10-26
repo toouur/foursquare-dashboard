@@ -65,15 +65,28 @@ def test_probe_reports_shape_and_writes_nothing(monkeypatch, tmp_path, capsys):
     assert "Secret Title" not in text                     # shape only, never the data
 
 
+# five filler titles: a read under 5 titles is refused as a suspicious partial scrape
+_FILL = [("tt000009%d" % k, "F%d" % k, 7) for k in range(5)]
+
+
 def test_merge_keeps_old_and_updates_changed(monkeypatch, tmp_path, capsys):
-    page = _Resp(200, _page([_title("tt0000001", "A", 6), _title("tt0000002", "B", 8)]))
+    page = _Resp(200, _page([_title(*f) for f in _FILL] + [_title("tt0000001", "A", 6), _title("tt0000002", "B", 8)]))
     rc, out = _run(monkeypatch, tmp_path, page)
     assert rc == 0 and "CHANGED=true" in capsys.readouterr().out
-    page2 = _Resp(200, _page([_title("tt0000001", "A", 9), _title("tt0000003", "C", 5)]))
+    page2 = _Resp(200, _page([_title(*f) for f in _FILL] + [_title("tt0000001", "A", 9), _title("tt0000003", "C", 5)]))
     rc, out = _run(monkeypatch, tmp_path, page2)
     r = {x["id"]: x for x in json.loads(out.read_text(encoding="utf-8"))["ratings"]}
-    assert set(r) == {"tt0000001", "tt0000002", "tt0000003"} and r["tt0000001"]["rating"] == 9
-    assert len(out.read_text(encoding="utf-8").splitlines()) == 5      # one rating per line
+    assert {"tt0000001", "tt0000002", "tt0000003"} <= set(r) and r["tt0000001"]["rating"] == 9
+    assert len(out.read_text(encoding="utf-8").splitlines()) == len(r) + 2   # one rating per line
+
+
+def test_suspicious_partial_read_keeps_previous_file(monkeypatch, tmp_path, capsys):
+    rc, out = _run(monkeypatch, tmp_path, _Resp(200, _page([_title(*f) for f in _FILL])))
+    assert rc == 0
+    before = out.read_text(encoding="utf-8")
+    rc, out = _run(monkeypatch, tmp_path, _Resp(200, _page([_title("tt0000001", "A", 9)])))
+    assert rc == 1 and "CHANGED=false" in capsys.readouterr().out
+    assert out.read_text(encoding="utf-8") == before
 
 
 def test_build_merges_page_over_export(tmp_path):
