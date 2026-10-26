@@ -110,3 +110,78 @@ class TestFeed:
             "       return el && el.innerText !== t; }",
             arg=first, timeout=10000)
         assert page.locator("#vsWin .fc-venue").count() >= 1
+
+
+class TestNewerFeatures:
+    def test_feed_day_dividers_and_route(self, page):
+        goto(page, "/feed.html")
+        page.wait_for_selector("#vsWin .fc-venue", timeout=30000)
+        assert page.locator(".day-row").count() >= 1
+        assert page.locator(".fc-stop").count() >= 1
+        # the active card's day is drawn on the map (routed or a dashed chord)
+        page.wait_for_selector(".leaflet-overlay-pane path", state="attached", timeout=20000)
+
+    def test_venue_page_shows_likes(self, page):
+        # Кафе РУП «Белстройцентр» — the venue with the most liked check-ins
+        goto(page, "/venue.html#512203a5e4b093808d20de87")
+        page.wait_for_selector(".lk", state="attached", timeout=20000)
+
+    def test_companions_likers_card(self, page):
+        goto(page, "/companions.html")
+        page.wait_for_function("typeof LIKERS !== 'undefined' && LIKERS.length > 0", timeout=15000)
+        assert "Who likes your check-ins" in page.content()
+
+    def test_tips_list_grows_on_scroll(self, page):
+        goto(page, "/tips.html")
+        page.wait_for_selector("#feedScroll .tcard", timeout=15000)
+        first = page.locator("#feedScroll .tcard").count()
+        page.evaluate("const f=document.getElementById('feedScroll'); f.scrollTop=f.scrollHeight; window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_function(f"document.querySelectorAll('#feedScroll .tcard').length > {first}", timeout=10000)
+
+    def test_photo_grid_uses_thumbs(self, page):
+        # grids load pix/t/ copies; a src back on /pix/ means the thumb was missing
+        goto(page, "/photos.html")
+        page.wait_for_function(
+            "(() => { const i = document.querySelector('img[src*=\"/pix/\"]');"
+            "         return i && i.complete && i.naturalWidth > 0; })()", timeout=20000)
+        src = page.evaluate("document.querySelector('img[src*=\"/pix/\"]').src")
+        assert "/pix/t/" in src, f"first grid photo is not a thumb: {src}"
+
+
+# Transferred bytes on a phone (first load + a short settle), per page. Measured
+# 2026-10-26 after the thumbs/payload work; the budget leaves ~40 % headroom so a
+# page that quietly grows (originals in a grid, a payload inlined twice) fails here.
+WEIGHT_BUDGET_MB = {
+    "/": 3.0,
+    "/photos.html": 3.0,
+    "/trips.html": 3.0,
+    "/year-2026.html": 3.0,
+    "/years.html": 3.0,
+    "/venues.html": 3.0,
+    "/companions.html": 3.0,
+    "/tips.html": 2.0,
+}
+
+
+class TestPageWeight:
+    @pytest.mark.parametrize("path", list(WEIGHT_BUDGET_MB))
+    def test_page_weight_on_phone(self, browser, path):
+        ctx = browser.new_context(viewport={"width": 390, "height": 900})
+        ctx.route("**/api/hit**", lambda r: r.fulfill(status=204, body=""))
+        page = ctx.new_page()
+        sizes = []
+
+        def done(req):
+            try:
+                s = req.sizes()
+                sizes.append(s["responseBodySize"] + s["responseHeadersSize"])
+            except Exception:
+                pass
+        page.on("requestfinished", done)
+        try:
+            goto(page, path, wait_until="load")
+            page.wait_for_timeout(3000)
+        finally:
+            ctx.close()
+        mb = sum(sizes) / 1e6
+        assert mb <= WEIGHT_BUDGET_MB[path], f"{path} transferred {mb:.1f} MB > budget {WEIGHT_BUDGET_MB[path]} MB"

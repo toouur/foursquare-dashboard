@@ -1084,7 +1084,8 @@ function barList(id,data,opts){
   }).join('');
 }
 barList('citiesList',S.cities,{linkCity:true});
-barList('citiesPlacesList',S.cities_by_venues);
+// the hidden "by places" pane (~6k nodes) is built when its tab first opens
+let _cityPlacesBuilt=false;
 // event delegation: city count clicks
 document.getElementById('paneCityCheckins').addEventListener('click',function(e){
   const a=e.target.closest('a[data-filter-city]');
@@ -2204,6 +2205,7 @@ function buildCityMap(){
   window.switchCityTab=function(tab,el){
     document.getElementById('paneCityCheckins').style.display=tab==='checkins'?'':'none';
     document.getElementById('paneCityPlaces').style.display=tab==='places'?'':'none';
+    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues);}
     document.getElementById('paneCityCountry').style.display=tab==='country'?'':'none';
     document.getElementById('paneCityWorld').style.display=tab==='world'?'':'none';
     document.querySelectorAll('#tabCityCheckins,#tabCityPlaces,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));

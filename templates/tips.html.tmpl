@@ -309,13 +309,40 @@ function getFiltered(){
   });
 }
 
+// Cards go into the list 150 at a time as it scrolls (~2k cards were 22-28k DOM
+// nodes up front). FEED.ensure(id) renders up to a card a map click asks for.
+const FEED=(()=>{
+  const CHUNK=150; let items=[], shown=0, io=null;
+  const box=()=>document.getElementById('feedScroll');
+  function more(){
+    const fs=box(), s=document.getElementById('feedMore'); if(s) s.remove();
+    fs.insertAdjacentHTML('beforeend', items.slice(shown, shown+CHUNK).join(''));
+    shown=Math.min(items.length, shown+CHUNK);
+    if(shown<items.length){
+      fs.insertAdjacentHTML('beforeend','<div id="feedMore" style="height:1px"></div>');
+      io.observe(document.getElementById('feedMore'));
+    }
+  }
+  function show(list){
+    const fs=box();
+    if(io) io.disconnect();
+    // the list scrolls inside its column on wide screens and with the page on phones
+    const ov=getComputedStyle(fs).overflowY;
+    io=new IntersectionObserver(es=>{ if(es.some(e=>e.isIntersecting)){ io.disconnect(); more(); } },
+      {root:(ov==='auto'||ov==='scroll')?fs:null, rootMargin:'1200px 0px'});
+    items=list; shown=0; fs.innerHTML=''; more();
+  }
+  function ensure(id){ while(!document.getElementById(id) && shown<items.length) more(); }
+  return {show, ensure};
+})();
+
 function render(){
   let idx=getFiltered();
   if(sortMode==='date' && sortDir===-1) idx.reverse();
   if(sortMode==='agree') idx.sort((a,b)=>sortDir*((ALL[b].agree_count||0)-(ALL[a].agree_count||0)));
   if(sortMode==='views') idx.sort((a,b)=>sortDir*((ALL[b].view_count||0)-(ALL[a].view_count||0)));
   document.getElementById('badge').textContent=idx.length+' / '+ALL.length+' tips';
-  document.getElementById('feedScroll').innerHTML=idx.map(i=>{
+  FEED.show(idx.map(i=>{
     const t=ALL[i];
     const{em,bg}=catIcon(t.category||'');
     const vUrl=t.venue_id?`/venue.html#${t.venue_id}`:'';
@@ -346,12 +373,13 @@ function render(){
         ${tUrl?`<a class="tc-fsq" href="${tUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ foursquare</a>`:''}
       </div>
     </div>`;
-  }).join('');
+  }));
 }
 
 function selectTip(i){
   if(selMarker)selMarker.setStyle({radius:6,weight:1});
   document.querySelectorAll('.tcard.sel').forEach(el=>el.classList.remove('sel'));
+  FEED.ensure('tc_'+i);
   const el=document.getElementById('tc_'+i);
   if(el){el.classList.add('sel');el.scrollIntoView({block:'nearest',behavior:'smooth'});}
   if(markers[i]){

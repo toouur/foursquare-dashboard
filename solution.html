@@ -2022,7 +2022,7 @@ python scripts/build.py \
     <div class="section-title">Testing &amp; CI Gates</div>
     <div class="section-body">
       <p>
-        The pipeline is protected by a <strong>565-test pytest suite</strong> organised into
+        The pipeline is protected by a <strong>578-test pytest suite</strong> organised into
         three rings by what they need to run. The offline ring (521 tests, no network, no
         secrets, finishes in seconds) covers the highest-risk pure logic: the 5-layer
         city/country normalisation priority order, trip detection (synthetic timelines
@@ -2047,7 +2047,7 @@ python scripts/build.py \
         (stdlib urllib) pin the exact 12-element feed tuple, date/time formats, pagination
         semantics, and the precise <code>Cache-Control</code> header — because responses are
         edge-cached, a silent shape change would break pages an hour <em>after</em> a deploy.
-        <strong>14 Playwright E2E smoke tests</strong> (headless Chromium) then load eight core
+        <strong>27 Playwright E2E smoke tests</strong> (headless Chromium) then load eight core
         pages asserting zero console errors and no unsubstituted template placeholders, and
         exercise the search overlay and the feed's virtual scroll end-to-end. An
         <strong>8-test axe-core accessibility audit</strong> (WCAG 2.0/2.1 A+AA) runs alongside
@@ -2135,7 +2135,7 @@ python scripts/build.py \
       <div class="stack-item">
         <div class="si-layer">Testing &amp; QA</div>
         <div class="si-tech">pytest + Playwright + ruff</div>
-        <div class="si-role">565 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
+        <div class="si-role">578 tests · unit / API contract / E2E + a11y rings · HTML deploy gate</div>
       </div>
     </div>
   </div>

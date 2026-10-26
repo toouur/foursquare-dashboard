@@ -300,7 +300,9 @@ function pfOpen(k){pfIdx=k;pfShow();document.getElementById('pfLight').classList
 function pfClose(){document.getElementById('pfLight').classList.remove('open');document.getElementById('pfImg').src='';}
 function pfStep(d){if(PF_GAL.length){pfIdx=(pfIdx+d+PF_GAL.length)%PF_GAL.length;pfShow();}}
 document.addEventListener('keydown',e=>{if(!document.getElementById('pfLight').classList.contains('open'))return;if(e.key==='ArrowLeft')pfStep(-1);else if(e.key==='ArrowRight')pfStep(1);else if(e.key==='Escape')pfClose();});
-function toggleLog(){const l=document.getElementById('compLog');l.classList.toggle('open');document.getElementById('logLbl').textContent=l.classList.contains('open')?'HIDE THE LOG ▴':'OPEN THE LOG ▾';}
+// The log is built the first time it opens: Darya's alone is ~10k rows (43k DOM nodes).
+function toggleLog(){const l=document.getElementById('compLog');l.classList.toggle('open');
+  const b=document.getElementById('compBody');if(l.classList.contains('open')&&b&&!b.dataset.built){b.dataset.built='1';filterRows(l.querySelector('.search-box').value);}document.getElementById('logLbl').textContent=l.classList.contains('open')?'HIDE THE LOG ▴':'OPEN THE LOG ▾';}
 
 let TOGETHER=[];
 const tripTile=([t,k])=>`<a class="tt" href="/trips.html#trip-${t[0]}">${t[4]&&PIX?`<img loading="lazy" src="${esc(PIX+'/t/'+t[4])}" alt="">`:''}<div class="tts"><div class="ttn">${esc(t[1])}</div><div class="ttd">${dUTC(t[2]).toISOString().slice(0,7)} · ${k} check-ins together</div></div></a>`;
@@ -407,7 +409,7 @@ function show(idx){
             <span class="shown-count" id="compShown">${all.length.toLocaleString()} shown</span>
           </div>
           <table><thead><tr><th>Date</th><th>Venue</th><th>Location</th></tr></thead>
-          <tbody id="compBody">${buildRows(all)}</tbody></table>
+          <tbody id="compBody"></tbody></table>
         </div></div>
     </div>`;
   syncMore();
