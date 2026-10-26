@@ -63,6 +63,23 @@ jobs:
           echo "changed=$(grep -m1 '^CHANGED=' out.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
           exit $CODE
 
+      - name: Warn on IMDb fetch failure
+        if: failure() && steps.fetch.outcome == 'failure'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          echo "::warning title=IMDb update skipped::IMDb was blocked or its page structure changed. Existing imdb_ratings.json was preserved; no data commit was made."
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl --silent --show-error --fail --max-time 15 \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d "chat_id=${TELEGRAM_CHAT_ID}" \
+              --data-urlencode "text=⚠️ IMDb ratings update skipped. The request was blocked or the page structure changed. Existing ratings were preserved; no commit was made. Run the IMDb workflow with probe=true to inspect safely." \
+              >/dev/null || echo "::warning::Telegram alert could not be delivered"
+          else
+            echo "::notice::Telegram alert skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID secret is not configured"
+          fi
+
       - name: Commit new IMDb ratings
         if: steps.fetch.outputs.changed == 'true'
         run: |
