@@ -303,8 +303,8 @@ document.addEventListener('keydown',e=>{if(!document.getElementById('pfLight').c
 function toggleLog(){const l=document.getElementById('compLog');l.classList.toggle('open');document.getElementById('logLbl').textContent=l.classList.contains('open')?'HIDE THE LOG ▴':'OPEN THE LOG ▾';}
 
 let TOGETHER=[];
-const tripTile=([t,k])=>`<a class="tt" href="/trips.html#trip-${t[0]}">${t[4]&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+t[4])}" alt="">`:''}<div class="tts"><div class="ttn">${esc(t[1])}</div><div class="ttd">${dUTC(t[2]).toISOString().slice(0,7)} · ${k} check-ins together</div></div></a>`;
-const photoTile=(g,k)=>`<img loading="lazy" src="${esc(g.src)}" alt="" onclick="pfOpen(${k})">`;
+const tripTile=([t,k])=>`<a class="tt" href="/trips.html#trip-${t[0]}">${t[4]&&PIX?`<img loading="lazy" src="${esc(PIX+'/t/'+t[4])}" alt="">`:''}<div class="tts"><div class="ttn">${esc(t[1])}</div><div class="ttd">${dUTC(t[2]).toISOString().slice(0,7)} · ${k} check-ins together</div></div></a>`;
+const photoTile=(g,k)=>`<img loading="lazy" src="${esc(pixT(g.src))}" alt="" onclick="pfOpen(${k})">`;
 function moreTrips(){document.getElementById('pfTrips').innerHTML=TOGETHER.map(tripTile).join('');document.getElementById('pfTripsMore').remove();}
 function morePhotos(){
   const s=document.getElementById('pfStrip'),n=s.children.length;
@@ -353,7 +353,7 @@ function show(idx){
   // places with a thumbnail from a shared check-in there
   const places=topN(all,r=>r[7]||r[3],6).map(([k,e])=>{
     const ph=(all.find(r=>(r[7]||r[3])===k&&r[8])||[])[8];
-    const inner=`${ph&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+ph)}" alt="">`:'<span class="ph0"></span>'}<div><div class="tvn">${esc(e.r[3]||'—')}</div><div class="tvc">${esc(e.r[4]||e.r[5]||'')}</div></div><b>${e.n}×</b>`;
+    const inner=`${ph&&PIX?`<img loading="lazy" src="${esc(PIX+'/t/'+ph)}" alt="">`:'<span class="ph0"></span>'}<div><div class="tvn">${esc(e.r[3]||'—')}</div><div class="tvc">${esc(e.r[4]||e.r[5]||'')}</div></div><b>${e.n}×</b>`;
     return e.r[7]?`<a class="tv" href="/venue.html#${esc(e.r[7])}">${inner}</a>`:`<div class="tv">${inner}</div>`;
   }).join('');
   // weekday × hour in the venue's local time (r[9] = weekday*24 + hour, Monday = 0)

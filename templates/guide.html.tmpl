@@ -555,10 +555,14 @@ function moveAnchor(lat, lng, label, sourceTag) {
 }
 
 // ── Overpass fetch ────────────────────────────────────────────────────────
+// Checked 2026-10-26: overpass-api.de is often 502/504 under load (its error
+// pages carry no CORS header, so the browser logs a CORS failure); the VK
+// mirror answers with CORS; kumi.systems is slow; openstreetmap.fr answers 403
+// to browsers, so it is gone.
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.openstreetmap.fr/api/interpreter',
 ];
 
 const sleep = ms => new Promise(res => setTimeout(res, ms));

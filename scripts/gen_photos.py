@@ -19,6 +19,30 @@ def _esc(s: str) -> str:
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+PIX_PREFIX = "29447180_"   # the R2 key prefix nearly every photo shares
+
+
+def pack_photos(photos: list[dict], pix_dir_uri: str) -> dict:
+    """The photo list as string tables + rows — 24k objects with a full URL and
+    a repeated venue/city/country each were ~6 MB inline. unpackPhotos() in the
+    page rebuilds the same {src, venue, city, country, date, ts} objects.
+    A row is [file, venue#, city#, country#, ts]; file drops PIX_PREFIX, or
+    starts with '!' when it does not have it."""
+    tables: dict[str, dict[str, int]] = {"V": {}, "C": {}, "K": {}}
+
+    def ix(t: str, s: str) -> int:
+        return tables[t].setdefault(s, len(tables[t]))
+
+    base = pix_dir_uri.rstrip("/") + "/"
+    rows = []
+    for p in photos:
+        f = p["src"][len(base):] if p["src"].startswith(base) else p["src"]
+        f = f[len(PIX_PREFIX):] if f.startswith(PIX_PREFIX) else "!" + f
+        rows.append([f, ix("V", p["venue"]), ix("C", p["city"]), ix("K", p["country"]), p["ts"]])
+    return {"base": base, "pfx": PIX_PREFIX, "r": rows,
+            **{t: list(m) for t, m in tables.items()}}
+
+
 def build_page(
     photos_by_checkin: dict[str, list[str]],
     csv_path: str,
@@ -84,7 +108,8 @@ def build_page(
               f"(run delete_checkin.py --prune-orphans to clean photos.json)")
     all_photos.sort(key=lambda p: -p["ts"])
     total = len(all_photos)
-    photos_json = json.dumps(all_photos, ensure_ascii=False).replace("</", "<\\/")
+    photos_json = json.dumps(pack_photos(all_photos, pix_dir_uri), ensure_ascii=False,
+                             separators=(",", ":")).replace("</", "<\\/")
 
     # Build tip photos list
     tip_photos: list[dict] = []
@@ -349,7 +374,19 @@ a{{color:inherit;text-decoration:none;}}
 </div>
 
 <script>
-const PHOTOS_NEWEST = {photos_json};
+// Packed by gen_photos.pack_photos(): string tables + [file, venue#, city#, country#, ts] rows.
+const _MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function unpackPhotos(P) {{
+  return P.r.map(a => {{
+    const d = a[4] ? new Date(a[4] * 1000) : null;
+    return {{
+      src: P.base + (a[0][0] === '!' ? a[0].slice(1) : P.pfx + a[0]),
+      venue: P.V[a[1]], city: P.C[a[2]], country: P.K[a[3]], ts: a[4],
+      date: d ? String(d.getUTCDate()).padStart(2, '0') + ' ' + _MON[d.getUTCMonth()] + ' ' + d.getUTCFullYear() : '',
+    }};
+  }});
+}}
+const PHOTOS_NEWEST = unpackPhotos({photos_json});
 const PHOTOS_OLDEST = [...PHOTOS_NEWEST].reverse();
 const TIP_PHOTOS = {tip_photos_json};
 const COUNTRIES = COUNTRIES_PLACEHOLDER;
@@ -485,7 +522,7 @@ function renderBatch(start, end){{
     const p=sorted[i];
     const div=document.createElement('div');
     div.className='ph-item';
-    div.innerHTML=`<img src="${{p.src}}" loading="lazy" alt="${{esc(p.venue)}}"><div class="ph-tooltip"><div class="pv">${{esc(p.venue)}}</div><div class="pd">${{flag(p.country)}} ${{esc(p.city||p.country||'')}}${{p.city&&p.date?' · ':''}}${{esc(p.date||'')}}</div></div>`;
+    div.innerHTML=`<img src="${{pixT(p.src)}}" loading="lazy" alt="${{esc(p.venue)}}"><div class="ph-tooltip"><div class="pv">${{esc(p.venue)}}</div><div class="pd">${{flag(p.country)}} ${{esc(p.city||p.country||'')}}${{p.city&&p.date?' · ':''}}${{esc(p.date||'')}}</div></div>`;
     div.onclick=(()=>{{const idx=i;return()=>openGallery(idx);}})();
     frag.appendChild(div);
   }}
@@ -527,7 +564,7 @@ if(TIP_PHOTOS.length){{
   TIP_PHOTOS.forEach((p,i)=>{{
     const div=document.createElement('div');
     div.className='ph-item';
-    div.innerHTML=`<img src="${{p.src}}" loading="lazy" alt="${{esc(p.venue)}}"><div class="ph-tooltip"><div class="pv">${{esc(p.venue)}}</div><div class="pd">${{esc(p.text||'').slice(0,60)}}${{p.text&&p.text.length>60?'…':''}}</div></div>`;
+    div.innerHTML=`<img src="${{pixT(p.src)}}" loading="lazy" alt="${{esc(p.venue)}}"><div class="ph-tooltip"><div class="pv">${{esc(p.venue)}}</div><div class="pd">${{esc(p.text||'').slice(0,60)}}${{p.text&&p.text.length>60?'…':''}}</div></div>`;
     div.onclick=(()=>{{const idx=i;return()=>openTipGallery(idx);}})();
     frag.appendChild(div);
   }});

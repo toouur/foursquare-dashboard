@@ -208,7 +208,7 @@ function render(id, rec, f) {{
   GAL = [];
   rec.v.forEach(v => (v[ix.photos] || []).forEach(p => GAL.push({{ src: PIX + '/' + p, cap: v[ix.local] + (v[ix.shout] ? ' · ' + v[ix.shout] : '') }})));
   if (GAL.length && PIX) h += '<section><div class="sec-h">Photos · ' + fmt(GAL.length) + '</div><div class="pgrid">' +
-    GAL.slice(0, 48).map((g, k) => '<img loading="lazy" src="' + esc(g.src) + '" alt="" onclick="galOpen(' + k + ')">').join('') + '</div>' +
+    GAL.slice(0, 48).map((g, k) => '<img loading="lazy" src="' + esc(pixT(g.src)) + '" alt="" onclick="galOpen(' + k + ')">').join('') + '</div>' +
     (GAL.length > 48 ? '<p class="note" style="margin-top:8px">All ' + fmt(GAL.length) + ' photos are in the visit history below.</p>' : '') + '</section>';
   // the whole visit history, grouped by year; the two most recent years start open
   const byYear = {{}};
@@ -231,7 +231,7 @@ function render(id, rec, f) {{
         // narrow screens show 2 thumbnails (CSS), so they get their own +N on the 2nd one
         const pics = ph.slice(0, 3).map((p, i) => {{
           const k = GAL.findIndex(g => g.src === PIX + '/' + p);
-          return '<span onclick="galOpen(' + k + ')"><img loading="lazy" src="' + esc(PIX + '/' + p) + '" alt="">' +
+          return '<span onclick="galOpen(' + k + ')"><img loading="lazy" src="' + esc(PIX + '/t/' + p) + '" alt="">' +
             (i === 2 && ph.length > 3 ? '<i>+' + (ph.length - 3) + '</i>' : '') +
             (i === 1 && ph.length > 2 ? '<i class="m2">+' + (ph.length - 2) + '</i>' : '') + '</span>';
         }}).join('');

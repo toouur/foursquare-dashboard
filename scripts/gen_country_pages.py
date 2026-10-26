@@ -329,7 +329,7 @@ def build_page(
             for r in sorted(crows, key=lambda r: int(r.get("date", 0) or 0), reverse=True):
                 cid = (r.get("checkin_id") or "").strip()
                 for fn in (photos_by_checkin.get(cid) or []):
-                    imgs.append(f'<img loading="lazy" src="{pix_base}/{_esc(fn)}" '
+                    imgs.append(f'<img loading="lazy" src="{pix_base}/t/{_esc(fn)}" '
                                 f'alt="{_esc(r.get("venue", ""))}">')
                     if len(imgs) >= 12:
                         break

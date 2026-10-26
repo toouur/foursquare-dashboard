@@ -431,7 +431,7 @@ function tripCard(t, big){
   const a = isAir(t) ? ' m-a' : '';
   const bike = (t.tags||[]).includes('bicycle') ? '<span class="tc-tag" title="Bicycle trip">🚲</span>' : '';
   return `<a class="trip-card${big?' big':''}" id="card-trip-${t.id}" href="#trip-${t.id}" onclick="showTrip(${t.id});return false;">
-    ${t.cover && PIX_DIR ? `<img class="tc-img" loading="lazy" src="${esc(PIX_DIR+'/'+t.cover)}" alt="">` : `<div class="tc-noimg${a}"></div>`}
+    ${t.cover && PIX_DIR ? `<img class="tc-img" loading="lazy" src="${esc(PIX_DIR+'/t/'+t.cover)}" alt="">` : `<div class="tc-noimg${a}"></div>`}
     <span class="tc-mode${a}">${modeIcon(t.name)}</span><span class="tc-num">#${t.id}</span>
     <div class="tc-body">
       <div class="tc-dates">${shortD(t.start_date)}${t.end_date!==t.start_date?' – '+shortD(t.end_date):''}${t.start_date.slice(0,4)!==t.end_date.slice(0,4)?' '+t.end_date.slice(0,4):''} · ${t.duration} d</div>
@@ -634,7 +634,7 @@ function _renderTrip(t){
         const cPhotos = (PIX_DIR && c.photos) ? c.photos : [];
         const galStart = cidGalStart[c.checkin_id||''] || 0;
         const photosHtml = cPhotos.length
-          ? `<div class="tl-photos">${cPhotos.map((src,i)=>`<img class="tl-photo" src="${PIX_DIR}/${src}" loading="lazy" onclick="openGallery(${galStart+i})">`).join('')}</div>`
+          ? `<div class="tl-photos">${cPhotos.map((src,i)=>`<img class="tl-photo" src="${PIX_DIR}/t/${src}" loading="lazy" onclick="openGallery(${galStart+i})">`).join('')}</div>`
           : '';
         return `<div class="tl-checkin" data-ts="${c.ts}">
           <div class="tl-checkin-time">${c.time}</div>
@@ -718,7 +718,7 @@ function _renderTrip(t){
     const thisMap=activeMap;
     // Segment drawing waits for routes.json so mode lines, tooltips and the
     // progress line all share the same (routed when available) geometry.
-    ROUTES_P.then(()=>{
+    routesFor(routePts).then(()=>{
       if(activeMap!==thisMap) return;          // trip closed / switched meanwhile
       if(routePts.length>1){
         const segGroup=L.layerGroup().addTo(activeMap);
@@ -789,10 +789,20 @@ function _renderTrip(t){
 }
 
 // ── Routed segment geometry ──────────────────────────────────────────────────
-// routes.json (built by scripts/route_paths.py): "tsA-tsB" → [polyline5, km].
-// Fetched once; segments without an entry fall back to straight lines.
+// routes_m_<YYYY-MM>.json (built by scripts/route_paths.py, one shard per UTC
+// month of a leg's arrival): "tsA-tsB" → [polyline5, km]. A trip fetches only
+// its months; segments without an entry fall back to straight lines.
 let ROUTES={};
-const ROUTES_P=fetch('routes.json').then(r=>r.ok?r.json():{}).then(j=>{ROUTES=j||{};}).catch(()=>{});
+const ROUTE_REQ={};
+let ROUTE_MONTHS=null;
+function routesFor(pts){
+  if(!ROUTE_MONTHS) ROUTE_MONTHS=fetch('routes_months.json').then(r=>r.ok?r.json():[]).catch(()=>[]);
+  const ym=new Set(pts.map(p=>new Date(p.ts*1000).toISOString().slice(0,7)));
+  return ROUTE_MONTHS.then(have=>Promise.all([...ym].filter(m=>have.includes(m)).map(m=>{
+    if(!ROUTE_REQ[m]) ROUTE_REQ[m]=fetch('routes_m_'+m+'.json').then(r=>r.ok?r.json():{}).catch(()=>({})).then(j=>{Object.assign(ROUTES,j||{});});
+    return ROUTE_REQ[m];
+  })));
+}
 function decPoly(s){ // polyline5 → [[lat,lng],…]
   const pts=[];let i=0,lat=0,lng=0;
   while(i<s.length){

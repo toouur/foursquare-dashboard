@@ -117,6 +117,8 @@ jobs:
             echo "removing pix/$f"
             aws s3 rm "s3://${R2_BUCKET_NAME}/pix/$f" \
               --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+            aws s3 rm "s3://${R2_BUCKET_NAME}/pix/t/$f" \
+              --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" || true
           done
 
       # ── 5. Commit updated checkins.csv / photos.json to private data repo ─

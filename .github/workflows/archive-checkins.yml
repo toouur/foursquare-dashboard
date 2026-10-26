@@ -171,6 +171,8 @@ jobs:
             echo "removing pix/$f"
             aws s3 rm "s3://${R2_BUCKET_NAME}/pix/$f" \
               --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+            aws s3 rm "s3://${R2_BUCKET_NAME}/pix/t/$f" \
+              --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" || true
           done
 
       # ── 7. Diff old vs new — detect venue renames/moves, sync tips + backfill ─

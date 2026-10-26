@@ -13,6 +13,7 @@ sorted newest-first with the vivid narrative front and centre.
 from collections import Counter
 from pathlib import Path
 
+from make_thumbs import thumb_url
 from year_covers import select_year_covers
 
 
@@ -153,7 +154,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
         yr = ys["year"]
         photo = photo_by_year_flat.get(yr, "")
         thumb_html = (
-            f'<div class="yc-thumb" style="background-image:url(\'{photo}\')"></div>'
+            f'<div class="yc-thumb" style="background-image:url(\'{thumb_url(photo)}\')"></div>'
             if photo else '<div class="yc-thumb yc-thumb-empty"></div>'
         )
         stat_row = (

@@ -327,7 +327,7 @@ function render(){
     const closedBadge=t.closed?'<span class="tc-closed">CLOSED</span>':'';
     const deletedBadge=t.deleted?'<span class="tc-deleted">DELETED</span>':'';
     const venueLabel=vUrl?`<a href="${vUrl}" onclick="event.stopPropagation()">${esc(t.venue||'Unknown venue')}</a>`:esc(t.venue||'Unknown venue');
-    const photoEl=t.photo_url?`<img class="tc-photo" src="${t.photo_url}" loading="lazy" alt="" onclick="event.stopPropagation();openTipPhoto('${t.photo_url}')">`:'';
+    const photoEl=t.photo_url?`<img class="tc-photo" src="${pixT(t.photo_url)}" loading="lazy" alt="" onclick="event.stopPropagation();openTipPhoto('${t.photo_url}')">`:'';
     return `<div class="tcard" id="tc_${i}" onclick="selectTip(${i})">
       ${photoEl}
       <div class="tc-venue-row">

@@ -219,6 +219,24 @@ python scripts/build.py \
   --travel-atlas-out _site/travel-atlas.html
 ```
 
+## Photo thumbs (pix/t/)
+Every original in R2 `pix/<name>` has a small copy at `pix/t/<name>` (640 px long
+edge, JPEG q72, ~50–100 KB instead of 0.5–2.4 MB) made by `scripts/make_thumbs.py`.
+Grids, tiles, covers and the dimmed year-page section backgrounds load the thumb
+(`pixT()` in page JS, `make_thumbs.thumb_url()` in generators); lightboxes and the
+year-page hero keep the original. build.py injects a `<script data-thumbs>` into every
+page: an `<img>` whose thumb 404s swaps back to the original, and an inline
+`background-image` thumb is probed and swapped the same way — so a thumb may lag
+behind its upload without breaking anything.
+
+Where thumbs come from: `update-dashboard.yml` and `add-checkin-photos.yml` make them
+for the photos they fetch (`--src-dir private-data/pix --out-dir private-data/pix/t`,
+uploaded by the same `aws s3 sync`); the nightly `thumbs.yml` (02:30 UTC, dispatch
+input `max`, default 8000) diffs the R2 listings of `pix/` and `pix/t/` and fills the
+rest — the historic backlog, `add_backfill_photo.py` uploads, anything a failed run
+skipped. It never writes the data repo. `delete-checkin.yml` / `archive-checkins.yml`
+remove `pix/t/<name>` next to the original.
+
 ## Fetch photos from export
 ```bash
 /c/Users/toouur/AppData/Local/Programs/Python/Python314/python.exe scripts/fetch_photos.py \

@@ -512,9 +512,8 @@ let curMark=null;
 // the active card's day, oldest stop first; the current stop drawn large
 let dayLayer=null, dayShown=null;
 // Real street / rail geometry per leg ("tsA-tsB" → [polyline5, km], from
-// scripts/route_paths.py): routes.json has the trip segments (as trips.html
-// draws them), routes_m_<YYYY-MM>.json every other leg between real check-ins,
-// one shard per UTC month of the arrival. A leg not routed yet (the nightly
+// scripts/route_paths.py): routes_m_<YYYY-MM>.json holds every leg between real
+// check-ins (trip segments included), one shard per UTC month of the arrival. A leg not routed yet (the nightly
 // warm-routes job drains the backlog) or touching a reconstructed check-in
 // stays a dashed straight chord. Shards are fetched for the months a day needs.
 let ROUTES=null;
@@ -527,7 +526,7 @@ function fetchRoutes(url){
 function loadRoutes(pts){
   const ym=new Set((pts||[]).map(p=>new Date(DATA[p[2]][0]*1000).toISOString().slice(0,7)));
   if(!ROUTE_MONTHS) ROUTE_MONTHS=fetch('routes_months.json').then(r=>r.ok?r.json():[]).catch(()=>[]);
-  return Promise.all([fetchRoutes('routes.json'), ROUTE_MONTHS.then(have=>Promise.all([...ym].filter(m=>have.includes(m)).map(m=>fetchRoutes('routes_m_'+m+'.json'))))]);
+  return ROUTE_MONTHS.then(have=>Promise.all([...ym].filter(m=>have.includes(m)).map(m=>fetchRoutes('routes_m_'+m+'.json'))));
 }
 const ROUTE_MONTHS_DONE=new Set();
 function decPoly(s){ // polyline5 → [[lat,lng],…]

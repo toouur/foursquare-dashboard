@@ -721,6 +721,11 @@ if __name__ == "__main__":
     for _k, _v in _all_routes.items():
         _ym = datetime.fromtimestamp(int(_k.split("-")[1]), tz=timezone.utc).strftime("%Y-%m")
         _by_month.setdefault(_ym, {})[_k] = _v
+    # The trip segments go into the same shards, so trips.html and the feed fetch
+    # only the months they draw instead of all of routes.json (~2.5 MB).
+    for _k, _v in _routes.items():
+        _ym = datetime.fromtimestamp(int(_k.split("-")[1]), tz=timezone.utc).strftime("%Y-%m")
+        _by_month.setdefault(_ym, {})[_k] = _v
     for _ym, _part in _by_month.items():
         Path(os.path.join(args.output_dir, f"routes_m_{_ym}.json")).write_text(
             json.dumps(_part, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -1497,6 +1502,31 @@ if __name__ == "__main__":
             _html.write_text(_txt.replace("{{CARTO_KEY}}", _carto_key), encoding="utf-8")
             _n_keyed += 1
     log.info("CARTO key injected into %d pages", _n_keyed)
+
+    # ── Photo thumbs: pix/t/<name> with a fallback to the original ────────────
+    # Grids, tiles and covers point at the small copy (scripts/make_thumbs.py,
+    # thumbs.yml); the lightbox keeps the original. A thumb that is not in R2
+    # yet falls back here: an <img> error swaps /pix/t/ back to /pix/, and an
+    # inline background-image is probed once the DOM is ready (a CSS background
+    # has no error event). pixT() is what page scripts call for a thumb URL.
+    _thumbs_js = (
+        "<script data-thumbs>window.pixT=function(u){return u?String(u).replace(/\\/pix\\/(?!t\\/)/,'/pix/t/'):u};"
+        "addEventListener('error',function(e){var i=e.target;"
+        "if(i&&i.tagName==='IMG'&&i.src.indexOf('/pix/t/')>0)i.src=i.src.replace('/pix/t/','/pix/')},true);"
+        "addEventListener('DOMContentLoaded',function(){"
+        "document.querySelectorAll('[style*=\"/pix/t/\"]').forEach(function(el){"
+        "var m=/url\\(['\"]?([^'\")]*\\/pix\\/t\\/[^'\")]*)/.exec(el.style.backgroundImage||'');if(!m)return;"
+        "var p=new Image();p.onerror=function(){el.style.backgroundImage=\"url('\"+m[1].replace('/pix/t/','/pix/')+\"')\"};p.src=m[1]})})"
+        "</script>"
+    )
+    _n_thumbs = 0
+    for _html in Path(args.output_dir).glob("*.html"):
+        _txt = _html.read_text(encoding="utf-8")
+        if "data-thumbs" in _txt or "</head>" not in _txt:
+            continue
+        _html.write_text(_txt.replace("</head>", _thumbs_js + "</head>", 1), encoding="utf-8")
+        _n_thumbs += 1
+    log.info("Photo-thumb fallback injected into %d pages", _n_thumbs)
 
     # ── PWA: manifest + service worker (versioned per build) ──────────────────
     # Render templates/{manifest.webmanifest,sw.js}.tmpl into the output root,

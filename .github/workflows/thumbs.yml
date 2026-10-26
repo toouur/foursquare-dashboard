@@ -1,0 +1,78 @@
+# .github/workflows/thumbs.yml
+#
+# Photo thumbs backlog — every original in R2 pix/ gets a small copy at
+# pix/t/<same name> (scripts/make_thumbs.py, 640 px long edge). Grids, tiles and
+# covers load the thumb; the lightbox loads the original. Pages fall back to the
+# original while a thumb is missing, so this job may lag behind uploads.
+#
+# The hourly update job and add-checkin-photos make thumbs for the photos they
+# fetch; this nightly sweep catches everything else (the historic ~24k photos,
+# add_backfill_photo.py uploads, anything a failed run skipped). It never
+# touches the data repo — no BUG-014 push loop needed.
+#
+# Required repository secrets:
+#   R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ACCOUNT_ID / R2_BUCKET_NAME
+#   R2_PUBLIC_URL — public base of the bucket (originals are read through it)
+
+name: Photo thumbs
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    - cron: "30 2 * * *"     # daily, 02:30 UTC
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "Max thumbs to make this run"
+        required: false
+        default: "8000"
+
+permissions:
+  contents: read
+
+jobs:
+  thumbs:
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt awscli --quiet
+
+      - name: Make and upload missing thumbs
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID:         ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME:        ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL:         ${{ secrets.R2_PUBLIC_URL }}
+          MAX:                   ${{ github.event.inputs.max || '8000' }}
+        run: |
+          if [ -z "$R2_BUCKET_NAME" ] || [ -z "$R2_PUBLIC_URL" ]; then
+            echo "R2 secrets not configured — nothing to do."; exit 0
+          fi
+          EP="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          aws s3 ls "s3://${R2_BUCKET_NAME}/pix/"   --endpoint-url "$EP" > pix.txt
+          aws s3 ls "s3://${R2_BUCKET_NAME}/pix/t/" --endpoint-url "$EP" > t.txt || true
+          echo "originals: $(wc -l < pix.txt) · thumbs: $(wc -l < t.txt)"
+          # build.py takes R2_PUBLIC_URL as the pix/ base itself; accept the bucket root too
+          PIX="${R2_PUBLIC_URL%/}"; case "$PIX" in */pix) ;; *) PIX="$PIX/pix" ;; esac
+          python scripts/make_thumbs.py --originals pix.txt --thumbs t.txt \
+            --pix-url "$PIX" --out-dir out/t --max "$MAX" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -d out/t ] && [ -n "$(ls -A out/t)" ]; then
+            aws s3 cp out/t/ "s3://${R2_BUCKET_NAME}/pix/t/" --recursive --endpoint-url "$EP" \
+              --content-type image/jpeg --cache-control "public, max-age=31536000, immutable" \
+              --no-progress --only-show-errors
+          fi

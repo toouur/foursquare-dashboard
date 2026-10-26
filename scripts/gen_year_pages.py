@@ -35,6 +35,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from make_thumbs import thumb_url
 from year_covers import load_month_cover_overrides, load_month_notes, select_year_covers
 
 CTRY_CODE: dict[str, str] = {}
@@ -1438,7 +1439,7 @@ def build_page(
             bg_pool += photos_y
         bg_pool = bg_pool[:section_count]
         scroll_bg_imgs = "".join(
-            f'<div class="sbg-img" style="background-image:url(\'{_esc(p["src"])}\')"></div>'
+            f'<div class="sbg-img" style="background-image:url(\'{_esc(thumb_url(p["src"]))}\')"></div>'
             for p in bg_pool
         )
 
@@ -1526,7 +1527,7 @@ def build_page(
                 ent = month_cover_ov.get((yr, mo))
                 if ent:
                     photo_html = (
-                        f'<div class="mo-photo" style="background-image:url(\'{_esc(ent["src"])}\')"></div>'
+                        f'<div class="mo-photo" style="background-image:url(\'{_esc(thumb_url(ent["src"]))}\')"></div>'
                     )
                 note = month_notes.get((yr, mo))
                 if note:
@@ -1552,11 +1553,11 @@ def build_page(
                 )
             if picked and not tag:
                 photo_html = (
-                    f'<div class="mo-photo" style="background-image:url(\'{_esc(picked["src"])}\')"></div>'
+                    f'<div class="mo-photo" style="background-image:url(\'{_esc(thumb_url(picked["src"]))}\')"></div>'
                 )
             elif picked:
                 photo_html = (
-                    f'<div class="mo-photo borrowed" style="background-image:url(\'{_esc(picked["src"])}\')">'
+                    f'<div class="mo-photo borrowed" style="background-image:url(\'{_esc(thumb_url(picked["src"]))}\')">'
                     f'<div class="mo-photo-tag">↺ {_esc(tag)}</div>'
                     f'</div>'
                 )
@@ -1742,7 +1743,7 @@ def build_page(
         if photos_y:
             ph_cards = "".join(
                 f'<div class="photo" onclick="openLB(\'{_esc(p["src"])}\')">'
-                f'<img src="{_esc(p["src"])}" loading="lazy" alt="">'
+                f'<img src="{_esc(thumb_url(p["src"]))}" loading="lazy" alt="">'
                 f'<div class="ph-meta">{_esc(p["venue"])}{" · " + _esc(p["city"]) if p["city"] else ""}</div>'
                 f'</div>'
                 for p in photos_y[:90]

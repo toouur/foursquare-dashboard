@@ -213,7 +213,7 @@ async function refresh(){
   document.getElementById('countLbl').textContent=fmt(d.length)+(isDefault()?' of '+fmt(META.total):'')+' places';
   const pod=isDefault()?d.slice(0,3):[];
   document.getElementById('podium').style.display=pod.length?'':'none';
-  document.getElementById('podium').innerHTML=pod.map((v,i)=>`<a class="pd p${i+1}" href="/venue.html#${esc(v[6])}">${v[7]&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+v[7])}" alt="">`:''}<span class="medal">${['🥇','🥈','🥉'][i]}</span>
+  document.getElementById('podium').innerHTML=pod.map((v,i)=>`<a class="pd p${i+1}" href="/venue.html#${esc(v[6])}">${v[7]&&PIX?`<img loading="lazy" src="${esc(PIX+'/t/'+v[7])}" alt="">`:''}<span class="medal">${['🥇','🥈','🥉'][i]}</span>
     <div class="pdb"><div class="pdn">${esc(v[0])}</div><div class="pdc">${fi(v[2])} ${esc(v[1]||v[2])} · ${esc(v[3])}</div><div class="pdk">${fmt(v[4])}<small> check-ins · ${v[5].length} year${v[5].length===1?'':'s'}</small></div></div></a>`).join('');
   document.getElementById('rows').innerHTML=d.length?'':'<div class="empty">No venues found</div>';
   more();
@@ -221,7 +221,7 @@ async function refresh(){
 function row(v,i){
   const ys=new Set(v[5]);let strip='';for(let y=Y0;y<=Y1;y++)strip+=`<i class="${ys.has(y)?'on':''}" title="${y}"></i>`;
   const top=data.length?data[0][4]:1;
-  return `<a class="vr" href="/venue.html#${esc(v[6])}"><span class="rk">${i+1}</span>${v[7]&&PIX?`<img loading="lazy" src="${esc(PIX+'/'+v[7])}" alt="">`:'<span class="ph0"></span>'}
+  return `<a class="vr" href="/venue.html#${esc(v[6])}"><span class="rk">${i+1}</span>${v[7]&&PIX?`<img loading="lazy" src="${esc(PIX+'/t/'+v[7])}" alt="">`:'<span class="ph0"></span>'}
     <div class="vn"><b>${esc(v[0])}</b><small>${fi(v[2])} ${esc(v[1]||v[2])} · <span class="c">${esc(v[3])}</span></small></div>
     <div class="ys" title="years with check-ins">${strip}</div>
     <div class="vk"><span class="bar"><i style="width:${Math.max(2,Math.round(100*v[4]/Math.max(1,top)))}%"></i></span><b>${fmt(v[4])}</b></div></a>`;
