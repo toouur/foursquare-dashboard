@@ -76,4 +76,21 @@ jobs:
       - name: Install chromium
         run: python -m playwright install chromium --with-deps
       - name: Run live suite (API contract + E2E smoke)
-        run: python -m pytest tests/ -m live -q
+        timeout-minutes: 30   # a step timeout fails the step, so the alert below still runs
+        run: python -m pytest tests/ -m live -q -rf 2>&1 | tee live.txt; exit ${PIPESTATUS[0]}
+      # The weekly sweep was red every Monday from August to October 2026 and
+      # nobody saw it — GitHub's email drowned. Say it in Telegram instead.
+      - name: Alert on a failed weekly sweep
+        if: failure() && github.event_name == 'schedule'
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT:  ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then echo "Telegram secrets not set — skipping alert."; exit 0; fi
+          FAILED=$(grep -E '^FAILED ' live.txt 2>/dev/null | sed -E 's/^FAILED tests\/([^ ]*).*/\1/' | head -6)
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -fsS "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode chat_id="${TG_CHAT}" \
+            --data-urlencode text="🟠 4sq dashboard: weekly live tests failed
+          ${FAILED:-(no FAILED lines — timeout or setup error)}
+          ${RUN_URL}" > /dev/null && echo "Telegram alert sent."

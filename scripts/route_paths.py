@@ -20,7 +20,7 @@ meanwhile.  Logical no-routes
 (off-network endpoints, absurd detours) are cached as failures so they are
 never re-asked; transient network errors are NOT cached.
 
-Output consumed by templates/trips.html.tmpl via routes.json:
+Output consumed by trips.html / feed.html via build.py's monthly routes_m_<YYYY-MM>.json shards:
     { "<ts_a>-<ts_b>": [<polyline5>, <routed_km>], ... }
 """
 

@@ -25,7 +25,12 @@ on:
     - cron: "0 */1  * * *"   # every hour
   push:
     branches: [main]         # verify build on every push (no deploy)
-  workflow_dispatch:         # manual trigger button in GitHub UI
+  workflow_dispatch:         # manual trigger button in GitHub UI (also the owner's after-check-in trigger)
+    inputs:
+      force_ratings:
+        description: "Also fetch venue ratings now (costs ~8 of the ~220 monthly venuelikes calls)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -81,6 +86,13 @@ jobs:
       vars.UPDATES_PAUSED != 'true' &&
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    # One update at a time: two overlapping runs both commit checkins.csv /
+    # photos.json and the second one's rebase conflicts (2026-10-23 14:46).
+    # A run that arrives meanwhile waits; a newer arrival replaces a waiting one,
+    # which is fine — every run fetches everything new since the CSV's last row.
+    concurrency:
+      group: update-dashboard
+      cancel-in-progress: false
 
     steps:
       # ── 1. Checkout public repo ───────────────────────────────────────────────
@@ -179,7 +191,9 @@ jobs:
       #   ~8.6k calls/month → exhausted the allowance in ~3 days. Every-3-days
       #   (≈10 runs/mo × ~8 = ~80 calls ≈ 36% of budget) keeps the endpoint alive
       #   all month with headroom. Fires at 04:00 UTC on days where day-of-year is
-      #   divisible by 3; manual dispatch bypasses the gate.
+      #   divisible by 3. A manual dispatch does NOT bypass the gate any more (the
+      #   owner's after-check-in trigger dispatches 10-80 times a day and spent the
+      #   October quota by the 26th); dispatch with force_ratings=true to fetch now.
       - name: Fetch venue ratings
         id: fetch_ratings
         env:
@@ -187,7 +201,7 @@ jobs:
         run: |
           DOY=$(date -u +%j)   # day-of-year, 001…366 (zero-padded)
           HOUR=$(date -u +%H)  # 00 … 23 (hourly cron fires at minute 0)
-          if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! { [ "$((10#$DOY % 3))" = "0" ] && [ "$HOUR" = "04" ]; }; then
+          if [ "${{ inputs.force_ratings }}" != "true" ] && ! { [ "${{ github.event_name }}" = "schedule" ] && [ "$((10#$DOY % 3))" = "0" ] && [ "$HOUR" = "04" ]; }; then
             echo "⏭  Ratings fetch is throttled to every 3 days (04:00 UTC) — skipping (DOY=$DOY HOUR=$HOUR)."
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
             echo "LIKES_UNAVAILABLE=false" >> "$GITHUB_OUTPUT"
@@ -548,6 +562,7 @@ jobs:
           # ── Assemble the clean deploy dir (root asset globs match files only) ──
           rm -rf _site && mkdir -p _site
           cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
+          cp _headers _site/ 2>/dev/null || true   # security response headers
           cp -r assets   _site/assets
           cp -r functions _site/functions   # Cloudflare Pages Functions
           rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git
@@ -694,6 +709,7 @@ jobs:
         run: |
           rm -rf _site && mkdir -p _site
           cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
+          cp _headers _site/ 2>/dev/null || true   # security response headers
           cp -r assets   _site/assets
           cp -r functions _site/functions
           rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git

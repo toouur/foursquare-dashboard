@@ -1118,9 +1118,15 @@ document.querySelectorAll('.kpi-grid, .music-hero').forEach(g => kObs.observe(g)
   if (!bg) return;
   const photos = bg.querySelectorAll('.ph');
   if (!photos.length) return;
+  const load = el => {{ if (el && el.dataset.bg) {{ el.style.backgroundImage = "url('" + el.dataset.bg + "')"; delete el.dataset.bg; }} }};
   if (photos.length === 1) {{ photos[0].classList.add('active'); return; }}
   let i = 0; photos[0].classList.add('active');
-  setInterval(() => {{ photos[i].classList.remove('active'); i = (i + 1) % photos.length; photos[i].classList.add('active'); }}, 5200);
+  // the next frame starts loading after the page has, a full slide before it shows
+  addEventListener('load', () => load(photos[1]));
+  setInterval(() => {{
+    photos[i].classList.remove('active'); i = (i + 1) % photos.length;
+    load(photos[i]); photos[i].classList.add('active'); load(photos[(i + 1) % photos.length]);
+  }}, 5200);
 }})();
 
 window.openLB = src => {{ document.getElementById('lbImg').src = src; document.getElementById('lb').classList.add('open'); }};
@@ -1425,9 +1431,13 @@ def build_page(
             hero_photos = [p for p in hero_photos if p["src"] != cover_src]
             hero_photos.insert(0, {"src": cover_src})
             hero_photos = hero_photos[:5]
+        # Only the first frame loads with the page; the slideshow script sets the
+        # next frame's background one slide ahead (originals are 0.5-3 MB each and
+        # five of them made a year page up to 9 MB on a phone).
         hero_bg_html = "".join(
-            f'<div class="ph" style="background-image:url(\'{_esc(p["src"])}\')"></div>'
-            for p in hero_photos
+            (f'<div class="ph" style="background-image:url(\'{_esc(p["src"])}\')"></div>' if k == 0
+             else f'<div class="ph" data-bg="{_esc(p["src"])}"></div>')
+            for k, p in enumerate(hero_photos)
         )
 
         # Scrolling background photos (one per non-hero section, picked spaced

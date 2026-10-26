@@ -21,8 +21,9 @@ Assembled by the "Assemble deploy directory" step — root asset globs only
 (`*.html *.json *.xml *.svg *.txt *.csv`) plus `assets/` and `functions/`.
 Subdirectories like `private-data/`, `scripts/`, `config/` are **never** copied
 (globs match files, not dirs), with a defensive `rm -rf` as backstop. Static
-pages (`solution.html`, `sitemap.xml`, `robots.txt`, `favicon.svg`) stay tracked
-in git; everything else under `_site/` is regenerated each run.
+pages (`solution.html`, `robots.txt`, `favicon.svg`) and `_headers` (security headers,
+copied into `_site/` explicitly — it has no extension) stay tracked in git; `sitemap.xml`
+is written by `build.write_sitemap` from the pages each build produces; everything else under `_site/` is regenerated each run.
 
 ## Required configuration
 

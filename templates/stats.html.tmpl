@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Statistics — Check-in Journal</title>
-<meta name="description" content="Deep analytics of 65,000+ Foursquare check-ins: yearly trends, activity streaks, venue loyalty, discovery rate, category mix and more.">
+<meta name="description" content="Deep analytics of {{CHECKINS_PLUS}} Foursquare check-ins: yearly trends, activity streaks, venue loyalty, discovery rate, category mix and more.">
 <link rel="canonical" href="https://4sq.pages.dev/stats.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Check-in Journal">
 <meta property="og:title" content="Statistics — Check-in Journal">
-<meta property="og:description" content="Deep analytics of 65,000+ Foursquare check-ins: yearly trends, activity streaks, venue loyalty, discovery rate, category mix and more.">
+<meta property="og:description" content="Deep analytics of {{CHECKINS_PLUS}} Foursquare check-ins: yearly trends, activity streaks, venue loyalty, discovery rate, category mix and more.">
 <meta property="og:url" content="https://4sq.pages.dev/stats.html">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Statistics — Check-in Journal">
-<meta name="twitter:description" content="Deep analytics of 65,000+ Foursquare check-ins: yearly trends, activity streaks, venue loyalty, discovery rate, category mix and more.">
+<meta name="twitter:description" content="Deep analytics of {{CHECKINS_PLUS}} Foursquare check-ins: yearly trends, activity streaks, venue loyalty, discovery rate, category mix and more.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -911,15 +911,19 @@ if(S.revisit_intervals&&S.revisit_intervals.length){
       const ds=cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')+'-'+String(cur.getDate()).padStart(2,'0');
       const v=d[ds]||0; const cell=document.createElement('div'); cell.className='heatmap-cell';
       cell.setAttribute('data-v',level(v));
-      cell.addEventListener('mouseenter',e=>{if(v>0){tip.textContent=ds+': '+v+' check-in'+(v===1?'':'s');tip.style.display='block';}});
-      cell.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
-      cell.addEventListener('mouseleave',()=>{tip.style.display='none';});
+      if(v>0){cell.dataset.d=ds;cell.dataset.n=v;}
       week.appendChild(cell);
       cur.setDate(cur.getDate()+1);
     }
     if(week.children.length>0) grid.appendChild(week);
     row.appendChild(grid); cont.appendChild(row);
   });
+  // one set of listeners for the whole grid (it was 3 per day cell, ~22k)
+  cont.addEventListener('mouseover',e=>{const c=e.target.closest('.heatmap-cell');
+    if(c&&c.dataset.n){const n=+c.dataset.n;tip.textContent=c.dataset.d+': '+n+' check-in'+(n===1?'':'s');tip.style.display='block';}
+    else tip.style.display='none';});
+  cont.addEventListener('mousemove',e=>{tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-28)+'px';});
+  cont.addEventListener('mouseleave',()=>{tip.style.display='none';});
 })();
 
 // ── 15. Place Categories ────────────────────────────────────────────────────

@@ -182,6 +182,7 @@ jobs:
           # (it holds private-data/).
           rm -rf _site && mkdir -p _site
           cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
+          cp _headers _site/ 2>/dev/null || true   # security response headers
           cp -r assets    _site/assets
           cp -r functions _site/functions
           rm -rf _site/private-data _site/scripts _site/config _site/templates _site/.git

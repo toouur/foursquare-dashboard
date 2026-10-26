@@ -105,6 +105,31 @@ _TRIP_CK_FIELDS = ('ts', 'date', 'time', 'venue', 'venue_id', 'city', 'country',
                    'category', 'lat', 'lng', 'checkin_id', 'refurbished', 'photos', 'm')
 _TRIP_SHARD = 10
 
+SITE_URL = "https://4sq.pages.dev/"
+# Not for search engines: the private visit counter, the search shell and the
+# venue page (one empty shell filled from #id — its content is not crawlable).
+_SITEMAP_SKIP = {"visits.html", "search.html", "venue.html", "index.html"}
+
+
+def _sitemap_priority(name: str) -> str:
+    if name.startswith(("year-", "country-")):
+        return "0.6"
+    return "0.5" if name == "solution.html" else "0.8"
+
+
+def write_sitemap(out_dir: Path, extra: list | None = None) -> int:
+    """sitemap.xml for every generated page (+ tracked extras that exist); returns the URL count."""
+    names = {p.name for p in out_dir.glob("*.html")} | {p.name for p in (extra or []) if Path(p).exists()}
+    pages = sorted(n for n in names if n not in _SITEMAP_SKIP and not n.startswith("google"))
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    urls = [f"  <url><loc>{SITE_URL}</loc><lastmod>{today}</lastmod><priority>1.0</priority></url>"]
+    urls += [f"  <url><loc>{SITE_URL}{n}</loc><lastmod>{today}</lastmod><priority>{_sitemap_priority(n)}</priority></url>"
+             for n in pages]
+    (out_dir / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls) + "\n</urlset>\n", encoding="utf-8")
+    return len(urls)
+
 
 def _write_trip_checkin_shards(trips, out_dir):
     """Write trip_checkins_<id//10>.json; return (content version, trips without checkins)."""
@@ -670,11 +695,12 @@ if __name__ == "__main__":
     except Exception as _tme:
         log.warning("transport-mode classification failed: %s", _tme)
 
-    # ── GPS-like route geometry for trip-map segments (routes.json) ──────────
+    # ── GPS-like route geometry for trip-map segments + feed day legs ─────────
     # Fetch real street/rail paths (FOSSGIS OSRM + BRouter) for mode-tagged
     # segments, served from a persistent cache in the private data repo.
-    # routes.json is ALWAYS written (empty when --routes-cache is unset) so the
-    # template's fetch never 404s.
+    # Everything lands in routes_m_<YYYY-MM>.json shards; routes_months.json is
+    # ALWAYS written (empty when --routes-cache is unset) so the pages' fetch
+    # never 404s. (A single routes.json, 2.5 MB, was dropped 2026-10-26.)
     _routes: dict = {}
     _all_routes: dict = {}
     if args.routes_cache:
@@ -708,9 +734,6 @@ if __name__ == "__main__":
         except Exception as _rpe:
             log.warning("route-geometry attachment failed: %s", _rpe)
     os.makedirs(args.output_dir, exist_ok=True)
-    Path(os.path.join(args.output_dir, "routes.json")).write_text(
-        json.dumps(_routes, ensure_ascii=False, separators=(",", ":")),
-        encoding="utf-8")
     # Feed day routes, one shard per UTC month of the leg's arrival:
     # routes_m_<YYYY-MM>.json  {"tsA-tsB": [polyline5, km]}; the feed fetches the
     # month(s) of the day it draws. Stale shards are removed first.
@@ -1502,6 +1525,18 @@ if __name__ == "__main__":
             _html.write_text(_txt.replace("{{CARTO_KEY}}", _carto_key), encoding="utf-8")
             _n_keyed += 1
     log.info("CARTO key injected into %d pages", _n_keyed)
+
+    # ── Check-in count in meta descriptions ("71,000+", rounded down) ─────────
+    _checkins_plus = f"{(data['total'] // 1000) * 1000:,}+"
+    for _html in Path(args.output_dir).glob("*.html"):
+        _txt = _html.read_text(encoding="utf-8")
+        if "{{CHECKINS_PLUS}}" in _txt:
+            _html.write_text(_txt.replace("{{CHECKINS_PLUS}}", _checkins_plus), encoding="utf-8")
+
+    # ── sitemap.xml from the pages this build produced ────────────────────────
+    # The tracked sitemap.xml listed 11 URLs; years, countries, culture, flights
+    # and the rest were never submitted. Private / empty-shell pages stay out.
+    write_sitemap(Path(args.output_dir), extra=[_PROJECT_ROOT / "solution.html"])
 
     # ── Photo thumbs: pix/t/<name> with a fallback to the original ────────────
     # Grids, tiles and covers point at the small copy (scripts/make_thumbs.py,

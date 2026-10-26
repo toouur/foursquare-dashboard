@@ -566,6 +566,14 @@ const ENDPOINTS = [
 ];
 
 const sleep = ms => new Promise(res => setTimeout(res, ms));
+// The mirror that answered last goes first next time (overpass-api.de spends
+// whole days at 502/504, and each failed try costs a CORS error + a round trip).
+const EP_KEY = 'guide-overpass-ep';
+function endpointsInOrder() {
+  let last = '';
+  try { last = localStorage.getItem(EP_KEY) || ''; } catch (e) {}
+  return ENDPOINTS.includes(last) ? [last, ...ENDPOINTS.filter(e => e !== last)] : ENDPOINTS;
+}
 
 async function overpassFetch(tags, abortSignal, onStatus) {
   const cacheK = cacheKey(state.anchor.lat, state.anchor.lng, state.radius, tags);
@@ -588,7 +596,7 @@ async function overpassFetch(tags, abortSignal, onStatus) {
   const promise = (async () => {
     let lastErr;
     for (let round = 0; round < ROUNDS; round++) {
-      for (const ep of ENDPOINTS) {
+      for (const ep of endpointsInOrder()) {
         if (abortSignal && abortSignal.aborted) throw new DOMException('aborted', 'AbortError');
         try {
           const r = await fetch(ep, {
@@ -598,6 +606,7 @@ async function overpassFetch(tags, abortSignal, onStatus) {
           });
           if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
           const d = await r.json();
+          try { localStorage.setItem(EP_KEY, ep); } catch (e) {}
           const els = d.elements || [];
           idbSet(cacheK, { t: Date.now(), v: els });
           return els;

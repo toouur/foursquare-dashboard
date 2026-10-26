@@ -53,7 +53,7 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 **Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed/health APIs), D1 (SQLite + FTS5 at the edge), R2 (photo storage), Workers (check-in poller)
 **Front-end (CDN):** Leaflet (maps, CARTO basemaps with an API key), Chart.js, Twemoji · installable PWA (service worker + web manifest)
 **CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, a daily route-geometry warm and a daily enrichment re-scan, plus ~20 on-demand maintenance workflows
-**Quality:** ruff + mypy + a 578-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
+**Quality:** ruff + mypy + a 579-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
 
 ## Table of contents
 
@@ -220,7 +220,7 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
 │       ├── custom-list.js       # /api/custom-list — custom curated lists
 │       └── health.js            # /api/health — D1 + data-freshness health check (200/503)
-├── tests/                    # 578-test pytest suite (see "Tests" section below)
+├── tests/                    # 579-test pytest suite (see "Tests" section below)
 │   ├── conftest.py           # Markers (live/e2e) + shared make_row() factory
 │   ├── test_*.py             # Offline unit (259) / live API contract (22) / E2E + a11y (22)
 │   └── load/search.js        # k6 load-test script for /api/search
@@ -444,12 +444,12 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **578-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **579-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 521 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 522 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
 | Browser E2E smoke + accessibility | `live` + `e2e` | 35 | internet + Playwright chromium |
 
@@ -1370,7 +1370,7 @@ Each CI run (or a `workflow_dispatch`) does:
 3. **Direct-upload** to the CDN: `npx wrangler@3 pages deploy _site --project-name 4sq`.
 
 Only real sources stay tracked in git (scripts, config, templates, plus a few genuinely static
-pages: `solution.html`, `sitemap.xml`, `robots.txt`, `favicon.svg`). **Cloudflare Pages git
+pages: `solution.html`, `robots.txt`, `favicon.svg`; `sitemap.xml` is generated at build time). **Cloudflare Pages git
 auto-deploy is deliberately disabled** — with no HTML in git, a git-triggered build would publish a
 broken, empty site. Full runbook: `ops/deploy.md`.
 
@@ -1400,7 +1400,8 @@ throttled *inside* the hourly job: `/users/self/venuelikes` has a monthly
 premium-call quota (~220 calls, empirical) that resets on the 1st and returns
 HTTP 402 once spent, so the step only fires at **04:00 UTC on days where the
 day-of-year is divisible by 3** (≈ every 3 days, ~10 fetches/month ≈ ~36 % of
-budget). A manual `workflow_dispatch` bypasses the gate. See the `Fetch venue
+budget). A manual `workflow_dispatch` does NOT bypass it unless dispatched with
+`force_ratings=true` (the owner's after-check-in trigger dispatches 10-80 times a day). See the `Fetch venue
 ratings` step in `update-dashboard.yml`.
 
 ### Hourly vs. daily: keeping the poller fast

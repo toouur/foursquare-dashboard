@@ -163,9 +163,11 @@ function render(D) {{
   document.getElementById('wlegend').innerHTML = Object.entries(types).sort((a, b) => b[1] - a[1]).map(([t, n]) => '<span><i style="background:' + (WCOL[t] || '#e8b86d') + '"></i>' + esc(t) + ' · ' + n + '</span>').join('') +
     '<span>' + (wines.length - placed.length) + ' without a place (no check-in near the scan)</span>';
 
-  // the wall: the newest bottles that have a label photo
+  // the wall: the newest bottles that have a label photo. Vivino keeps a 375x500
+  // copy of every label (~40 KB vs ~240 KB); the original is the onerror fallback.
+  const labelThumb = u => String(u).replace(/\/labels\/([^/.]+)\.(?:jpg|png)$/, '/thumbs/$1_375x500.jpg');
   document.getElementById('wall').innerHTML = wines.filter(w => w.label).slice(0, 18).map(w =>
-    '<a class="wl" href="' + esc(w.url) + '" target="_blank" rel="noopener" title="' + esc(w.wine + ' ' + (w.vintage || '')) + '"><img loading="lazy" src="' + esc(w.label) + '" alt=""><span class="wr">★ ' + w.rating + '</span>' +
+    '<a class="wl" href="' + esc(w.url) + '" target="_blank" rel="noopener" title="' + esc(w.wine + ' ' + (w.vintage || '')) + '"><img loading="lazy" src="' + esc(labelThumb(w.label)) + '" data-full="' + esc(w.label) + '" onerror="if(this.dataset.full&&this.src!==this.dataset.full)this.src=this.dataset.full" alt=""><span class="wr">★ ' + w.rating + '</span>' +
     '<div class="wn"><span>' + esc(w.wine) + '</span><small>' + esc([w.winery, w.country, w.vintage].filter(Boolean).join(' · ')) + '</small></div></a>').join('');
   // film tiles: the latest films actually watched (backlog catch-up days left out)
   document.getElementById('ftiles').innerHTML = seen.slice(0, 12).map(f => {{
