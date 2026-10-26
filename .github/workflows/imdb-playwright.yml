@@ -1,0 +1,45 @@
+# Manual-only experiment: normal browser sign-in using Playwright.
+# This does not bypass CAPTCHA, MFA, AWS WAF, or other security challenges.
+name: IMDb ratings (Playwright experiment)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  experiment:
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout private data repo
+        uses: actions/checkout@v4
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Playwright
+        run: |
+          pip install playwright requests
+          playwright install --with-deps chromium
+      - name: Sign in and read ratings in browser
+        env:
+          IMDB_USERNAME: ${{ secrets.IMDB_USERNAME }}
+          IMDB_PASSWORD: ${{ secrets.IMDB_PASSWORD }}
+        run: python scripts/fetch_imdb_playwright.py private-data/imdb_ratings.json
+      - name: Commit validated ratings
+        if: success() && hashFiles('private-data/imdb_ratings.json') != ''
+        run: |
+          cd private-data
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add imdb_ratings.json
+          if git diff --cached --quiet; then
+            echo "No rating changes."
+          else
+            git commit -m "chore: experimental Playwright IMDb ratings refresh"
+            git push origin HEAD:main
+          fi
