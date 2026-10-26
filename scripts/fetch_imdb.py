@@ -249,9 +249,25 @@ def main(argv: list[str] | None = None) -> int:
     old = {}
     if out.exists():
         try:
-            old = {x["id"]: x for x in json.loads(out.read_text(encoding="utf-8")).get("ratings", [])}
-        except Exception:
-            old = {}
+            previous = json.loads(out.read_text(encoding="utf-8"))
+            previous_rows = previous.get("ratings")
+            if not isinstance(previous_rows, list):
+                raise ValueError("ratings is not a list")
+            old = {x["id"]: x for x in previous_rows if isinstance(x, dict) and isinstance(x.get("id"), str)}
+            if previous_rows and not old:
+                raise ValueError("existing ratings file has no valid title IDs")
+        except Exception as e:
+            _note("error", f"existing ratings file is invalid; refusing to replace it ({type(e).__name__})")
+            print("CHANGED=false")
+            return 1
+    # Guard against a changed IMDb page/schema producing a tiny, plausible-looking
+    # but incomplete scrape. Never replace or commit data from a suspicious sample.
+    minimum = min(5, len(old)) if old else 5
+    if len(rows) < minimum:
+        _note("error", f"only {len(rows)} rated titles parsed; expected at least {minimum}. "
+                       "Possible IMDb page/schema change — keeping previous file unchanged")
+        print("CHANGED=false")
+        return 1
     merged = dict(old)
     for x in rows:
         if not x["date"] and x["id"] in old:
