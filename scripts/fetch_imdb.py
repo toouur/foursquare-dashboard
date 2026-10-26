@@ -262,7 +262,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     # Guard against a changed IMDb page/schema producing a tiny, plausible-looking
     # but incomplete scrape. Never replace or commit data from a suspicious sample.
-    minimum = min(5, len(old)) if old else 5
+    # On an established dataset require a meaningful sample; on first bootstrap,
+    # accept any non-empty parse and rely on the existing export as the historical base.
+    minimum = min(5, len(old)) if old else 1
     if len(rows) < minimum:
         _note("error", f"only {len(rows)} rated titles parsed; expected at least {minimum}. "
                        "Possible IMDb page/schema change — keeping previous file unchanged")
