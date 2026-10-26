@@ -25,9 +25,9 @@ TIMEOUT = 30
 
 FEED_CACHE_CONTROL = "public, max-age=60, s-maxage=3600, stale-while-revalidate=600"
 
-# 12-element feed tuple:
-# [ts, date, time, venue, city, country, category, venue_id, lat, lng, id, companions]
-FEED_TUPLE_LEN = 12
+# 13-element feed tuple (the rf flag arrived with the pre-2012 backfill):
+# [ts, date, time, venue, city, country, category, venue_id, lat, lng, id, companions, rf]
+FEED_TUPLE_LEN = 13
 DATE_RE = re.compile(r"^\d{2} [A-Z][a-z]{2} \d{4}$")
 TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 
@@ -61,7 +61,8 @@ def get_json(path):
 
 def assert_feed_item_shape(item):
     assert isinstance(item, list) and len(item) == FEED_TUPLE_LEN
-    ts, date, time_, venue, city, country, cat, vid, lat, lng, cid, comps = item
+    ts, date, time_, venue, city, country, cat, vid, lat, lng, cid, comps, rf = item
+    assert rf in (0, 1)
     assert isinstance(ts, int) and ts > 0
     assert DATE_RE.match(date), date
     assert TIME_RE.match(time_), time_
@@ -94,9 +95,11 @@ class TestSearchContract:
         assert status == 200
         assert all(data[k] == [] for k in SEARCH_KEYS)
 
-    def test_no_store_cache_header(self):
+    def test_success_is_edge_cacheable(self):
+        # 200s are edge-cached (search.js CACHE_TTL); only errors are no-store
         _, headers, _ = get_json("/api/search?q=minsk")
-        assert headers.get("Cache-Control") == "no-store"
+        cc = headers.get("Cache-Control") or ""
+        assert "public" in cc and "s-maxage=" in cc, cc
 
     def test_venue_item_shape(self):
         _, _, data = get_json("/api/search?q=minsk")
@@ -230,8 +233,10 @@ class TestFeedContract:
             assert_feed_item_shape(item)
 
     def test_companions_populated_somewhere_in_feed(self):
-        # Regression guard for the _v=companions schema change: at least one
-        # of the 50 newest items should carry a non-empty companions array.
-        _, _, data = get_json("/api/feed?limit=50&_v=companions")
+        # Regression guard for the _v=companions schema change. The newest page
+        # can be a solo week at home (limit is capped at 50), so read a fixed
+        # page of history instead: the 50 check-ins before 2026-10-04 21:00 UTC,
+        # Istanbul with Darya.
+        _, _, data = get_json("/api/feed?limit=50&cursor=1791147600&_v=companions")
         assert any(it[11] for it in data["items"]), \
-            "no companions in 50 newest items — tuple shape regression?"
+            "no companions in the Istanbul page — tuple shape regression?"

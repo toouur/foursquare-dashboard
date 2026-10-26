@@ -118,8 +118,10 @@ class TestNewerFeatures:
         page.wait_for_selector("#vsWin .fc-venue", timeout=30000)
         assert page.locator(".day-row").count() >= 1
         assert page.locator(".fc-stop").count() >= 1
-        # the active card's day is drawn on the map (routed or a dashed chord)
-        page.wait_for_selector(".leaflet-overlay-pane path", state="attached", timeout=20000)
+        # the active card's day is drawn on the map (routed or a dashed chord);
+        # the map renders on canvas, so look at the layer, not at SVG paths
+        page.wait_for_function("typeof dayLayer !== 'undefined' && dayLayer && dayLayer.getLayers().length > 0",
+                               timeout=20000)
 
     def test_venue_page_shows_likes(self, page):
         # Кафе РУП «Белстройцентр» — the venue with the most liked check-ins
@@ -151,15 +153,15 @@ class TestNewerFeatures:
 # Transferred bytes on a phone (first load + a short settle), per page. Measured
 # 2026-10-26 after the thumbs/payload work; the budget leaves ~40 % headroom so a
 # page that quietly grows (originals in a grid, a payload inlined twice) fails here.
-WEIGHT_BUDGET_MB = {
-    "/": 3.0,
-    "/photos.html": 3.0,
-    "/trips.html": 3.0,
-    "/year-2026.html": 3.0,
-    "/years.html": 3.0,
-    "/venues.html": 3.0,
-    "/companions.html": 3.0,
-    "/tips.html": 2.0,
+WEIGHT_BUDGET_MB = {          # measured (before thumbs: 6.0 / 41.6 / 5.6 / 10.2 / 6.7 / 6.7 / 4.7 / 0.6)
+    "/": 2.5,                 # 1.7
+    "/photos.html": 8.0,      # 5.8 — the first page of grid thumbs
+    "/trips.html": 1.5,       # 0.9
+    "/year-2026.html": 4.0,   # 2.8 — the hero keeps 5 originals
+    "/years.html": 1.5,       # 0.9
+    "/venues.html": 1.5,      # 1.0
+    "/companions.html": 2.5,  # 1.6
+    "/tips.html": 1.0,        # 0.6
 }
 
 
