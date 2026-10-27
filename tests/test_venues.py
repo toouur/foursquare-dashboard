@@ -131,6 +131,8 @@ def test_clean_shout():
 def test_visit_carries_its_likes():
     t = _ts("2021-06-01T10:00:00")
     rows = [_row(t, "v1", checkin_id="cL"), _row(t + 86400, "v1", checkin_id="cN")]
-    v = compute_venues(rows, None, {"cL": {"n": 2, "by": [["1", "Ana"], ["2", "Bo"]]}})["v1"]["v"]
+    v = compute_venues(rows, None, {"cL": {"n": 2, "by": [["1", "Ana"], ["2", "Bo"]]},
+                                    "cN": {"n": 3, "by": [["1", "Ana"]], "me": 1}})["v1"]["v"]
     ix = {k: i for i, k in enumerate(VISIT_FIELDS)}
-    assert v[1][ix["likes"]] == [2, "Ana, Bo"] and v[0][ix["likes"]] == 0
+    assert v[1][ix["likes"]] == [2, "Ana, Bo", 0]
+    assert v[0][ix["likes"]] == [3, "Ana", 1]          # + you, + 1 not-a-friend

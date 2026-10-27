@@ -531,9 +531,15 @@ show(idx>=0?idx:0);
   if(LIKERS.length){
     document.getElementById('likersCard').style.display='';
     const mx=LIKERS[0][2];
-    document.getElementById('likersList').innerHTML=LIKERS.slice(0,20).map(([id,nm,c])=>`<div class="cc-row" style="grid-template-columns:200px 1fr 50px">
+    const likerRow=([id,nm,c])=>`<div class="cc-row" style="grid-template-columns:minmax(0,200px) 1fr 50px">
       <div class="cc-name">${esc(nm)}</div><div style="height:6px;border-radius:3px;background:var(--card);overflow:hidden"><i style="display:block;height:100%;width:${Math.round(100*c/mx)}%;background:linear-gradient(90deg,#ff6fae,#ff9a6b)"></i></div>
-      <div style="font-family:'DM Mono',monospace;font-size:.7rem;color:#ff8fbf;text-align:right">♥ ${c.toLocaleString()}</div></div>`).join('');
+      <div style="font-family:'DM Mono',monospace;font-size:.7rem;color:#ff8fbf;text-align:right">♥ ${c.toLocaleString()}</div></div>`;
+    const showLikers=all=>{
+      document.getElementById('likersList').innerHTML=(all?LIKERS:LIKERS.slice(0,20)).map(likerRow).join('')+
+        (!all&&LIKERS.length>20?`<button class="more-btn" onclick="showAllLikers()">SHOW ALL ${LIKERS.length} ▾</button>`:'');
+    };
+    window.showAllLikers=()=>showLikers(true);
+    showLikers(false);
   }
 
   // ── Companion Countries ───────────────────────────────────────────────────

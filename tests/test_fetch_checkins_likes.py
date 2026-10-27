@@ -32,3 +32,16 @@ def test_api_to_row_records_likes_but_csv_row_has_no_likes(monkeypatch):
     row = fc.api_to_row({**_ci("x1", 1, [("5", "Rene", "")]), "createdAt": 1, "venue": {"id": "v"}})
     assert fc.LIKES_SEEN == {"x1": {"n": 1, "by": [["5", "Rene"]]}}
     assert "likes" not in row and set(row) <= set(fc.FIELDS)
+
+
+def test_own_like_and_non_friends_are_kept_apart(monkeypatch):
+    # the API's own shapes (2026-10-27): a self-like has no group, only summary
+    # "You"; people outside your friends are an "others" group with no items
+    monkeypatch.setattr(fc, "LIKES_SEEN", {})
+    fc.note_likes({"id": "self", "likes": {"count": 1, "groups": [], "summary": "You"}})
+    fc.note_likes({"id": "mix", "likes": {"count": 4, "summary": "Iennifer, Bojan & 2 others", "groups": [
+        {"type": "friends", "count": 2, "items": [{"id": "1", "firstName": "Iennifer"},
+                                                  {"id": "2", "firstName": "Bojan", "lastName": "B"}]},
+        {"type": "others", "count": 2, "items": []}]}})
+    assert fc.LIKES_SEEN["self"] == {"n": 1, "by": [], "me": 1}
+    assert fc.LIKES_SEEN["mix"] == {"n": 4, "by": [["1", "Iennifer"], ["2", "Bojan B"]]}

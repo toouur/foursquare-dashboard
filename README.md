@@ -53,7 +53,7 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 **Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed/health APIs), D1 (SQLite + FTS5 at the edge), R2 (photo storage), Workers (check-in poller)
 **Front-end (CDN):** Leaflet (maps, CARTO basemaps with an API key), Chart.js, Twemoji · installable PWA (service worker + web manifest)
 **CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, a daily route-geometry warm and a daily enrichment re-scan, plus ~20 on-demand maintenance workflows
-**Quality:** ruff + mypy + a 580-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
+**Quality:** ruff + mypy + a 581-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
 
 ## Table of contents
 
@@ -220,7 +220,7 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
 │       ├── custom-list.js       # /api/custom-list — custom curated lists
 │       └── health.js            # /api/health — D1 + data-freshness health check (200/503)
-├── tests/                    # 580-test pytest suite (see "Tests" section below)
+├── tests/                    # 581-test pytest suite (see "Tests" section below)
 │   ├── conftest.py           # Markers (live/e2e) + shared make_row() factory
 │   ├── test_*.py             # Offline unit (259) / live API contract (22) / E2E + a11y (22)
 │   └── load/search.js        # k6 load-test script for /api/search
@@ -444,12 +444,12 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **580-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **581-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 523 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 524 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
 | Browser E2E smoke + accessibility | `live` + `e2e` | 35 | internet + Playwright chromium |
 
@@ -705,7 +705,7 @@ across the unit suites.
 - **mypy** — type-check gate over `scripts/` (config: `[mypy]` in [`setup.cfg`](setup.cfg);
   pragmatic settings for a gradually-typed codebase — `ignore_missing_imports`,
   `allow_redefinition`, `var-annotated` disabled — but annotated code is checked for
-  real, and the tree is currently clean across all 90 files). Runs in the same CI `lint`
+  real, and the tree is currently clean across all 91 files). Runs in the same CI `lint`
   job as ruff. Run locally: `python -m mypy`
 - **Lighthouse audit** — [`.github/workflows/lighthouse.yml`](.github/workflows/lighthouse.yml)
   runs weekly (Monday 07:00 UTC) + on dispatch: headless-Chrome Lighthouse against 4 live

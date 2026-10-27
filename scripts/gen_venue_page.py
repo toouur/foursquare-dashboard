@@ -101,7 +101,8 @@ details[open] .yr-arrow{{transform:rotate(90deg);}}
 .vr-x .w{{display:block;color:var(--muted);font-size:.76rem;margin-top:1px;}}
 .vr-x .w:first-child{{margin-top:0;font-size:.82rem;}}
 .vr-x .w b{{font-weight:400;color:var(--teal);}}
-.vr-x .lk{{display:block;font-family:'DM Mono',monospace;font-size:.6rem;color:#ff8fbf;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+.vr-x .lk{{display:block;font-family:'DM Mono',monospace;font-size:.6rem;line-height:1.5;color:#ff8fbf;margin-top:2px;}}
+.vr-x .lk i{{font-style:normal;color:var(--muted);}}
 .vr-x .rf{{margin-left:0;}}
 .vr-p{{display:flex;gap:4px;}}
 .vr-p span{{position:relative;display:block;width:52px;height:39px;border-radius:5px;overflow:hidden;cursor:pointer;border:1px solid var(--border);background:var(--card2);}}
@@ -147,6 +148,18 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 // weekday of a local 'YYYY-MM-DD HH:MM' string (built from its parts, so no timezone shift)
 const wd = s => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)).getDay()];
 // Mirrors metrics.venues.venue_shard (32-bit FNV-1a mod 256).
+// ♥ 4 · Iennifer, Bojan Bačević, you + 1 other — friends by name; your own like
+// as "you"; people outside your friends are only counted by the API.
+function likeLine(l) {{
+  const [n, names, me] = l, named = names ? names.split(', ').length : 0;
+  const rest = Math.max(0, n - named - (me ? 1 : 0));
+  const parts = names ? [esc(names)] : [];
+  if (me) parts.push('you');
+  let s = parts.join(', ');
+  if (rest) s += (s ? ' <i>+ ' : '<i>') + rest + ' other' + (rest === 1 ? '' : 's') + '</i>';
+  return '<span class="lk">♥ ' + n + (s ? ' · ' + s : '') + '</span>';
+}}
+
 function venueShard(id) {{
   let h = 0x811c9dc5;
   for (let i = 0; i < id.length; i++) {{ h ^= id.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }}
@@ -237,7 +250,7 @@ function render(id, rec, f) {{
         }}).join('');
         return '<div class="vr' + (v[ix.rf] ? ' rfv' : '') + '"><div class="vr-d' + (d === 'Sat' || d === 'Sun' ? ' we' : '') + '"><div class="vr-day">' + d + '<b>' + +v[ix.local].slice(8, 10) + '</b></div>' +
           '<div class="vr-t">' + esc(v[ix.local].slice(11)) + '</div></div>' +
-          '<div class="vr-x">' + (v[ix.shout] ? '«' + esc(v[ix.shout]) + '»' : '') + w + (v[ix.likes] ? '<span class="lk" title="' + esc(v[ix.likes][1]) + '">♥ ' + v[ix.likes][0] + (v[ix.likes][1] ? ' · ' + esc(v[ix.likes][1]) : '') + '</span>' : '') + (v[ix.rf] ? '<span class="rf">↺ reconstructed</span>' : '') + '</div>' +
+          '<div class="vr-x">' + (v[ix.shout] ? '«' + esc(v[ix.shout]) + '»' : '') + w + (v[ix.likes] ? likeLine(v[ix.likes]) : '') + (v[ix.rf] ? '<span class="rf">↺ reconstructed</span>' : '') + '</div>' +
           '<div class="vr-p">' + pics + '</div></div>';
       }}).join('');
     }}).join('') + '</div>';

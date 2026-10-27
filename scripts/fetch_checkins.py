@@ -131,12 +131,18 @@ def note_likes(ci: dict) -> None:
     lk = ci.get("likes")
     if not cid or not isinstance(lk, dict) or "count" not in lk:
         return
+    # Only friends come back by name. Your own like has no group at all (summary
+    # "You"), and people outside your friends are an "others" group with a count
+    # but no items — the page shows them as "you" and "+N others".
     by = []
     for g in lk.get("groups") or []:
         for u in g.get("items") or []:
             name = (u.get("firstName", "") + " " + u.get("lastName", "")).strip()
             by.append([str(u.get("id", "")), name])
-    LIKES_SEEN[cid] = {"n": int(lk.get("count") or 0), "by": by}
+    v: dict = {"n": int(lk.get("count") or 0), "by": by}
+    if str(lk.get("summary") or "").startswith("You"):
+        v["me"] = 1
+    LIKES_SEEN[cid] = v
 
 
 def save_likes(path: Path) -> bool:

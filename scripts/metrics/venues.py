@@ -115,10 +115,13 @@ VISIT_FIELDS = ["local", "shout", "with", "photos", "rf", "likes"]
 
 
 def _likes(v: dict | None):
-    """checkin_likes.json entry → [count, "Name, Name"] or 0 (no likes)."""
+    """checkin_likes.json entry → [count, "Name, Name", you liked it (0/1)] or 0 (no likes).
+
+    count minus the names minus you = likes from people outside your friends,
+    whom the API counts but does not name."""
     if not v or not v.get("n"):
         return 0
-    return [int(v["n"]), ", ".join(n for _, n in v.get("by") or [] if n)]
+    return [int(v["n"]), ", ".join(n for _, n in v.get("by") or [] if n), 1 if v.get("me") else 0]
 
 
 def write_venue_shards(venues: dict[str, dict], out_dir: str) -> str:

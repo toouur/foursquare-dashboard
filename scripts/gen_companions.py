@@ -56,14 +56,16 @@ def trips_lite(trips) -> list:
 
 
 def likers(likes_by_checkin) -> list:
-    """[[user_id, name, check-ins liked], …] — who likes your check-ins, most first."""
+    """[[user_id, name, check-ins liked], …] — everyone who likes your check-ins, most
+    first. All of them, not a top 40: a companion's profile reads its like count from
+    this list, and Joanna K. (61, #41) silently lost hers."""
     n: Counter = Counter()
     names: dict = {}
     for v in (likes_by_checkin or {}).values():
         for uid, name in v.get("by") or []:
             n[uid] += 1
             names[uid] = name
-    return [[uid, names[uid], c] for uid, c in n.most_common(40)]
+    return [[uid, names[uid], c] for uid, c in n.most_common()]
 
 
 def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None,
