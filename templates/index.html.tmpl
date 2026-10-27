@@ -487,6 +487,36 @@ a.ci-count:hover{color:var(--gold);text-decoration:underline;}
   .kpi .lbl{font-size:.54rem;}
   .recent-section{padding:0 10px 20px;}
 }
+/* ── 2026 refresh: the sunset palette of the year/years/country pages, laid over
+   the existing layout — markup and scripts are untouched ── */
+:root{--sun:linear-gradient(135deg,#f6d38b 0%,#ff9a6b 55%,#ff6fae 100%);--coral:#ff9a6b;--coral-soft:#ffb38f;}
+body.light{--sun:linear-gradient(135deg,#a8661a 0%,#c4552d 55%,#b8336a 100%);--coral:#b4502a;--coral-soft:#a4482a;}
+header h1{background:var(--sun);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.kpi .num{background:var(--sun);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.recent-title,.card-title{color:var(--coral);}
+.card{border-radius:22px;}
+.card::after{background:linear-gradient(90deg,transparent,#f6d38b,#ff6fae,transparent);opacity:.3;}
+.recent-card{border-radius:18px;}
+.recent-card::after{background:linear-gradient(90deg,transparent,#f6d38b,#ff6fae,transparent);}
+.recent-card:hover,.photo-card:hover,.year-rc-card:hover{border-color:var(--coral);}
+.rc-map{border-radius:18px 18px 0 0;}
+.otd-chip:hover{border-color:var(--coral);}
+.otd-chip.active,.tab.active,.sort-btn.active{background:var(--sun);border-color:transparent;color:#1a0e0a;}
+body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{color:#fff;}
+.sort-btn:hover:not(.active){background:transparent;color:var(--coral);border-color:var(--coral);}
+.photo-card{border-radius:16px;}
+.flight-rc-card{border-radius:18px;}
+.yr-rc-num{background:var(--sun);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.yr-rc-cta{color:var(--coral);}
+.bar-row .fill{background:linear-gradient(90deg,#f6d38b,#ff9a6b,#ff6fae);}
+.country-item{border-radius:12px;}
+.country-group-name{color:var(--coral);}
+.search-box{border-radius:999px;padding:9px 16px;}
+.search-box:focus{border-color:var(--coral);}
+/* one gutter for header, strips and cards below tablet width; on phones the
+   header buttons get their own row instead of sitting on the title */
+@media(max-width:900px){header{padding-left:14px;padding-right:14px;}.recent-section{padding-left:14px;padding-right:14px;}.grid{padding-left:14px;padding-right:14px;}}
+@media(max-width:600px){header{padding-top:52px;}}
 </style>
 </head>
 <body>
