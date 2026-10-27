@@ -1,0 +1,43 @@
+{
+  "_comment": "venue_id -> the category this venue is GROUPED as (stats groups, category explorer, month buckets) when Foursquare's category is the wrong kind of place. Pages still show Foursquare's own category; checkins.csv is untouched. The category must be listed in categories.json. Keys starting with _ are ignored.",
+  "4f7ae16ae4b00fc6db0ec224": {
+    "category": "Supermarket",
+    "_note": "Суперпрод, Minsk — corner grocery; Foursquare: Department Store"
+  },
+  "4bb9bdaf1261d13a77cce998": {
+    "category": "Supermarket",
+    "_note": "Универсам Центральный, Minsk — Foursquare: Department Store"
+  },
+  "4fa67e20e4b02443376ee29b": {
+    "category": "Supermarket",
+    "_note": "ДорОрс, Minsk — Foursquare: Food and Beverage Retail"
+  },
+  "5d909c17be01240008395602": {
+    "category": "Grocery Store",
+    "_note": "Продукты «Провиантъ», Minsk — Foursquare: Food and Beverage Retail"
+  },
+  "5ffc14c30ee49705b1924d25": {
+    "category": "Grocery Store",
+    "_note": "Alimentara Filletti Famiglia, Chișinău — Foursquare: Food and Beverage Retail"
+  },
+  "4f7ae386e4b0e204105ee5b5": {
+    "category": "Cosmetics Store",
+    "_note": "Остров чистоты, Minsk — household goods, grouped like Мила; Foursquare: Food and Beverage Retail"
+  },
+  "52257f7f11d22e7332eb291f": {
+    "category": "High School",
+    "_note": "Средняя школа № 101, Minsk — Foursquare: Education"
+  },
+  "5128d4e3e4b0fd965c698e57": {
+    "category": "Bus Line",
+    "_note": "Троллейбус № 9, Minsk — Foursquare: Moving Target"
+  },
+  "53fb29ab498ecdca25469c20": {
+    "category": "Bus Line",
+    "_note": "autobus Gródek–Białystok — Foursquare: Moving Target"
+  },
+  "4fc74c70e4b0b4b93fa33a23": {
+    "category": "Rail Station",
+    "_note": "Чыгуначныя касы / railway ticket office, Minsk — Foursquare: Travel and Transportation"
+  }
+}

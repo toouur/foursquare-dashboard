@@ -387,7 +387,7 @@ def _compose_month_narrative(
     day_counter: Counter = Counter()
     weekend_n = 0
     for r in rows_m:
-        b = _bucket_for(r.get("category") or "")
+        b = _bucket_for(r.get("category_as") or r.get("category") or "")
         v = (r.get("venue") or "").strip()
         c = (r.get("city") or "").strip()
         if v and c:

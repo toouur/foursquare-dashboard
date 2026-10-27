@@ -51,7 +51,7 @@ Venue renames, monthly re-fetch and deletions: `ops/d1.md`.
 
 ### Run tests / lint
 ```bash
-# Offline suite (524 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (526 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 python -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 27 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -83,7 +83,9 @@ python scripts/sync_doc_counts.py --check     # quoted test/file counts in READM
   a key a template starts reading must be added to its whitelist or it arrives `undefined`.
 - Canonical config lookups: `config/country_aliases.json`, `country_flags.json`,
   `category_icons.json`, `year_covers.json`, `companion_countries.json`,
-  `companion_fixes.json`, plus the city configs below.
+  `companion_fixes.json`, plus the city configs below. `categories.json` lists EVERY raw category
+  per group (exact match only; unknown → "Other" + build warning); `venue_category_fixes.json` pins the
+  category a venue is GROUPED as (`transform.group_category`) — pages still show Foursquare's own.
 
 ## Key Files
 
@@ -97,7 +99,7 @@ Full map: `ops/internals.md`. Most used:
   `gen_culture.py` + `culture_sources.py` (IMDb/Vivino exports + Last.fm raw layer), `gen_visits.py`
 - `scripts/build_backfill.py`, `scripts/refresh_backfill_venue.py`
 - `scripts/check_city_count.py`, `scripts/check_city_config.py`, `scripts/validate_html.py`
-- Tests: `tests/` — pytest suite (581 tests: 524 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
+- Tests: `tests/` — pytest suite (583 tests: 526 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
 - Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 91 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
   NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in `fetch_*` — drift from a newer local `requests`, not a code change.

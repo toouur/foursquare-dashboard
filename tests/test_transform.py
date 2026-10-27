@@ -259,14 +259,41 @@ class TestBuildCategorizeFn:
         assert cat("restaurant") == "Food"
         assert cat("CAFE") == "Food"
 
-    def test_substring_match_both_directions(self):
-        cat = build_categorize_fn({"Food": ["Restaurant"]})
-        assert cat("Italian Restaurant") == "Food"   # kw in raw
-        assert cat("Restau") == "Food"               # raw in kw
+    def test_no_substring_matching(self):
+        # the old substring fallback: "spa" ⊂ "Event Space", "sports bar" ⊃ "Port", "pub" ⊂ "Public …"
+        cat = build_categorize_fn({"Sport": ["Spa"], "Food": ["Sports Bar", "Pub", "Restaurant"]})
+        assert cat("Event Space") == "Other"
+        assert cat("Port") == "Other"
+        assert cat("Public Transportation") == "Other"
+        assert cat("Italian Restaurant") == "Other"   # every raw name is listed explicitly
 
-    def test_no_match_returns_none(self):
+    def test_unknown_is_other_and_blank_is_none(self):
         cat = build_categorize_fn({"Food": ["Restaurant"]})
-        assert cat("Airport") is None
+        assert cat("Airport") == "Other"
+        assert cat("") is None and cat("  ") is None
+
+    def test_every_category_in_the_data_config_is_unique(self):
+        # a raw name listed in two groups would silently land in the later one
+        import json
+        from pathlib import Path
+        groups = json.loads((Path(__file__).resolve().parents[1] / "config" / "categories.json")
+                            .read_text(encoding="utf-8"))["category_groups"]
+        seen: dict[str, str] = {}
+        for g, names in groups.items():
+            for n in names:
+                assert n.lower() not in seen, f"{n!r} is in both {seen[n.lower()]!r} and {g!r}"
+                seen[n.lower()] = g
+
+
+class TestVenueCategoryFixes:
+    def test_pin_changes_grouping_not_the_shown_category(self):
+        from transform import group_category
+        rows = [{"date": "1", "venue_id": "v1", "category": "Department Store", "city": "Minsk", "country": "Belarus"},
+                {"date": "2", "venue_id": "v2", "category": "Department Store", "city": "Minsk", "country": "Belarus"}]
+        apply_transforms(rows, {"venue_category_fixes": {"v1": "Supermarket"}})
+        assert rows[0]["category"] == "Department Store"            # shown as in Swarm
+        assert group_category(rows[0]) == "Supermarket"             # counted with the supermarkets
+        assert group_category(rows[1]) == "Department Store"
 
 
 class TestLoadMappings:

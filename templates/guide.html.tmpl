@@ -419,7 +419,7 @@ function renderDiscover() {
       return `<button class="${cls.join(' ')}" data-cat="${esc(cat)}">${isLiked ? '<span class="heart">❤</span>' : ''}${esc(cat)}${n ? `<span class="cat-pill-count">${n}</span>` : ''}</button>`;
     }).join('');
 
-    const cgIcon = ({ 'Food & Drink': '🍽️', 'Transport': '🚉', 'Culture & Sights': '🎭', 'Nature & Outdoors': '🌿', 'Shopping': '🛍️', 'Home & Office': '🏢', 'Hotels & Lodging': '🏨', 'Sport & Fitness': '💪' })[groupName] || '📌';
+    const cgIcon = ({ 'Food & Drink': '🍽️', 'Transport': '🚉', 'Culture & Sights': '🎭', 'Nature & Outdoors': '🌿', 'Shopping': '🛍️', 'Home & Office': '🏢', 'Hotels & Lodging': '🏨', 'Sport & Fitness': '💪', 'Streets & Areas': '🛣️', 'Services & Civic': '🏛️', 'Education': '🎓' })[groupName] || '📌';
     return `<div class="cat-group${hasLiked ? ' open' : ''}" data-group="${esc(groupName)}">
       <button class="cat-group-h">
         <span class="cgi">${cgIcon}</span>

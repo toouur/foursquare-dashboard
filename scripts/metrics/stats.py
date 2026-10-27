@@ -10,7 +10,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
-from transform import build_categorize_fn
+from transform import build_categorize_fn, group_category
 
 from .companions import collect_companions
 from .shouts import shout_analysis, shout_records
@@ -26,7 +26,7 @@ def cross_dim_analysis(rows: list[dict], categorize) -> dict:
     # Pick top 8 category groups by overall volume so the heatmap stays legible.
     grp_ctr: Counter = Counter()
     for r in rows:
-        cat = r.get("category", "").strip()
+        cat = group_category(r)
         if not cat:
             continue
         g = categorize(cat)
@@ -43,7 +43,7 @@ def cross_dim_analysis(rows: list[dict], categorize) -> dict:
     country_hour = defaultdict(lambda: [0] * 24)  # country → 24-hour profile
 
     for r in rows:
-        cat = r.get("category", "").strip()
+        cat = group_category(r)
         if not cat:
             continue
         g = categorize(cat)
@@ -212,18 +212,26 @@ def process(
     venues_list   = [[v["name"], v["count"], v["city"], v.get("id","")] for v in venues_top500]
 
     # ── Category groups ───────────────────────────────────────────────────────
+    # Every check-in lands in exactly one group, so the groups sum to the total:
+    # a category categories.json does not list yet, and a check-in with no
+    # category at all, both count as "Other" (and are logged to be mapped/fixed).
     cat_groups: Counter = Counter()
+    _unmapped: Counter = Counter()
     for r in rows:
-        cat = r.get("category", "").strip()
-        if cat:
-            grp = categorize(cat)
-            if grp:
-                cat_groups[grp] += 1
+        cat = group_category(r)
+        grp = categorize(cat) if cat else "Other"
+        cat_groups[grp] += 1
+        if cat and grp == "Other":
+            _unmapped[cat] += 1
+    if _unmapped:
+        log.warning("categories.json has no group for %d categor%s (%d check-ins, counted as Other): %s",
+                    len(_unmapped), "y" if len(_unmapped) == 1 else "ies", sum(_unmapped.values()),
+                    ", ".join(f"{c} ({n})" for c, n in _unmapped.most_common(12)))
 
     # ── Category Explorer: unique by venue_id ────────────────────────────────
     cat_vid: dict[str, dict] = defaultdict(dict)
     for r in rows:
-        cat   = r.get("category", "").strip()
+        cat   = group_category(r)
         vid   = r.get("venue_id", "").strip()
         venue = r.get("venue",    "").strip()
         city  = r.get("city",     "").strip()
@@ -366,7 +374,7 @@ def process(
             continue
         ts = int(r["date"]) if r.get("date") else 0
         yr = datetime.fromtimestamp(ts, tz=timezone.utc).year if ts else 0
-        cg = categorize(r.get("category", "").strip()) or ""
+        cg = categorize(group_category(r)) or ""
         if vid not in _vh:
             _vh[vid] = [lat_f, lng_f, 0, {}, cg]
         _vh[vid][2] += 1
@@ -655,7 +663,7 @@ def process(
     # ── Category drift (top 6 groups share by year) ───────────────────────────
     _cg_year: dict[int, Counter] = defaultdict(Counter)
     for r in rows:
-        cat = r.get("category", "").strip()
+        cat = group_category(r)
         if not cat:
             continue
         grp = categorize(cat)
@@ -1168,7 +1176,7 @@ def process(
     # ── Tier 2.4 — Activity decay per category (absolute counts per year) ────
     _cat_abs: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
     for r in rows:
-        cat = r.get("category", "").strip()
+        cat = group_category(r)
         if not cat:
             continue
         grp = categorize(cat)

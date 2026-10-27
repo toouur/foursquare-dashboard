@@ -178,6 +178,7 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
     city_fixes    = _load_file("city_fixes.json")   # per-timestamp city overrides
     venue_fixes   = _load_file("venue_fixes.json")  # per-venue_id city/country overrides
     companion_fixes = _load_file("companion_fixes.json")  # per-checkin_id companion overrides
+    venue_category_fixes = _load_file("venue_category_fixes.json")  # per-venue_id category overrides
     city_merge    = _load_file("city_merge.yaml")
     cats_raw      = _load_file("categories.json")
 
@@ -186,6 +187,8 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
         "city_fixes":      city_fixes,
         "venue_fixes":     venue_fixes,
         "companion_fixes": companion_fixes,
+        "venue_category_fixes": {k: (v.get("category") if isinstance(v, dict) else v)
+                                 for k, v in venue_category_fixes.items() if not k.startswith("_")},
         "city_merge":      city_merge,
         "category_groups": cats_raw.get("category_groups", {}),
         "explorer_groups": cats_raw.get("explorer_groups", {}),
@@ -210,6 +213,7 @@ def apply_transforms(
     city_fixes    = mappings.get("city_fixes", {})
     venue_fixes   = mappings.get("venue_fixes", {})
     companion_fixes = mappings.get("companion_fixes", {})
+    venue_category_fixes = mappings.get("venue_category_fixes", {})
     city_merge    = mappings.get("city_merge", {})
 
     blank_filled  = 0
@@ -232,6 +236,16 @@ def apply_transforms(
             for _f in COMPANION_FIX_FIELDS:
                 if cfix.get(_f):
                     row[_f] = cfix[_f]
+
+        # Per-venue category (venue_category_fixes.json): Foursquare's own
+        # category is sometimes the wrong kind of place (Суперпрод, a corner
+        # grocery, is a "Department Store" there). Pages still SHOW the
+        # Foursquare category; only grouping (stats groups, category explorer,
+        # month buckets) reads category_as via group_category(). Applied before
+        # venue_fixes, whose branch below can `continue`.
+        vcat = venue_category_fixes.get(row.get("venue_id", "").strip())
+        if vcat:
+            row["category_as"] = vcat
 
         # Per-venue override (venue_fixes.json) — HIGHEST priority. A single
         # venue_id entry pins city/country for every check-in at that venue,
@@ -312,20 +326,34 @@ def apply_transforms(
 
 # ── Category helpers ───────────────────────────────────────────────────────────
 
+OTHER_GROUP = "Other"
+
+
+def group_category(row: dict) -> str:
+    """The category a check-in is GROUPED by: the venue_category_fixes pin when
+    there is one, else Foursquare's own. Display always uses row["category"]."""
+    return (row.get("category_as") or row.get("category") or "").strip()
+
+
 def build_categorize_fn(category_groups: dict[str, list[str]]):
-    """Return a function that maps a raw category string to a group name."""
+    """Return a function that maps a raw category string to its group.
+
+    Exact names only (case-insensitive). The old substring fallback put "Event
+    Space" in Sport ("spa"), "Port" in Food & Drink ("sports bar") and "Public
+    Transportation" in Food & Drink ("pub"). categories.json lists every raw
+    category the data has; one it does not know yet is OTHER_GROUP (and
+    metrics.stats logs it), and an empty category is None."""
     fast: dict[str, str] = {}
-    for group, keywords in category_groups.items():
-        for kw in keywords:
-            fast[kw.lower()] = group
+    for group, names in category_groups.items():
+        if group.startswith("_"):
+            continue
+        for name in names:
+            fast[name.lower()] = group
 
     def categorize(raw: str) -> str | None:
-        cl = raw.lower()
-        if cl in fast:
-            return fast[cl]
-        for kw_lower, group in fast.items():
-            if kw_lower in cl or cl in kw_lower:
-                return group
-        return None
+        cl = (raw or "").strip().lower()
+        if not cl:
+            return None
+        return fast.get(cl, OTHER_GROUP)
 
     return categorize
