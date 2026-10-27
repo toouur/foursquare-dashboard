@@ -617,17 +617,26 @@ async function overpassFetch(tags, abortSignal, onStatus) {
   // Overpass mirrors are frequently rate-limited (429) or overloaded (504).
   // Sweep all endpoints, then retry the whole sweep with backoff before giving
   // up — the caller shows a "busy, retrying…" state rather than a dead end.
-  const ROUNDS = 3;
+  // A mirror that accepts the connection and then never answers (seen 2026-10-27,
+  // every mirror "at capacity") used to hang the search forever: each attempt
+  // gets its own timeout, the whole sweep a deadline, then the caller falls back
+  // to your own visited places.
+  const ROUNDS = 3, PER_TRY_MS = 9000, DEADLINE = Date.now() + 30000;
   const promise = (async () => {
     let lastErr;
     for (let round = 0; round < ROUNDS; round++) {
       for (const ep of endpointsInOrder()) {
         if (abortSignal && abortSignal.aborted) throw new DOMException('aborted', 'AbortError');
+        if (Date.now() > DEADLINE) throw lastErr || new Error('Overpass timed out');
+        const tryCtrl = new AbortController();
+        const onAbort = () => tryCtrl.abort();
+        if (abortSignal) abortSignal.addEventListener('abort', onAbort, { once: true });
+        const timer = setTimeout(() => tryCtrl.abort(), PER_TRY_MS);
         try {
           const r = await fetch(ep, {
             method: 'POST',
             body: 'data=' + encodeURIComponent(query),
-            signal: abortSignal,
+            signal: tryCtrl.signal,
           });
           if (!r.ok) { lastErr = new Error('HTTP ' + r.status); continue; }
           const d = await r.json();
@@ -636,8 +645,11 @@ async function overpassFetch(tags, abortSignal, onStatus) {
           idbSet(cacheK, { t: Date.now(), v: els });
           return els;
         } catch (e) {
-          if (e.name === 'AbortError') throw e;
-          lastErr = e;
+          if (abortSignal && abortSignal.aborted) throw e;
+          lastErr = e.name === 'AbortError' ? new Error('timeout ' + ep) : e;
+        } finally {
+          clearTimeout(timer);
+          if (abortSignal) abortSignal.removeEventListener('abort', onAbort);
         }
       }
       if (round < ROUNDS - 1) {
