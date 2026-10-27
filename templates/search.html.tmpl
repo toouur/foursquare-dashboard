@@ -63,6 +63,34 @@ body.light .result-card{box-shadow:0 2px 6px rgba(0,0,0,.08);}
   .search-wrap{padding:24px 16px 60px;}
   .search-hero h1{font-size:1.4rem;}
 }
+/* ── 2026 refresh: hero search, sunset accents, two-up result cards ── */
+.topnav{background:transparent;border-bottom:none;}
+.search-wrap{max-width:980px;}
+.search-hero{text-align:center;padding:24px 0 8px;position:relative;}
+.search-hero::before{content:'';position:absolute;left:50%;top:-40px;width:520px;max-width:100%;height:240px;transform:translateX(-50%);background:radial-gradient(closest-side at 38% 50%,rgba(246,211,139,.16),transparent),radial-gradient(closest-side at 64% 55%,rgba(255,111,174,.12),transparent);pointer-events:none;z-index:-1;}
+.search-hero h1{font-size:clamp(2.4rem,6vw,3.6rem);display:inline-block;background:linear-gradient(150deg,#f6d38b 0%,#ff9a6b 55%,#ff6fae 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+.search-tag{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:22px;}
+.search-input-row{position:relative;max-width:680px;margin:0 auto;}
+.search-input-row::before{content:'⌕';position:absolute;left:20px;top:50%;transform:translateY(-52%);font-size:1.3rem;color:#ff9a6b;pointer-events:none;}
+.search-main{border-radius:999px;padding:16px 22px 16px 50px;font-size:1.05rem;border-color:rgba(255,154,107,.35);box-shadow:0 10px 40px rgba(0,0,0,.35);}
+.search-main:focus{border-color:#ff9a6b;}
+.search-count{text-align:center;}
+.result-group{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:16px 18px 12px;}
+.result-group-header{border-bottom:none;margin-bottom:10px;padding-bottom:0;}
+.result-group-label{color:#ff9a6b;font-size:.66rem;}
+.result-group-count{background:rgba(255,154,107,.12);color:#ffb38f;border-radius:999px;padding:1px 8px;}
+.result-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+#cards-tip,#cards-trip{grid-template-columns:minmax(0,1fr);}
+.result-card{border-radius:14px;background:var(--card2);padding:10px 14px;}
+.result-card:hover{border-color:#ff9a6b;}
+.result-card:hover .rc-arrow{color:#ff9a6b;}
+.rc-name,.rc-sub{display:block;}
+.rc-name mark{background:none;color:#ffb38f;}
+.rc-tip{display:block;font-style:italic;font-size:.84rem;color:var(--text);opacity:.85;margin-top:4px;white-space:normal;line-height:1.45;}
+.rc-meta{color:#ffb38f;}
+.show-more{text-align:center;color:#ff9a6b;}
+.empty{padding:40px 0;}
+@media(max-width:700px){.result-cards{grid-template-columns:minmax(0,1fr);}.result-group{padding:14px 12px 10px;border-radius:16px;}}
 </style>
 </head>
 <body>
@@ -75,6 +103,7 @@ body.light .result-card{box-shadow:0 2px 6px rgba(0,0,0,.08);}
 <div class="search-wrap">
   <div class="search-hero">
     <h1>Search</h1>
+    <div class="search-tag">every venue, city, trip, tip and companion</div>
     <div class="search-input-row">
       <input class="search-main" id="qInput" type="text" placeholder="Venues, cities, trips, tips, companions…" autofocus>
     </div>
@@ -90,7 +119,7 @@ body.light .result-card{box-shadow:0 2px 6px rgba(0,0,0,.08);}
   const LINKS = {
     venue:     n => 'venues.html?q=' + enc(n),
     city:      n => 'world_cities.html?q=' + enc(n),
-    trip:      n => 'trips.html?q=' + enc(n),
+    trip:      (n, item) => item.id != null ? 'trips.html#trip-' + item.id : 'trips.html?q=' + enc(n),
     tip:       (n, item) => 'tips.html?q=' + enc(item.n || n),
     companion: n => 'companions.html?q=' + enc(n),
   };
@@ -165,8 +194,9 @@ body.light .result-card{box-shadow:0 2px 6px rgba(0,0,0,.08);}
       card.innerHTML=
         '<span class="rc-icon">'+ICONS[type]+'</span>'+
         '<span class="rc-main">'+
-          '<span class="rc-name">'+esc(item.n)+'</span>'+
+          '<span class="rc-name">'+hl(item.n)+'</span>'+
           (s?'<span class="rc-sub">'+esc(s)+'</span>':'')+
+          (item.tx?'<span class="rc-tip">“'+esc(item.tx)+(item.tx.length>=120?'…':'')+'”</span>':'')+
         '</span>'+
         (m?'<span class="rc-meta">'+esc(m)+'</span>':'')+
         '<span class="rc-arrow">→</span>';
@@ -211,6 +241,12 @@ body.light .result-card{box-shadow:0 2px 6px rgba(0,0,0,.08);}
     }
   }
 
+  // the matched part of a name in the accent colour
+  function hl(s){
+    const t = String(s||''), q = query.trim();
+    const i = q ? t.toLowerCase().indexOf(q.toLowerCase()) : -1;
+    return i < 0 ? esc(t) : esc(t.slice(0,i)) + '<mark>' + esc(t.slice(i,i+q.length)) + '</mark>' + esc(t.slice(i+q.length));
+  }
   function esc(s){
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
