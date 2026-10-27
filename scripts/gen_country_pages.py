@@ -30,6 +30,8 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from metrics.venues import _f, _Localiser, clean_shout
+
 CTRY_CODE: dict[str, str] = {}
 
 SITE_URL = "https://4sq.pages.dev"
@@ -129,14 +131,43 @@ section{{margin-top:52px;}}
 .rank-row:hover{{background:var(--card2);}}
 .rank-i{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);}}
 .rank-name{{font-size:.85rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
+.rank-name a{{color:inherit;text-decoration:none;transition:color .15s;}}
+.rank-row:hover .rank-name a{{color:var(--gold);}}
 .rank-n{{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--teal);}}
-.trip-card{{display:block;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;text-decoration:none;color:var(--text);margin-bottom:10px;transition:border-color .2s,transform .2s;}}
+.trips{{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;}}
+.trips .trip-card.more{{display:none;}}
+.trips.all .trip-card.more{{display:block;}}
+.more-btn{{display:block;margin:14px auto 0;background:var(--card2);border:1px solid var(--border);border-radius:999px;padding:8px 18px;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.1em;color:var(--text);cursor:pointer;}}
+.more-btn:hover{{border-color:var(--gold);color:var(--gold);}}
+.trip-card{{display:block;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;text-decoration:none;color:var(--text);transition:border-color .2s,transform .2s;}}
 .trip-card:hover{{border-color:var(--gold);transform:translateY(-2px);}}
 .trip-name{{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--gold);margin-bottom:4px;}}
 .trip-meta{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.04em;}}
 .photos{{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;}}
 .photos img{{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--card2);}}
-.shout{{padding:14px 0 14px 18px;border-left:2px solid var(--teal);font-family:'Playfair Display',serif;font-style:italic;font-size:1rem;color:#e8e9ee;line-height:1.6;margin-bottom:20px;}}
+.shouts{{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;}}
+.shout{{position:relative;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px 12px 22px;font-family:'Playfair Display',serif;font-style:italic;font-size:.98rem;color:#e8e9ee;line-height:1.5;}}
+.shout::before{{content:'';position:absolute;left:10px;top:16px;bottom:16px;width:3px;border-radius:2px;background:linear-gradient(180deg,#f6d38b,#ff6fae);}}
+.log-btn{{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 18px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.92rem;cursor:pointer;text-align:left;}}
+.log-btn:hover{{border-color:var(--gold);}}
+.log-btn b{{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.12em;color:var(--gold);font-weight:400;white-space:nowrap;}}
+.log{{display:none;margin-top:10px;}}
+.log.open{{display:block;}}
+.log input{{width:100%;background:var(--card);border:1px solid var(--border);border-radius:999px;padding:10px 16px;color:var(--text);font-size:.85rem;outline:none;margin-bottom:6px;}}
+.log input:focus{{border-color:var(--gold);}}
+.log-m{{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);padding:16px 2px 6px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;}}
+.log-m span{{color:var(--muted);}}
+.log-r{{display:grid;grid-template-columns:104px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.04);}}
+.log-r .d{{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);white-space:nowrap;}}
+.log-r .d b{{font-weight:400;margin-left:6px;color:#9aa3c0;}}
+.log-r .v{{font-size:.86rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}}
+.log-r .v a{{color:var(--text);text-decoration:none;}}
+.log-r .v a:hover{{color:var(--gold);}}
+.log-r .v i{{font-style:normal;color:var(--muted);font-size:.76rem;}}
+.log-r .c{{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--teal);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;}}
+.log-r.rf .v{{opacity:.75;}}
+.log-n{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);padding:6px 2px;}}
+@media(max-width:600px){{.log-r{{grid-template-columns:54px minmax(0,1fr);align-items:center;}}.log-r .c{{display:none;}}.log-r .d b{{display:block;margin-left:0;}}}}
 .shout-meta{{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:8px;font-style:normal;letter-spacing:.04em;}}
 @media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}}}
 </style>
@@ -155,7 +186,41 @@ section{{margin-top:52px;}}
 {trips}
 {photos}
 {shouts}
+{log}
 </div>
+<script>
+function moreTrips(b){{b.previousElementSibling.classList.add('all');b.remove();}}
+// The full log loads its own file (country_ck_<slug>.json) on the first open.
+const LOG_URL={log_url}, MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], STEP=300;
+let ROWS=null, shown=0, list=[];
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}}[c]));
+function toggleLog(){{
+  const l=document.getElementById('log'); l.classList.toggle('open');
+  document.getElementById('logLbl').textContent=l.classList.contains('open')?'HIDE ▴':'OPEN ▾';
+  if(ROWS===null){{ROWS=[];fetch(LOG_URL).then(r=>r.json()).then(j=>{{ROWS=j.r;filterLog('');}}).catch(()=>{{document.getElementById('logBody').textContent='Could not load the log.';}});}}
+}}
+function filterLog(q){{
+  q=(q||'').toLowerCase();
+  list=q?ROWS.filter(r=>(r[1]+' '+r[2]+' '+r[3]).toLowerCase().includes(q)):ROWS;
+  shown=0; document.getElementById('logBody').innerHTML=''; moreLog();
+}}
+function moreLog(){{
+  const body=document.getElementById('logBody'), btn=document.getElementById('logMore'); if(btn) btn.remove();
+  let h='', prev=shown?list[shown-1][0].slice(0,7):'';
+  const end=Math.min(list.length, shown+STEP);
+  for(let k=shown;k<end;k++){{
+    const [t,v,c,cat,id,rf]=list[k], m=t.slice(0,7);
+    if(m!==prev){{const n=list.filter(r=>r[0].startsWith(m)).length;h+=`<div class="log-m">${{MON[+m.slice(5)-1]}} ${{m.slice(0,4)}}<span>${{n}}</span></div>`;prev=m;}}
+    const d=new Date(t.slice(0,10)+'T12:00:00Z');
+    h+=`<div class="log-r${{rf?' rf':''}}"><span class="d">${{WD[d.getUTCDay()]}} ${{+t.slice(8,10)}}<b>${{t.slice(11)}}</b></span>`+
+       `<span class="v">${{id?`<a href="/venue.html#${{id}}">${{esc(v)}}</a>`:esc(v)}} <i>${{esc(c)}}</i></span><span class="c">${{esc(cat)}}</span></div>`;
+  }}
+  shown=end; body.insertAdjacentHTML('beforeend',h);
+  document.getElementById('logN').textContent=list.length.toLocaleString()+' shown';
+  if(shown<list.length) body.insertAdjacentHTML('beforeend',`<button class="more-btn" id="logMore" onclick="moreLog()">${{Math.min(STEP,list.length-shown)}} MORE ▾</button>`);
+}}
+</script>
 </body>
 </html>"""
 
@@ -168,7 +233,7 @@ def _rank_list(pairs: list[tuple[str, int]], hrefs: list[str] | None = None) -> 
     rows = []
     for i, (name, n) in enumerate(pairs, 1):
         href = hrefs[i - 1] if hrefs else ""
-        label = (f'<a href="{_esc(href)}" style="color:inherit">{_esc(name)}</a>'
+        label = (f'<a href="{_esc(href)}">{_esc(name)}</a>'
                  if href else _esc(name))
         rows.append(
             f'<div class="rank-row"><span class="rank-i">{i}</span>'
@@ -213,6 +278,9 @@ def build_page(
             trips_by_country[c].append(t)
 
     pix_base = pix_url.rstrip("/") if pix_url else ""
+    local = _Localiser()
+    for stale in out_dir.glob("country_ck_*.json"):
+        stale.unlink()
     n_pages = 0
     for country, crows in by_country.items():
         if len(crows) < min_checkins:
@@ -312,15 +380,17 @@ def build_page(
         if ctrips:
             ctrips = sorted(ctrips, key=lambda t: t.get("start_date", ""), reverse=True)
             cards = []
-            for t in ctrips:
+            for k, t in enumerate(ctrips):
                 cards.append(
-                    f'<a class="trip-card" href="/trips.html#trip-{_esc(t.get("id"))}">'
+                    f'<a class="trip-card{" more" if k >= 6 else ""}" href="/trips.html#trip-{_esc(t.get("id"))}">'
                     f'<div class="trip-name">{_esc(t.get("name", "Trip"))}</div>'
                     f'<div class="trip-meta">{_esc(t.get("start_date", ""))} → '
-                    f'{_esc(t.get("end_date", ""))} · {t.get("duration", 0)} days · '
+                    f'{_esc(t.get("end_date", ""))} · {t.get("duration", 0)} day{"" if t.get("duration", 0) == 1 else "s"} · '
                     f'{t.get("checkin_count", 0)} check-ins</div></a>')
-            trips_html = ('<section><div class="sec-h">Trips here</div>'
-                          + "".join(cards) + "</section>")
+            more = (f'<button class="more-btn" onclick="moreTrips(this)">ALL {len(ctrips)} TRIPS ▾</button>'
+                    if len(ctrips) > 6 else "")
+            trips_html = (f'<section><div class="sec-h">Trips here · {len(ctrips)}</div>'
+                          '<div class="trips">' + "".join(cards) + "</div>" + more + "</section>")
 
         # Photos (up to 12)
         photos_html = ""
@@ -339,27 +409,52 @@ def build_page(
                 photos_html = ('<section><div class="sec-h">Photos</div>'
                                '<div class="photos">' + "".join(imgs) + "</div></section>")
 
-        # Shouts (longest 3, excluding "with X"-only)
+        # Shouts: one per year for the six most recent years that have one, the
+        # one nearest a readable length (the 3 longest were pasted walls of text)
         shouts_html = ""
-        cand = []
+        best: dict[int, tuple[int, dict, str]] = {}
         for r in crows:
-            s = (r.get("shout") or "").strip()
-            if len(s) < 12:
+            s = clean_shout(r.get("shout") or "", [])
+            if not 20 <= len(s) <= 260 or s.lower().startswith(("with ", "- with")):
                 continue
-            low = s.lower()
-            if low.startswith("with ") or low.startswith("- with"):
+            try:
+                yr = datetime.fromtimestamp(int(r.get("date", 0) or 0), tz=timezone.utc).year
+            except (ValueError, TypeError, OSError):
                 continue
-            cand.append((r, s))
-        cand.sort(key=lambda rs: len(rs[1]), reverse=True)
-        if cand:
+            score = abs(len(s) - 110)
+            if yr not in best or score < best[yr][0]:
+                best[yr] = (score, r, s)
+        if best:
             blocks = []
-            for r, s in cand[:3]:
+            for yr in sorted(best, reverse=True)[:6]:
+                _, r, s = best[yr]
                 loc = ", ".join(p for p in ((r.get("venue") or "").strip(),
                                             (r.get("city") or "").strip()) if p)
                 blocks.append(f'<div class="shout">“{_esc(s)}”'
-                              f'<div class="shout-meta">{_esc(loc)}</div></div>')
-            shouts_html = ('<section><div class="sec-h">In your own voice</div>'
-                           + "".join(blocks) + "</section>")
+                              f'<div class="shout-meta">{yr} · {_esc(loc)}</div></div>')
+            shouts_html = ('<section><div class="sec-h">In your own voice</div><div class="shouts">'
+                           + "".join(blocks) + "</div></section>")
+
+        # The full log: rows in their own file, loaded on the first open
+        log_rows = []
+        for r in crows:
+            try:
+                dt = datetime.fromtimestamp(int(r.get("date", 0) or 0), tz=timezone.utc)
+            except (ValueError, TypeError, OSError):
+                continue
+            ld = local(dt, _f(r.get("lat")), _f(r.get("lng")), country)
+            log_rows.append([ld.strftime("%Y-%m-%d %H:%M"), (r.get("venue") or "").strip(),
+                             (r.get("city") or "").strip(), (r.get("category") or "").strip(),
+                             (r.get("venue_id") or "").strip(),
+                             1 if (r.get("source_app") or "") == "refurbished" else 0])
+        log_rows.sort(key=lambda x: x[0], reverse=True)
+        log_file = f"country_ck_{slug}.json"
+        (out_dir / log_file).write_text(json.dumps({"r": log_rows}, ensure_ascii=False, separators=(",", ":")),
+                                        encoding="utf-8")
+        log_html = (f'<section><button class="log-btn" onclick="toggleLog()"><span>All {len(crows):,} check-ins '
+                    f'in {_esc(country)}, searchable</span><b id="logLbl">OPEN ▾</b></button>'
+                    '<div class="log" id="log"><input type="search" placeholder="Search venues, cities, categories…" '
+                    'oninput="filterLog(this.value)"><div class="log-n" id="logN"></div><div id="logBody"></div></div></section>')
 
         title = f"{country} — Check-in Journal"
         desc = (f"{len(crows):,} check-ins across {len(cities):,} cities and "
@@ -368,7 +463,8 @@ def build_page(
             title=_esc(title), description=_esc(desc), site=SITE_URL, slug=slug,
             flag_big=_flag(country), name=_esc(country), first_last=_esc(first_last),
             kpis=kpis, years=years_html, cities=cities_html, venues="", cats="",
-            trips=trips_html, photos=photos_html, shouts=shouts_html)
+            trips=trips_html, photos=photos_html, shouts=shouts_html, log=log_html,
+            log_url=json.dumps(f"/{log_file}"))
         (out_dir / f"country-{slug}.html").write_text(html, encoding="utf-8")
         n_pages += 1
 
