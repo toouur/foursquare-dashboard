@@ -161,6 +161,31 @@ header h1{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:900;
 .no-anchor h2{font-size:1.2rem;color:var(--text);margin-bottom:10px;}
 .no-anchor p{font-size:.82rem;line-height:1.6;}
 .no-anchor button{margin-top:18px;padding:9px 18px;border-radius:8px;background:rgba(78,201,196,.10);border:1px solid var(--teal);color:var(--teal);font-size:.78rem;cursor:pointer;font-family:inherit;}
+/* ── 2026 refresh: sunset gradient, pill controls, map-first on phones ── */
+header{border-bottom:none;margin-bottom:8px;}
+header h1{font-size:2.4rem;background:linear-gradient(150deg,#f6d38b 0%,#ff9a6b 55%,#ff6fae 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.hero{background:radial-gradient(ellipse at 0% 0%,rgba(246,211,139,.16),transparent 55%),radial-gradient(ellipse at 100% 100%,rgba(255,111,174,.12),transparent 55%),var(--card);border:1px solid rgba(255,154,107,.3);border-radius:22px;padding:20px 24px;}
+.hero-anchor-lbl{color:#ff9a6b;}
+.hero-venue{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:700;}
+.hero-btn{border-radius:999px;padding:7px 13px;}
+.hero-btn:hover{border-color:#ff9a6b;color:#ff9a6b;}
+.discover-card{border-radius:22px;}
+.dc-head h2{color:#ff9a6b;}
+.map-pane{height:440px;}
+.rec-pill{border-color:rgba(255,154,107,.45);background:rgba(255,154,107,.08);color:#ffb38f;}
+.rec-pill:hover,.rec-pill.active{background:rgba(255,154,107,.2);border-color:#ff9a6b;color:#ffc7a8;}
+.cat-group{border-radius:12px;}
+.cat-group-h:hover,.cat-group.open .cat-group-h{background:rgba(255,154,107,.08);}
+.cgcount{color:#ffb38f;background:rgba(255,154,107,.12);}
+.cat-pill.active{background:rgba(255,154,107,.18);border-color:#ff9a6b;color:#ffc7a8;}
+.toggle-btn.active{background:rgba(255,154,107,.15);border-color:#ff9a6b;color:#ffc7a8;}
+.radius-slider input{accent-color:#ff9a6b;}
+.radius-display{color:#ffb38f;}
+.nb-item{border-radius:12px;}
+.nb-item:hover,.nb-item.hover{border-color:rgba(255,154,107,.5);background:rgba(255,154,107,.05);}
+.nb-item .dist{color:#ffb38f;}
+@media(max-width:900px){.right{order:-1;}.map-pane{height:320px;}.list-pane{max-height:none;}.layout{display:flex;flex-direction:column;}}
+@media(max-width:600px){header h1{font-size:1.9rem;}.hero{padding:16px;border-radius:18px;}.hero-venue{font-size:1.35rem;}.discover-card{border-radius:18px;}}
 </style>
 </head>
 <body>
@@ -420,7 +445,7 @@ function renderDiscover() {
     }).join('');
 
     const cgIcon = ({ 'Food & Drink': '🍽️', 'Transport': '🚉', 'Culture & Sights': '🎭', 'Nature & Outdoors': '🌿', 'Shopping': '🛍️', 'Home & Office': '🏢', 'Hotels & Lodging': '🏨', 'Sport & Fitness': '💪', 'Streets & Areas': '🛣️', 'Services & Civic': '🏛️', 'Education': '🎓', 'Nightlife': '🍸' })[groupName] || '📌';
-    return `<div class="cat-group${hasLiked ? ' open' : ''}" data-group="${esc(groupName)}">
+    return `<div class="cat-group${hasLiked && innerWidth > 900 ? ' open' : ''}" data-group="${esc(groupName)}">
       <button class="cat-group-h">
         <span class="cgi">${cgIcon}</span>
         <span class="cgn">${hasLiked ? '<span class="cgliked">❤</span>' : ''}${esc(groupName)}</span>
