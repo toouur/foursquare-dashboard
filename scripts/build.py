@@ -1364,6 +1364,8 @@ if __name__ == "__main__":
                 photos_by_checkin=_photos_by_checkin,
                 home_city=home_city,
                 home_history=home_history,
+                config_dir=str(config_dir),
+                pix_url=_pix_dir_uri,
             )
         except Exception as _cmpe:
             log.warning("gen_compare failed: %s", _cmpe)
