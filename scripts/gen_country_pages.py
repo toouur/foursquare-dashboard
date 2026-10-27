@@ -8,8 +8,9 @@ Emits one `country-<slug>.html` per country that appears in the check-in data.
 Each page is a clean, self-contained magazine card (no side-nav, no external
 JS) summarising everything that happened in that country:
 
-  * hero — flag, name, headline KPIs (check-ins, venues, cities, first/last)
-  * a by-year activity bar strip
+  * hero — a photo from the country, flag, name, first/last visit; then KPIs
+  * a tile-free dot map of every venue (inline SVG, top cities labelled)
+  * a by-year activity bar strip over the whole 2007-now span
   * top cities / top venues / top categories
   * trips that touched the country (linking to trip-<id>.html)
   * a photo strip (when photos are available)
@@ -170,15 +171,56 @@ section{{margin-top:52px;}}
 @media(max-width:600px){{.log-r{{grid-template-columns:54px minmax(0,1fr);align-items:center;}}.log-r .c{{display:none;}}.log-r .d b{{display:block;margin-left:0;}}}}
 .shout-meta{{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:8px;font-style:normal;letter-spacing:.04em;}}
 @media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}}}
+/* 2026 refresh: photo hero, sunset gradient, dot map, cards */
+.hero{{position:relative;min-height:440px;display:flex;align-items:flex-end;overflow:hidden;}}
+.hero-bg{{position:absolute;inset:0;background:var(--card2) center/cover no-repeat;filter:brightness(.42) saturate(1.05);transform:scale(1.04);}}
+.hero-bg.none{{background:radial-gradient(ellipse at 30% 20%,rgba(255,154,107,.18),transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(255,111,174,.12),transparent 60%);filter:none;}}
+.hero::after{{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,12,18,.2) 0%,rgba(10,12,18,.35) 45%,var(--bg) 100%);}}
+.hero-in{{position:relative;z-index:1;width:100%;max-width:960px;margin:0 auto;padding:110px 22px 34px;}}
+.hero-name{{display:inline-block;background:linear-gradient(150deg,#f6d38b 0%,#ff9a6b 55%,#ff6fae 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.hero-sub{{color:#c4cbe0;}}
+.wrap{{padding-top:10px;}}
+.kpis{{grid-template-columns:repeat(4,1fr);margin-top:6px;}}
+.kpi{{border-radius:18px;text-align:left;background:rgba(18,21,31,.85);}}
+.kpi-num{{font-size:2.1rem;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.sec-h{{color:#ff9a6b;}}
+.cmap{{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:10px;overflow:hidden;}}
+.cmap svg{{display:block;width:100%;height:auto;}}
+.cmap circle{{fill:#ff9a6b;fill-opacity:.55;}}
+.cmap circle.hot{{fill:#f6d38b;fill-opacity:.85;}}
+.cmap text{{font-family:'DM Mono',monospace;font-size:11px;fill:#e0e2ec;paint-order:stroke;stroke:#12141c;stroke-width:3px;letter-spacing:.04em;}}
+.years{{gap:4px;height:130px;overflow:visible;}}
+.yr-bar{{flex:1 1 0;min-width:0;}}
+.yr-bar .bar{{width:100%;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#ff9a6b,#f6d38b);}}
+.yr-bar.zero .bar{{background:var(--border);}}
+.yr-bar.zero .yr-n{{visibility:hidden;}}
+.yr-bar .yr-n{{color:#f6b98b;}}
+.cols>div{{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:16px 14px 12px;}}
+.rank-n{{color:#f6b98b;}}
+.trip-card{{padding:0;overflow:hidden;border-radius:18px;}}
+.trip-card:hover{{border-color:#ff9a6b;}}
+.trip-cover{{aspect-ratio:16/9;background:var(--card2) center/cover no-repeat;}}
+.trip-cover.none{{background:linear-gradient(135deg,rgba(246,211,139,.18),rgba(255,111,174,.14));}}
+.trip-body{{padding:12px 16px 14px;}}
+.trip-name{{color:#f6b98b;}}
+.photos{{grid-template-columns:repeat(4,1fr);}}
+.photos img{{border-radius:12px;}}
+.photos img:first-child{{grid-column:span 2;grid-row:span 2;height:100%;aspect-ratio:auto;}}
+.log-btn:hover,.more-btn:hover{{border-color:#ff9a6b;}}
+@media(max-width:700px){{.cmap text{{font-size:26px;stroke-width:5px;}}.cmap circle{{transform-box:fill-box;}}.kpis{{grid-template-columns:1fr 1fr;}}.photos{{grid-template-columns:repeat(3,1fr);}}.hero{{min-height:340px;}}.yr-bar .yr-lbl{{font-size:.42rem;writing-mode:vertical-rl;transform:rotate(180deg);}}.yr-bar .yr-n{{display:none;}}}}
+@media(max-width:600px){{.wrap{{padding:6px 16px 90px;}}.hero-in{{padding:96px 16px 26px;}}}}
 </style>
 </head>
 <body>
 <a class="crumb" href="/index.html#s-countries">← all countries</a>
-<div class="wrap">
+<header class="hero"><div class="hero-bg{hero_cls}"{hero_style}></div><div class="hero-in">
 <div class="hero-flag">{flag_big}</div>
 <h1 class="hero-name">{name}</h1>
 <div class="hero-sub">{first_last}</div>
+</div></header>
+<div class="wrap">
 <div class="kpis">{kpis}</div>
+{cmap}
 {years}
 {cities}
 {venues}
@@ -227,6 +269,72 @@ function moreLog(){{
 
 def _kpi(num: str, lbl: str) -> str:
     return f'<div class="kpi"><div class="kpi-num">{num}</div><div class="kpi-lbl">{_esc(lbl)}</div></div>'
+
+
+def _trip_cover(t: dict, pix_base: str) -> str:
+    """Card cover, the same pick as trips.html: a photo from the middle of the trip."""
+    shots = [c["photos"][0] for c in t.get("checkins") or [] if c.get("photos")]
+    if not shots or not pix_base:
+        return '<div class="trip-cover none"></div>'
+    return (f'<div class="trip-cover" style="background-image:url(\'{pix_base}/t/'
+            f'{_esc(shots[len(shots) // 2])}\')"></div>')
+
+
+def _dot_map(crows: list[dict], w: int = 920, h: int = 380) -> str:
+    """A tile-free map: one dot per venue (area ~ visits), the top cities labelled.
+
+    Plain equirectangular with a cos(lat) squeeze, fitted to the box; the 1st-99th
+    percentile window keeps one far-flung exclave from shrinking the rest to a dot.
+    """
+    pts: Counter = Counter()
+    city_pts: dict[str, list[tuple[float, float]]] = defaultdict(list)
+    for r in crows:
+        la, lo = _f(r.get("lat")), _f(r.get("lng"))
+        if la is None or lo is None or (la == 0 and lo == 0):
+            continue
+        pts[(round(la, 4), round(lo, 4))] += 1
+        cy = (r.get("city") or "").strip()
+        if cy:
+            city_pts[cy].append((la, lo))
+    if len(pts) < 2:
+        return ""
+    lats = sorted(p[0] for p in pts)
+    lngs = sorted(p[1] for p in pts)
+    cut = len(lats) // 100
+
+    def window(v: list[float]) -> tuple[float, float]:
+        return v[cut], v[len(v) - 1 - cut]
+    la0, la1 = window(lats)
+    lo0, lo1 = window(lngs)
+    import math
+    k = math.cos(math.radians((la0 + la1) / 2))
+    span_x = max((lo1 - lo0) * k, 0.02)
+    span_y = max(la1 - la0, 0.02)
+    pad = 26
+    s = min((w - 2 * pad) / span_x, (h - 2 * pad) / span_y)
+    ox = (w - span_x * s) / 2
+    oy = (h - span_y * s) / 2
+
+    def xy(la: float, lo: float) -> tuple[float, float]:
+        return ox + (lo - lo0) * k * s, oy + (la1 - la) * s
+    top = max(pts.values())
+    dots = []
+    for (la, lo), n in sorted(pts.items(), key=lambda kv: kv[1]):
+        x, y = xy(la, lo)
+        if not (-10 <= x <= w + 10 and -10 <= y <= h + 10):
+            continue
+        rad = 1.6 + 7 * math.sqrt(n / top)
+        dots.append(f'<circle{" class=\"hot\"" if n * 4 >= top else ""} cx="{x:.1f}" cy="{y:.1f}" r="{rad:.1f}"/>')
+    labels = []
+    for cy, cp in sorted(city_pts.items(), key=lambda kv: -len(kv[1]))[:6]:
+        x, y = xy(sum(p[0] for p in cp) / len(cp), sum(p[1] for p in cp) / len(cp))
+        if 0 <= x <= w and 0 <= y <= h:
+            anchor = "end" if x > w - 120 else "start"
+            labels.append(f'<text x="{x + (-10 if anchor == "end" else 10):.1f}" y="{y + 4:.1f}" '
+                          f'text-anchor="{anchor}">{_esc(cy)}</text>')
+    return ('<section><div class="sec-h">Where it happened</div><div class="cmap">'
+            f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="Map of check-ins">'
+            + "".join(dots) + "".join(labels) + "</svg></div></section>")
 
 
 def _rank_list(pairs: list[tuple[str, int]], hrefs: list[str] | None = None) -> str:
@@ -278,6 +386,14 @@ def build_page(
             trips_by_country[c].append(t)
 
     pix_base = pix_url.rstrip("/") if pix_url else ""
+    all_years = set()
+    for r in rows:
+        try:
+            all_years.add(datetime.fromtimestamp(int(r.get("date", 0) or 0), tz=timezone.utc).year)
+        except (ValueError, TypeError, OSError):
+            pass
+    all_years.discard(1970)
+    year_span = list(range(min(all_years), max(all_years) + 1)) if all_years else []
     local = _Localiser()
     for stale in out_dir.glob("country_ck_*.json"):
         stale.unlink()
@@ -345,11 +461,11 @@ def build_page(
         if by_year:
             ymax = max(by_year.values())
             bars = []
-            for yr in sorted(by_year):
-                n = by_year[yr]
-                h = max(4, round(84 * n / ymax))
+            for yr in year_span or sorted(by_year):
+                n = by_year.get(yr, 0)
+                h = max(3, round(84 * n / ymax))
                 bars.append(
-                    f'<div class="yr-bar"><span class="yr-n">{n}</span>'
+                    f'<div class="yr-bar{"" if n else " zero"}"><span class="yr-n">{n}</span>'
                     f'<div class="bar" style="height:{h}px"></div>'
                     f'<span class="yr-lbl">{yr}</span></div>')
             years_html = ('<section><div class="sec-h">By year</div>'
@@ -374,6 +490,8 @@ def build_page(
         cities_html = ('<section><div class="cols">' + "".join(cols)
                        + "</div></section>") if cols else ""
 
+        cmap_html = _dot_map(crows)
+
         # Trips
         trips_html = ""
         ctrips = trips_by_country.get(country, [])
@@ -383,18 +501,25 @@ def build_page(
             for k, t in enumerate(ctrips):
                 cards.append(
                     f'<a class="trip-card{" more" if k >= 6 else ""}" href="/trips.html#trip-{_esc(t.get("id"))}">'
-                    f'<div class="trip-name">{_esc(t.get("name", "Trip"))}</div>'
+                    + _trip_cover(t, pix_base) +
+                    f'<div class="trip-body"><div class="trip-name">{_esc(t.get("name", "Trip"))}</div>'
                     f'<div class="trip-meta">{_esc(t.get("start_date", ""))} → '
                     f'{_esc(t.get("end_date", ""))} · {t.get("duration", 0)} day{"" if t.get("duration", 0) == 1 else "s"} · '
-                    f'{t.get("checkin_count", 0)} check-ins</div></a>')
+                    f'{t.get("checkin_count", 0)} check-ins</div></div></a>')
             more = (f'<button class="more-btn" onclick="moreTrips(this)">ALL {len(ctrips)} TRIPS ▾</button>'
                     if len(ctrips) > 6 else "")
             trips_html = (f'<section><div class="sec-h">Trips here · {len(ctrips)}</div>'
                           '<div class="trips">' + "".join(cards) + "</div>" + more + "</section>")
 
-        # Photos (up to 12)
+        # Photos (up to 12); the hero borrows one from the middle of the country's photos
         photos_html = ""
+        hero_style, hero_cls = "", " none"
         if pix_base:
+            shots = [fn for r in sorted(crows, key=lambda r: int(r.get("date", 0) or 0))
+                     for fn in (photos_by_checkin.get((r.get("checkin_id") or "").strip()) or [])[:1]]
+            if shots:
+                hero_style = f' style="background-image:url(\'{pix_base}/t/{_esc(shots[len(shots) // 2])}\')"'
+                hero_cls = ""
             imgs = []
             for r in sorted(crows, key=lambda r: int(r.get("date", 0) or 0), reverse=True):
                 cid = (r.get("checkin_id") or "").strip()
@@ -462,7 +587,7 @@ def build_page(
         html = PAGE_TEMPLATE.format(
             title=_esc(title), description=_esc(desc), site=SITE_URL, slug=slug,
             flag_big=_flag(country), name=_esc(country), first_last=_esc(first_last),
-            kpis=kpis, years=years_html, cities=cities_html, venues="", cats="",
+            kpis=kpis, years=years_html, cmap=cmap_html, hero_style=hero_style, hero_cls=hero_cls, cities=cities_html, venues="", cats="",
             trips=trips_html, photos=photos_html, shouts=shouts_html, log=log_html,
             log_url=json.dumps(f"/{log_file}"))
         (out_dir / f"country-{slug}.html").write_text(html, encoding="utf-8")
