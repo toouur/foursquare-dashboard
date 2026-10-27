@@ -947,6 +947,45 @@ html.js .mo:not(.in){{opacity:0;transform:translateY(40px);}}
 .side-nav .sn-icon{{font-size:.82rem;}}
 .side-nav .sn-lbl{{font-family:'DM Mono',monospace;font-size:.42rem;text-transform:uppercase;letter-spacing:.05em;}}
 @media(max-width:900px){{.side-nav{{display:none;}}}}
+/* ── 2026 refresh: gradient titles, 4×2 KPI, month cards, rounder cards ── */
+.section{{padding:84px 28px;}}
+.section-title{{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.section-title em{{-webkit-text-fill-color:transparent;}}
+.hero-yr{{background:linear-gradient(150deg,#f6d38b 0%,#ff9a6b 55%,#ff6fae 100%)!important;-webkit-background-clip:text!important;background-clip:text!important;}}
+/* KPI: one tidy 4×2 block */
+.kpi-grid{{grid-template-columns:repeat(4,1fr);gap:12px;}}
+.kpi{{border-radius:18px;padding:18px 16px 16px;text-align:left;}}
+.kpi::after{{display:none;}}
+.kpi-num{{font-size:2.1rem;background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.kpi-lbl{{margin-top:8px;}}
+/* months: a 3-column wall of cards instead of 12 full-width rows */
+.months{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start;}}
+.mo{{display:flex;flex-direction:column;align-items:stretch;gap:0;padding:0;border-radius:18px;overflow:hidden;background:rgba(18,21,31,.8);backdrop-filter:blur(6px);border:1px solid var(--border);}}
+.mo:nth-child(even){{direction:ltr;}}
+.mo-photo,.mo-photo-empty{{aspect-ratio:16/10;border-radius:0;box-shadow:none;}}
+.mo-text-box{{padding:14px 16px 16px;}}
+.mo-num{{font-size:2.6rem;top:6px;right:12px;}}
+.mo-name{{font-size:1.35rem;}}
+.mo-count{{margin-bottom:8px;}}
+.mo-narrative{{font-size:.9rem;line-height:1.55;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer;}}
+.mo.open .mo-narrative{{-webkit-line-clamp:unset;display:block;}}
+.mo-narrative::after{{content:'';}}
+.mo-more{{font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.1em;color:#ff9a6b;margin-top:6px;cursor:pointer;display:inline-block;}}
+.mo-shout{{margin-top:12px;padding:8px 0 8px 14px;font-size:.84rem;}}
+.mo-shout::before{{display:none;}}
+/* cards everywhere: the rounder, softer look of the other pages */
+.item,.flag-item{{border-radius:12px;}}
+.trip-card,.fl-card,.shout-card{{border-radius:18px;}}
+.trip-card:hover{{border-color:#ff9a6b;}}
+.shout-card{{border-left:1px solid var(--border);}}
+.shout-card::before{{content:'';top:18px;bottom:18px;left:12px;width:3px;height:auto;border-radius:2px;background:linear-gradient(180deg,#f6d38b,#ff6fae);font-size:0;}}
+.photo{{border-radius:12px;}}
+@media(max-width:900px){{.months{{grid-template-columns:1fr 1fr;}}.kpi-grid{{grid-template-columns:repeat(2,1fr);}}}}
+@media(max-width:600px){{.months{{grid-template-columns:1fr;}}.section{{padding:64px 16px;}}.kpi-num{{font-size:1.8rem;}}}}
+.trip-card{{padding:0;overflow:hidden;}}
+.trip-cover{{aspect-ratio:16/9;background:var(--card2) center/cover no-repeat;}}
+.trip-cover.none{{background:linear-gradient(135deg,rgba(246,211,139,.18),rgba(255,111,174,.14));}}
+.trip-body{{padding:14px 18px 16px;}}
 </style>
 </head>
 <body>
@@ -1146,6 +1185,17 @@ function setLogo(img, iata) {{
 document.querySelectorAll('img.fl-logo[id^="ypfl_"]').forEach(img => {{
   const iata = img.dataset.iata || '';
   setLogo(img, iata);
+}});
+
+// month cards: long narratives clamp to five lines with a READ MORE toggle
+document.querySelectorAll('.mo').forEach(mo => {{
+  const n = mo.querySelector('.mo-narrative');
+  if (!n || n.scrollHeight <= n.clientHeight + 2) return;
+  const b = document.createElement('span');
+  b.className = 'mo-more'; b.textContent = 'READ MORE ▾';
+  n.after(b);
+  const t = () => {{ const o = mo.classList.toggle('open'); b.textContent = o ? 'LESS ▴' : 'READ MORE ▾'; }};
+  b.addEventListener('click', t); n.addEventListener('click', t);
 }});
 
 (function(){{document.body.classList.toggle('light', localStorage.getItem('fsq-theme') === 'light');}})();
@@ -1695,13 +1745,22 @@ def build_page(
 
         # ── Trips ──
         if trips_y:
+            def _trip_cover(t: dict) -> str:
+                # same pick as the trips.html cards: a photo from the middle of the trip
+                shots = [c["photos"][0] for c in t.get("checkins") or [] if c.get("photos")]
+                if not shots:
+                    return '<div class="trip-cover none"></div>'
+                fn = shots[len(shots) // 2]
+                src = f"{pix_url.rstrip('/')}/{fn}" if pix_url else fn
+                return f'<div class="trip-cover" style="background-image:url(\'{_esc(thumb_url(src))}\')"></div>'
             trip_cards = "".join(
                 # per-trip pages are no longer built; trips.html opens the trip from its hash
                 f'<a class="trip-card" href="/trips.html#trip-{t.get("id")}">'
-                f'<div class="trip-name">{_esc(t.get("name", "Trip"))}</div>'
+                + _trip_cover(t) +
+                f'<div class="trip-body"><div class="trip-name">{_esc(t.get("name", "Trip"))}</div>'
                 f'<div class="trip-meta">{_esc(t.get("start_date", ""))} → {_esc(t.get("end_date", ""))} · {t.get("duration", 0)} days · {t.get("checkin_count", 0)} check-ins</div>'
                 f'<div class="trip-countries">{" · ".join(_esc(c) for c in (t.get("countries") or [])[:5])}</div>'
-                f'</a>'
+                f'</div></a>'
                 for t in trips_y
             )
             trips_section = (
