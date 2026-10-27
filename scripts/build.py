@@ -360,6 +360,10 @@ if __name__ == "__main__":
     if _backfill_csv.exists():
         with open(_backfill_csv, encoding="utf-8") as fh:
             _bf_rows = list(csv.DictReader(fh))
+        # `note` is the private research trail behind a reconstructed row (sources,
+        # chat quotes, who confirmed what) — it must never reach a generated page.
+        for _r in _bf_rows:
+            _r.pop("note", None)
         rows.extend(_bf_rows)
         rows.sort(key=lambda r: int(r.get("date") or 0))
         log.info("  + %d reconstructed row(s) from %s (%d total)",

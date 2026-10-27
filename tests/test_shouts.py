@@ -29,6 +29,11 @@ class TestShoutRecords:
         recs = shout_records([shout_row(100, "Great coffee — with Darya")])
         assert recs[0]["text"] == "Great coffee"
 
+    def test_reconstruction_markers_stripped(self):
+        recs = shout_records([shout_row(100, "[date_approx] [geo_pinned] Border crossing")])
+        assert recs[0]["text"] == "Border crossing"
+        assert shout_records([shout_row(101, "[coords_approx:pending_api]")]) == []
+
     def test_with_only_shout_dropped(self):
         assert shout_records([shout_row(100, "with Darya")]) == []
         assert shout_records([shout_row(101, "— with Darya")]) == []

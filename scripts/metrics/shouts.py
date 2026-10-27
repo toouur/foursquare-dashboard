@@ -228,6 +228,9 @@ def _build_companion_denylist(rows: list[dict]) -> set[str]:
     return names
 
 
+_MARKER_RE = _re.compile(r"\[[a-z_]+(?::[^\]]*)?\]")
+
+
 def shout_records(rows: list[dict]) -> list[dict]:
     """Return check-ins that carry a real text shout, sorted newest-first.
 
@@ -244,7 +247,9 @@ def shout_records(rows: list[dict]) -> list[dict]:
 
     out: list[dict] = []
     for r in rows:
-        s = (r.get("shout") or "").strip()
+        # machine markers on reconstructed rows ([geo_pinned], [coords_approx:…])
+        # are not words — drop them before the shout is shown or counted
+        s = _MARKER_RE.sub("", r.get("shout") or "").strip()
         if not s:
             continue
         clean = _SHOUT_SUFFIX_RE.sub("", s).strip()

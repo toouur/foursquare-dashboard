@@ -1283,11 +1283,12 @@ def build_page(
     # Shouts by year+month (cleaned: no "with X"-only)
     import re as _re
     suffix_re = _re.compile(r"\s*[—\-–]\s*with\s+.+$", _re.IGNORECASE | _re.UNICODE)
+    marker_re = _re.compile(r"\[[a-z_]+(?::[^\]]*)?\]")
     with_only_re = _re.compile(r"^\s*[—\-–]?\s*with\s+\S+", _re.IGNORECASE | _re.UNICODE)
     shouts_by_year: dict[int, list[dict]] = defaultdict(list)
     shouts_by_yr_mo: dict[tuple[int, int], list[dict]] = defaultdict(list)
     for r in rows:
-        s = (r.get("shout") or "").strip()
+        s = marker_re.sub("", r.get("shout") or "").strip()   # [geo_pinned] etc. are not words
         if not s:
             continue
         clean = suffix_re.sub("", s).strip()

@@ -28,7 +28,9 @@ backfill.yaml entry shape (coarse granularity is fine):
       lat: 50.08            # optional explicit coords (override centroid lookup)
       lng: 14.44
       source: liveinternet  # provenance note: manual | liveinternet | polarsteps
-      note: "Interrail, first night"   # optional -> becomes the shout text
+      shout: "Interrail"    # optional PUBLIC text: a few neutral words, shown on the site
+      note: "…"             # optional PRIVATE research note (sources, quotes, who confirmed
+                            # what) -> the `note` column, never built into pages or synced to D1
 
 When a reconstructed visit is precise enough to name a real Foursquare venue and
 an exact wall-clock time, the entry may carry the richer optional fields below —
@@ -84,6 +86,7 @@ SCHEMA = [
     "neighborhood", "lat", "lng", "address", "category", "shout", "source_app",
     "source_url", "with_name", "with_id", "created_by_name", "created_by_id",
     "overlaps_name", "overlaps_id", "city_inferred", "checkin_id",
+    "note",   # private provenance; build.py drops it, sync_to_d1 never reads it
 ]
 
 # The sentinel that marks a row as reconstructed everywhere downstream.
@@ -243,7 +246,8 @@ def entry_to_row(entry: dict, seq: int, coords: tuple[float, float]) -> dict:
     row["country"] = _norm_city(entry.get("country", ""))
     row["lat"] = f"{lat:.6f}"
     row["lng"] = f"{lng:.6f}"
-    row["shout"] = str(entry.get("note") or "").strip()
+    row["shout"] = str(entry.get("shout") or "").strip()
+    row["note"] = str(entry.get("note") or "").strip()
     row["source_app"] = REFURB_APP
     # Provenance ("polarsteps"/"liveinternet"/"manual") rides in source_url so it
     # survives into the row without needing a schema column of its own.

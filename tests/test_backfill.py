@@ -95,14 +95,14 @@ def test_build_rows_schema_marker_and_ids():
     entries = [
         {"date": "2011-05-02", "city": "Vienna",  "country": "Austria"},
         {"date": "2009-07-14", "city": "Prague",  "country": "Czechia",
-         "note": "Interrail"},
+         "shout": "Interrail", "note": "from a LiveInternet post"},
     ]
     centroids = {"vienna": (48.2, 16.37), "prague": (50.08, 14.44)}
     rows, unresolved = bb.build_rows(entries, centroids, {})
     assert unresolved == []
     assert len(rows) == 2
 
-    # every row carries the exact 23-column schema, no extras/missing
+    # every row carries the exact 24-column schema (23 + private note), no extras/missing
     for r in rows:
         assert list(r.keys()) == bb.SCHEMA
         assert r["source_app"] == "refurbished"
@@ -113,6 +113,7 @@ def test_build_rows_schema_marker_and_ids():
     assert rows[0]["checkin_id"] == "rf0001"
     assert rows[0]["city"] == "Prague"
     assert rows[0]["shout"] == "Interrail"
+    assert rows[0]["note"] == "from a LiveInternet post"
     assert rows[1]["checkin_id"] == "rf0002"
     assert rows[1]["city"] == "Vienna"
     # coords formatted to 6 dp
