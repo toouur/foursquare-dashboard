@@ -733,7 +733,9 @@
       "South American Restaurant",
       "Peruvian Restaurant",
       "Paella Restaurant",
-      "Pilavcı"
+      "Pilavcı",
+      "Food and Beverage Service",
+      "Dining and Drinking"
     ],
     "Fast Food & Street Food": [
       "Fast Food Restaurant",
@@ -755,7 +757,8 @@
       "Burrito Restaurant",
       "Fish and Chips Shop",
       "Cigkofte Place",
-      "Friterie"
+      "Friterie",
+      "Deli"
     ],
     "Coffee Shops": [
       "Coffee Shop",
@@ -798,15 +801,26 @@
       "Beer Garden",
       "Irish Pub",
       "Beach Bar",
-      "Brewery"
+      "Brewery",
+      "Hotel Bar",
+      "Social Club",
+      "Roof Deck"
     ],
     "Wine & Cocktail": [
       "Wine Bar",
       "Cocktail Bar",
       "Lounge",
-      "Hookah Bar",
       "Speakeasy",
-      "Whisky Bar"
+      "Whisky Bar",
+      "Winery"
+    ],
+    "Hookah Lounges": [
+      "Hookah Bar"
+    ],
+    "Nightclubs": [
+      "Night Club",
+      "Karaoke Bar",
+      "Nightclub"
     ],
     "Parks": [
       "Park",
@@ -814,7 +828,17 @@
       "Urban Park",
       "State or Provincial Park",
       "Nature Preserve",
-      "Forest"
+      "Forest",
+      "Playground",
+      "Tree",
+      "Dog Park",
+      "Field",
+      "Farm",
+      "Natural Park"
+    ],
+    "Gardens": [
+      "Garden",
+      "Botanical Garden"
     ],
     "Plazas": [
       "Plaza",
@@ -825,7 +849,10 @@
       "Intersection",
       "Tunnel",
       "Boardwalk",
-      "Pass"
+      "Toll Plaza",
+      "Toll Booth",
+      "Truck Stop",
+      "Elevator"
     ],
     "Neighborhoods": [
       "Neighborhood"
@@ -839,37 +866,38 @@
       "States and Municipalities",
       "Country"
     ],
-    "Public Transit": [
-      "Metro Station",
-      "Light Rail Station",
-      "Rail Station",
-      "Tram Station",
-      "Platform",
-      "Bus Station",
-      "Bus Stop",
-      "Bus Line",
-      "Train"
-    ],
-    "Monuments": [
+    "Monuments & Sculptures": [
       "Monument",
       "Memorial Site",
-      "Landmark"
+      "Landmark",
+      "Outdoor Sculpture",
+      "Sculpture Garden",
+      "Street Art",
+      "Public Art"
     ],
     "Historic Sites": [
       "Historic and Protected Site",
       "Ruins",
       "Castle",
       "Palace",
-      "Monastery"
-    ],
-    "Outdoor Sculpture": [
-      "Outdoor Sculpture",
-      "Sculpture Garden",
-      "Street Art",
-      "Public Art"
+      "Monastery",
+      "Tower",
+      "Lighthouse",
+      "Structure",
+      "Fort",
+      "Ruin",
+      "Archaeological Site",
+      "Historic Site",
+      "Windmill",
+      "Landmark Building",
+      "Capitol Building",
+      "Power Plant"
     ],
     "Bridges": [
       "Bridge"
+    ],
+    "Fountains": [
+      "Fountain"
     ],
     "Churches & Mosques": [
       "Church",
@@ -880,7 +908,9 @@
       "Shrine",
       "Buddhist Temple",
       "Hindu Temple",
-      "Sikh Temple"
+      "Sikh Temple",
+      "Spiritual Center",
+      "Confucian Temple"
     ],
     "Museums": [
       "Museum",
@@ -888,6 +918,82 @@
       "History Museum",
       "Science Museum",
       "Art Gallery"
+    ],
+    "Concerts & Theater": [
+      "Concert Hall",
+      "Opera House",
+      "Theater",
+      "Movie Theater",
+      "Amphitheater",
+      "Cultural Center",
+      "Comedy Club",
+      "Auditorium",
+      "Indie Movie Theater",
+      "Indie Theater",
+      "College Theater",
+      "Planetarium",
+      "Observatory"
+    ],
+    "Culture Spaces": [
+      "Event Space",
+      "Outdoor Event Space",
+      "Arts and Entertainment",
+      "Exhibit",
+      "Art Studio",
+      "Convention Center",
+      "Performing Arts Venue",
+      "Music Venue",
+      "Rock Club",
+      "Jazz and Blues Venue",
+      "Fair",
+      "Street Fair",
+      "Festival",
+      "Music Festival",
+      "Other Event",
+      "Entertainment Event",
+      "Attraction",
+      "Ballroom",
+      "Hot Air Balloon Tour Agency",
+      "TV Station",
+      "Radio Station"
+    ],
+    "Games & Entertainment": [
+      "Pool Hall",
+      "Arcade",
+      "Casino",
+      "Bowling Alley",
+      "Escape Room",
+      "Amusement Park",
+      "Gaming Cafe",
+      "Internet Cafe",
+      "Zoo",
+      "Zoo Exhibit",
+      "Aquarium",
+      "Circus"
+    ],
+    "Libraries": [
+      "Library"
+    ],
+    "Cemeteries": [
+      "Cemetery"
+    ],
+    "Public Transit": [
+      "Metro Station",
+      "Light Rail Station",
+      "Rail Station",
+      "Tram Station",
+      "Platform",
+      "Bus Station",
+      "Bus Stop",
+      "Bus Line",
+      "Train",
+      "Moving Target",
+      "Cable Car",
+      "Funicular",
+      "Bike Rental",
+      "Travel and Transportation",
+      "Public Transportation",
+      "Boat Launch"
     ],
     "Airports": [
       "Airport",
@@ -898,7 +1004,34 @@
       "Airport Lounge",
       "Airport Ticket Counter",
       "Airport Tram Station",
-      "Plane"
+      "Plane",
+      "Travel Lounge",
+      "Baggage Claim",
+      "Baggage Locker",
+      "Airfield"
+    ],
+    "Taxis": [
+      "Taxi",
+      "Taxi Stand",
+      "Transportation Service",
+      "Rental Car Location"
+    ],
+    "Fuel Stations": [
+      "Fuel Station"
+    ],
+    "Parking": [
+      "Parking"
+    ],
+    "Border Crossings": [
+      "Border Crossing"
+    ],
+    "Harbors & Marinas": [
+      "Harbor or Marina",
+      "Marine Terminal",
+      "Boat or Ferry",
+      "Ferry",
+      "Port",
+      "Cruise"
     ],
     "Accommodation": [
       "Hotel",
@@ -911,6 +1044,57 @@
       "Bed and Breakfast",
       "Vacation Rental"
     ],
+    "Home & Office": [
+      "Office",
+      "Corporate Office",
+      "Coworking Space",
+      "Business Center",
+      "Home (private)",
+      "Apartment or Condo",
+      "Housing Development",
+      "Tech Startup",
+      "Office Building",
+      "Factory",
+      "Industrial Estate",
+      "Meeting Room",
+      "Conference Room",
+      "Fraternity House",
+      "Warehouse",
+      "Residential Building"
+    ],
+    "Education": [
+      "University",
+      "College and University",
+      "College Arts Building",
+      "College Academic Building",
+      "College Technology Building",
+      "College Library",
+      "College Residence Hall",
+      "Community College",
+      "Law School",
+      "High School",
+      "Middle School",
+      "Elementary School",
+      "Private School",
+      "Preschool",
+      "Nursery School",
+      "School",
+      "Adult Education",
+      "Education",
+      "Language School",
+      "Music School",
+      "Art School",
+      "Driving School",
+      "Religious School",
+      "Trade School",
+      "Student Center",
+      "College Auditorium",
+      "College Quad",
+      "College Administrative Building",
+      "College Science Building",
+      "Research Station",
+      "College Lab"
+    ],
     "Supermarkets": [
       "Supermarket",
       "Grocery Store",
@@ -918,40 +1102,34 @@
       "Convenience Store",
       "Food and Beverage Retail",
       "Discount Store",
-      "Warehouse or Wholesale Store"
+      "Warehouse or Wholesale Store",
+      "Butcher",
+      "Health Food Store",
+      "Fruit and Vegetable Store",
+      "Fish Market"
     ],
-    "Gardens": [
-      "Garden",
-      "Botanical Garden"
-    ],
-    "Beaches": [
-      "Beach"
-    ],
-    "Scenic Lookouts": [
-      "Scenic Lookout",
-      "Waterfall"
-    ],
-    "Rivers & Lakes": [
-      "River",
-      "Lake",
-      "Canal",
-      "Reservoir"
-    ],
-    "Waterfront": [
-      "Waterfront",
-      "Pier"
-    ],
-    "Hiking": [
-      "Hiking Trail",
-      "Bike Trail",
-      "Other Great Outdoors",
-      "Rock Climbing Spot"
+    "Markets": [
+      "Market",
+      "Farmers Market",
+      "Flea Market",
+      "Gourmet Store",
+      "Christmas Market",
+      "Night Market"
     ],
     "Shopping Malls": [
       "Shopping Mall",
       "Shopping Plaza",
       "Outlet Mall",
       "Department Store"
+    ],
+    "Clothing Stores": [
+      "Clothing Store",
+      "Shoe Store",
+      "Boutique",
+      "Women's Store",
+      "Outlet Store",
+      "Men's Store",
+      "Lingerie Store"
     ],
     "Home & DIY": [
       "Hardware Store",
@@ -970,6 +1148,19 @@
       "Electronics Store",
       "Mobile Phone Store",
       "Computers and Electronics Retail"
+    ],
+    "Bookstores": [
+      "Bookstore",
+      "Used Bookstore"
+    ],
+    "Pharmacies": [
+      "Pharmacy",
+      "Drugstore"
+    ],
+    "Liquor Stores": [
+      "Liquor Store",
+      "Wine Store",
+      "Beer Store"
     ],
     "Other Shops": [
       "Miscellaneous Store",
@@ -996,23 +1187,40 @@
       "Luggage Store",
       "Fashion Accessories Store",
       "Vintage and Thrift Store",
-      "Duty-free Store"
-    ],
-    "Bookstores": [
-      "Bookstore",
-      "Used Bookstore"
-    ],
-    "Fountains": [
-      "Fountain"
-    ],
-    "Border Crossings": [
-      "Border Crossing"
+      "Duty-free Store",
+      "Kuruyemişçi Shop",
+      "Office Supply Store",
+      "Pop-Up Store",
+      "Costume Store",
+      "Stationery Store",
+      "Retail",
+      "Board Store",
+      "Outdoor Supply Store",
+      "Herbs and Spices Store",
+      "Used Car Dealership",
+      "Antique Store",
+      "Comic Book Store",
+      "Knitting Store",
+      "Car Dealership",
+      "Motorcycle Dealership",
+      "Ski Store",
+      "Pawn Shop",
+      "Adult Store",
+      "Marijuana Dispensary",
+      "Record Store"
     ],
     "Banks": [
-      "Bank"
+      "Bank",
+      "ATM",
+      "Banking and Finance",
+      "Financial Service"
     ],
-    "Post & Government": [
+    "Post & Pickup Points": [
       "Post Office",
+      "Shipping, Freight, and Material Transportation Service",
+      "Parcel Locker"
+    ],
+    "Government & Civic": [
       "Government Building",
       "Government Department",
       "City Hall",
@@ -1021,10 +1229,11 @@
       "Embassy or Consulate",
       "Police Station",
       "Fire Station",
-      "Capitol Building",
       "Non-Profit Organization",
       "Community Center",
-      "Social Services Organization"
+      "Social Services Organization",
+      "Military Base",
+      "Military"
     ],
     "Health": [
       "Medical Center",
@@ -1033,116 +1242,47 @@
       "Emergency Room",
       "Medical Lab",
       "Massage Clinic",
-      "Veterinarian"
+      "Veterinarian",
+      "Assisted Living"
     ],
-    "Gyms": [
+    "Personal Services": [
+      "Hair Salon",
+      "Tailor",
+      "Currency Exchange",
+      "Repair Service",
+      "Shoe Repair Service",
+      "Laundry Service",
+      "Laundromat",
+      "Dry Cleaner",
+      "Home Service",
+      "Rental Service",
+      "Photography Lab",
+      "Car Wash and Detail",
+      "Automotive Repair Shop",
+      "Notary",
+      "Insurance Agency",
+      "Travel Agency",
+      "Tourist Information and Service",
+      "IT Service",
+      "Health and Beauty Service",
+      "Storage Facility",
+      "Campaign Office",
+      "Funeral Home",
+      "Electrical Equipment Supplier",
+      "Recycling Facility",
+      "Property Management Office",
+      "Animal Shelter",
+      "Mobile Company",
+      "Security and Safety",
+      "Ticket Seller",
+      "Business and Professional Services",
+      "Business Service",
+      "Print, TV, Radio and Outdoor Advertising Service"
+    ],
+    "Sport & Recreation": [
       "Gym",
       "Gym and Studio",
-      "Yoga Studio"
-    ],
-    "Dance": [
-      "Dance Studio"
-    ],
-    "Concerts & Theater": [
-      "Concert Hall",
-      "Opera House",
-      "Theater",
-      "Movie Theater",
-      "Amphitheater",
-      "Cultural Center"
-    ],
-    "Nightclubs": [
-      "Night Club",
-      "Rock Club",
-      "Karaoke Bar"
-    ],
-    "Markets": [
-      "Market",
-      "Farmers Market",
-      "Flea Market",
-      "Gourmet Store"
-    ],
-    "Taxis": [
-      "Taxi",
-      "Taxi Stand"
-    ],
-    "Fuel Stations": [
-      "Fuel Station"
-    ],
-    "Clothing Stores": [
-      "Clothing Store",
-      "Shoe Store",
-      "Boutique"
-    ],
-    "Pharmacies": [
-      "Pharmacy",
-      "Drugstore"
-    ],
-    "Liquor Stores": [
-      "Liquor Store",
-      "Wine Store"
-    ],
-    "Campgrounds": [
-      "Campground",
-      "RV Park",
-      "Trailer Park"
-    ],
-    "Mountains": [
-      "Mountain"
-    ],
-    "Islands": [
-      "Island"
-    ],
-    "Home & Office": [
-      "Office",
-      "Corporate Office",
-      "Coworking Space",
-      "Business Center",
-      "Home (private)",
-      "Apartment or Condo",
-      "Housing Development"
-    ],
-    "Parking": [
-      "Parking"
-    ],
-    "Cemeteries": [
-      "Cemetery"
-    ],
-    "Harbors & Marinas": [
-      "Harbor or Marina",
-      "Marine Terminal",
-      "Boat or Ferry",
-      "Ferry"
-    ],
-    "Education": [
-      "University",
-      "College and University",
-      "College Arts Building",
-      "College Academic Building",
-      "College Technology Building",
-      "College Library",
-      "College Residence Hall",
-      "Community College",
-      "Law School",
-      "High School",
-      "Middle School",
-      "Elementary School",
-      "Private School",
-      "Preschool",
-      "Nursery School",
-      "School",
-      "Adult Education",
-      "Education",
-      "Language School",
-      "Music School",
-      "Art School",
-      "Driving School",
-      "Swim School",
-      "Religious School",
-      "Trade School",
-      "Student Center"
-    ],
-    "Stadiums": [
+      "Yoga Studio",
       "Stadium",
       "Soccer Stadium",
       "Tennis Stadium",
@@ -1152,19 +1292,95 @@
       "Track",
       "Tennis Court",
       "Basketball Court",
-      "Golf Course"
+      "Golf Course",
+      "Swimming Pool",
+      "Gym Pool",
+      "College Gym",
+      "College Stadium",
+      "College Soccer Field",
+      "Sports and Recreation",
+      "Athletics & Sports",
+      "Recreation Center",
+      "Sports Club",
+      "Tennis Club",
+      "Bike Trail",
+      "Skating Rink",
+      "Skate Park",
+      "Ski Trail",
+      "Ski Chairlift",
+      "Ski Resort and Area",
+      "Race Track",
+      "Track Stadium",
+      "Running and Track",
+      "Go Kart Track",
+      "Basketball Stadium",
+      "Gun Range",
+      "Paintball Field",
+      "Laser Tag Center",
+      "Water Park",
+      "Surf Spot",
+      "Dive Spot",
+      "Rafting Spot",
+      "Swim School"
+    ],
+    "Dance": [
+      "Dance Studio"
     ],
     "Spas & Baths": [
       "Spa",
       "Bath House",
       "Sauna"
     ],
-    "Swimming Pools": [
-      "Swimming Pool",
-      "Gym Pool"
+    "Beaches": [
+      "Beach",
+      "Nudist Beach"
     ],
-    "Libraries": [
-      "Library"
+    "Scenic Lookouts": [
+      "Scenic Lookout",
+      "Waterfall"
+    ],
+    "Rivers & Lakes": [
+      "River",
+      "Lake",
+      "Canal",
+      "Reservoir",
+      "Pond",
+      "Bay",
+      "Well",
+      "Canal Lock",
+      "Dam",
+      "Cape",
+      "Hot Spring",
+      "Bathing Area",
+      "Fishing Area"
+    ],
+    "Waterfront": [
+      "Waterfront",
+      "Pier"
+    ],
+    "Islands": [
+      "Island"
+    ],
+    "Mountains & Hiking": [
+      "Mountain",
+      "Hiking Trail",
+      "Rock Climbing Spot",
+      "Hill",
+      "Volcano",
+      "Cave",
+      "Pass"
+    ],
+    "Campgrounds": [
+      "Campground",
+      "RV Park",
+      "Trailer Park"
+    ],
+    "Other Outdoors": [
+      "Other Great Outdoors",
+      "Landmarks and Outdoors",
+      "Rest Area",
+      "Stable",
+      "Vineyard"
     ]
   }
 }

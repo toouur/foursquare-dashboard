@@ -298,6 +298,16 @@ class TestBuildCategorizeFn:
                 seen[n] = sec
 
 
+    def test_every_grouped_category_has_an_explorer_section(self):
+        # a category with a group but no explorer section drops its venues out of the explorer
+        import json
+        from pathlib import Path
+        cfg = json.loads((Path(__file__).resolve().parents[1] / "config" / "categories.json").read_text(encoding="utf-8"))
+        in_explorer = {n for names in cfg["explorer_groups"].values() for n in names}
+        missing = [n for names in cfg["category_groups"].values() for n in names if n not in in_explorer]
+        assert not missing, f"no explorer section for: {missing[:10]}"
+
+
 class TestVenueCategoryFixes:
     def test_pin_changes_grouping_not_the_shown_category(self):
         from transform import group_category

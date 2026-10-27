@@ -87,5 +87,145 @@
   "5cc24bf5135b39002c8ab20e": {
     "category": "Bar",
     "_note": "Taxi Blues Café, Chișinău — a bar; Foursquare: Café"
+  },
+  "4c2788053703d13ac71da736": {
+    "category": "Supermarket",
+    "_note": "Белмаркет — category audit 2026-10-27"
+  },
+  "4f609621e4b0ae6370e9f17d": {
+    "category": "Supermarket",
+    "_note": "Белмаркет — category audit 2026-10-27"
+  },
+  "5b0d0b0a464d65002cb72e07": {
+    "category": "Supermarket",
+    "_note": "Белмаркет — category audit 2026-10-27"
+  },
+  "50eed860e4b0e2ef7df87113": {
+    "category": "Supermarket",
+    "_note": "Златка — category audit 2026-10-27"
+  },
+  "5e312f7a85c13800072b5be0": {
+    "category": "Supermarket",
+    "_note": "Евроопт Market — category audit 2026-10-27"
+  },
+  "4e802337775ba0652803e5f5": {
+    "category": "Supermarket",
+    "_note": "ВИТАЛЮР — category audit 2026-10-27"
+  },
+  "4eabcef17ee5cd8bce08cb8a": {
+    "category": "Supermarket",
+    "_note": "ВИТАЛЮР — category audit 2026-10-27"
+  },
+  "5c1f7e6a75dcb7002c73ca61": {
+    "category": "Supermarket",
+    "_note": "ВИТАЛЮР — category audit 2026-10-27"
+  },
+  "597870f7065ef5628a6e0b73": {
+    "category": "Supermarket",
+    "_note": "ВИТАЛЮР — category audit 2026-10-27"
+  },
+  "5a8540244c9be611980875c1": {
+    "category": "Supermarket",
+    "_note": "ВИТАЛЮР — category audit 2026-10-27"
+  },
+  "54f6d6b5498e1ed2771066f8": {
+    "category": "Supermarket",
+    "_note": "ВИТАЛЮР — category audit 2026-10-27"
+  },
+  "54280daa498e05dee5b6b3b0": {
+    "category": "Supermarket",
+    "_note": "ВИТАЛЮР — category audit 2026-10-27"
+  },
+  "57531463cd10585cbd69b444": {
+    "category": "Supermarket",
+    "_note": "ВИТАЛЮР — category audit 2026-10-27"
+  },
+  "4ea68947dab44fef9196dba1": {
+    "category": "Supermarket",
+    "_note": "Магазин ДорОрс — category audit 2026-10-27"
+  },
+  "5be44c23475abd00390dfb43": {
+    "category": "Doner Restaurant",
+    "_note": "Doner King — category audit 2026-10-27"
+  },
+  "6913ba91b30d223c5e1be981": {
+    "category": "Fast Food Restaurant",
+    "_note": "Today Street Food — category audit 2026-10-27"
+  },
+  "5d652bd4e4330c0008608683": {
+    "category": "Kebab Restaurant",
+    "_note": "Kebab Factory — category audit 2026-10-27"
+  },
+  "503694cce4b0e43b9b4ff799": {
+    "category": "Doner Restaurant",
+    "_note": "Ali Doner Kebab — category audit 2026-10-27"
+  },
+  "65806f4ae5a1b34a37af233e": {
+    "category": "Burger Joint",
+    "_note": "Burgeryyy Downtown — category audit 2026-10-27"
+  },
+  "5648bfe438fac54948270519": {
+    "category": "Coffee Shop",
+    "_note": "Buno Cafe — category audit 2026-10-27"
+  },
+  "4d7a0e9fceaa224b514f0371": {
+    "category": "Language School",
+    "_note": "Институт Гёте / Goethe-Institut Minsk — category audit 2026-10-27"
+  },
+  "5617a971498ec6b932bafedf": {
+    "category": "Social Services Organization",
+    "_note": "ТЦСОН Советского Района — category audit 2026-10-27"
+  },
+  "4f58ddace4b0cd6f8d39136c": {
+    "category": "Airport Service",
+    "_note": "Passport Control - Vama Leușeni — was Police Station; category audit 2026-10-27"
+  },
+  "4f8c2659e4b01f95a5602621": {
+    "category": "Airport Service",
+    "_note": "Passport Control — was Police Station; category audit 2026-10-27"
+  },
+  "5726cc25498e3188aaf1c0c2": {
+    "category": "Airport Service",
+    "_note": "Security Check (Sikkerhetskontrollen) — was Airport; category audit 2026-10-27"
+  },
+  "523dd50e11d22fddb7ec9563": {
+    "category": "Airport Service",
+    "_note": "Security Check — was Travel and Transportation; category audit 2026-10-27"
+  },
+  "4e26c034c65bb6120fce4104": {
+    "category": "Airport Service",
+    "_note": "Security Check Point KLIA — was Airport; category audit 2026-10-27"
+  },
+  "5ba6c7cbfebf31002ca33705": {
+    "category": "Airport Service",
+    "_note": "Security Control — was Travel and Transportation; category audit 2026-10-27"
+  },
+  "4e8735ab82310ce11ea40df3": {
+    "category": "Airport Service",
+    "_note": "Security Check — was Security and Safety; category audit 2026-10-27"
+  },
+  "4e230c93483b041af1fcab52": {
+    "category": "Bike Trail",
+    "_note": "Южный конец велодорожки — a bike path; Foursquare: Other Great Outdoors"
+  },
+  "4f956b49e4b0f08d4183e58b": {
+    "category": "Bike Trail",
+    "_note": "Северный конец велодорожки — a bike path; Foursquare: Other Great Outdoors"
+  },
+  "51813317498e726110882bf3": {
+    "category": "Bike Trail",
+    "_note": "велодорожка парк горького — a bike path; Foursquare: Sports and Recreation"
+  },
+  "528da68211d26c9d1f0584b8": {
+    "category": "Bike Trail",
+    "_note": "Червенский парк. Велодорожка — a bike path; Foursquare: Sports and Recreation"
+  },
+  "5198d328498e27277428ff1c": {
+    "category": "Bike Trail",
+    "_note": "Велодорожка — a bike path; Foursquare: Sports and Recreation"
+  },
+  "4f9cecd2e4b0e5be401dfde1": {
+    "category": "Bike Trail",
+    "_note": "Велодорожка — a bike path; Foursquare: Sports and Recreation"
   }
 }
