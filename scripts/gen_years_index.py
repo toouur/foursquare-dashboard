@@ -11,6 +11,7 @@ sorted newest-first with the vivid narrative front and centre.
 """
 
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 
 from make_thumbs import thumb_url
@@ -148,6 +149,21 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
             hero_photo = photo_by_year_flat[ys["year"]]
             break
 
+    # Years made only of reconstructed (pre-Swarm backfill) rows get a hatched bar.
+    real_years: set[int] = set()
+    for r in rows:
+        ts = int(r.get("date") or 0)
+        if ts and r.get("source_app") != "refurbished":
+            real_years.add(datetime.fromtimestamp(ts, tz=timezone.utc).year)
+    peak = max((ys.get("total", 0) for ys in year_summaries), default=0) or 1
+    strip_html = "".join(
+        f'<a class="ybar{"" if ys["year"] in real_years or not rows else " recon"}" href="#y{ys["year"]}">'
+        f'<span>{ys.get("total", 0):,}</span>'
+        f'<i style="height:{max(2.0, ys.get("total", 0) / peak * 100):.1f}%"></i>'
+        f'<b>{ys["year"]}</b></a>'
+        for ys in sorted(year_summaries, key=lambda y: y["year"])
+    )
+
     # Card HTML
     card_html_parts: list[str] = []
     for ys in sorted_ys:
@@ -164,7 +180,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
             + (f"<span class='new'>+{ys['new_countries']} new</span>" if ys.get('new_countries') else '')
         )
         card_html_parts.append(
-            f'<a class="yc" href="year-{yr}.html">'
+            f'<a class="yc" id="y{yr}" href="year-{yr}.html">'
             f'{thumb_html}'
             f'<div class="yc-body">'
             f'<div class="yc-year">{yr}</div>'
@@ -182,6 +198,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None,
         total_years=len(year_summaries),
         life_html=life_html,
         cards_html="".join(card_html_parts),
+        strip_html=strip_html,
     )
     Path(out_path).write_text(html, encoding="utf-8")
     print(f"years.html -> {out_path}  ({len(year_summaries)} years, {len(html)//1024} KB)")
@@ -257,6 +274,38 @@ html.js .yc:not(.in){{opacity:0;transform:translateY(30px);}}
 .life-lede strong{{color:var(--gold);font-weight:700;}}
 .life-lede::first-letter{{font-size:2.4em;font-weight:900;float:left;line-height:.8;padding:6px 10px 0 0;color:var(--gold);font-family:'Playfair Display',serif;}}
 @media(max-width:600px){{.life{{padding:34px 18px 2px;}}.life-lede::first-letter{{font-size:2em;}}}}
+/* 2026 refresh: sunset gradient, year strip, photo-led cards */
+.hero-title,.yc-year{{background:linear-gradient(150deg,#f6d38b 0%,#ff9a6b 55%,#ff6fae 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}}
+.hero{{height:52vh;}}
+.life-lede strong,.life-lede::first-letter{{color:#f6b98b;}}
+/* year strip: one bar per year, height = check-ins */
+.ystrip{{max-width:1100px;margin:34px auto 0;padding:0 28px;}}
+.ystrip-h{{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;text-align:center;}}
+.ybars{{display:flex;align-items:flex-end;gap:6px;height:130px;}}
+.ybar{{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;text-decoration:none;color:var(--muted);gap:6px;}}
+.ybar i{{display:block;width:100%;min-height:3px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#ff9a6b,#f6d38b);opacity:.75;transition:opacity .2s,transform .2s;}}
+.ybar.recon i{{background:repeating-linear-gradient(135deg,rgba(246,211,139,.55) 0 4px,rgba(246,211,139,.2) 4px 8px);}}
+.ybar:hover i{{opacity:1;transform:scaleY(1.04);transform-origin:bottom;}}
+.ybar b{{font-family:'DM Mono',monospace;font-size:.55rem;font-weight:400;}}
+.ybar span{{font-family:'DM Mono',monospace;font-size:.5rem;color:var(--text);opacity:0;transition:opacity .2s;}}
+.ybar:hover span{{opacity:1;}}
+/* cards: 3 across, year sits on the photo, chips, clamped story */
+.grid{{grid-template-columns:repeat(3,1fr);gap:16px;padding-top:40px;}}
+.yc{{border-radius:20px;background:rgba(18,21,31,.85);position:relative;}}
+.yc-thumb{{aspect-ratio:4/3;}}
+.yc-thumb::after{{background:linear-gradient(180deg,transparent 45%,rgba(12,14,20,.95) 100%);}}
+.yc-year{{position:absolute;left:20px;top:0;margin-top:-62px;font-size:3.4rem;text-shadow:none;filter:drop-shadow(0 2px 10px rgba(0,0,0,.6));}}
+.yc-body{{position:relative;padding:14px 18px 18px;gap:10px;}}
+.yc-stats{{gap:6px;}}
+.yc-stats span{{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:999px;padding:3px 9px;}}
+.yc-stats .new{{border-color:rgba(255,154,107,.4);color:#ff9a6b;}}
+.yc-vivid{{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;font-size:.84rem;}}
+.yc-vivid strong{{color:#f6b98b;}}
+.yc-cta{{color:#ff9a6b;}}
+.yc:hover{{border-color:#ff9a6b;}}
+@media(max-width:1000px){{.grid{{grid-template-columns:1fr 1fr;}}}}
+@media(max-width:600px){{.grid{{grid-template-columns:1fr;}}.ybars{{gap:3px;height:100px;}}.ybar b{{font-size:.42rem;writing-mode:vertical-rl;transform:rotate(180deg);}}.ystrip{{padding:0 14px;}}.yc-year{{font-size:2.8rem;margin-top:-52px;}}}}
+.ybar{{min-width:0;}} @media(max-width:600px){{.ybars{{gap:2px;}}.yc-thumb{{aspect-ratio:16/10;}}}}
 </style>
 </head>
 <body>
@@ -273,6 +322,8 @@ html.js .yc:not(.in){{opacity:0;transform:translateY(30px);}}
 </section>
 
 <section class="life"><p class="life-lede">{life_html}</p></section>
+
+<section class="ystrip"><div class="ystrip-h">Check-ins per year · tap a bar</div><div class="ybars">{strip_html}</div></section>
 
 <div class="grid" id="grid">
 {cards_html}
