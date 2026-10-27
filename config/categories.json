@@ -675,6 +675,25 @@
       "Plaza",
       "Pedestrian Plaza"
     ],
+    "Streets & Roads": [
+      "Road",
+      "Intersection",
+      "Tunnel",
+      "Boardwalk",
+      "Pass"
+    ],
+    "Neighborhoods": [
+      "Neighborhood"
+    ],
+    "Cities, Towns & Villages": [
+      "City",
+      "Town",
+      "Village",
+      "County",
+      "State",
+      "States and Municipalities",
+      "Country"
+    ],
     "Public Transit": [
       "Metro Station",
       "Light Rail Station",
@@ -781,8 +800,11 @@
     "Supermarkets": [
       "Supermarket",
       "Grocery Store",
+      "Big Box Store",
       "Convenience Store",
-      "Food and Beverage Retail"
+      "Food and Beverage Retail",
+      "Discount Store",
+      "Warehouse or Wholesale Store"
     ],
     "Gardens": [
       "Garden",
@@ -813,13 +835,54 @@
     ],
     "Shopping Malls": [
       "Shopping Mall",
-      "Department Store",
-      "Big Box Store",
-      "Electronics Store",
-      "Furniture and Home Store",
-      "Gift Store",
+      "Shopping Plaza",
+      "Outlet Mall",
+      "Department Store"
+    ],
+    "Home & DIY": [
       "Hardware Store",
-      "Miscellaneous Store"
+      "Furniture and Home Store",
+      "Construction Supplies Store",
+      "Housewares Store",
+      "Kitchen Supply Store",
+      "Lighting Store",
+      "Mattress Store",
+      "Carpet Store",
+      "Textiles Store",
+      "Garden Center",
+      "Doors and Windows Contractor"
+    ],
+    "Electronics & Phones": [
+      "Electronics Store",
+      "Mobile Phone Store",
+      "Computers and Electronics Retail"
+    ],
+    "Other Shops": [
+      "Miscellaneous Store",
+      "Gift Store",
+      "Souvenir Store",
+      "Cosmetics Store",
+      "Perfume Store",
+      "Smoke Shop",
+      "Tobacco Store",
+      "Jewelry Store",
+      "Watch Store",
+      "Eyecare Store",
+      "Flower Store",
+      "Arts and Crafts Store",
+      "Hobby Store",
+      "Music Store",
+      "Toy Store",
+      "Pet Supplies Store",
+      "Newsstand",
+      "Print Store",
+      "Bicycle Store",
+      "Sporting Goods Retail",
+      "Leather Goods Store",
+      "Luggage Store",
+      "Fashion Accessories Store",
+      "Vintage and Thrift Store",
+      "Duty-free Store"
     ],
     "Bookstores": [
       "Bookstore",
@@ -833,6 +896,30 @@
     ],
     "Banks": [
       "Bank"
+    ],
+    "Post & Government": [
+      "Post Office",
+      "Government Building",
+      "Government Department",
+      "City Hall",
+      "Town Hall",
+      "Courthouse",
+      "Embassy or Consulate",
+      "Police Station",
+      "Fire Station",
+      "Capitol Building",
+      "Non-Profit Organization",
+      "Community Center",
+      "Social Services Organization"
+    ],
+    "Health": [
+      "Medical Center",
+      "Hospital",
+      "Dentist",
+      "Emergency Room",
+      "Medical Lab",
+      "Massage Clinic",
+      "Veterinarian"
     ],
     "Gyms": [
       "Gym",

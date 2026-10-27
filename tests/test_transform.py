@@ -285,6 +285,19 @@ class TestBuildCategorizeFn:
                 seen[n.lower()] = g
 
 
+    def test_explorer_sections_do_not_share_a_category(self):
+        # a raw category in two explorer sections lists its venues twice — and the
+        # first owner wins in stats, so the second section silently misses them
+        import json
+        from pathlib import Path
+        cfg = json.loads((Path(__file__).resolve().parents[1] / "config" / "categories.json").read_text(encoding="utf-8"))
+        seen: dict[str, str] = {}
+        for sec, names in cfg["explorer_groups"].items():
+            for n in names:
+                assert n not in seen, f"{n!r} is in explorer sections {seen[n]!r} and {sec!r}"
+                seen[n] = sec
+
+
 class TestVenueCategoryFixes:
     def test_pin_changes_grouping_not_the_shown_category(self):
         from transform import group_category
