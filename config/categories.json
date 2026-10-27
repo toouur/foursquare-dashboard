@@ -637,121 +637,11 @@
     ]
   },
   "explorer_groups": {
-    "Bars, Pubs & Breweries": [
-      "Bar",
-      "Beer Bar",
-      "Pub",
-      "Dive Bar",
-      "Sports Bar",
-      "Gastropub",
-      "Beer Garden",
-      "Irish Pub",
-      "Beach Bar",
-      "Brewery"
-    ],
-    "Coffee Shops": [
-      "Coffee Shop",
-      "Corporate Coffee Shop",
-      "Coffee Roaster",
-      "Turkish Coffeehouse",
-      "Tea Room",
-      "Juice Bar",
-      "Bubble Tea Shop",
-      "Smoothie Shop"
-    ],
-    "Cafés & Bakeries": [
+    "Cafés & Restaurants": [
       "Café",
       "Cafe, Coffee, and Tea House",
       "Café, Coffee, and Tea House",
-      "Bakery",
-      "Pastry Shop",
-      "Donut Shop",
       "Breakfast Spot",
-      "Bagel Shop",
-      "Pie Shop"
-    ],
-    "Parks": [
-      "Park",
-      "National Park",
-      "Urban Park",
-      "State or Provincial Park",
-      "Nature Preserve",
-      "Forest"
-    ],
-    "Plazas": [
-      "Plaza",
-      "Pedestrian Plaza"
-    ],
-    "Streets & Roads": [
-      "Road",
-      "Intersection",
-      "Tunnel",
-      "Boardwalk",
-      "Pass"
-    ],
-    "Neighborhoods": [
-      "Neighborhood"
-    ],
-    "Cities, Towns & Villages": [
-      "City",
-      "Town",
-      "Village",
-      "County",
-      "State",
-      "States and Municipalities",
-      "Country"
-    ],
-    "Public Transit": [
-      "Metro Station",
-      "Light Rail Station",
-      "Rail Station",
-      "Tram Station",
-      "Platform",
-      "Bus Station",
-      "Bus Stop",
-      "Bus Line",
-      "Train"
-    ],
-    "Monuments": [
-      "Monument",
-      "Memorial Site",
-      "Landmark"
-    ],
-    "Historic Sites": [
-      "Historic and Protected Site",
-      "Ruins",
-      "Castle",
-      "Palace",
-      "Monastery"
-    ],
-    "Outdoor Sculpture": [
-      "Outdoor Sculpture",
-      "Sculpture Garden",
-      "Street Art",
-      "Public Art"
-    ],
-    "Bridges": [
-      "Bridge"
-    ],
-    "Churches & Mosques": [
-      "Church",
-      "Cathedral",
-      "Mosque",
-      "Synagogue",
-      "Temple",
-      "Shrine",
-      "Buddhist Temple",
-      "Hindu Temple",
-      "Sikh Temple"
-    ],
-    "Museums": [
-      "Museum",
-      "Art Museum",
-      "History Museum",
-      "Science Museum",
-      "Art Gallery"
-    ],
-    "Restaurants": [
       "Restaurant",
       "Pizzeria",
       "Italian Restaurant",
@@ -866,6 +756,138 @@
       "Fish and Chips Shop",
       "Cigkofte Place",
       "Friterie"
+    ],
+    "Coffee Shops": [
+      "Coffee Shop",
+      "Corporate Coffee Shop",
+      "Coffee Roaster",
+      "Turkish Coffeehouse",
+      "Tea Room",
+      "Juice Bar",
+      "Bubble Tea Shop",
+      "Smoothie Shop"
+    ],
+    "Bakeries & Pastry": [
+      "Bakery",
+      "Pastry Shop",
+      "Donut Shop",
+      "Bagel Shop",
+      "Pie Shop"
+    ],
+    "Bakery / Sweets": [
+      "Ice Cream Parlor",
+      "Dessert Shop",
+      "Candy Store",
+      "Gelato Shop",
+      "Cupcake Shop",
+      "Chocolate Store"
+    ],
+    "Cafeterias": [
+      "Corporate Cafeteria",
+      "Cafeteria",
+      "College Cafeteria",
+      "Food Court"
+    ],
+    "Bars, Pubs & Breweries": [
+      "Bar",
+      "Beer Bar",
+      "Pub",
+      "Dive Bar",
+      "Sports Bar",
+      "Gastropub",
+      "Beer Garden",
+      "Irish Pub",
+      "Beach Bar",
+      "Brewery"
+    ],
+    "Wine & Cocktail": [
+      "Wine Bar",
+      "Cocktail Bar",
+      "Lounge",
+      "Hookah Bar",
+      "Speakeasy",
+      "Whisky Bar"
+    ],
+    "Parks": [
+      "Park",
+      "National Park",
+      "Urban Park",
+      "State or Provincial Park",
+      "Nature Preserve",
+      "Forest"
+    ],
+    "Plazas": [
+      "Plaza",
+      "Pedestrian Plaza"
+    ],
+    "Streets & Roads": [
+      "Road",
+      "Intersection",
+      "Tunnel",
+      "Boardwalk",
+      "Pass"
+    ],
+    "Neighborhoods": [
+      "Neighborhood"
+    ],
+    "Cities, Towns & Villages": [
+      "City",
+      "Town",
+      "Village",
+      "County",
+      "State",
+      "States and Municipalities",
+      "Country"
+    ],
+    "Public Transit": [
+      "Metro Station",
+      "Light Rail Station",
+      "Rail Station",
+      "Tram Station",
+      "Platform",
+      "Bus Station",
+      "Bus Stop",
+      "Bus Line",
+      "Train"
+    ],
+    "Monuments": [
+      "Monument",
+      "Memorial Site",
+      "Landmark"
+    ],
+    "Historic Sites": [
+      "Historic and Protected Site",
+      "Ruins",
+      "Castle",
+      "Palace",
+      "Monastery"
+    ],
+    "Outdoor Sculpture": [
+      "Outdoor Sculpture",
+      "Sculpture Garden",
+      "Street Art",
+      "Public Art"
+    ],
+    "Bridges": [
+      "Bridge"
+    ],
+    "Churches & Mosques": [
+      "Church",
+      "Cathedral",
+      "Mosque",
+      "Synagogue",
+      "Temple",
+      "Shrine",
+      "Buddhist Temple",
+      "Hindu Temple",
+      "Sikh Temple"
+    ],
+    "Museums": [
+      "Museum",
+      "Art Museum",
+      "History Museum",
+      "Science Museum",
+      "Art Gallery"
     ],
     "Airports": [
       "Airport",
@@ -1021,14 +1043,6 @@
     "Dance": [
       "Dance Studio"
     ],
-    "Wine & Cocktail": [
-      "Wine Bar",
-      "Cocktail Bar",
-      "Lounge",
-      "Hookah Bar",
-      "Speakeasy",
-      "Whisky Bar"
-    ],
     "Concerts & Theater": [
       "Concert Hall",
       "Opera House",
@@ -1078,12 +1092,6 @@
     ],
     "Islands": [
       "Island"
-    ],
-    "Cafeterias": [
-      "Corporate Cafeteria",
-      "Cafeteria",
-      "College Cafeteria",
-      "Food Court"
     ],
     "Home & Office": [
       "Office",
@@ -1145,14 +1153,6 @@
       "Tennis Court",
       "Basketball Court",
       "Golf Course"
-    ],
-    "Bakery / Sweets": [
-      "Ice Cream Parlor",
-      "Dessert Shop",
-      "Candy Store",
-      "Gelato Shop",
-      "Cupcake Shop",
-      "Chocolate Store"
     ],
     "Spas & Baths": [
       "Spa",
