@@ -40,15 +40,15 @@ jobs:
       # Secrets can't be tested in a step `if`; expose a yes/no flag instead.
       HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           repository: toouur/foursquare-data
           token: ${{ secrets.DATA_REPO_PAT }}
           path: private-data
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - name: Install dependencies
         run: pip install -r requirements.txt
       # Claude Code CLI, only when the subscription token is configured. A failed

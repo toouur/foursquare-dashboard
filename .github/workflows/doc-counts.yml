@@ -22,10 +22,10 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       # pytest-playwright is needed for COLLECTION only (no browser): the
       # layout-overflow module importorskips playwright and would drop out.
       - name: Install dependencies

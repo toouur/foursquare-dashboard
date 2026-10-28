@@ -50,19 +50,19 @@ jobs:
     timeout-minutes: 120   # the paced 1 request/second drain is ~45 min for 2,500
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: toouur/foursquare-data
           token: ${{ secrets.DATA_REPO_PAT }}
           path: private-data
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
 
       - name: Install dependencies

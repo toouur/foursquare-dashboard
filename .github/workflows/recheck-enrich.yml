@@ -58,12 +58,12 @@ jobs:
 
     steps:
       # ── 1. Checkout public repo (shallow: build → deploy, never reads history) ─
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       # ── 2. Checkout private data repo (shallow; rebase push still works) ──────
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: toouur/foursquare-data
           token: ${{ secrets.DATA_REPO_PAT }}
@@ -71,9 +71,9 @@ jobs:
           fetch-depth: 1
 
       # ── 3. Python setup ──────────────────────────────────────────────────────
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
 
       - name: Install dependencies
@@ -243,7 +243,7 @@ jobs:
 
       # ── 7c. Warm the wrangler install cache ──────────────────────────────────
       - name: Cache wrangler (npm)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.npm
           key: npm-wrangler3-${{ runner.os }}

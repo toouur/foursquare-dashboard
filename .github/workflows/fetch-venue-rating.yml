@@ -40,19 +40,19 @@ jobs:
 
     steps:
       # ── 1. Checkout public repo (scripts live here) ───────────────────────
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # ── 2. Checkout private data repo ────────────────────────────────────
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: toouur/foursquare-data
           token: ${{ secrets.DATA_REPO_PAT }}
           path: private-data
 
       # ── 3. Python setup ──────────────────────────────────────────────────
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.14"
           cache: pip
 
       - name: Install dependencies
