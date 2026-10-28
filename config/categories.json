@@ -811,13 +811,13 @@
     "Wine & Cocktail": [
       "Wine Bar",
       "Cocktail Bar",
-      "Lounge",
       "Speakeasy",
       "Whisky Bar",
       "Winery"
     ],
     "Hookah Lounges": [
-      "Hookah Bar"
+      "Hookah Bar",
+      "Lounge"
     ],
     "Nightclubs": [
       "Night Club",

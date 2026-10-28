@@ -520,8 +520,10 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
 /* phones (and enlarged system fonts): columns sized in rem so a 3-digit rank or a
    long IATA route never runs into its neighbour */
 @media(max-width:600px){
-  .bar-row{grid-template-columns:2.3rem minmax(0,1fr) 3.4rem 3rem;gap:6px;}
+  .bar-row{grid-template-columns:1.9rem minmax(0,1fr) 3.4rem 3rem;gap:4px;}
   .bar-row .rank{text-align:left;}
+  .country-item{gap:6px;padding:8px 10px;}
+  .ci-rank{width:auto;min-width:1.3rem;}
   .fl-rc-head{gap:8px;min-width:0;}
   .fl-rc-logo,.fl-rc-logo-fallback{width:30px;height:30px;}
   .fl-rc-route{font-size:.95rem;gap:4px;min-width:0;white-space:nowrap;}
