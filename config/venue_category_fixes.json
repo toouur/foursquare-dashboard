@@ -283,5 +283,33 @@
   "56927668498e8445d632fff1": {
     "category": "Hostel",
     "_note": "Lima Sol House — хостел, не Assisted Living (Андрей, 2026-10-28)"
+  },
+  "639e5953fa9a2b104609636d": {
+    "category": "Vacation Rental",
+    "_note": "The Edge — жильё, не просто апартаменты (Андрей, 2026-10-28)"
+  },
+  "4faccb4be4b054e6d95f6060": {
+    "category": "Electronics Store",
+    "_note": "KST.by — магазин электроники (Андрей, 2026-10-28)"
+  },
+  "533d2dc9498e822b52036a12": {
+    "category": "Office",
+    "_note": "A1QA — офис (Андрей, 2026-10-28)"
+  },
+  "60ba1ea5c12ac12b67c51a4b": {
+    "category": "Liquor Store",
+    "_note": "Три лося — алкомаркет (Андрей, 2026-10-28)"
+  },
+  "60c615676be88233a3c0de96": {
+    "category": "Liquor Store",
+    "_note": "Три лося — алкомаркет (Андрей, 2026-10-28)"
+  },
+  "6923a84b12c85c32246b9b3e": {
+    "category": "Rental Car Location",
+    "_note": "Getmancar — каршеринг (Андрей, 2026-10-28)"
+  },
+  "5c6182ee6fd626002c121fc1": {
+    "category": "Rental Car Location",
+    "_note": "Any-Time — каршеринг (Андрей, 2026-10-28)"
   }
 }

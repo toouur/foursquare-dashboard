@@ -324,7 +324,8 @@ def _dot_map(crows: list[dict], w: int = 920, h: int = 380) -> str:
         if not (-10 <= x <= w + 10 and -10 <= y <= h + 10):
             continue
         rad = 1.6 + 7 * math.sqrt(n / top)
-        dots.append(f'<circle{" class=\"hot\"" if n * 4 >= top else ""} cx="{x:.1f}" cy="{y:.1f}" r="{rad:.1f}"/>')
+        hot = ' class="hot"' if n * 4 >= top else ""   # no backslash in an f-string: CI may run 3.11
+        dots.append(f'<circle{hot} cx="{x:.1f}" cy="{y:.1f}" r="{rad:.1f}"/>')
     labels = []
     for cy, cp in sorted(city_pts.items(), key=lambda kv: -len(kv[1]))[:6]:
         x, y = xy(sum(p[0] for p in cp) / len(cp), sum(p[1] for p in cp) / len(cp))

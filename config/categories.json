@@ -614,7 +614,9 @@
       "Radio Station",
       "Healthcare Clinic",
       "Nail Salon",
-      "Photography Studio"
+      "Photography Studio",
+      "Barbershop",
+      "Beauty Salon"
     ],
     "Education": [
       "College Arts Building",
@@ -1016,7 +1018,7 @@
       "Baggage Locker",
       "Airfield"
     ],
-    "Taxis": [
+    "Taxis & Car Sharing": [
       "Taxi",
       "Taxi Stand",
       "Transportation Service",
@@ -1220,7 +1222,8 @@
       "Bank",
       "ATM",
       "Banking and Finance",
-      "Financial Service"
+      "Financial Service",
+      "Currency Exchange"
     ],
     "Post & Pickup Points": [
       "Post Office",
@@ -1254,9 +1257,7 @@
       "Healthcare Clinic"
     ],
     "Personal Services": [
-      "Hair Salon",
       "Tailor",
-      "Currency Exchange",
       "Repair Service",
       "Shoe Repair Service",
       "Laundry Service",
@@ -1272,7 +1273,6 @@
       "Travel Agency",
       "Tourist Information and Service",
       "IT Service",
-      "Health and Beauty Service",
       "Storage Facility",
       "Campaign Office",
       "Funeral Home",
@@ -1286,8 +1286,14 @@
       "Business and Professional Services",
       "Business Service",
       "Print, TV, Radio and Outdoor Advertising Service",
-      "Nail Salon",
       "Photography Studio"
+    ],
+    "Beauty": [
+      "Hair Salon",
+      "Barbershop",
+      "Beauty Salon",
+      "Nail Salon",
+      "Health and Beauty Service"
     ],
     "Sport & Recreation": [
       "Gym",
