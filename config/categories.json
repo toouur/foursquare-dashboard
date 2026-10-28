@@ -1036,14 +1036,6 @@
     "Border Crossings": [
       "Border Crossing"
     ],
-    "Harbors & Marinas": [
-      "Harbor or Marina",
-      "Marine Terminal",
-      "Boat or Ferry",
-      "Ferry",
-      "Port",
-      "Cruise"
-    ],
     "Accommodation": [
       "Hotel",
       "Inn",
@@ -1360,7 +1352,7 @@
       "Scenic Lookout",
       "Waterfall"
     ],
-    "Seas, Rivers & Lakes": [
+    "Water & Harbors": [
       "Sea",
       "River",
       "Lake",
@@ -1374,7 +1366,13 @@
       "Cape",
       "Hot Spring",
       "Bathing Area",
-      "Fishing Area"
+      "Fishing Area",
+      "Harbor or Marina",
+      "Marine Terminal",
+      "Boat or Ferry",
+      "Ferry",
+      "Port",
+      "Cruise"
     ],
     "Waterfront": [
       "Waterfront",

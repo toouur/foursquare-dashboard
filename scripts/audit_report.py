@@ -59,7 +59,7 @@ HINTS: list[tuple[str, str]] = [
 # metro station by the market) — their name says nothing about what they are.
 NAMED_AFTER = {"Plazas", "Streets & Roads", "Bridges", "Fountains", "Monuments & Sculptures",
                "Neighborhoods", "Public Transit", "Parks", "Gardens", "Historic Sites",
-               "Seas, Rivers & Lakes", "Cities, Towns & Villages", "Parking", "Waterfront"}
+               "Water & Harbors", "Cities, Towns & Villages", "Parking", "Waterfront"}
 # Explorer groups close enough that a hint for one is satisfied by the other.
 SAME = {"Bakeries & Pastry": {"Bakery / Sweets"}, "Bars, Pubs & Breweries": {"Wine & Cocktail"}}
 
