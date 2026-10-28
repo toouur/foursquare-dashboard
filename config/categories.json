@@ -737,11 +737,12 @@
       "Paella Restaurant",
       "Pilavcı",
       "Food and Beverage Service",
-      "Dining and Drinking"
+      "Dining and Drinking",
+      "Burger Joint",
+      "Souvlaki Shop"
     ],
     "Fast Food & Street Food": [
       "Fast Food Restaurant",
-      "Burger Joint",
       "Kebab Restaurant",
       "Shawarma Restaurant",
       "Doner Restaurant",
@@ -750,7 +751,6 @@
       "Hot Dog Joint",
       "Wings Joint",
       "Falafel Restaurant",
-      "Souvlaki Shop",
       "Food Truck",
       "Food Stand",
       "Street Food Gathering",

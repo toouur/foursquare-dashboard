@@ -517,6 +517,18 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
    header buttons get their own row instead of sitting on the title */
 @media(max-width:900px){header{padding-left:14px;padding-right:14px;}.recent-section{padding-left:14px;padding-right:14px;}.grid{padding-left:14px;padding-right:14px;}}
 @media(max-width:600px){header{padding-top:52px;}}
+/* phones (and enlarged system fonts): columns sized in rem so a 3-digit rank or a
+   long IATA route never runs into its neighbour */
+@media(max-width:600px){
+  .bar-row{grid-template-columns:2.3rem minmax(0,1fr) 3.4rem 3rem;gap:6px;}
+  .bar-row .rank{text-align:left;}
+  .fl-rc-head{gap:8px;min-width:0;}
+  .fl-rc-logo,.fl-rc-logo-fallback{width:30px;height:30px;}
+  .fl-rc-route{font-size:.95rem;gap:4px;min-width:0;white-space:nowrap;}
+  .card-title{letter-spacing:.12em;gap:4px 8px;}
+  .recent-header{flex-wrap:wrap;row-gap:2px;}
+  .recent-title{letter-spacing:.14em;}
+}
 </style>
 </head>
 <body>
