@@ -351,7 +351,8 @@
       "Stable",
       "Vineyard",
       "Natural Park",
-      "Boardwalk"
+      "Boardwalk",
+      "Sea"
     ],
     "Shopping": [
       "Supermarket",
@@ -1359,7 +1360,8 @@
       "Scenic Lookout",
       "Waterfall"
     ],
-    "Rivers & Lakes": [
+    "Seas, Rivers & Lakes": [
+      "Sea",
       "River",
       "Lake",
       "Canal",
