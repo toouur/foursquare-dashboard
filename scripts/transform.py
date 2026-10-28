@@ -13,8 +13,9 @@ import math
 import yaml
 import logging
 import unicodedata
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -333,6 +334,65 @@ def group_category(row: dict) -> str:
     """The category a check-in is GROUPED by: the venue_category_fixes pin when
     there is one, else Foursquare's own. Display always uses row["category"]."""
     return (row.get("category_as") or row.get("category") or "").strip()
+
+
+RENTAL_CATEGORIES = frozenset({"Apartment or Condo"})
+RENTAL_AS = "Vacation Rental"
+
+
+def home_countries(rows: list[dict], home_cities: set[str]) -> set[str]:
+    """The country each home city sits in, by its most common country among the
+    rows (a border-gateway row tagged with the neighbour must not count)."""
+    seen: dict[str, Counter] = {}
+    for r in rows:
+        city = (r.get("city") or "").strip()
+        if city in home_cities and r.get("country"):
+            seen.setdefault(city, Counter())[r["country"]] += 1
+    return {c.most_common(1)[0][0] for c in seen.values()}
+
+
+RENTAL_GAP_DAYS = 14   # a longer break between check-ins means a second, separate visit
+
+
+def _is_one_stay(stamps: list[int]) -> bool:
+    """Two or more days, all in one visit: the shape of a rented flat. A single
+    day is a call on a friend or a famous building; coming back on another
+    trip (Культуры 10 over eight years) is a friend's home."""
+    stamps = sorted(stamps)
+    days = {t // 86400 for t in stamps}
+    return len(days) >= 2 and all(b - a <= RENTAL_GAP_DAYS * 86400 for a, b in pairwise(stamps))
+
+
+def pin_rentals(rows: list[dict], home_country_set: set[str]) -> int:
+    """Group a rented "Apartment or Condo" as lodging.
+
+    Foursquare files every flat under Home & Office, so a rented apartment in
+    Lisbon counted as home. A flat counts as a rental only when all three hold:
+      • it is abroad — a country that was never home (a flat in Chișinău during
+        the Minsk years, or in Hrodna, is family's or a friend's);
+      • its check-ins span two or more days;
+      • they all belong to one visit (see _is_one_stay) — friends get revisited.
+    A venue_category_fixes pin (category_as) wins over the rule either way.
+    Returns the number of rows changed."""
+    cand: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        if r.get("category_as") or (r.get("category") or "").strip() not in RENTAL_CATEGORIES:
+            continue
+        if (r.get("country") or "").strip() in home_country_set:
+            continue
+        cand[(r.get("venue_id") or "").strip() or r.get("venue", "")].append(r)
+    n = 0
+    for vrows in cand.values():
+        try:
+            stamps = [int(r.get("date") or 0) for r in vrows]
+        except ValueError:
+            continue
+        if not _is_one_stay(stamps):
+            continue
+        for r in vrows:
+            r["category_as"] = RENTAL_AS
+        n += len(vrows)
+    return n
 
 
 def build_categorize_fn(category_groups: dict[str, list[str]]):

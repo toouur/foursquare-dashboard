@@ -111,7 +111,7 @@ def test_page_includes_home_and_lists_top(tmp_path):
     page = (tmp_path / "venue.html").read_text(encoding="utf-8")
     assert page.index('"id": "home1"') < page.index('"id": "bar1"')   # most visited first and "Bar <\\/script>" in page
     assert 'const PIX = "https://x/pix";' in page
-    assert "{{" not in page.replace("{{CARTO_KEY}}", "")
+    assert "{{" not in page.replace("{{CARTO_KEY}}", "").replace("{{CITY_PAGES_JSON}}", "")   # filled by build.py
     shards = "".join(p.read_text(encoding="utf-8") for p in tmp_path.glob("venue_data_*.json"))
     assert "Str. Alecu Russo, 55" in shards
 

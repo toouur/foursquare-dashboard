@@ -310,6 +310,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   .tcard{padding:10px 12px 9px;}
 }
 
+.fc-city{color:inherit;text-decoration:none;}
+.fc-city:hover{color:#ff9a6b;}
 </style>
 
 </head>
@@ -420,6 +422,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+const CITY_PAGES={{CITY_PAGES_JSON}};   // {city: slug} for cities with a city-<slug>.html page
 
 // [ts, date, time, venue, city, country, cat, vid, lat, lng]
 
@@ -899,7 +902,7 @@ function mkCard(i){
 
     <div class="fc-cat">${esc(cat)}</div>
 
-    <div class="fc-loc">${flag}<span>${esc(locStr)}</span></div>
+    <div class="fc-loc">${flag}<span>${CITY_PAGES[city]?`<a class="fc-city" href="city-${CITY_PAGES[city]}.html" onclick="event.stopPropagation()">${esc(city)}</a>${country?', '+esc(country):''}`:esc(locStr)}</span></div>
 
     ${(companions&&companions.length)?`<div class="fc-with">with ${esc(companions.join(', '))}</div>`:''}
 

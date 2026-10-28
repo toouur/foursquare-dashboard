@@ -323,6 +323,8 @@ body.light .ts-cell.z{background:var(--card2);}
   .tl-photo{width:80px;height:60px;}
   .cat-bar-track{width:70px;}
 }
+.detail-city{background:rgba(232,184,109,.05);border-color:rgba(232,184,109,.15);color:var(--text2);text-decoration:none;}
+a.detail-city:hover{border-color:#ff9a6b;color:#ff9a6b;}
 </style>
 </head>
 <body>
@@ -400,6 +402,7 @@ body.light .ts-cell.z{background:var(--card2);}
 
 <script>
 const TRIPS = {{TRIPS_JSON}};
+const CITY_PAGES={{CITY_PAGES_JSON}};   // {city: slug} for cities with a city-<slug>.html page
 const PIX_DIR = {{PIX_DIR_JSON}};
 let _gallery = [], _galleryIdx = 0;
 function openGallery(idx){_galleryIdx=idx;_showGalItem();document.getElementById('gallery').classList.add('open');}
@@ -611,7 +614,9 @@ function _renderTrip(t){
   document.getElementById('detailCountries').innerHTML =
     t.countries.map(c=>`<span class="detail-country">🌍 ${c}</span>`).join('')
     + '<br style="margin:8px 0">'
-    + t.cities.slice(0,12).map(c=>`<span class="detail-country" style="background:rgba(232,184,109,.05);border-color:rgba(232,184,109,.15);color:var(--text2);">📍 ${c}</span>`).join('');
+    + t.cities.slice(0,12).map(c=>CITY_PAGES[c]
+      ?`<a class="detail-country detail-city" href="city-${CITY_PAGES[c]}.html">📍 ${esc(c)}</a>`
+      :`<span class="detail-country detail-city">📍 ${esc(c)}</span>`).join('');
   // Categories
   const maxCat = t.top_cats[0]?t.top_cats[0][1]:1;
   document.getElementById('detailCats').innerHTML = t.top_cats.map(([cat,cnt])=>

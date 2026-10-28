@@ -160,3 +160,20 @@ def test_new_name_inside_an_established_city_is_flagged_as_district(tmp_path):
     assert HOST_CITY in result.stdout
     # Reported, not blocking: real settlements do sit beside bigger neighbours.
     assert result.returncode == 0, result.stdout
+
+
+def test_spelling_twins_need_both_a_similar_name_and_a_close_centroid():
+    from collections import Counter
+
+    import check_city_count as ccc
+    counts = Counter({"Zaslawye": 17, "Zaslaŭje": 1, "Kolodishchi": 12, "Kalodziščy": 1,
+                      "Brașov": 192, "Râșnov": 4, "Novaya Guta": 10, "Novaya Huta": 7})
+    cen = {"Zaslawye": (54.01, 27.29), "Zaslaŭje": (54.00, 27.29),
+           "Kolodishchi": (53.94, 27.78), "Kalodziščy": (53.946, 27.775),
+           "Brașov": (45.65, 25.60), "Râșnov": (45.59, 25.46),
+           "Novaya Guta": (52.09, 30.97), "Novaya Huta": (52.088, 30.965)}
+    pairs = {(s, b) for s, b, _, _ in ccc.find_spelling_twins(counts, cen)}
+    assert pairs == {("Zaslaŭje", "Zaslawye"), ("Kalodziščy", "Kolodishchi"),
+                     ("Novaya Huta", "Novaya Guta")}          # Râșnov is its own town
+    allow = {frozenset(("Zaslaŭje", "Zaslawye"))}
+    assert ("Zaslaŭje", "Zaslawye") not in {(s, b) for s, b, _, _ in ccc.find_spelling_twins(counts, cen, allow)}

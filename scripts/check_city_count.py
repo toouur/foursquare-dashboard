@@ -32,6 +32,10 @@ Two independent checks:
      • REVIEW    — non-ASCII and not a known canonical/merge value.
      • new       — looks like a legitimate new place.
 
+3. SPELLING TWINS (always, soft) — two displayed cities whose transliteration-
+   folded names match and whose check-ins sit close together (Zaslawye /
+   Zaslaŭje / Zaslavye). Known distinct pairs go in config/city_twins_ok.json.
+
 Severity split so the hourly deploy isn't blocked by normal travel:
   • HARD (exit 1) — invariant hits (non-NFC / fold-collision). These can't happen
     on correctly-normalized output, so they're real bugs worth stopping a deploy.
@@ -313,6 +317,60 @@ def looks_like_a_district(city: str, count: int, centroids: dict, counts: Counte
     return f"DISTRICT? {best[0]:.1f} km from {best[1]!r} (x{counts[best[1]]}) — a sector or a spelling of it?"
 
 
+# Spellings that differ only by transliteration school: Belarusian w/ŭ vs
+# Russian v, h vs g, kh vs h, y/j vs i, doubled letters.
+_SOUND = (("kh", "h"), ("g", "h"), ("y", "i"), ("j", "i"), ("w", "v"), ("ie", "e"),
+          ("ia", "a"), ("iu", "u"), ("ts", "c"), ("tz", "c"), ("sh", "s"),
+          ("ch", "c"), ("zh", "z"), ("ii", "i"))
+
+
+def _sound_key(city: str) -> str:
+    sys.path.insert(0, str(Path(__file__).parent))
+    from gen_country_pages import city_slug
+    s = city_slug(city).replace("-", "")
+    for a, b in _SOUND:
+        s = s.replace(a, b)
+    return "".join(c for i, c in enumerate(s) if i == 0 or c != s[i - 1])
+
+
+def load_twin_allowlist(config_dir: str) -> set[frozenset[str]]:
+    """Pairs a human checked and found to be two places (config/city_twins_ok.json)."""
+    p = Path(config_dir) / "city_twins_ok.json"
+    if not p.exists():
+        return set()
+    data = json.loads(p.read_text(encoding="utf-8"))
+    return {frozenset(pair) for pair in data.get("pairs", []) if len(pair) == 2}
+
+
+def find_spelling_twins(counts: Counter, centroids: dict,
+                        allow: set[frozenset[str]] | None = None) -> list[tuple[str, str, float, float]]:
+    """[(smaller, bigger, similarity, km)] for displayed cities that look like
+    one place written twice: Zaslawye / Zaslaŭje / Zaslavye, Kalodziščy /
+    Kolodishchi. Fold-collision misses them — the letters really differ — so
+    this compares transliteration-folded keys and requires the two to be close
+    on the map. Same key: within 150 km. Similar key: within 8 km (or 40 km when
+    nearly identical). Real neighbours with similar names (Brașov / Râșnov,
+    Trușeni / Strășeni) sit below those bars or go in city_twins_ok.json."""
+    import difflib
+    allow = allow or set()
+    keys = {c: _sound_key(c) for c in counts if c in centroids}
+    names = sorted(keys)
+    out = []
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            if frozenset((a, b)) in allow:
+                continue
+            d = _km(centroids[a], centroids[b])
+            if d > 150:
+                continue
+            ka, kb = keys[a], keys[b]
+            r = 1.0 if ka == kb else difflib.SequenceMatcher(None, ka, kb).ratio()
+            if (ka == kb) or (r >= 0.8 and d <= 8) or (r >= 0.86 and d <= 40):
+                small, big = sorted((a, b), key=lambda c: (counts[c], c))
+                out.append((small, big, r, d))
+    return sorted(out, key=lambda t: (-t[2], t[3]))
+
+
 def judge_added(city: str, count: int, removed: dict[str, int],
                 invariant_cities: set[str], canonical_values: set[str],
                 shape_patterns: list | None = None,
@@ -473,18 +531,28 @@ def main() -> int:
         for c, n in shape_old:
             print(f"    {n:5} × {c!r}")
 
+    twins = find_spelling_twins(counts, centroids, load_twin_allowlist(args.config_dir))
+    if twins:
+        print(f"\nSPELLING TWIN? — {len(twins)} pair(s) of displayed cities look like one "
+              f"place in two transliterations (reported, not blocking):")
+        for small, big, r, d in twins:
+            print(f"    {counts[small]:5} × {small!r} ~ {big!r} (x{counts[big]})  "
+                  f"similarity {r:.2f}, {d:.1f} km")
+        print("\nFix: a city_merge.yaml rule onto the canonical spelling, or list the "
+              "pair in config/city_twins_ok.json when they really are two places.")
+
     # ── verdict ──────────────────────────────────────────────────────────────
     # HARD: invariant hits (or an added city that trips one). SOFT: RENAME?/REVIEW.
     hard = (bool(invariant_hits) or bool(shape_new)
             or any(v == "MISS" or v.startswith("NOT-A-CITY") for _, v in verdicts))
-    soft = (bool(shape_old)
+    soft = (bool(shape_old) or bool(twins)
             or any(v.startswith(("RENAME", "REVIEW", "DISTRICT")) for _, v in verdicts))
 
     if not hard and not soft:
         print("\nOK — no normalization misses.")
         return 0
     if soft and not hard:
-        print("\nReview the added cities above (soft findings — not blocking).")
+        print("\nReview the soft findings above (not blocking).")
     if args.warn_only:
         print("\n(--warn-only: reporting only, exit 0)")
         return 0

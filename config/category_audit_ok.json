@@ -1,0 +1,11 @@
+{
+  "_comment": "Venues audit_report.py flagged as category suspects that a human reviewed and left as Foursquare has them. Not shown again.",
+  "venue_ids": [
+    "4fa4d9b1e4b098f42ac48edc",
+    "53676e66498eb12aaddfdf62",
+    "57303e4c498e5172f645ca35",
+    "57c4797c498e726a0c5e1f54",
+    "5be82fce1953f3002cbc14ed",
+    "5cd557c7625a66002c850fe8"
+  ]
+}

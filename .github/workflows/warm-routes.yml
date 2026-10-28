@@ -95,6 +95,16 @@ jobs:
             --routes-all-max-fetch "$RMF_ALL" \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
+      # ── OSM outlines for the country / city pages ─────────────────────────────
+      #   Only places without one yet (a new city page, a retry after 90 days);
+      #   paced 1 request/s by the script (Nominatim policy). Never fails the run.
+      - name: Fetch missing place outlines
+        continue-on-error: true
+        run: |
+          python scripts/fetch_boundaries.py --csv private-data/checkins.csv \
+            --backfill private-data/backfill.csv --config-dir config \
+            --cache private-data/boundaries.json --max 200
+
       # ── Persist the warmed cache to the data repo ─────────────────────────────
       #   The next scheduled update-dashboard run checks out the data repo fresh,
       #   sees the enlarged cache, and ships the newly-warmed polylines.
@@ -104,6 +114,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           [ -f routes_cache.json ] && git add routes_cache.json || true
+          [ -f boundaries.json ] && git add boundaries.json || true
           if git diff --cached --quiet; then
             echo "Route cache unchanged — no backlog to drain."
           else

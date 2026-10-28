@@ -17,7 +17,7 @@ from pathlib import Path
 
 import yaml
 
-from transform import load_mappings, apply_transforms, build_blank_city_resolver
+from transform import load_mappings, apply_transforms, build_blank_city_resolver, home_countries, pin_rentals
 from metrics import compute_coverage, compute_milestones, process
 from metrics.trip_insights import trip_used_plane
 
@@ -271,6 +271,10 @@ if __name__ == "__main__":
                              "When set, trip-map segments get real street/rail paths; "
                              "omitted → routes.json is empty and the map draws "
                              "straight lines.")
+    parser.add_argument("--boundaries", default=None,
+                        help="Path to boundaries.json (OSM outlines of the country/city "
+                             "pages, filled by fetch_boundaries.py; data repo). Without "
+                             "it the pages look the outline up live in the browser.")
     parser.add_argument("--routes-max-fetch", type=int, default=250,
                         help="Max missing routes to fetch per build (default 250); "
                              "the cache warms up over successive CI builds.")
@@ -375,6 +379,9 @@ if __name__ == "__main__":
     blank_resolver = build_blank_city_resolver(review_csv)
 
     rows = apply_transforms(rows, mappings, blank_city_resolver=blank_resolver)
+    _home_ctry = home_countries(rows, {home_city} | {c for _, c in home_history})
+    log.info("Rentals: %d apartment check-ins abroad grouped as lodging (home countries: %s)",
+             pin_rentals(rows, _home_ctry), ", ".join(sorted(_home_ctry)))
 
     # ── Generate static feed_meta.json (replaces expensive D1 query) ─────────
     # FR24 flight calendar days ride along for the feed's client-side
@@ -1330,6 +1337,8 @@ if __name__ == "__main__":
                 trips=trips,
                 home_city=home_city,
                 home_history=home_history,
+                boundaries=(json.loads(Path(args.boundaries).read_text(encoding="utf-8"))
+                            if args.boundaries and Path(args.boundaries).exists() else None),
             )
         except Exception as _ce:
             log.warning("gen_country_pages failed: %s", _ce)
@@ -1432,7 +1441,7 @@ if __name__ == "__main__":
 
     # ── Link city names to city-<slug>.html (gen_country_pages fills data["city_pages"]) ──
     _city_pages_json = json.dumps(data.get("city_pages") or {}, ensure_ascii=False, separators=(",", ":"))
-    for _cp_name in ("index.html", "world_cities.html"):
+    for _cp_name in ("index.html", "world_cities.html", "trips.html", "search.html", "feed.html", "venue.html"):
         _cp = Path(args.output_dir) / _cp_name
         if _cp.exists() and "{{CITY_PAGES_JSON}}" in (_cp_txt := _cp.read_text(encoding="utf-8")):
             _cp.write_text(_cp_txt.replace("{{CITY_PAGES_JSON}}", _city_pages_json), encoding="utf-8")

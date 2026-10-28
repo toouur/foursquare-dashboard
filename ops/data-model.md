@@ -236,3 +236,14 @@ with nothing to preserve across a re-fetch.
   typo'd key would otherwise silently match nothing.
 - Coverage: `tests/test_transform.py::TestCompanionFixes` (incl. a test that the
   shipped config itself loads and validates).
+
+## Rented flats group as lodging (`transform.pin_rentals`)
+
+Foursquare files every flat as "Apartment or Condo" (Home & Office). build.py
+groups one as "Vacation Rental" (Hotels & Lodging / Accommodation) only when all
+three hold: it is in a country that was never home (`home_countries` over every
+home era), its check-ins span two or more days, and they form ONE visit (no gap
+over 14 days). A flat revisited on another trip is a friend's home; a one-day
+check-in is a call or a famous building. Display keeps Foursquare's category. A
+`venue_category_fixes.json` pin always wins — pin a friend's flat abroad to
+"Apartment or Condo" when the rule gets one wrong.

@@ -72,3 +72,24 @@ def test_city_pages_threshold_home_tags_and_trip_filter(tmp_path):
     # the country page links its top cities to their pages
     assert 'href="/city-brest.html"' in (out / "country-by.html").read_text(encoding="utf-8")
     assert (out / "city_ck_minsk.json").exists()
+
+
+def test_outline_file_companions_and_all_cities(tmp_path):
+    (tmp_path / "country_flags.json").write_text(json.dumps({"Belarus": "BY"}), encoding="utf-8")
+    rows = [_row("Minsk", _ts(2015, 1, 1 + i % 27), i, with_name="Joanna K." if i < 5 else "",
+                 lat=f"53.9{i:02d}") for i in range(25)]
+    rows += [_row(f"Village {k}", _ts(2016), 100 + k) for k in range(11)]
+    poly = {"type": "Polygon", "coordinates": [[[27.4, 53.8], [27.7, 53.8], [27.7, 54.0], [27.4, 53.8]]]}
+    gcp.build_page(config_dir=str(tmp_path), out_path=str(tmp_path / "out"), rows=rows, trips=[],
+                   stats_data={}, boundaries={gcp.bnd_key("city", "Minsk", "Belarus"): {"g": poly, "t": 1}})
+    out = tmp_path / "out"
+    minsk = (out / "city-minsk.html").read_text(encoding="utf-8")
+    assert json.loads((out / "bnd_city_minsk.json").read_text(encoding="utf-8")) == poly
+    assert '"g":"bnd_city_minsk.json"' in minsk
+    assert "Most often with" in minsk and "Joanna K." in minsk
+    by = (out / "country-by.html").read_text(encoding="utf-8")
+    assert "All 12 cities" in by
+    assert '<a class="chip" href="/city-minsk.html">' in by and '<span class="chip">Village 3<b>1</b></span>' in by
+    assert not (out / "bnd_country_by.json").exists()      # no cached outline: the page looks it up live
+    assert ("country", "Belarus", "Belarus") in gcp.page_places(rows)
+    assert ("city", "Minsk", "Belarus") in gcp.page_places(rows)

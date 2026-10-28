@@ -1,0 +1,55 @@
+# .github/workflows/data-audit.yml
+#
+# Monthly list of data worth a human look (scripts/audit_report.py): city
+# spelling twins, raw categories categories.json lacks, and venues whose name
+# says one kind of place while the category says another. Report only — it
+# never edits config. The full list goes to the run summary; a short version
+# goes to the PRIVATE alerts chat (TELEGRAM_CHAT_ID), only when there is
+# something new. Reads the data repo, never pushes to it.
+
+name: Data audit (monthly)
+
+on:
+  schedule:
+    - cron: '0 8 1 * *'   # 1st of the month, 08:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run summary only, no Telegram message'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - uses: actions/checkout@v7
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Audit
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python scripts/audit_report.py \
+            --csv private-data/checkins.csv \
+            --backfill private-data/backfill.csv \
+            --config-dir config \
+            ${{ inputs.dry_run && '' || '--telegram' }} | tee -a "$GITHUB_STEP_SUMMARY"
+          exit ${PIPESTATUS[0]}

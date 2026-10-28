@@ -113,12 +113,13 @@ body.light .result-card{box-shadow:0 2px 6px rgba(0,0,0,.08);}
 </div>
 
 <script>
+const CITY_PAGES={{CITY_PAGES_JSON}};   // {city: slug} for cities with a city-<slug>.html page
 (function(){
   const ICONS = {venue:'📍',city:'🏙️',trip:'✈️',tip:'💬',companion:'👤'};
   const LABELS = {venue:'Venues',city:'Cities',trip:'Trips',tip:'Tips',companion:'Companions'};
   const LINKS = {
     venue:     n => 'venues.html?q=' + enc(n),
-    city:      n => 'world_cities.html?q=' + enc(n),
+    city:      n => CITY_PAGES[n] ? 'city-' + CITY_PAGES[n] + '.html' : 'world_cities.html?q=' + enc(n),
     trip:      (n, item) => item.id != null ? 'trips.html#trip-' + item.id : 'trips.html?q=' + enc(n),
     tip:       (n, item) => 'tips.html?q=' + enc(item.n || n),
     companion: n => 'companions.html?q=' + enc(n),

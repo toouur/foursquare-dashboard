@@ -318,6 +318,35 @@ class TestVenueCategoryFixes:
         assert group_category(rows[0]) == "Supermarket"             # counted with the supermarkets
         assert group_category(rows[1]) == "Department Store"
 
+    def test_apartment_abroad_groups_as_lodging_home_countries_stay_home(self):
+        from transform import group_category, home_countries, pin_rentals
+        day = 86400
+        apt = "Apartment or Condo"
+        rows = [make_row(1, "Minsk", "Belarus", apt, venue_id="flat"),
+                make_row(day, "Minsk", "Belarus", apt, venue_id="flat"),
+                make_row(1, "Hrodna", "Belarus", apt, venue_id="friend"),         # home country
+                make_row(3 * day, "Hrodna", "Belarus", apt, venue_id="friend"),
+                make_row(1, "Lisbon", "Portugal", apt, venue_id="rent"),          # 3 nights, one visit
+                make_row(2 * day, "Lisbon", "Portugal", apt, venue_id="rent"),
+                make_row(3 * day, "Lisbon", "Portugal", apt, venue_id="rent"),
+                make_row(1, "Saint Petersburg", "Russia", apt, venue_id="pal"),   # back a year later
+                make_row(2 * day, "Saint Petersburg", "Russia", apt, venue_id="pal"),
+                make_row(400 * day, "Saint Petersburg", "Russia", apt, venue_id="pal"),
+                make_row(5, "Moscow", "Russia", apt, venue_id="tower"),           # one afternoon
+                make_row(9, "Moscow", "Russia", apt, venue_id="tower"),
+                make_row(1, "Riga", "Latvia", apt, venue_id="pinned"),
+                make_row(2 * day, "Riga", "Latvia", apt, venue_id="pinned"),
+                make_row(1, "Lisbon", "Portugal", "Café", venue_id="cafe"),
+                make_row(7, "Minsk", "Russia", "Road", venue_id="gateway")]   # stray gateway row
+        for r in rows[12:14]:
+            r["category_as"] = apt                                         # pinned: a friend's flat
+        ctry = home_countries(rows, {"Minsk", "Chișinău"})
+        assert ctry == {"Belarus"}
+        assert pin_rentals(rows, ctry) == 3
+        rented = {r["venue_id"] for r in rows if group_category(r) == "Vacation Rental"}
+        assert rented == {"rent"}
+        assert rows[4]["category"] == apt                                  # shown as in Swarm
+
 
 class TestLoadMappings:
     def test_missing_config_dir_yields_empty_maps(self, tmp_path):

@@ -34,6 +34,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from metrics.companions import collect_companions
 from metrics.venues import _f, _Localiser, clean_shout
 
 CTRY_CODE: dict[str, str] = {}
@@ -225,6 +226,12 @@ section{{margin-top:52px;}}
 .lmap .leaflet-bar{{border:1px solid var(--border);box-shadow:none;}}
 .lmap .leaflet-bar a{{background:rgba(18,21,31,.9);color:var(--text);border-bottom-color:var(--border);}}
 .lmap .leaflet-bar a:hover{{background:var(--card2);color:#ff9a6b;}}
+.chips{{display:flex;flex-wrap:wrap;gap:6px;}}
+.chip{{display:inline-flex;gap:6px;align-items:baseline;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--card);font-size:.78rem;color:var(--text);text-decoration:none;}}
+.chip b{{font-family:'DM Mono',monospace;font-weight:400;font-size:.66rem;color:var(--muted);}}
+a.chip{{border-color:#5a4632;color:#f6d38b;}}
+a.chip b{{color:#c9a27a;}}
+a.chip:hover{{border-color:#ff9a6b;color:#ff9a6b;}}
 .photos img{{cursor:zoom-in;transition:filter .15s;}}
 .photos img:hover{{filter:brightness(1.12);}}
 .lb{{position:fixed;inset:0;z-index:1000;background:rgba(5,6,10,.94);display:none;align-items:center;justify-content:center;}}
@@ -310,6 +317,7 @@ function morePhotos(b){{
   const q=D.q, key='bnd1:'+q.kind+':'+q.name+':'+q.country;
   const draw=g=>{{if(g)L.geoJSON(g,{{pane:'bnd',interactive:false,style:{{color:'#4ec9b0',weight:2,opacity:.9,
     fillColor:'#4ec9b0',fillOpacity:.06}}}}).addTo(m);}};
+  if(D.g){{fetch(D.g).then(r=>r.json()).then(draw).catch(()=>{{}});return;}}
   let c=null; try{{c=localStorage.getItem(key);}}catch(e){{}}
   if(c!==null){{draw(c?JSON.parse(c):null);return;}}
   const city=q.kind==='city';
@@ -366,9 +374,10 @@ def _trip_cover(t: dict, pix_base: str) -> str:
             f'{_esc(shots[len(shots) // 2])}\')"></div>')
 
 
-def _map(crows: list[dict], kind: str, name: str, country: str) -> str:
+def _map(crows: list[dict], kind: str, name: str, country: str, outline: str = "") -> str:
     """A Leaflet map: one dot per venue (area ~ visits) over CARTO tiles; the page
-    script adds the place's outline from OpenStreetMap. The view is the 1st-99th
+    script adds the place's outline — `outline`, the file fetch_boundaries.py
+    cached at build time, else a live Nominatim lookup. The view is the 1st-99th
     percentile window, so one far-flung check-in does not zoom the map out."""
     pts: Counter = Counter()
     for r in crows:
@@ -385,6 +394,7 @@ def _map(crows: list[dict], kind: str, name: str, country: str) -> str:
         "p": [[la, lo, n] for (la, lo), n in pts.items()],
         "b": [[lats[cut], lngs[cut]], [lats[-1 - cut], lngs[-1 - cut]]],
         "q": {"kind": kind, "name": name, "country": country},
+        **({"g": outline} if outline else {}),
     }, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     return ('<section><div class="sec-h">Where it happened</div><div class="lmap" id="lmap"></div>'
             f'<script type="application/json" id="mapData">{payload}</script></section>')
@@ -470,6 +480,36 @@ def city_slug(city: str) -> str:
     return slug.strip("-")
 
 
+def bnd_key(kind: str, name: str, country: str) -> str:
+    """Key of a place's outline in the data repo's boundaries.json."""
+    return f"{kind}|{name}|{country}"
+
+
+def _big_cities(rows: list[dict], city_min_checkins: int) -> tuple[dict, dict, list[str]]:
+    """(rows by city, the city's own country, cities with a page busiest first)."""
+    by_city: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        cy = (r.get("city") or "").strip()
+        if cy:
+            by_city[cy].append(r)
+    # The city's own country: where most of its check-ins are
+    city_country = {cy: Counter((r.get("country") or "").strip() for r in crs).most_common(1)[0][0]
+                    for cy, crs in by_city.items()}
+    big = sorted((cy for cy, crs in by_city.items() if len(crs) >= city_min_checkins),
+                 key=lambda cy: -len(by_city[cy]))
+    return by_city, city_country, big
+
+
+def page_places(rows: list[dict], city_min_checkins: int = 0) -> list[tuple[str, str, str]]:
+    """(kind, name, country) of every page build_page writes — what
+    fetch_boundaries.py has to find an outline for."""
+    city_min_checkins = city_min_checkins or CITY_MIN_CHECKINS
+    countries = sorted({(r.get("country") or "").strip() for r in rows} - {""})
+    _, city_country, big = _big_cities(rows, city_min_checkins)
+    return ([("country", c, c) for c in countries]
+            + [("city", cy, city_country[cy]) for cy in big])
+
+
 def city_slugs(cities: list[tuple[str, str]]) -> dict[str, str]:
     """{city: slug} for (city, country) pairs, busiest first; a clash gets the country code."""
     taken: set[str] = set()
@@ -503,6 +543,7 @@ def _render(
     city_links: dict[str, str],
     home_spans: list[tuple[int, int]] | None = None,
     home_years: set[int] | None = None,
+    boundaries: dict | None = None,
 ) -> None:
     """One country-<slug>.html or city-<slug>.html page plus its log JSON."""
     is_city = kind == "city"
@@ -513,6 +554,7 @@ def _render(
     venue_links: dict[str, str] = {}
     places: Counter = Counter()          # cities on a country page, neighbourhoods on a city page
     cats: Counter = Counter()
+    mates: Counter = Counter()
     by_year: Counter = Counter()
     days = set()
     for r in crows:
@@ -530,6 +572,7 @@ def _render(
         cat = (r.get("category") or "").strip()
         if cat:
             cats[cat] += 1
+        mates.update(collect_companions(r))
         ts = _ts(r)
         if ts:
             d = datetime.fromtimestamp(ts, tz=timezone.utc)
@@ -588,10 +631,29 @@ def _render(
     if cats:
         cols.append('<div><div class="sec-h">Categories</div>'
                     + _rank_list(cats.most_common(10)) + "</div>")
+    if mates:
+        cols.append('<div><div class="sec-h">Most often with</div>'
+                    + _rank_list(mates.most_common(10)) + "</div>")
     cols_html = ('<section><div class="cols">' + "".join(cols)
                  + "</div></section>") if cols else ""
 
-    cmap_html = _map(crows, kind, name, country)
+    # Every city of the country, the small ones too: a chip with its count,
+    # a link where the city has its own page
+    all_places_html = ""
+    if not is_city and len(places) > 10:
+        chips = []
+        for pl, n in sorted(places.items(), key=lambda kv: (-kv[1], kv[0])):
+            inner = f'{_esc(pl)}<b>{n:,}</b>'
+            chips.append(f'<a class="chip" href="/city-{city_links[pl]}.html">{inner}</a>' if pl in city_links
+                         else f'<span class="chip">{inner}</span>')
+        all_places_html = (f'<section><div class="sec-h">All {len(places):,} cities</div>'
+                           '<div class="chips">' + "".join(chips) + "</div></section>")
+
+    geom = ((boundaries or {}).get(bnd_key(kind, name, country)) or {}).get("g")
+    outline = f"bnd_{kind}_{slug}.json" if geom else ""
+    cmap_html = _map(crows, kind, name, country, outline)
+    if cmap_html and geom:
+        (out_dir / outline).write_text(json.dumps(geom, separators=(",", ":")), encoding="utf-8")
 
     # Trips
     trips_html = ""
@@ -699,7 +761,7 @@ def _render(
         crumb_href=crumb[0], crumb_label=_esc(crumb[1]),
         flag_big=_flag(country), name=_esc(name), sub=" · ".join(sub),
         kpis=kpis, years=years_html, cmap=cmap_html, hero_style=hero_style, hero_cls=hero_cls,
-        cities=cols_html, venues="", cats="",
+        cities=cols_html, venues=all_places_html, cats="",
         trips=trips_html, photos=photos_html, shouts=shouts_html, log=log_html,
         log_url=json.dumps(f"/{log_file}"), pix_json=json.dumps(pix_base))
     (out_dir / f"{kind}-{slug}.html").write_text(html, encoding="utf-8")
@@ -719,6 +781,7 @@ def build_page(
     city_min_checkins: int = CITY_MIN_CHECKINS,
     home_city: str = "",
     home_history: list[tuple[int, str]] | None = None,
+    boundaries: dict | None = None,
     **_extra,
 ) -> int:
     """Write country-<slug>.html for every country and city-<slug>.html for every
@@ -733,14 +796,11 @@ def build_page(
     home_history = sorted(home_history or [])
 
     by_country: dict[str, list[dict]] = defaultdict(list)
-    by_city: dict[str, list[dict]] = defaultdict(list)
     for r in rows:
         c = (r.get("country") or "").strip()
         if c:
             by_country[c].append(r)
-        cy = (r.get("city") or "").strip()
-        if cy:
-            by_city[cy].append(r)
+    by_city, city_country, big = _big_cities(rows, city_min_checkins)
 
     trips_by_country: dict[str, list[dict]] = defaultdict(list)
     trips_by_city: dict[str, list[dict]] = defaultdict(list)
@@ -758,18 +818,14 @@ def build_page(
     year_span = list(range(min(all_years), max(all_years) + 1)) if all_years else []
     local = _Localiser()
     for stale in [*out_dir.glob("country_ck_*.json"), *out_dir.glob("city_ck_*.json"),
-                  *out_dir.glob("city-*.html")]:
+                  *out_dir.glob("city-*.html"), *out_dir.glob("bnd_*.json")]:
         stale.unlink()
 
-    # The city's own country: where most of its check-ins are
-    city_country = {cy: Counter((r.get("country") or "").strip() for r in crs).most_common(1)[0][0]
-                    for cy, crs in by_city.items()}
-    big = sorted((cy for cy, crs in by_city.items() if len(crs) >= city_min_checkins),
-                 key=lambda cy: -len(by_city[cy]))
     slugs = city_slugs([(cy, city_country[cy]) for cy in big])
 
     common: dict[str, Any] = {"out_dir": out_dir, "year_span": year_span, "photos_by_checkin": photos_by_checkin,
-                              "pix_base": pix_base, "local": local, "city_links": slugs}
+                              "pix_base": pix_base, "local": local, "city_links": slugs,
+                              "boundaries": boundaries or {}}
     n_pages = 0
     for country, crows in by_country.items():
         if len(crows) < min_checkins:

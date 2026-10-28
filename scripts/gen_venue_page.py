@@ -8,7 +8,7 @@ The page is a single static shell; the dossier comes from the venue's shard
 ``venue_data_<xx>.json`` (written here via `metrics.venues`), fetched on load and on
 every hash change, cache-busted with a content hash. Without a hash it lists the
 most visited venues. Every venue gets a dossier, `Home (private)` included — like the
-rest of the site. Self-contained like the country pages (fonts + Leaflet from CDNs, no {{SITE_CSS_LINK}}); the only post-processed placeholder is {{CARTO_KEY}}.
+rest of the site. Self-contained like the country pages (fonts + Leaflet from CDNs, no {{SITE_CSS_LINK}}); the post-processed placeholders are {{CARTO_KEY}} and {{CITY_PAGES_JSON}} (build.py).
 """
 from __future__ import annotations
 
@@ -121,6 +121,7 @@ details[open] .yr-arrow{{transform:rotate(90deg);}}
 .gal-cap{{position:absolute;bottom:22px;left:0;right:0;text-align:center;font-size:.78rem;color:rgba(255,255,255,.7);padding:0 60px;}}
 .rf{{font-family:'DM Mono',monospace;font-size:.5rem;text-transform:uppercase;letter-spacing:.1em;color:var(--rose);border:1px solid var(--rose);border-radius:4px;padding:1px 5px;margin-left:8px;}}
 .ext{{color:var(--teal);text-decoration:none;text-transform:none;letter-spacing:.04em;}}
+.city-link{{color:inherit;text-decoration:none;}}.city-link:hover{{color:var(--gold);}}
 .ext:hover{{color:var(--gold);}}
 .note{{color:var(--muted);font-size:.85rem;margin-top:24px;}}
 @media(max-width:600px){{.wrap{{padding:78px 16px 90px;}}.log{{padding:2px 12px 12px;}}.vr{{grid-template-columns:52px 1fr auto;gap:0 10px;}}.vr-x{{font-size:.84rem;}}.vr-p span{{width:42px;height:32px;}}.vr-p span:nth-child(n+3){{display:none;}}.vr-p i.m2{{display:flex;}}.yr-strip{{display:none;}}}}
@@ -141,6 +142,7 @@ details[open] .yr-arrow{{transform:rotate(90deg);}}
 const VER = {ver_json};
 const PIX = {pix_json};
 const TOP = {top_json};
+const CITY_PAGES = {{{{CITY_PAGES_JSON}}}};   // {{city: slug}} for cities with a city-<slug>.html page
 const app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[c]);
 const fmt = n => Number(n).toLocaleString('en-US');
@@ -203,11 +205,14 @@ function renderTop() {{
 function render(id, rec, f) {{
   const ix = Object.fromEntries(f.map((k, i) => [k, i]));
   const place = [rec.city, rec.country].filter(Boolean).join(', ');
+  const placeHtml = CITY_PAGES[rec.city]
+    ? '<a class="city-link" href="/city-' + CITY_PAGES[rec.city] + '.html">' + esc(rec.city) + '</a>' + (rec.country ? ', ' + esc(rec.country) : '')
+    : esc(place);
   document.title = rec.name + ' · Foursquare history';
   const yrs = Object.entries(rec.years);
   const span = yrs.length ? (+yrs[yrs.length - 1][0] - +yrs[0][0] + 1) : 0;
   let h = '<div class="hero-cat">' + esc(rec.cat || 'Venue') + '</div><h1 class="hero-name">' + esc(rec.name) + '</h1>' +
-    '<div class="hero-sub">' + esc(place) + ' · <a class="ext" href="https://foursquare.com/v/' + encodeURIComponent(id) + '" target="_blank" rel="noopener">Open on Foursquare ↗</a></div><div class="kpis">' +
+    '<div class="hero-sub">' + placeHtml + ' · <a class="ext" href="https://foursquare.com/v/' + encodeURIComponent(id) + '" target="_blank" rel="noopener">Open on Foursquare ↗</a></div><div class="kpis">' +
     [[fmt(rec.n), rec.n === 1 ? 'visit' : 'visits'], [rec.first, 'first visit'], [rec.last, 'last visit'],
      [span, span === 1 ? 'year' : 'years span'], [fmt(rec.companions.length), 'companions'], [fmt(rec.photos), 'photos']]
       .map(([a, b]) => '<div class="kpi"><div class="kpi-num' + (/^\d{{4}}-/.test(a) ? ' sm' : '') + '">' + esc(a) + '</div><div class="kpi-lbl">' + esc(b) + '</div></div>').join('') + '</div>';
