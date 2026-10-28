@@ -170,7 +170,11 @@ function mrow(l, a, b) {{
 function face(side, key, o) {{
   document.getElementById('big' + side).textContent = o.label;
   const c = COVERS[key], bg = document.getElementById('bg' + side);
-  bg.style.backgroundImage = c ? 'url(' + JSON.stringify(c) + ')' : '';
+  bg.style.backgroundImage = '';
+  if (!c) return;
+  // the thumb may not be in R2 yet: fall back to the original
+  const im = new Image(), set = u => {{ bg.style.backgroundImage = 'url(' + JSON.stringify(u) + ')'; }};
+  im.onload = () => set(c); im.onerror = () => set(c.replace('/pix/t/', '/pix/')); im.src = c;
 }}
 function pairBars(title, a, b, labels) {{
   // shares, not counts, so a 3-month era and a full year read on one scale

@@ -466,7 +466,8 @@
       "Warehouse",
       "Conference Room",
       "Residential Building",
-      "Industrial Estate"
+      "Industrial Estate",
+      "Publisher"
     ],
     "Hotels & Lodging": [
       "Hotel",
@@ -610,7 +611,10 @@
       "Government Department",
       "Health and Beauty Service",
       "Print, TV, Radio and Outdoor Advertising Service",
-      "Radio Station"
+      "Radio Station",
+      "Healthcare Clinic",
+      "Nail Salon",
+      "Photography Studio"
     ],
     "Education": [
       "College Arts Building",
@@ -1062,7 +1066,8 @@
       "Conference Room",
       "Fraternity House",
       "Warehouse",
-      "Residential Building"
+      "Residential Building",
+      "Publisher"
     ],
     "Education": [
       "University",
@@ -1245,7 +1250,8 @@
       "Medical Lab",
       "Massage Clinic",
       "Veterinarian",
-      "Assisted Living"
+      "Assisted Living",
+      "Healthcare Clinic"
     ],
     "Personal Services": [
       "Hair Salon",
@@ -1279,7 +1285,9 @@
       "Ticket Seller",
       "Business and Professional Services",
       "Business Service",
-      "Print, TV, Radio and Outdoor Advertising Service"
+      "Print, TV, Radio and Outdoor Advertising Service",
+      "Nail Salon",
+      "Photography Studio"
     ],
     "Sport & Recreation": [
       "Gym",
