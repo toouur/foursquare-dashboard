@@ -100,6 +100,13 @@
   "Baranovichi": "Baranovichi"  # ok — standard Latin
   "Бобруйск": "Bobruisk"  # ok — Russian Cyrillic
   "Бабруйск": "Bobruisk"  # ok — Belarusian Cyrillic
+  "Babruysk": "Bobruisk"  # ok — Belarusian Latin twin (2026-10-28)
+  "Braslaw": "Braslav"  # ok — Belarusian Latin twin (2026-10-28)
+  "Shklow": "Shklov"  # ok — Belarusian Latin twin (2026-10-28)
+  "Nyasvizh": "Nesvizh"  # ok — Belarusian Latin twin (2026-10-28)
+  "Shchuchyn": "Shchuchin"  # ok — Belarusian Latin twin (2026-10-28)
+  "Ivyanets": "Ivenets"  # ok — Belarusian Latin twin (2026-10-28)
+  "Kamyanyuki": "Kamianiuki"  # ok — Belarusian Latin twin (2026-10-28)
   "Борисов": "Borisov"  # ok — Cyrillic
   "Barysaŭ": "Borisov"  # ok — Belarusian Latin
   "Barysaw": "Borisov"  # ok — variant
@@ -133,7 +140,7 @@
   "Tirane": "Tirana"  # ok — то же место, албанское написание без конечной -a (900 м, 1 против 116)
   "Затока": "Zatoka"  # ok — то же место, что Zatoka (rf0408 против 8 строк той же поездки)
   "Павловка": "Pavlovka"  # ok — село у станции Кучурган; погранпост в 2.5 км это Kuchurhan
-  "Kamyanyetski Rayon": "Kamyanyuki"  # ok — Беловежская пуща, 4 чек-ина у деревни Каменюки
+  "Kamyanyetski Rayon": "Kamianiuki"  # ok — Беловежская пуща, 4 чек-ина у деревни Каменюки
   "Dzyarzhynski Rayon": "Dzyarzhynsk"  # ok — Негорелое/Гарбузы/Полоневичи, райцентр в ~10 км
   "Новая Гута": "Novaya Guta"  # ok — BY-UA border village (Пункт пропуска «Новая Гута»), Cyrillic → Latin
   "д. Муравьёвка": "Muravyovka"  # ok — village prefix д.
@@ -215,7 +222,7 @@
   "Valer'yanovo": "Valeryanovo"  # ok — apostrophe form
   "Жлобін": "Zhlobin"  # ok — Belarusian Cyrillic for Zhlobin
   "Зелёное": "Zyelonaye"  # ok — village
-  "Ивенец": "Ivyanets"  # ok — town Ivyanets
+  "Ивенец": "Ivenets"  # ok — town Ivyanets
   "Zales'ye": "Zalesye"  # ok — apostrophe form
   "Lojeŭ": "Loyew"  # ok — Belarusian Latin
   "Lyepyel'": "Lyepyel"  # ok — apostrophe form
@@ -1352,7 +1359,7 @@
   "Sint-Kruis": "Bruges"  # approved singleton review rank 924
   "Bollenar": "Cajon Del Maipo"  # approved singleton review rank 929
   "Ciudadela": "Buenos Aires"  # approved singleton review rank 937
-  "Ščučyn": "Shchuchyn"  # approved singleton review rank 939
+  "Ščučyn": "Shchuchin"  # approved singleton review rank 939
   "Schlieren": "Zurich"  # approved singleton review rank 947
   "Evilard": "Biel/Bienne"  # approved singleton review rank 952
   "Renens": "Lausanne"  # approved singleton review rank 954

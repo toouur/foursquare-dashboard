@@ -1328,6 +1328,8 @@ if __name__ == "__main__":
                 photos_by_checkin=_photos_by_checkin,
                 pix_url=_pix_dir_uri,
                 trips=trips,
+                home_city=home_city,
+                home_history=home_history,
             )
         except Exception as _ce:
             log.warning("gen_country_pages failed: %s", _ce)
@@ -1427,6 +1429,13 @@ if __name__ == "__main__":
         gen_visits.build_page(out_path=args.output_dir)
     except Exception as _vse:
         log.warning("gen_visits failed: %s", _vse)
+
+    # ── Link city names to city-<slug>.html (gen_country_pages fills data["city_pages"]) ──
+    _city_pages_json = json.dumps(data.get("city_pages") or {}, ensure_ascii=False, separators=(",", ":"))
+    for _cp_name in ("index.html", "world_cities.html"):
+        _cp = Path(args.output_dir) / _cp_name
+        if _cp.exists() and "{{CITY_PAGES_JSON}}" in (_cp_txt := _cp.read_text(encoding="utf-8")):
+            _cp.write_text(_cp_txt.replace("{{CITY_PAGES_JSON}}", _city_pages_json), encoding="utf-8")
 
     # ── Post-process: substitute canonical placeholders in every generated file ──
     # Single source of truth: config/country_flags.json + config/category_icons.json

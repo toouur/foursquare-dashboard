@@ -60,7 +60,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 .city-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:7px 10px;transition:border-color .15s;}
 .city-card.visited{background:linear-gradient(160deg,rgba(255,154,107,.14),var(--card) 70%);border-color:rgba(255,154,107,.35);}
 .city-card:hover{border-color:rgba(232,184,109,.5);}
-.city-name{font-size:.76rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.city-name{font-size:.76rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.city-link{color:inherit;text-decoration:none;}.city-link:hover{color:#ff9a6b;text-decoration:underline;text-underline-offset:3px;}
 .city-country{font-size:.64rem;color:var(--muted);}
 .city-pop{font-size:.60rem;font-family:'DM Mono',monospace;color:var(--muted);margin-top:4px;}
 .city-cnt{font-size:.68rem;font-family:'DM Mono',monospace;color:var(--gold);margin-top:2px;}
@@ -187,6 +187,7 @@ const CITY_ALIASES={
 };
 // VISITED: {cityName: [count, country]} — country enables continent disambiguation
 // Returns {cnt, displayName} — displayName is the normalized name from index.html for visited cities
+const CITY_PAGES={{CITY_PAGES_JSON}};   // {city: slug} for cities with a city-<slug>.html page
 function getVisitInfo(worldName, worldCont){
   function continentOk(country){
     if(!worldCont||!country) return true;
@@ -237,7 +238,7 @@ function render(){
     const {cnt,displayName}=getVisitInfo(name,cont);
     const popStr=pop>=1?`${pop.toFixed(1)}M`:`${Math.round(pop*1000)}k`;
     html+=`<div class="city-card${cnt?' visited':''}">
-      <div class="city-name">${displayName}${contTag}</div>
+      <div class="city-name">${cnt&&CITY_PAGES[displayName]?`<a class="city-link" href="city-${CITY_PAGES[displayName]}.html">${displayName}</a>`:displayName}${contTag}</div>
       ${cnt?`<div class="city-cnt">✓ ${cnt.toLocaleString()} check-ins</div>`:''}
       <div class="city-pop">${popStr} pop</div>
     </div>`;
