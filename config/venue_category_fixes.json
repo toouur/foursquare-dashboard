@@ -1027,5 +1027,41 @@
   "5138a621e4b0676a0a01248b": {
     "category": "Waterfront",
     "_note": "Лефортовская набережная (Moscow) — набережная; Foursquare: Road (2026-10-28)"
+  },
+  "518d4186498e9c574f8a071e": {
+    "category": "Sea",
+    "_note": "sea of marmara — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
+  },
+  "5113c75ee4b0467111d02e9f": {
+    "category": "Sea",
+    "_note": "Sea Marmara — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
+  },
+  "5798660f498e69e03a6445da": {
+    "category": "Sea",
+    "_note": "The Mediterranean Sea — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
+  },
+  "4d43b888bbb1a143d82d3e72": {
+    "category": "Sea",
+    "_note": "Arabian Sea (Mumbai) — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
+  },
+  "4be545aacf200f47c703133c": {
+    "category": "Sea",
+    "_note": "Out On The Ocean — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
+  },
+  "5a8778c4340a583102ac67cb": {
+    "category": "Canal",
+    "_note": "Suez Canal — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
+  },
+  "4e44475ca809d4ed1bba7f0d": {
+    "category": "Canal",
+    "_note": "Kostverlorenvaart (Amsterdam) — канал — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
+  },
+  "4e00e4d362e12fb08938c491": {
+    "category": "Bay",
+    "_note": "Piranski Zaliv — залив — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
+  },
+  "54e84942498edd8ba15ef1aa": {
+    "category": "Harbor or Marina",
+    "_note": "Marina (Oman) — вода, а не паром; Foursquare: Boat or Ferry (2026-10-28)"
   }
 }

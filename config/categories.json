@@ -1004,7 +1004,10 @@
       "Bike Rental",
       "Travel and Transportation",
       "Public Transportation",
-      "Boat Launch"
+      "Boat Launch",
+      "Boat or Ferry",
+      "Ferry",
+      "Cruise"
     ],
     "Airports": [
       "Airport",
@@ -1369,10 +1372,7 @@
       "Fishing Area",
       "Harbor or Marina",
       "Marine Terminal",
-      "Boat or Ferry",
-      "Ferry",
-      "Port",
-      "Cruise"
+      "Port"
     ],
     "Waterfront": [
       "Waterfront",
