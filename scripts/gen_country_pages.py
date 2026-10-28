@@ -212,7 +212,7 @@ section{{margin-top:52px;}}
 .photos img:first-child{{grid-column:span 2;grid-row:span 2;height:100%;aspect-ratio:auto;contain:size;}}
 .log-btn:hover,.more-btn:hover{{border-color:#ff9a6b;}}
 .hero-sub a{{color:#f6d38b;text-decoration:none;}}
-.hero-sub a:hover{{text-decoration:underline;}}
+.hero-sub a:hover{{color:#ff9a6b;}}
 .home-tag{{font-weight:400;color:#0b0d13;background:#4ec9b0;border-radius:999px;padding:2px 9px;white-space:nowrap;}}
 .yr-bar.home .bar{{background:linear-gradient(180deg,#7fe0cb,#3aa892);}}
 .legend{{float:right;color:var(--muted);letter-spacing:.12em;}}
