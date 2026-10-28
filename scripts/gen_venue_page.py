@@ -137,12 +137,14 @@ details[open] .yr-arrow{{transform:rotate(90deg);}}
   <button class="gal-close" aria-label="Close" onclick="galClose()">&#10005;</button>
   <div class="gal-cap" id="gal-cap"></div>
 </div>
+<script type="application/json" id="cityPages">{{{{CITY_PAGES_JSON}}}}</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const VER = {ver_json};
 const PIX = {pix_json};
 const TOP = {top_json};
-const CITY_PAGES = {{{{CITY_PAGES_JSON}}}};   // {{city: slug}} for cities with a city-<slug>.html page
+// {{city: slug}} for cities with a city-<slug>.html page; build.py fills the JSON block
+const CITY_PAGES = (() => {{ try {{ return JSON.parse(document.getElementById('cityPages').textContent); }} catch (e) {{ return {{}}; }} }})();
 const app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}})[c]);
 const fmt = n => Number(n).toLocaleString('en-US');
