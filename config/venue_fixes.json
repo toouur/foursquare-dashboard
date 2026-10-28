@@ -85,5 +85,38 @@
   "6410b9d4e33b0c792d314216": {
     "city": "El Chorro",
     "country": "Spain"
+  },
+  "_comment_audit_2026_10_28": "Audit 2026-10-28: Gozo Ferry Terminal sits in Imġarr (Gozo), not Mġarr (Malta mainland); 'De Dommel' pin is inside Eindhoven, not Geldrop; Kolodishchi station was the district bucket; five Macau venues came with country China.",
+  "4bd34a0741b9ef3b1ec9ffe5": {
+    "city": "Imġarr",
+    "country": "Malta"
+  },
+  "4fbb8188e4b0590708ff8e5a": {
+    "city": "Eindhoven",
+    "country": "Netherlands"
+  },
+  "515c2a2ff2e7fea0088b45ef": {
+    "city": "Kolodishchi",
+    "country": "Belarus"
+  },
+  "525e45c4498efde20f209c74": {
+    "city": "Macau",
+    "country": "Macao"
+  },
+  "4d525fc1d7eaa14333837d0f": {
+    "city": "Macau",
+    "country": "Macao"
+  },
+  "4c7dfc378da18cfa630ea1ce": {
+    "city": "Macau",
+    "country": "Macao"
+  },
+  "5006874ae4b0d41b5822685d": {
+    "city": "Macau",
+    "country": "Macao"
+  },
+  "4b17c268f964a520dbc723e3": {
+    "city": "Macau",
+    "country": "Macao"
   }
 }

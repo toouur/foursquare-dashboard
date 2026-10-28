@@ -128,8 +128,8 @@
   "Д. Страченята": "Strachanyaty"  # ok — village with prefix д.
   "Домашаны": "Domoshany"  # ok — Cyrillic
   "Домошаны": "Domoshany"  # ok — Russian variant
-  "Заслаўе": "Zaslavye"  # ok — Belarusian Cyrillic
-  "Заславль": "Zaslavye"  # ok — Russian Cyrillic name
+  "Заслаўе": "Zaslawye"  # ok — Belarusian Cyrillic
+  "Заславль": "Zaslawye"  # ok — Russian Cyrillic name
   "Зарэчча 1": "Zarechye"  # ok — Belarusian Cyrillic, village
   "Заречье-1": "Zarechye"  # ok — Russian form
   "Залог Пятилетки": "Zalog Pyatiletki"  # ok — standalone village (53.29,28.25), no nearby city
@@ -1211,7 +1211,7 @@
   "Wrzeszcz Górny": "Gdańsk"  # approved singleton review rank 748
   "Michanavičy": "Mikhanovichi"  # approved singleton review rank 776
   "Novapolatsk": "Navapolatsk"  # approved singleton review rank 780
-  "Kalodziščy": "Kalodziščy"  # approved singleton review rank 790
+  "Kalodziščy": "Kolodishchi"  # approved singleton review rank 790; Kolodishchi is canonical
   "Kryvyy Rih": "Kryvyi Rih"  # approved singleton review rank 792
   "Obišovce": "Košice"  # approved singleton review rank 796
 
@@ -1219,7 +1219,7 @@
 
   # Belarus (Belarusian Cyrillic forms)
   "Брэст": "Brest"
-  "Быхаў": "Bykhaw"
+  "Быхаў": "Bykhov"
   "Вілейка": "Vileyka"
   "Віцебск": "Vitebsk"
   "Крычаў": "Krychaw"
@@ -1604,3 +1604,11 @@
 
   # ══ NETHERLANDS ══
   "Amstredam": "Amsterdam"  # ok — Foursquare typo
+
+  # ══ 2026-10-28 audit: transliteration twins left behind ══
+  "Zaslavye": "Zaslawye"  # ok — Russian Latin form of the canonical Zaslawye
+  "Zaslaŭje": "Zaslawye"  # ok — Belarusian Latin form
+  "Bykhaw": "Bykhov"  # ok — BGN form of Bykhov
+  "Ravaničy": "Rovanichi"  # ok — Belarusian Latin form of Рованичи
+  "Kndzoresk": "Khndzoresk"  # ok — misspelling (Armenia)
+  "Novaya Huta": "Novaya Guta"  # ok — BY-UA border village, Belarusian H

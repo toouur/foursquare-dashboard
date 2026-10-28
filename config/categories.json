@@ -616,7 +616,9 @@
       "Nail Salon",
       "Photography Studio",
       "Barbershop",
-      "Beauty Salon"
+      "Beauty Salon",
+      "Public Bathroom",
+      "Construction"
     ],
     "Education": [
       "College Arts Building",
@@ -1243,7 +1245,8 @@
       "Community Center",
       "Social Services Organization",
       "Military Base",
-      "Military"
+      "Military",
+      "Public Bathroom"
     ],
     "Health": [
       "Medical Center",
@@ -1286,7 +1289,8 @@
       "Business and Professional Services",
       "Business Service",
       "Print, TV, Radio and Outdoor Advertising Service",
-      "Photography Studio"
+      "Photography Studio",
+      "Construction"
     ],
     "Beauty": [
       "Hair Salon",
