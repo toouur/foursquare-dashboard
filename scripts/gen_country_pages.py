@@ -406,7 +406,9 @@ def _home_spans(city: str, home_city: str, home_history: list[tuple[int, str]],
 
 
 _CYR = dict(zip("абвгдеёжзийклмнопрстуфхцчшщъыьэюяіўєї",
-                "a b v g d e e zh z i y k l m n o p r s t u f kh ts ch sh shch - y - e yu ya i u ye yi".split()))
+                ["a", "b", "v", "g", "d", "e", "e", "zh", "z", "i", "y", "k", "l", "m", "n", "o", "p", "r",
+                 "s", "t", "u", "f", "kh", "ts", "ch", "sh", "shch", "-", "y", "-", "e", "yu", "ya", "i",
+                 "u", "ye", "yi"], strict=True))
 
 
 _LATIN = {"ł": "l", "ø": "o", "ß": "ss", "æ": "ae", "œ": "oe", "đ": "d", "ð": "d", "þ": "th", "ı": "i", "ħ": "h"}
@@ -726,8 +728,8 @@ def build_page(
                  key=lambda cy: -len(by_city[cy]))
     slugs = city_slugs([(cy, city_country[cy]) for cy in big])
 
-    common: dict[str, Any] = dict(out_dir=out_dir, year_span=year_span, photos_by_checkin=photos_by_checkin,
-                  pix_base=pix_base, local=local, city_links=slugs)
+    common: dict[str, Any] = {"out_dir": out_dir, "year_span": year_span, "photos_by_checkin": photos_by_checkin,
+                              "pix_base": pix_base, "local": local, "city_links": slugs}
     n_pages = 0
     for country, crows in by_country.items():
         if len(crows) < min_checkins:
