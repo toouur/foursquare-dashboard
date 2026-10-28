@@ -107,6 +107,8 @@ PAGE_TEMPLATE = r"""<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700;900&family=DM+Sans:wght@400;500;600;700&family=DM+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/6.6.6/css/flag-icons.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{{--bg:#0a0c12;--card:#12141c;--card2:#181a24;--border:#222738;--text:#e0e2ec;--muted:#7a85a8;--gold:#e8b86d;--teal:#4ec9b0;--rose:#e8778a;}}
 *{{box-sizing:border-box;margin:0;padding:0;}}
@@ -217,6 +219,24 @@ section{{margin-top:52px;}}
 .yr-bar.home .bar{{background:linear-gradient(180deg,#7fe0cb,#3aa892);}}
 .legend{{float:right;color:var(--muted);letter-spacing:.12em;}}
 .legend i{{display:inline-block;width:9px;height:9px;border-radius:2px;background:#4ec9b0;margin-right:6px;vertical-align:-1px;}}
+.lmap{{height:440px;border-radius:20px;border:1px solid var(--border);overflow:hidden;background:#0d0f16;}}
+.lmap .leaflet-control-attribution{{background:rgba(10,12,18,.7);color:#7a85a8;font-size:.55rem;}}
+.lmap .leaflet-control-attribution a{{color:#9aa3c0;}}
+.lmap .leaflet-bar{{border:1px solid var(--border);box-shadow:none;}}
+.lmap .leaflet-bar a{{background:rgba(18,21,31,.9);color:var(--text);border-bottom-color:var(--border);}}
+.lmap .leaflet-bar a:hover{{background:var(--card2);color:#ff9a6b;}}
+.photos img{{cursor:zoom-in;transition:filter .15s;}}
+.photos img:hover{{filter:brightness(1.12);}}
+.lb{{position:fixed;inset:0;z-index:1000;background:rgba(5,6,10,.94);display:none;align-items:center;justify-content:center;}}
+.lb.open{{display:flex;}}
+.lb img{{max-width:92vw;max-height:84vh;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.6);}}
+.lb-cap{{position:absolute;left:0;right:0;bottom:18px;text-align:center;font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.08em;color:#c4cbe0;padding:0 60px;}}
+.lb button{{position:absolute;background:rgba(18,21,31,.8);border:1px solid var(--border);color:var(--text);border-radius:999px;width:44px;height:44px;font-size:1.3rem;cursor:pointer;}}
+.lb button:hover{{border-color:#ff9a6b;color:#ff9a6b;}}
+.lb-x{{top:16px;right:16px;}}
+.lb-p{{left:16px;top:50%;transform:translateY(-50%);}}
+.lb-n{{right:16px;top:50%;transform:translateY(-50%);}}
+@media(max-width:700px){{.lmap{{height:340px;}}.lb-p,.lb-n{{top:auto;bottom:52px;transform:none;}}}}
 @media(max-width:700px){{.cmap text{{font-size:26px;stroke-width:5px;}}.cmap circle{{transform-box:fill-box;}}.kpis{{grid-template-columns:1fr 1fr;}}.photos{{grid-template-columns:repeat(3,1fr);}}.hero{{min-height:340px;}}.yr-bar .yr-lbl{{font-size:.42rem;writing-mode:vertical-rl;transform:rotate(180deg);}}.yr-bar .yr-n{{display:none;}}}}
 @media(max-width:600px){{.wrap{{padding:6px 16px 90px;}}.hero-in{{padding:96px 16px 26px;}}}}
 </style>
@@ -240,17 +260,73 @@ section{{margin-top:52px;}}
 {shouts}
 {log}
 </div>
+<div class="lb" id="lb" onclick="lbClose(event)"><button class="lb-x" aria-label="Close">×</button><button class="lb-p" aria-label="Previous" onclick="lbStep(event,-1)">‹</button><img id="lbImg" alt=""><button class="lb-n" aria-label="Next" onclick="lbStep(event,1)">›</button><div class="lb-cap" id="lbCap"></div></div>
 <script>
 function moreTrips(b){{b.previousElementSibling.classList.add('all');b.remove();}}
 // The full log loads its own file (<kind>_ck_<slug>.json) on the first open.
 const LOG_URL={log_url}, MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
       WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], STEP=300;
-let ROWS=null, shown=0, list=[];
+let ROWS=null, shown=0, list=[], LOGP=null;
+const loadLog=()=>LOGP||(LOGP=fetch(LOG_URL).then(r=>r.json()));
+// Photos: the first tiles ship inline, the rest come with the log file
+const PIX={pix_json};
+let PH=JSON.parse((document.getElementById('phData')||{{textContent:'[]'}}).textContent), lbI=0;
+document.addEventListener('click',e=>{{const im=e.target.closest('.photos img');if(im)lbOpen(+im.dataset.i);}});
+function lbOpen(i){{
+  lbI=(i+PH.length)%PH.length; const [fn,v,d]=PH[lbI];
+  document.getElementById('lbImg').src=PIX+'/'+fn;
+  document.getElementById('lbCap').textContent=[v,d].filter(Boolean).join(' · ')+'  ·  '+(lbI+1)+' / '+PH.length;
+  document.getElementById('lb').classList.add('open');
+}}
+function lbStep(e,k){{e.stopPropagation();lbOpen(lbI+k);}}
+function lbClose(e){{if(e.target.id==='lb'||e.target.classList.contains('lb-x'))document.getElementById('lb').classList.remove('open');}}
+addEventListener('keydown',e=>{{
+  if(!document.getElementById('lb').classList.contains('open'))return;
+  if(e.key==='Escape')document.getElementById('lb').classList.remove('open');
+  else if(e.key==='ArrowLeft')lbOpen(lbI-1); else if(e.key==='ArrowRight')lbOpen(lbI+1);
+}});
+function morePhotos(b){{
+  b.textContent='LOADING…';
+  loadLog().then(j=>{{
+    const g=document.getElementById('photoGrid'), have=g.children.length; PH=j.p||PH;
+    g.insertAdjacentHTML('beforeend',PH.slice(have).map(([fn,v],k)=>
+      `<img loading="lazy" src="${{PIX}}/t/${{esc(fn)}}" alt="${{esc(v)}}" data-i="${{have+k}}">`).join(''));
+    b.remove();
+  }}).catch(()=>{{b.textContent='COULD NOT LOAD';}});
+}}
+// Map: CARTO tiles, a dot per venue, the place's own outline from OpenStreetMap
+(function(){{
+  const el=document.getElementById('lmap'), dd=document.getElementById('mapData');
+  if(!el||!dd||!window.L)return;
+  const D=JSON.parse(dd.textContent);
+  const m=L.map(el,{{preferCanvas:true,scrollWheelZoom:false}});
+  L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png?key={{{{CARTO_KEY}}}}',
+    {{attribution:'© OpenStreetMap © CARTO',subdomains:'abcd',maxZoom:19}}).addTo(m);
+  m.fitBounds(D.b,{{padding:[18,18],maxZoom:15}});
+  m.createPane('bnd').style.zIndex=350;
+  const top=Math.max(...D.p.map(p=>p[2]));
+  D.p.forEach(([a,o,n])=>L.circleMarker([a,o],{{radius:2.2+7*Math.sqrt(n/top),stroke:false,
+    fillColor:n*4>=top?'#f6d38b':'#ff9a6b',fillOpacity:n*4>=top?.9:.6,interactive:false}}).addTo(m));
+  const q=D.q, key='bnd1:'+q.kind+':'+q.name+':'+q.country;
+  const draw=g=>{{if(g)L.geoJSON(g,{{pane:'bnd',interactive:false,style:{{color:'#4ec9b0',weight:2,opacity:.9,
+    fillColor:'#4ec9b0',fillOpacity:.06}}}}).addTo(m);}};
+  let c=null; try{{c=localStorage.getItem(key);}}catch(e){{}}
+  if(c!==null){{draw(c?JSON.parse(c):null);return;}}
+  const city=q.kind==='city';
+  const u='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&polygon_geojson=1&polygon_threshold='+
+    (city?'0.0005':'0.01')+'&'+(city?'city='+encodeURIComponent(q.name)+'&country='+encodeURIComponent(q.country)
+    :'country='+encodeURIComponent(q.name));
+  fetch(u).then(r=>r.json()).then(j=>{{
+    const g=j&&j[0]&&j[0].geojson, ok=g&&/Polygon/.test(g.type)?g:null;
+    try{{localStorage.setItem(key,ok?JSON.stringify(ok):'');}}catch(e){{}}
+    draw(ok);
+  }}).catch(()=>{{}});
+}})();
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}}[c]));
 function toggleLog(){{
   const l=document.getElementById('log'); l.classList.toggle('open');
   document.getElementById('logLbl').textContent=l.classList.contains('open')?'HIDE ▴':'OPEN ▾';
-  if(ROWS===null){{ROWS=[];fetch(LOG_URL).then(r=>r.json()).then(j=>{{ROWS=j.r;filterLog('');}}).catch(()=>{{document.getElementById('logBody').textContent='Could not load the log.';}});}}
+  if(ROWS===null){{ROWS=[];loadLog().then(j=>{{ROWS=j.r;filterLog('');}}).catch(()=>{{document.getElementById('logBody').textContent='Could not load the log.';}});}}
 }}
 function filterLog(q){{
   q=(q||'').toLowerCase();
@@ -290,67 +366,28 @@ def _trip_cover(t: dict, pix_base: str) -> str:
             f'{_esc(shots[len(shots) // 2])}\')"></div>')
 
 
-def _dot_map(crows: list[dict], w: int = 920, h: int = 380, label_key: str = "city") -> str:
-    """A tile-free map: one dot per venue (area ~ visits), the top cities (or
-    neighbourhoods, label_key) labelled.
-
-    Plain equirectangular with a cos(lat) squeeze, fitted to the box; the 1st-99th
-    percentile window keeps one far-flung exclave from shrinking the rest to a dot.
-    """
+def _map(crows: list[dict], kind: str, name: str, country: str) -> str:
+    """A Leaflet map: one dot per venue (area ~ visits) over CARTO tiles; the page
+    script adds the place's outline from OpenStreetMap. The view is the 1st-99th
+    percentile window, so one far-flung check-in does not zoom the map out."""
     pts: Counter = Counter()
-    city_pts: dict[str, list[tuple[float, float]]] = defaultdict(list)
     for r in crows:
         la, lo = _f(r.get("lat")), _f(r.get("lng"))
         if la is None or lo is None or (la == 0 and lo == 0):
             continue
         pts[(round(la, 4), round(lo, 4))] += 1
-        cy = (r.get(label_key) or "").strip() if label_key else ""
-        if cy:
-            city_pts[cy].append((la, lo))
     if len(pts) < 2:
         return ""
     lats = sorted(p[0] for p in pts)
     lngs = sorted(p[1] for p in pts)
     cut = len(lats) // 100
-
-    def window(v: list[float]) -> tuple[float, float]:
-        return v[cut], v[len(v) - 1 - cut]
-    la0, la1 = window(lats)
-    lo0, lo1 = window(lngs)
-    import math
-    k = math.cos(math.radians((la0 + la1) / 2))
-    span_x = max((lo1 - lo0) * k, 0.02)
-    span_y = max(la1 - la0, 0.02)
-    pad = 26
-    s = min((w - 2 * pad) / span_x, (h - 2 * pad) / span_y)
-    ox = (w - span_x * s) / 2
-    oy = (h - span_y * s) / 2
-
-    def xy(la: float, lo: float) -> tuple[float, float]:
-        return ox + (lo - lo0) * k * s, oy + (la1 - la) * s
-    top = max(pts.values())
-    dots = []
-    for (la, lo), n in sorted(pts.items(), key=lambda kv: kv[1]):
-        x, y = xy(la, lo)
-        if not (-10 <= x <= w + 10 and -10 <= y <= h + 10):
-            continue
-        rad = 1.6 + 7 * math.sqrt(n / top)
-        hot = ' class="hot"' if n * 4 >= top else ""   # no backslash in an f-string: CI may run 3.11
-        dots.append(f'<circle{hot} cx="{x:.1f}" cy="{y:.1f}" r="{rad:.1f}"/>')
-    labels = []
-    placed: list[tuple[float, float]] = []
-    for cy, cp in sorted(city_pts.items(), key=lambda kv: -len(kv[1]))[:6]:
-        x, y = xy(sum(p[0] for p in cp) / len(cp), sum(p[1] for p in cp) / len(cp))
-        if any(abs(x - px) < 130 and abs(y - py) < 16 for px, py in placed):
-            continue          # would print on top of a busier label
-        placed.append((x, y))
-        if 0 <= x <= w and 0 <= y <= h:
-            anchor = "end" if x > w - 120 else "start"
-            labels.append(f'<text x="{x + (-10 if anchor == "end" else 10):.1f}" y="{y + 4:.1f}" '
-                          f'text-anchor="{anchor}">{_esc(cy)}</text>')
-    return ('<section><div class="sec-h">Where it happened</div><div class="cmap">'
-            f'<svg viewBox="0 0 {w} {h}" role="img" aria-label="Map of check-ins">'
-            + "".join(dots) + "".join(labels) + "</svg></div></section>")
+    payload = json.dumps({
+        "p": [[la, lo, n] for (la, lo), n in pts.items()],
+        "b": [[lats[cut], lngs[cut]], [lats[-1 - cut], lngs[-1 - cut]]],
+        "q": {"kind": kind, "name": name, "country": country},
+    }, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    return ('<section><div class="sec-h">Where it happened</div><div class="lmap" id="lmap"></div>'
+            f'<script type="application/json" id="mapData">{payload}</script></section>')
 
 
 def _rank_list(pairs: list[tuple[str, int]], hrefs: list[str] | None = None) -> str:
@@ -554,7 +591,7 @@ def _render(
     cols_html = ('<section><div class="cols">' + "".join(cols)
                  + "</div></section>") if cols else ""
 
-    cmap_html = _dot_map(crows, label_key="city" if not is_city else "neighborhood" if hoods_ok else "")
+    cmap_html = _map(crows, kind, name, country)
 
     # Trips
     trips_html = ""
@@ -574,28 +611,30 @@ def _render(
         trips_html = (f'<section><div class="sec-h">Trips here · {len(ctrips)}</div>'
                       '<div class="trips">' + "".join(cards) + "</div>" + more + "</section>")
 
-    # Photos (up to 12); the hero borrows one from the middle of the page's photos
+    # Photos: every one, newest first; the first 12 inline, the rest ride in the
+    # log file. The hero borrows one from the middle of the page's photos.
     photos_html = ""
     hero_style, hero_cls = "", " none"
+    all_photos: list[list[str]] = []
     if pix_base:
         shots = [fn for r in sorted(crows, key=_ts)
                  for fn in (photos_by_checkin.get((r.get("checkin_id") or "").strip()) or [])[:1]]
         if shots:
             hero_style = f' style="background-image:url(\'{pix_base}/t/{_esc(shots[len(shots) // 2])}\')"'
             hero_cls = ""
-        imgs = []
         for r in sorted(crows, key=_ts, reverse=True):
-            cid = (r.get("checkin_id") or "").strip()
-            for fn in (photos_by_checkin.get(cid) or []):
-                imgs.append(f'<img loading="lazy" src="{pix_base}/t/{_esc(fn)}" '
-                            f'alt="{_esc(r.get("venue", ""))}">')
-                if len(imgs) >= 12:
-                    break
-            if len(imgs) >= 12:
-                break
-        if imgs:
-            photos_html = ('<section><div class="sec-h">Photos</div>'
-                           '<div class="photos">' + "".join(imgs) + "</div></section>")
+            day = datetime.fromtimestamp(_ts(r), tz=timezone.utc).strftime("%Y-%m-%d") if _ts(r) else ""
+            for fn in (photos_by_checkin.get((r.get("checkin_id") or "").strip()) or []):
+                all_photos.append([fn, (r.get("venue") or "").strip(), day])
+        if all_photos:
+            imgs = [f'<img loading="lazy" src="{pix_base}/t/{_esc(fn)}" alt="{_esc(v)}" data-i="{k}">'
+                    for k, (fn, v, _) in enumerate(all_photos[:12])]
+            more = (f'<button class="more-btn" onclick="morePhotos(this)">ALL {len(all_photos):,} PHOTOS ▾</button>'
+                    if len(all_photos) > 12 else "")
+            inline = json.dumps(all_photos[:12], ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+            photos_html = (f'<section><div class="sec-h">Photos · {len(all_photos):,}</div>'
+                           '<div class="photos" id="photoGrid">' + "".join(imgs) + "</div>" + more
+                           + f'<script type="application/json" id="phData">{inline}</script></section>')
 
     # Shouts: one per year for the six most recent years that have one, the
     # one nearest a readable length (the 3 longest were pasted walls of text)
@@ -638,7 +677,8 @@ def _render(
                          1 if (r.get("source_app") or "") == "refurbished" else 0])
     log_rows.sort(key=lambda x: x[0], reverse=True)
     log_file = f"{kind}_ck_{slug}.json"
-    (out_dir / log_file).write_text(json.dumps({"r": log_rows}, ensure_ascii=False, separators=(",", ":")),
+    (out_dir / log_file).write_text(json.dumps({"r": log_rows, "p": all_photos}, ensure_ascii=False,
+                                               separators=(",", ":")),
                                     encoding="utf-8")
     log_html = (f'<section><button class="log-btn" onclick="toggleLog()"><span>All {len(crows):,} check-ins '
                 f'in {_esc(name)}, searchable</span><b id="logLbl">OPEN ▾</b></button>'
@@ -661,7 +701,7 @@ def _render(
         kpis=kpis, years=years_html, cmap=cmap_html, hero_style=hero_style, hero_cls=hero_cls,
         cities=cols_html, venues="", cats="",
         trips=trips_html, photos=photos_html, shouts=shouts_html, log=log_html,
-        log_url=json.dumps(f"/{log_file}"))
+        log_url=json.dumps(f"/{log_file}"), pix_json=json.dumps(pix_base))
     (out_dir / f"{kind}-{slug}.html").write_text(html, encoding="utf-8")
 
 

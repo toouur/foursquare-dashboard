@@ -90,6 +90,8 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 
 /* ── BAR LISTS ── */
 .bar-list{display:flex;flex-direction:column;gap:7px;max-height:520px;overflow-y:auto;padding-right:4px;}
+/* Top venues: on desktop the list runs to the bottom of its card, level with the companions card beside it */
+@media(min-width:901px){#s-venues{display:flex;flex-direction:column;}#s-venues #venuesList{flex:1 1 0;min-height:520px;max-height:none;}}
 .bar-list::-webkit-scrollbar{width:3px;}
 .bar-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 #byCountryList::-webkit-scrollbar{width:3px;}
