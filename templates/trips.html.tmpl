@@ -434,7 +434,7 @@ function tripCard(t, big){
   const a = isAir(t) ? ' m-a' : '';
   const bike = (t.tags||[]).includes('bicycle') ? '<span class="tc-tag" title="Bicycle trip">🚲</span>' : '';
   return `<a class="trip-card${big?' big':''}" id="card-trip-${t.id}" href="#trip-${t.id}" onclick="showTrip(${t.id});return false;">
-    ${t.cover && PIX_DIR ? `<img class="tc-img" loading="lazy" src="${esc(PIX_DIR+'/t/'+t.cover)}" alt="">` : `<div class="tc-noimg${a}"></div>`}
+    ${t.cover && PIX_DIR ? `<img class="tc-img" loading="lazy" src="${esc(PIX_DIR+'/t/'+t.cover)}" alt="${esc(bareName(t.name))}">` : `<div class="tc-noimg${a}"></div>`}
     <span class="tc-mode${a}">${modeIcon(t.name)}</span><span class="tc-num">#${t.id}</span>
     <div class="tc-body">
       <div class="tc-dates">${shortD(t.start_date)}${t.end_date!==t.start_date?' – '+shortD(t.end_date):''}${t.start_date.slice(0,4)!==t.end_date.slice(0,4)?' '+t.end_date.slice(0,4):''} · ${t.duration} d</div>

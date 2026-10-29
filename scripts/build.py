@@ -106,31 +106,6 @@ _TRIP_CK_FIELDS = ('ts', 'date', 'time', 'venue', 'venue_id', 'city', 'country',
 _TRIP_SHARD = 10
 
 SITE_URL = "https://4sq.pages.dev/"
-# Not for search engines: the private visit counter, the search shell and the
-# venue page (one empty shell filled from #id — its content is not crawlable).
-_SITEMAP_SKIP = {"visits.html", "search.html", "venue.html", "index.html"}
-
-
-def _sitemap_priority(name: str) -> str:
-    if name.startswith(("year-", "country-")):
-        return "0.6"
-    return "0.5" if name == "solution.html" else "0.8"
-
-
-def write_sitemap(out_dir: Path, extra: list | None = None) -> int:
-    """sitemap.xml for every generated page (+ tracked extras that exist); returns the URL count."""
-    names = {p.name for p in out_dir.glob("*.html")} | {p.name for p in (extra or []) if Path(p).exists()}
-    pages = sorted(n for n in names if n not in _SITEMAP_SKIP and not n.startswith("google"))
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    urls = [f"  <url><loc>{SITE_URL}</loc><lastmod>{today}</lastmod><priority>1.0</priority></url>"]
-    urls += [f"  <url><loc>{SITE_URL}{n}</loc><lastmod>{today}</lastmod><priority>{_sitemap_priority(n)}</priority></url>"
-             for n in pages]
-    (out_dir / "sitemap.xml").write_text(
-        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "\n".join(urls) + "\n</urlset>\n", encoding="utf-8")
-    return len(urls)
-
-
 def _write_trip_checkin_shards(trips, out_dir):
     """Write trip_checkins_<id//10>.json; return (content version, trips without checkins)."""
     import glob
@@ -1557,11 +1532,6 @@ if __name__ == "__main__":
         if "{{CHECKINS_PLUS}}" in _txt:
             _html.write_text(_txt.replace("{{CHECKINS_PLUS}}", _checkins_plus), encoding="utf-8")
 
-    # ── sitemap.xml from the pages this build produced ────────────────────────
-    # The tracked sitemap.xml listed 11 URLs; years, countries, culture, flights
-    # and the rest were never submitted. Private / empty-shell pages stay out.
-    write_sitemap(Path(args.output_dir), extra=[_PROJECT_ROOT / "solution.html"])
-
     # ── Photo thumbs: pix/t/<name> with a fallback to the original ────────────
     # Grids, tiles and covers point at the small copy (scripts/make_thumbs.py,
     # thumbs.yml); the lightbox keeps the original. A thumb that is not in R2
@@ -1780,6 +1750,25 @@ try {
             log.info("Syndication: feed.xml + feed.json written")
     except Exception as _fe:
         log.warning("gen_feeds failed: %s", _fe)
+
+    # ── Search engines + link previews (seo.py) ───────────────────────────────
+    # Extensionless canonical URLs (Pages 308s every *.html), og:image + the
+    # generated og-card.png, JSON-LD, 404.html, and sitemap.xml with each page's
+    # real lastmod. Runs after every other pass that writes pages.
+    try:
+        import gen_country_pages as _gcp_seo
+        import seo as _seo
+        _gcp_seo._load_flags(config_dir)
+        _n_cities = len({(r.get("city") or "").strip() for r in rows} - {""})
+        _seo_n = _seo.finish_site(
+            Path(args.output_dir), SITE_URL, rows, data.get("city_pages") or {}, _gcp_seo.country_slug,
+            headline=_seo.SITE_NAME,
+            subline=f"{_checkins_plus} check-ins · {len(data['countries'])} countries · {_n_cities:,} cities",
+            extra=[_PROJECT_ROOT / "solution.html"])
+        log.info("SEO: %d pages finished, sitemap %d URLs, og card %s",
+                 _seo_n["pages"], _seo_n["sitemap"], "written" if _seo_n["card"] else "skipped")
+    except Exception as _seo_e:
+        log.warning("seo pass failed: %s", _seo_e)
 
     # ── Opt-in: standalone travel-atlas journal (gen_travel_atlas.py) ──────────
     # Written last, after the PWA/placeholder passes, so the file stays a clean

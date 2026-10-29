@@ -1813,7 +1813,8 @@ def build_page(
         if photos_y:
             ph_cards = "".join(
                 f'<div class="photo" onclick="openLB(\'{_esc(p["src"])}\')">'
-                f'<img src="{_esc(thumb_url(p["src"]))}" loading="lazy" alt="">'
+                f'<img src="{_esc(thumb_url(p["src"]))}" loading="lazy" '
+                f'alt="{_esc(p["venue"])}{", " + _esc(p["city"]) if p["city"] else ""}">'
                 f'<div class="ph-meta">{_esc(p["venue"])}{" · " + _esc(p["city"]) if p["city"] else ""}</div>'
                 f'</div>'
                 for p in photos_y[:90]
