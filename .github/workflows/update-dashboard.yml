@@ -562,7 +562,7 @@ jobs:
 
           # ── Assemble the clean deploy dir (root asset globs match files only) ──
           rm -rf _site && mkdir -p _site
-          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
+          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css ./og-card.png _site/ 2>/dev/null || true
           cp _headers _site/ 2>/dev/null || true   # security response headers
           cp -r assets   _site/assets
           cp -r functions _site/functions   # Cloudflare Pages Functions
@@ -710,7 +710,7 @@ jobs:
         if: steps.lastday.outputs.is_last_day == 'true'
         run: |
           rm -rf _site && mkdir -p _site
-          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css _site/ 2>/dev/null || true
+          cp ./*.html ./*.json ./*.xml ./*.svg ./*.txt ./*.csv ./*.js ./*.webmanifest ./site-*.css ./og-card.png _site/ 2>/dev/null || true
           cp _headers _site/ 2>/dev/null || true   # security response headers
           cp -r assets   _site/assets
           cp -r functions _site/functions
