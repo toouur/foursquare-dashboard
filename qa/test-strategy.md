@@ -24,7 +24,7 @@ list, not the other way around.
 | R5 | **Python ↔ JavaScript logic drift** — companion logic exists twice (build-time Python, runtime JS) | Medium: feed disagrees with static pages | Medium | Parity test that extracts the JS function *verbatim* from `feed.js` and runs both sides on the same fixtures under Node |
 | R6 | **Silent pipeline death** — hourly CI job fails repeatedly and nobody notices | High: site goes stale | Medium | Telegram alert after 2 consecutive scheduled failures; `/api/health` returns 503 when data is stale |
 | R7 | **Performance regressions** — D1-backed search gets slow, pages get heavy | Medium | Low–medium | k6 load test (thresholds: error rate < 1%, p95 < 1 s, p99 < 2 s); weekly Lighthouse with score floors (perf ≥ 60, a11y/bp/SEO ≥ 85) |
-| R8 | **Accessibility regressions** | Medium | Medium: pages are regenerated constantly | 8 axe-core audits with a `KNOWN_ISSUES` baseline — **new** critical/serious violations fail, pre-existing debt is tracked, not ignored |
+| R8 | **Accessibility regressions** | Medium | Medium: pages are regenerated constantly | axe-core audits with a `KNOWN_ISSUES` baseline — **new** critical/serious violations fail, pre-existing debt is tracked, not ignored |
 | R9 | **Quota/rate-limit exhaustion of upstream APIs** | Medium: data category stops updating for a month | Low after fix | Learned the hard way ([BUG-003](bug-reports/BUG-003-ratings-quota-burn.md)); fetches are now throttled and the throttle is documented |
 
 ## 2. Test pyramid — 600 tests
