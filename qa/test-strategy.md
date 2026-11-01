@@ -1,7 +1,7 @@
 # Test Strategy
 
 **System under test:** [4sq.pages.dev](https://4sq.pages.dev) — a static dashboard generated
-from 66,000+ Foursquare/Swarm check-ins by a Python pipeline, deployed to Cloudflare Pages,
+from the personal Foursquare/Swarm check-in history by a Python pipeline, deployed to Cloudflare Pages,
 with dynamic search/feed served by Pages Functions backed by a D1 (SQLite) database.
 
 **Owner:** solo developer/QA. This document explains *what* is tested, *how*, *why in that
@@ -17,7 +17,7 @@ list, not the other way around.
 
 | # | Risk | Impact | Likelihood | Mitigation |
 |---|------|--------|-----------|------------|
-| R1 | **Data-transform regressions** — city/country normalization, trip detection, companion collection silently produce wrong numbers | High: every page shows wrong stats; wrong data syncs to D1 | High: this logic changes most often | 175 offline unit tests; mutation testing on `transform.py` |
+| R1 | **Data-transform regressions** — city/country normalization, trip detection, companion collection silently produce wrong numbers | High: every page shows wrong stats; wrong data syncs to D1 | High: this logic changes most often | 543 offline unit/parity tests; mutation testing on `transform.py` |
 | R2 | **Broken generated HTML deployed** — unfilled `{{PLACEHOLDER}}`, truncated page, invalid embedded JSON | High: visibly broken production page | Medium: template edits are frequent | `validate_html.py` deploy gate — deploy is blocked, not just warned |
 | R3 | **Data drift from the upstream API** — Foursquare renames cities, changes encodings (NFC/NFD), returns new anomalies | Medium: phantom cities, split counts | High: happened repeatedly ([BUG-001](bug-reports/BUG-001-nfd-phantom-cities.md), [BUG-005](bug-reports/BUG-005-gateway-border-city.md)) | `check_city_count.py` baseline gate in the hourly pipeline; config-integrity gate `check_city_config.py` |
 | R4 | **API contract breaks** — `/api/search`, `/api/feed` change shape or die (D1 binding lost, schema drift) | High: search/feed dead in prod | Medium | 22 live API contract tests weekly + on demand; `/api/health` probed hourly |
@@ -27,18 +27,17 @@ list, not the other way around.
 | R8 | **Accessibility regressions** | Medium | Medium: pages are regenerated constantly | 8 axe-core audits with a `KNOWN_ISSUES` baseline — **new** critical/serious violations fail, pre-existing debt is tracked, not ignored |
 | R9 | **Quota/rate-limit exhaustion of upstream APIs** | Medium: data category stops updating for a month | Low after fix | Learned the hard way ([BUG-003](bug-reports/BUG-003-ratings-quota-burn.md)); fetches are now throttled and the throttle is documented |
 
-## 2. Test pyramid — 219 tests
+## 2. Test pyramid — 600 tests
 
 ```
-        8   axe-core a11y audits      (live, weekly)      ← slowest, broadest
-       14   Playwright E2E smoke      (live, weekly)
+       35   Playwright E2E + axe-core accessibility (live, weekly) ← slowest, broadest
        22   API contract tests        (live, weekly)
-      175   offline unit/parity tests (every push, ~2 s)   ← fastest, most numerous
+      543   offline unit/parity tests (every push, ~2 s)   ← fastest, most numerous
 ```
 
 The split is enforced with pytest markers (`live`, `e2e`) registered in `tests/conftest.py`.
 
-### Ring 1 — offline unit tests (175, run on every push, no network/secrets)
+### Ring 1 — offline unit/parity tests (543, run on every push, no network/secrets)
 
 Target: the pure-Python transform layer, because that is where R1 lives and where changes
 are most frequent. Highlights:
@@ -72,7 +71,7 @@ functions run on Cloudflare's runtime with a real D1 binding — mocking that lo
 test the mock. The `_v=` cache-version discipline these tests protect exists because of
 [BUG-002](bug-reports/BUG-002-feed-edge-cache-shape.md).
 
-### Ring 3 — E2E + a11y (14 Playwright + 8 axe-core, `-m live`)
+### Ring 3 — E2E + a11y (35 combined Playwright and axe-core tests, `-m live`)
 
 Playwright smoke: each key page loads, renders its main content, has no console errors;
 search round-trips a real query; feed virtual-scroll loads more items. axe-core: 8 pages
