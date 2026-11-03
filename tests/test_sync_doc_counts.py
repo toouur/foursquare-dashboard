@@ -22,3 +22,12 @@ def test_every_rule_matches_its_doc():
 
 def test_rules_only_use_known_keys():
     assert {key for _f, _p, key in sdc.RULES} <= set(KEYS)
+
+
+def test_every_readme_stats_rule_matches():
+    import sync_readme_stats as srs
+    vals = srs.values({"checkins": 71845, "places": 1, "countries": 1, "km": 615332,
+                       "photos": 23456, "years": 1, "year_pages": 1, "country_pages": 1})
+    assert vals["checkins_k"] == "71,000" and vals["km"] == "615,332" and vals["earths"] == 15
+    _changes, missing = sdc.apply(vals, write=False, rules=srs.RULES)
+    assert missing == []

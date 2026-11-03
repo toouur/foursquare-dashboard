@@ -1532,6 +1532,21 @@ if __name__ == "__main__":
         if "{{CHECKINS_PLUS}}" in _txt:
             _html.write_text(_txt.replace("{{CHECKINS_PLUS}}", _checkins_plus), encoding="utf-8")
 
+    # ── site_stats.json: headline numbers for the README (sync_readme_stats.py
+    # reads the deployed copy monthly, so no data checkout is needed there) ───
+    _out = Path(args.output_dir)
+    (_out / "site_stats.json").write_text(json.dumps({
+        "checkins": data["total"],
+        "places": data["unique_places_count"],
+        "countries": len(data["countries"]),
+        "km": round(data["total_km"]),
+        "photos": total_photos,
+        "years": int(data["date_max"][:4]) - int(data["date_min"][:4]) + 1,   # calendar years, inclusive
+        "year_pages": len(list(_out.glob("year-*.html"))),
+        "country_pages": len(list(_out.glob("country-*.html"))),
+        "date_max": data["date_max"],
+    }, indent=1) + "\n", encoding="utf-8")
+
     # ── Photo thumbs: pix/t/<name> with a fallback to the original ────────────
     # Grids, tiles and covers point at the small copy (scripts/make_thumbs.py,
     # thumbs.yml); the lightbox keeps the original. A thumb that is not in R2

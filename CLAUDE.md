@@ -51,7 +51,7 @@ Venue renames, monthly re-fetch and deletions: `ops/d1.md`.
 
 ### Run tests / lint
 ```bash
-# Offline suite (543 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (544 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 python -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 27 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -62,7 +62,8 @@ python -m mypy                                # setup.cfg [mypy]; must stay clea
 python scripts/validate_html.py --dir _site   # same gate CI runs before every deploy
 python scripts/check_city_count.py --csv $DATA/checkins.csv --backfill $DATA/backfill.csv \
   --baseline config/city_count_baseline.json  # city-set drift gate
-python scripts/sync_doc_counts.py --check     # quoted test/file counts in README/CLAUDE/solution
+python scripts/sync_doc_counts.py --check     # quoted test/file counts in README/CLAUDE/solution/qa
+python scripts/sync_readme_stats.py --check   # README headline stats vs live site_stats.json
 ```
 
 ## Data and Build Model
@@ -101,8 +102,8 @@ Full map: `ops/internals.md`. Most used:
 - `scripts/build_backfill.py`, `scripts/refresh_backfill_venue.py`
 - `scripts/check_city_count.py` (also SPELLING TWIN? pairs; known-distinct in `config/city_twins_ok.json`), `scripts/check_city_config.py`, `scripts/validate_html.py`
 - `scripts/audit_report.py` — monthly `data-audit.yml`: city twins, unknown categories, category suspects (reviewed ids in `config/category_audit_ok.json`) → private Telegram chat
-- Tests: `tests/` — pytest suite (600 tests: 543 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
-- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 94 files) and must stay so.
+- Tests: `tests/` — pytest suite (601 tests: 544 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
+- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 95 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
   NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in `fetch_*` — drift from a newer local `requests`, not a code change.
 

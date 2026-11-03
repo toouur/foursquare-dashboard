@@ -75,9 +75,27 @@ jobs:
         run: pip install -r requirements.txt pytest pytest-playwright
       - name: Install chromium
         run: python -m playwright install chromium --with-deps
+      # A green run full of skips proves nothing: LIVE_MAX_SKIPS (conftest.py)
+      # turns more than that many skipped live tests into a failure. Traces and
+      # screenshots are kept for failed browser tests only (pytest-playwright).
       - name: Run live suite (API contract + E2E smoke)
         timeout-minutes: 30   # a step timeout fails the step, so the alert below still runs
-        run: python -m pytest tests/ -m live -q -rf 2>&1 | tee live.txt; exit ${PIPESTATUS[0]}
+        env:
+          LIVE_MAX_SKIPS: "0"
+        run: >-
+          python -m pytest tests/ -m live -q -rfs
+          --tracing retain-on-failure --screenshot only-on-failure --output test-results
+          2>&1 | tee live.txt; exit ${PIPESTATUS[0]}
+      - name: Upload Playwright traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-failures
+          path: |
+            test-results/
+            live.txt
+          retention-days: 14
+          if-no-files-found: ignore
       # The weekly sweep was red every Monday from August to October 2026 and
       # nobody saw it — GitHub's email drowned. Say it in Telegram instead.
       - name: Alert on a failed weekly sweep

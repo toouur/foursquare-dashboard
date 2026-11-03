@@ -1,6 +1,6 @@
 # Foursquare Check-in Dashboard
 
-A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check-ins** spanning **20 years and 64 countries** — interactive maps, automatic trip detection, live full-text search, and a 23,000-photo gallery. Built with Python and a serverless Cloudflare stack, it rebuilds itself every hour with zero manual steps.
+A self-updating personal analytics platform for **72,000+ Foursquare/Swarm check-ins** spanning **20 years and 64 countries** — interactive maps, automatic trip detection, live full-text search, and a 24,000-photo gallery. Built with Python and a serverless Cloudflare stack, it rebuilds itself every hour with zero manual steps.
 
 <div align="center">
 
@@ -19,12 +19,12 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 
 ## Highlights
 
-- **69,222 check-ins · 33,788 unique places · 64 countries · 601,135 km** (15× around Earth) of personal location history, visualised across ~100 generated pages (15 core pages + 20 year albums + 64 country pages).
+- **72,058 check-ins · 34,297 unique places · 64 countries · 615,541 km** (15× around Earth) of personal location history, visualised across ~100 generated pages (15 core pages + 20 year albums + 64 country pages).
 - **Live full-text search** over venues, cities, trips, tips, and companions — queried on demand from a **Cloudflare D1** (SQLite) database with FTS5 indexes, no multi-MB static index.
 - **Bidirectional infinite-scroll feed** over all 69k check-ins: cursor-based D1 pagination, on-demand gap fill, and contiguous-array virtual scroll.
 - **Automatic trip detection** — an 8-stage heuristic reconstructs 173 trips from raw check-in sequences (transport-hub departure/arrival scans, home-return extensions, auto-generated names), against an **era-aware home city** that moves with the years.
 - **Pre-2012 travel backfill** — the Foursquare record starts in 2012, so earlier travel (2007+) is reconstructed at country/city/day granularity from a hand-editable `backfill.yaml`, merged into every stat/map/trip and badged `↺ reconstructed` wherever a card renders.
-- **23,000+ photos** served from **Cloudflare R2** (zero-egress object storage) with lazy loading, country/city filters, and a lightbox.
+- **24,000+ photos** served from **Cloudflare R2** (zero-egress object storage) with lazy loading, country/city filters, and a lightbox.
 - **Hourly self-updating pipeline** — GitHub Actions fetches new check-ins, rebuilds every HTML page, and incrementally syncs to D1; a Cloudflare Worker can trigger near-instant rebuilds within ~1 min of a new check-in.
 - **Canonical data-normalization layer** — multilingual city/country resolution (Cyrillic, transliteration, blank-city centroid inference) driven by version-controlled config, validated by a CI merge gate.
 - **Installable PWA** — a generated `manifest.webmanifest` + service worker (cache-first static assets, network-first HTML, `/api/*` never cached) injected into every page, cache-busted on every deploy.
@@ -53,7 +53,7 @@ A self-updating personal analytics platform for **69,000+ Foursquare/Swarm check
 **Serverless:** Cloudflare Pages (hosting), Pages Functions (search/feed/health APIs), D1 (SQLite + FTS5 at the edge), R2 (photo storage), Workers (check-in poller)
 **Front-end (CDN):** Leaflet (maps, CARTO basemaps with an API key), Chart.js, Twemoji · installable PWA (service worker + web manifest)
 **CI/CD:** GitHub Actions — hourly incremental build + deploy + D1 sync, a daily route-geometry warm and a daily enrichment re-scan, plus ~20 on-demand maintenance workflows
-**Quality:** ruff + mypy + a 600-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
+**Quality:** ruff + mypy + a 601-test pytest suite (offline unit · live API contract · Playwright E2E · axe-core a11y), an HTML deploy gate, and weekly Lighthouse budgets
 
 ## Table of contents
 
@@ -220,7 +220,7 @@ lazy loading, lightbox, and inline tip photos ·
 │       ├── venue-tips.js        # /api/venue-tips — tips for a given venue_id
 │       ├── custom-list.js       # /api/custom-list — custom curated lists
 │       └── health.js            # /api/health — D1 + data-freshness health check (200/503)
-├── tests/                    # 600-test pytest suite (see "Tests" section below)
+├── tests/                    # 601-test pytest suite (see "Tests" section below)
 │   ├── conftest.py           # Markers (live/e2e) + shared make_row() factory
 │   ├── test_*.py             # Offline unit (259) / live API contract (22) / E2E + a11y (22)
 │   └── load/search.js        # k6 load-test script for /api/search
@@ -444,12 +444,12 @@ python scripts/build.py --cat-list
 
 ## Tests
 
-The repo ships a **600-test pytest suite** in [`tests/`](tests/), split into three rings by
+The repo ships a **601-test pytest suite** in [`tests/`](tests/), split into three rings by
 what they need to run:
 
 | Ring | Marker | Tests | Needs |
 |------|--------|-------|-------|
-| Offline unit + parity | *(none / `not live`)* | 543 | nothing — no network, no secrets |
+| Offline unit + parity | *(none / `not live`)* | 544 | nothing — no network, no secrets |
 | API contract | `live` | 22 | internet (hits the deployed site) |
 | Browser E2E smoke + accessibility | `live` + `e2e` | 35 | internet + Playwright chromium |
 
@@ -705,7 +705,7 @@ across the unit suites.
 - **mypy** — type-check gate over `scripts/` (config: `[mypy]` in [`setup.cfg`](setup.cfg);
   pragmatic settings for a gradually-typed codebase — `ignore_missing_imports`,
   `allow_redefinition`, `var-annotated` disabled — but annotated code is checked for
-  real, and the tree is currently clean across all 94 files). Runs in the same CI `lint`
+  real, and the tree is currently clean across all 95 files). Runs in the same CI `lint`
   job as ruff. Run locally: `python -m mypy`
 - **Lighthouse audit** — [`.github/workflows/lighthouse.yml`](.github/workflows/lighthouse.yml)
   runs weekly (Monday 07:00 UTC) + on dispatch: headless-Chrome Lighthouse against 4 live

@@ -36,6 +36,7 @@ import contextlib
 import io
 import re
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -126,13 +127,17 @@ def measure() -> dict[str, int]:
     }
 
 
-def apply(counts: dict[str, int], write: bool) -> tuple[list[str], list[str]]:
-    """Return (changes, missing) — human-readable lines for each."""
+def apply(counts: Mapping[str, int | str], write: bool,
+          rules: list[tuple[str, str, str]] | None = None) -> tuple[list[str], list[str]]:
+    """Return (changes, missing) — human-readable lines for each.
+
+    `rules` defaults to RULES; sync_readme_stats.py passes its own."""
+    rules = RULES if rules is None else rules
     changes: list[str] = []
     missing: list[str] = []
     texts = {f: (ROOT / f).read_bytes().decode("utf-8")
-             for f in sorted({r[0] for r in RULES})}
-    for fname, pattern, key in RULES:
+             for f in sorted({r[0] for r in rules})}
+    for fname, pattern, key in rules:
         new_val = str(counts[key])
         text = texts[fname]
         hits = 0
