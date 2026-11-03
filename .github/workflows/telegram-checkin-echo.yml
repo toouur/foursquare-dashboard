@@ -83,6 +83,10 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_OTD_CHAT_ID || secrets.TELEGRAM_CHAT_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Model ladder (scripts/llm_ladder.py): Haiku → Sonnet → Opus by default;
+          # repo variables with a comma list override it.
+          ANTHROPIC_MODELS_ECHO: ${{ vars.ANTHROPIC_MODELS_ECHO }}
+          ANTHROPIC_MODELS_DIGEST: ${{ vars.ANTHROPIC_MODELS_DIGEST }}
         run: |
           args=(--mode "$MODE" --csv private-data/checkins.csv
                 --state private-data/checkin_echo_state.json)

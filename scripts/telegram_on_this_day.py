@@ -38,7 +38,8 @@ Usage:
       --stories private-data/otd_stories.json [--regenerate] [--dry-run] [--date 2026-10-18]
 Env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ANTHROPIC_API_KEY (optional),
      CLAUDE_CODE_OAUTH_TOKEN (optional, used when there is no API key),
-     ANTHROPIC_MODEL (optional, default claude-sonnet-5-5).
+     ANTHROPIC_MODEL / ANTHROPIC_MODELS[_STORY] (optional; see llm_ladder.py —
+     Sonnet first, Opus when a call or the text check fails).
 """
 from __future__ import annotations
 
@@ -48,7 +49,6 @@ import html
 import json
 import logging
 import os
-import shutil
 import subprocess
 import sys
 from collections import Counter
@@ -64,6 +64,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from transform import load_mappings, apply_transforms, build_blank_city_resolver  # noqa: E402
 from metrics.trips import _parse_ts, _localise, _home_at  # noqa: E402
 from metrics.companions import collect_companions  # noqa: E402
+import llm_ladder  # noqa: E402
 
 log = logging.getLogger("on_this_day")
 
@@ -72,7 +73,7 @@ TG_LIMIT = 4096          # Telegram message hard limit
 ALBUM_MAX = 10           # sendMediaGroup takes 2-10 items
 SHOUT_MAX = 200
 DEFAULT_EMOJI = "📍"
-DEFAULT_MODEL = "claude-sonnet-5-5"
+DEFAULT_MODEL = llm_ladder.SONNET
 
 # WMO weather interpretation codes (Open-Meteo `weather_code`).
 WMO = {
@@ -310,26 +311,19 @@ Facts:
 {facts}"""
 
 
+def _story_words(facts: list[dict]) -> str:
+    return "80-120" if len(facts) == 1 else "150-250"
+
+
 def _story_prompt(facts: list[dict], today: date, lang: str) -> str:
-    words = "80-120" if len(facts) == 1 else "150-250"
-    return PROMPT.format(today=today.strftime("%d %B %Y"), words=words, lang=lang,
+    return PROMPT.format(today=today.strftime("%d %B %Y"), words=_story_words(facts), lang=lang,
                          facts=json.dumps(_llm_facts(facts), ensure_ascii=False, indent=1))
 
 
 def claude_story(facts: list[dict], today: date, lang: str, api_key: str,
                  model: str = DEFAULT_MODEL, session=requests) -> str | None:
-    prompt = _story_prompt(facts, today, lang)
-    try:
-        resp = session.post("https://api.anthropic.com/v1/messages", headers={
-            "x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json",
-        }, json={"model": model, "max_tokens": 1200,
-                 "messages": [{"role": "user", "content": prompt}]}, timeout=90)
-        resp.raise_for_status()
-        text = "".join(b.get("text", "") for b in resp.json().get("content", []) if b.get("type") == "text")
-        return text.strip() or None
-    except (requests.RequestException, ValueError) as exc:
-        log.warning("Claude narrative failed, using template: %s", exc)
-        return None
+    """One model through the API; the ladder (write_story) is built on this transport."""
+    return llm_ladder.api_text(_story_prompt(facts, today, lang), model, api_key, 1200, session)
 
 
 def claude_cli_story(facts: list[dict], today: date, lang: str, model: str = "",
@@ -337,22 +331,7 @@ def claude_cli_story(facts: list[dict], today: date, lang: str, model: str = "",
     """Same prompt through the Claude Code CLI (`claude -p`), authenticated by
     CLAUDE_CODE_OAUTH_TOKEN — a Pro/Max subscription instead of API billing.
     The prompt goes over stdin (no argv length limit). Any failure → None."""
-    exe = shutil.which("claude")
-    if not exe:
-        log.warning("claude CLI not found, using template")
-        return None
-    cmd = [exe, "-p", "--output-format", "text"] + (["--model", model] if model else [])
-    try:
-        res = run(cmd, input=_story_prompt(facts, today, lang), capture_output=True,
-                  text=True, encoding="utf-8", timeout=180)
-    except (OSError, subprocess.SubprocessError) as exc:
-        log.warning("claude CLI failed, using template: %s", exc)
-        return None
-    if res.returncode != 0:
-        log.warning("claude CLI exited %s, using template: %s",
-                    res.returncode, (res.stderr or res.stdout or "").strip()[:300])
-        return None
-    return (res.stdout or "").strip() or None
+    return llm_ladder.cli_text(_story_prompt(facts, today, lang), model, run)
 
 
 def _ago(n: int) -> str:
@@ -551,20 +530,13 @@ def save_story(path: Path, stories: dict[str, dict], day: date, story: str, sour
 
 
 def write_story(facts: list[dict], today: date, lang: str) -> tuple[str, str]:
-    """(story, source) — source is "claude-api", "claude-cli" or "template"."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    model = os.environ.get("ANTHROPIC_MODEL", "").strip()
-    if api_key:
-        story = claude_story(facts, today, lang, api_key, model or DEFAULT_MODEL)
-        if story:
-            return story, "claude-api"
-    elif os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip():
-        story = claude_cli_story(facts, today, lang, model)
-        if story:
-            return story, "claude-cli"
-    else:
-        log.info("no ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN — template story")
-    return template_story(facts), "template"
+    """(story, source) — source is "claude-api:<model>", "claude-cli:<model>" or
+    "template". llm_ladder climbs from the medium model to the heavy one when a
+    call fails or the text fails its checks."""
+    story, source = llm_ladder.write(
+        "story", _story_prompt(facts, today, lang),
+        llm_ladder.Spec(llm_ladder.words_range(_story_words(facts)), max_emoji=2, max_tokens=1200))
+    return (story, source) if story else (template_story(facts), "template")
 
 
 # ── Main ────────────────────────────────────────────────────────────────────

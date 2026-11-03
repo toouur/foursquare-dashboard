@@ -24,7 +24,8 @@ Two modes, both posting to the "on this day" channel:
                   every event of that day under a short narrative.
 
 Text: Claude writes it (API with ANTHROPIC_API_KEY, else the Claude Code CLI
-with CLAUDE_CODE_OAUTH_TOKEN), otherwise a template — the bot never stays
+with CLAUDE_CODE_OAUTH_TOKEN) up the llm_ladder.py model ladder — Haiku first,
+Sonnet then Opus when a call or the text check fails — otherwise a template — the bot never stays
 silent because of the LLM. Home (private) check-ins never raise events.
 
 State (--state, checkin_echo_state.json in the data repo):
@@ -42,7 +43,7 @@ Usage:
   python scripts/telegram_checkin_echo.py --mode digest  --csv private-data/checkins.csv \\
       --state private-data/checkin_echo_state.json [--date 2026-10-18] [--dry-run]
 Env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN
-     (optional), ANTHROPIC_MODEL (optional).
+     (optional), ANTHROPIC_MODEL / ANTHROPIC_MODELS[_ECHO|_DIGEST] (optional).
 """
 from __future__ import annotations
 
@@ -51,7 +52,6 @@ import html
 import json
 import logging
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -64,11 +64,12 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from telegram_on_this_day import (  # noqa: E402
-    DEFAULT_EMOJI, DEFAULT_MODEL, HOME_CATEGORY, _float, clean_shout, load_icons,
+    DEFAULT_EMOJI, HOME_CATEGORY, _float, clean_shout, load_icons,
     load_rows, place_name, tg_send,
 )
 from metrics.trips import _parse_ts, _localise  # noqa: E402
 from metrics.companions import collect_companions  # noqa: E402
+import llm_ladder  # noqa: E402
 
 log = logging.getLogger("checkin_echo")
 
@@ -310,40 +311,12 @@ Facts:
 {facts}"""
 
 
-def _llm(prompt: str, session=requests, run=subprocess.run) -> tuple[str | None, str]:
-    """(text, source) via the API, else the Claude Code CLI; (None, "template") on any failure."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    model = os.environ.get("ANTHROPIC_MODEL", "").strip()
-    if api_key:
-        try:
-            resp = session.post("https://api.anthropic.com/v1/messages", headers={
-                "x-api-key": api_key, "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            }, json={"model": model or DEFAULT_MODEL, "max_tokens": 600,
-                     "messages": [{"role": "user", "content": prompt}]}, timeout=90)
-            resp.raise_for_status()
-            text = "".join(b.get("text", "") for b in resp.json().get("content", [])
-                           if b.get("type") == "text").strip()
-            if text:
-                return text, "claude-api"
-        except (requests.RequestException, ValueError) as exc:
-            log.warning("Claude API failed, using template: %s", exc)
-        return None, "template"
-    if os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "").strip():
-        exe = shutil.which("claude")
-        if not exe:
-            log.warning("claude CLI not found, using template")
-            return None, "template"
-        cmd = [exe, "-p", "--output-format", "text"] + (["--model", model] if model else [])
-        try:
-            res = run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=180)
-        except (OSError, subprocess.SubprocessError) as exc:
-            log.warning("claude CLI failed, using template: %s", exc)
-            return None, "template"
-        if res.returncode == 0 and (res.stdout or "").strip():
-            return res.stdout.strip(), "claude-cli"
-        log.warning("claude CLI exited %s, using template", res.returncode)
-    return None, "template"
+def _llm(task: str, prompt: str, words: str, session=requests,
+         run=subprocess.run) -> tuple[str | None, str]:
+    """(text, source) up the model ladder (Haiku → Sonnet → Opus, see llm_ladder.py);
+    (None, "template") when no model is configured or none produced a usable text."""
+    return llm_ladder.write(task, prompt, llm_ladder.Spec(llm_ladder.words_range(words), max_emoji=1),
+                            session=session, run=run)
 
 
 def _icon(icons: dict[str, str], cat: str) -> str:
@@ -354,8 +327,8 @@ def instant_message(f: dict, kinds: list[str], icons: dict[str, str], use_llm: b
     words = "30-60"
     text = None
     if use_llm:
-        text, _ = _llm(INSTANT_PROMPT.format(words=words, facts=json.dumps(
-            {**f, "events": kinds}, ensure_ascii=False, indent=1)))
+        text, _ = _llm("echo", INSTANT_PROMPT.format(words=words, facts=json.dumps(
+            {**f, "events": kinds}, ensure_ascii=False, indent=1)), words)
     head = (f"{_icon(icons, f['category'])} <b>{_esc(f['venue'])}</b>"
             + (f" · {_esc(f['city'])}" if f["city"] else ""))
     return f"{head}\n{_esc(text or template_instant(f, kinds))}"
@@ -367,8 +340,9 @@ def digest_message(day: date, items: list[tuple[dict, list[str], bool]], totals:
     text = None
     if use_llm:
         facts = {"day": totals, "notable": [{**f, "events": k} for f, k, _ in items[:25]]}
-        text, _ = _llm(DIGEST_PROMPT.format(day=day.isoformat(), words="40-90",
-                                            facts=json.dumps(facts, ensure_ascii=False, indent=1)))
+        text, _ = _llm("digest", DIGEST_PROMPT.format(day=day.isoformat(), words="40-90",
+                                                      facts=json.dumps(facts, ensure_ascii=False, indent=1)),
+                       "40-90")
     lines = [f"🗓 <b>{day:%A, %d %B}</b> · {totals['checkins']} check-ins, "
              f"{totals['places']} places, {totals['new_places']} new"]
     if text:

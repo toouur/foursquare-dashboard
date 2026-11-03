@@ -51,7 +51,7 @@ Venue renames, monthly re-fetch and deletions: `ops/d1.md`.
 
 ### Run tests / lint
 ```bash
-# Offline suite (544 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (553 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 python -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 27 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -95,15 +95,15 @@ Full map: `ops/internals.md`. Most used:
 - `scripts/sync_to_d1.py`, `scripts/d1_client.py`, `d1_schema.sql`
 - `functions/api/{search,feed,health,search-venues,venue-tips,custom-list,hit,visits}.js` (Pages Functions;
   `hit`/`visits` = the private visit counter, `visits` is STATS_KEY-gated)
-- `scripts/telegram_on_this_day.py`, `scripts/telegram_checkin_echo.py`, `scripts/visits_report.py` (weekly, private chat)
+- `scripts/telegram_on_this_day.py`, `scripts/telegram_checkin_echo.py` (texts via `scripts/llm_ladder.py`: Haiku/Sonnet → Opus on a failed call or text check), `scripts/visits_report.py` (weekly, private chat)
 - Newer pages: `gen_venue_page.py` (venue.html#id, 256 FNV shards), `gen_country_pages.py` (also `city-<slug>.html` for cities with ≥20 check-ins; map outlines from `fetch_boundaries.py` → data repo `boundaries.json`, warmed daily in `warm-routes.yml`), `gen_compare.py`, `gen_life.py`,
   `gen_culture.py` + `culture_sources.py` (IMDb/Vivino exports + Last.fm raw layer), `gen_visits.py`
 - `scripts/seo.py` — last build pass: extensionless canonical/og URLs (Pages 308s every `*.html`), og:image (+ generated `og-card.png`), JSON-LD, `404.html` (no 404 = Pages serves index with 200), sitemap with per-page lastmod
 - `scripts/build_backfill.py`, `scripts/refresh_backfill_venue.py`
 - `scripts/check_city_count.py` (also SPELLING TWIN? pairs; known-distinct in `config/city_twins_ok.json`), `scripts/check_city_config.py`, `scripts/validate_html.py`
 - `scripts/audit_report.py` — monthly `data-audit.yml`: city twins, unknown categories, category suspects (reviewed ids in `config/category_audit_ok.json`) → private Telegram chat
-- Tests: `tests/` — pytest suite (601 tests: 544 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
-- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 95 files) and must stay so.
+- Tests: `tests/` — pytest suite (610 tests: 553 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
+- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 96 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
   NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in `fetch_*` — drift from a newer local `requests`, not a code change.
 

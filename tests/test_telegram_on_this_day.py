@@ -218,7 +218,7 @@ def test_claude_cli_story_and_fallback(monkeypatch):
         seen.update(cmd=cmd, **kw)
         return SimpleNamespace(returncode=0, stdout="  A calm Minsk day.\n", stderr="")
 
-    monkeypatch.setattr(otd.shutil, "which", lambda name: "/usr/bin/claude")
+    monkeypatch.setattr(otd.llm_ladder.shutil, "which", lambda name: "/usr/bin/claude")
     assert otd.claude_cli_story(facts, TODAY, "English", "sonnet", run=ok) == "A calm Minsk day."
     assert seen["cmd"][:2] == ["/usr/bin/claude", "-p"] and seen["cmd"][-2:] == ["--model", "sonnet"]
     assert "Minsk" in seen["input"]                        # prompt goes over stdin
@@ -228,7 +228,7 @@ def test_claude_cli_story_and_fallback(monkeypatch):
     assert otd.claude_cli_story(facts, TODAY, "English", run=boom) is None
     failed = lambda cmd, **kw: SimpleNamespace(returncode=1, stdout="", stderr="auth")  # noqa: E731
     assert otd.claude_cli_story(facts, TODAY, "English", run=failed) is None
-    monkeypatch.setattr(otd.shutil, "which", lambda name: None)
+    monkeypatch.setattr(otd.llm_ladder.shutil, "which", lambda name: None)
     assert otd.claude_cli_story(facts, TODAY, "English", run=ok) is None
 
 

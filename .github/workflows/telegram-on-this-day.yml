@@ -65,6 +65,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_OTD_CHAT_ID || secrets.TELEGRAM_CHAT_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Model ladder (scripts/llm_ladder.py): Sonnet → Opus by default; a repo
+          # variable with a comma list overrides it.
+          ANTHROPIC_MODELS_STORY: ${{ vars.ANTHROPIC_MODELS_STORY }}
           OTD_DATE: ${{ inputs.date }}
           OTD_DRY: ${{ inputs.dry_run }}
           OTD_REGEN: ${{ inputs.regenerate }}
