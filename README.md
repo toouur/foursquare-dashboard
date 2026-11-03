@@ -19,7 +19,7 @@ A self-updating personal analytics platform for **72,000+ Foursquare/Swarm check
 
 ## Highlights
 
-- **72,058 check-ins · 34,297 unique places · 64 countries · 615,541 km** (15× around Earth) of personal location history, visualised across ~100 generated pages (15 core pages + 20 year albums + 64 country pages).
+- **72,087 check-ins · 34,299 unique places · 64 countries · 615,606 km** (15× around Earth) of personal location history, visualised across ~100 generated pages (15 core pages + 20 year albums + 64 country pages).
 - **Live full-text search** over venues, cities, trips, tips, and companions — queried on demand from a **Cloudflare D1** (SQLite) database with FTS5 indexes, no multi-MB static index.
 - **Bidirectional infinite-scroll feed** over all 69k check-ins: cursor-based D1 pagination, on-demand gap fill, and contiguous-array virtual scroll.
 - **Automatic trip detection** — an 8-stage heuristic reconstructs 173 trips from raw check-in sequences (transport-hub departure/arrival scans, home-return extensions, auto-generated names), against an **era-aware home city** that moves with the years.
