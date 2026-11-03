@@ -1,6 +1,6 @@
 """Every count rule in scripts/sync_doc_counts.py must still match its doc.
 
-A reworded sentence in README.md / CLAUDE.md / solution.html would silently
+A reworded sentence in README.md / CLAUDE.md / solution.html / qa/ would silently
 drop out of the monthly sync (doc-counts.yml) and start drifting again; this
 catches it on the push that rewords it instead of a month later.
 """
