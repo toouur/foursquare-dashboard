@@ -30,9 +30,10 @@ list, not the other way around.
 ## 2. Test pyramid — 600 tests
 
 ```
-       35   Playwright E2E + axe-core accessibility (live, weekly) ← slowest, broadest
+        8   axe-core a11y audits      (live, weekly)      ← slowest, broadest
+       27   Playwright E2E smoke      (live, weekly)
        22   API contract tests        (live, weekly)
-      543   offline unit/parity tests (every push, ~2 s)   ← fastest, most numerous
+      543   offline unit/parity tests (every push, seconds) ← fastest, most numerous
 ```
 
 The split is enforced with pytest markers (`live`, `e2e`) registered in `tests/conftest.py`.
@@ -71,7 +72,7 @@ functions run on Cloudflare's runtime with a real D1 binding — mocking that lo
 test the mock. The `_v=` cache-version discipline these tests protect exists because of
 [BUG-002](bug-reports/BUG-002-feed-edge-cache-shape.md).
 
-### Ring 3 — E2E + a11y (35 combined Playwright and axe-core tests, `-m live`)
+### Ring 3 — E2E + a11y (27 Playwright + 8 axe-core, `-m live`)
 
 Playwright smoke: each key page loads, renders its main content, has no console errors;
 search round-trips a real query; feed virtual-scroll loads more items. axe-core: 8 pages
@@ -117,7 +118,7 @@ Honest tradeoffs, reviewed rather than forgotten:
   dev (`wrangler pages dev`) covers function changes pre-merge. Cost of a staging Pages
   project + second D1: real; marginal risk reduction: small. Revisit if write endpoints
   ever appear.
-- **No test-management tool (TestRail etc.).** One person, 219 automated tests as the
+- **No test-management tool (TestRail etc.).** One person, 600 automated tests as the
   system of record, exploratory charter in [exploratory-checklist.md](exploratory-checklist.md).
   A TCM layer would be pure ceremony here. The bug-report discipline is kept instead —
   see [bug-reports/](bug-reports/).

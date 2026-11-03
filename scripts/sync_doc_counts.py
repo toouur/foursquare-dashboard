@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Keep the test / source-file counts quoted in README.md, CLAUDE.md and
-solution.html in step with the repo.
+"""Keep the test / source-file counts quoted in README.md, CLAUDE.md,
+solution.html and the qa/ docs in step with the repo.
 
 The three documents describe the same suite in different words, and every
 hand edit used to update one or two of them (README said 413 tests while
 CLAUDE.md still said 404). This script measures the real numbers once and
-rewrites every known phrase in all three:
+rewrites every known phrase in all of them:
 
   total      every collected test
   offline    tests NOT marked `live` (the CI unit gate)
@@ -67,6 +67,25 @@ RULES: list[tuple[str, str, str]] = [
     ("solution.html", r"<strong>(?P<n>\d+)-test axe-core", "a11y"),
     ("solution.html", r"clean over all (?P<n>\d+) script files", "files"),
     ("solution.html", r"\b(?P<n>\d+) tests · unit", "total"),
+    # qa/
+    ("qa/README.md", r"\((?P<n>\d+) pytest tests\)", "total"),
+    ("qa/README.md", r"test pyramid \((?P<n>\d+) offline", "offline"),
+    ("qa/README.md", r"offline unit/parity / (?P<n>\d+) API contract", "live_api"),
+    ("qa/README.md", r"API contract / (?P<n>\d+) Playwright", "e2e_smoke"),
+    ("qa/README.md", r"Playwright E2E / (?P<n>\d+) axe-core", "a11y"),
+    ("qa/test-strategy.md", r"\| (?P<n>\d+) offline unit/parity tests;", "offline"),
+    ("qa/test-strategy.md", r"\| (?P<n>\d+) live API contract tests weekly", "live_api"),
+    ("qa/test-strategy.md", r"Test pyramid — (?P<n>\d+) tests", "total"),
+    ("qa/test-strategy.md", r"\n +(?P<n>\d+) +axe-core a11y audits", "a11y"),
+    ("qa/test-strategy.md", r"\n +(?P<n>\d+) +Playwright E2E smoke", "e2e_smoke"),
+    ("qa/test-strategy.md", r"\n +(?P<n>\d+) +API contract tests", "live_api"),
+    ("qa/test-strategy.md", r"\n +(?P<n>\d+) +offline unit/parity tests", "offline"),
+    ("qa/test-strategy.md", r"offline unit/parity tests \((?P<n>\d+), run", "offline"),
+    ("qa/test-strategy.md", r"API contract tests \((?P<n>\d+), `-m live`", "live_api"),
+    ("qa/test-strategy.md", r"E2E \+ a11y \((?P<n>\d+) Playwright", "e2e_smoke"),
+    ("qa/test-strategy.md", r"Playwright \+ (?P<n>\d+) axe-core", "a11y"),
+    ("qa/test-strategy.md", r"axe-core: (?P<n>\d+) pages", "a11y"),
+    ("qa/test-strategy.md", r"One person, (?P<n>\d+) automated tests", "total"),
 ]
 
 
