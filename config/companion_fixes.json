@@ -15,5 +15,41 @@
 
   "6aec7dfcb786ec244124c645": { "remove_ids": "494921984", "shout": "", "_note": "Дмитрий Брыксенков tagged by mistake (IPTEH, 2026-11-05); Swarm will not untag" },
 
-  "6a9ddbe878476e1be289e39e": { "remove_ids": "1416805649", "_note": "Aleea de pe Bulevardul Mircea cel Bătrân, 2026-09-06: Ghennadi Rips checked in there separately (overlap), but was not with me" }
+  "6a9ddbe878476e1be289e39e": { "remove_ids": "1416805649", "_note": "Aleea de pe Bulevardul Mircea cel Bătrân, 2026-09-06: Ghennadi Rips checked in there separately (overlap), but was not with me" },
+
+  "62f717f923f80f1105a377de": {"overlaps_name": "Marina Gandacova, NIkita Boyko", "overlaps_id": "1381273471, 50740862", "_note": "Chișinău Railway Station (Gara Feroviară Chișinău), 2022-08-13: created by Marina Gandacova; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "63c1c82c3220a9593122a0d3": {"overlaps_name": "Александр Брыксенков, NIkita Boyko", "overlaps_id": "1392149517, 50740862", "_note": "Marlène, 2023-01-13: created by Александр Брыксенков; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "63c1d4dca0f8a86b94220928": {"overlaps_name": "NIkita Boyko, Александр Брыксенков", "overlaps_id": "50740862, 1392149517", "_note": "McDonald's, 2023-01-13: created by Александр Брыксенков; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "63c1d9e25d74e142ab400af5": {"overlaps_name": "NIkita Boyko, Александр Брыксенков", "overlaps_id": "50740862, 1392149517", "_note": "Metropolitan Cathedral of Christ's Nativity (Catedrala Mitropolitană „Nașterea Domnului”), 2023-01-13: created by Александр Брыксенков; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "644cecd7cc0f58298fa5972a": {"overlaps_name": "NIkita Boyko", "overlaps_id": "50740862", "_note": "Шаверма на Октябрьской, 2023-04-29: created by 塔妮雅; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "644e468811f1c86abe5219e4": {"overlaps_name": "NIkita Boyko", "overlaps_id": "50740862", "_note": "Рынок и общепит Шук, 2023-04-30: created by 塔妮雅; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "64556c70d59ae3188908b3cc": {"overlaps_name": "NIkita Boyko", "overlaps_id": "50740862", "_note": "Автобус №57, 2023-05-05: created by 塔妮雅; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "64557c6382e8f33906e538d8": {"overlaps_name": "NIkita Boyko", "overlaps_id": "50740862", "_note": "The Дым, 2023-05-05: created by 塔妮雅; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "64565042d59ae31889f6e70e": {"overlaps_name": "NIkita Boyko", "overlaps_id": "50740862", "_note": "Усыпальница Святополк–Мирских, 2023-05-06: created by 塔妮雅; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "6457b280c8bf083804c0c6eb": {"overlaps_name": "NIkita Boyko", "overlaps_id": "50740862", "_note": "Noodles, 2023-05-07: created by 塔妮雅; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "6547bf570709605ea045e5e3": {"overlaps_name": "Evgeniya L., NIkita Boyko", "overlaps_id": "587159938, 50740862", "_note": "МонеМане, 2023-11-05: created by Evgeniya L.; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "6547d312cd1dce5d537e2e7c": {"overlaps_name": "NIkita Boyko, Evgeniya L.", "overlaps_id": "50740862, 587159938", "_note": "Gin & it, 2023-11-05: created by Evgeniya L.; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "6547e00e821d7d783d2e496f": {"overlaps_name": "Evgeniya L., NIkita Boyko", "overlaps_id": "587159938, 50740862", "_note": "Пицца Темпо, 2023-11-05: created by Evgeniya L.; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "6547f3a87103cb5fd70b33b0": {"overlaps_name": "NIkita Boyko, Evgeniya L.", "overlaps_id": "50740862, 587159938", "_note": "SPIN Bar by Carousel, 2023-11-05: created by Evgeniya L.; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "66cb6ee0c9f8e22e052257e4": {"overlaps_name": "Evgeniya L., NIkita Boyko", "overlaps_id": "587159938, 50740862", "_note": "Stephen the Great Monument (Monumentul lui Ștefan cel Mare), 2024-08-25: created by Evgeniya L.; Swarm overlaps add NIkita Boyko (never fetched for this created-by check-in)"},
+
+  "68fe58fe87de6a653326a2d5": {"overlaps_name": "Evgeniya L., Darya", "overlaps_id": "587159938, 1413067054", "_note": "Фудмолл Конко́рс, 2025-10-26: created by Evgeniya L.; Swarm overlaps add Darya (never fetched for this created-by check-in)"},
+
+  "696d11c54d050d301db713a9": {"overlaps_name": "NIkita Boyko, Darya", "overlaps_id": "50740862, 1413067054", "_note": "Особняк Залы Зодчих, 2026-01-18: created by NIkita Boyko; Swarm overlaps add Darya (never fetched for this created-by check-in)"},
+
+  "698ba2a0605a8e58f23ad34c": {"overlaps_name": "Darya", "overlaps_id": "1413067054", "_note": "Лермонтова 43, 2026-02-10: created by RabireD; Swarm overlaps add Darya (never fetched for this created-by check-in)"}
 }
