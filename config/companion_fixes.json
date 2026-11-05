@@ -15,5 +15,5 @@
 
   "6aec7dfcb786ec244124c645": { "remove_ids": "494921984", "shout": "", "_note": "Дмитрий Брыксенков tagged by mistake (IPTEH, 2026-11-05); Swarm will not untag" },
 
-  "6a9ddbe878476e1be289e39e": { "with_name": "Ghennadi Rips", "with_id": "1416805649", "_note": "Aleea de pe Bulevardul Mircea cel Bătrân, 2026-09-06: together (overlap) but not tagged" }
+  "6a9ddbe878476e1be289e39e": { "remove_ids": "1416805649", "_note": "Aleea de pe Bulevardul Mircea cel Bătrân, 2026-09-06: Ghennadi Rips checked in there separately (overlap), but was not with me" }
 }
