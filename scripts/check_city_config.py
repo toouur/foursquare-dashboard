@@ -113,12 +113,14 @@ def check_companion_fixes():
         if not isinstance(v, dict):
             errors.append(f'companion_fixes.json: value for {k!r} must be an object')
             continue
-        if not any(v.get(f) for f in fields):
+        if not any(v.get(f) for f in fields) and 'shout' not in v:
             errors.append(f'companion_fixes.json: {k!r} sets none of {fields}')
         for fld in fields:
             val = v.get(fld)
             if val is not None and (not isinstance(val, str) or not val or val != val.strip()):
                 errors.append(f'companion_fixes.json: {k!r} {fld} must be a non-empty trimmed string')
+        if 'shout' in v and not isinstance(v['shout'], str):
+            errors.append(f'companion_fixes.json: {k!r} shout must be a string ("" hides the shout)')
         rm = v.get('remove_ids')
         if isinstance(rm, str) and rm and not re.fullmatch(r'\d+(,\d+)*', rm):
             errors.append(f'companion_fixes.json: {k!r} remove_ids must be comma-separated numeric user ids')

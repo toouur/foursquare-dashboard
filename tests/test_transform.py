@@ -151,6 +151,14 @@ class TestCompanionFixes:
         apply_transforms([bad], mappings(companion_fixes={self.CID: {"remove_ids": "494921984"}}))
         assert (bad["with_name"], bad["with_id"]) == ("A,B", "494921984")
 
+    def test_shout_override_can_hide_the_text(self):
+        row = make_row(707, checkin_id=self.CID, shout="with Дмитрий")
+        apply_transforms([row], mappings(companion_fixes={self.CID: {"shout": ""}}))
+        assert row["shout"] == ""
+        kept = make_row(708, checkin_id=self.CID, shout="with Дмитрий")
+        apply_transforms([kept], mappings(companion_fixes={self.CID: {"remove_ids": "1"}}))
+        assert kept["shout"] == "with Дмитрий"                               # no shout key: untouched
+
     def test_other_rows_untouched(self):
         row = make_row(703, checkin_id="d" * 24, with_name="")
         m = mappings(companion_fixes={self.CID: {"with_name": "Ghennadi Rips"}})
@@ -174,7 +182,7 @@ class TestCompanionFixes:
         for k, v in entries.items():
             assert len(k) == 24 and all(c in "0123456789abcdef" for c in k)
             assert any(v.get(f) for f in
-                       ("with_name", "with_id", "overlaps_name", "overlaps_id", "remove_ids"))
+                       ("with_name", "with_id", "overlaps_name", "overlaps_id", "remove_ids")) or "shout" in v
 
 
 class TestApostropheNormalisation:

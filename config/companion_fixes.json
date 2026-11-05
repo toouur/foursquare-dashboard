@@ -1,5 +1,5 @@
 {
-  "_comment": "Per-checkin_id companion overrides, applied in transform.apply_transforms() and reconciled into D1 by sync_to_d1.py on every sync. Use when Foursquare shows a companion that our snapshot missed - typically a `with` tag added to a check-in AFTER we first fetched it, which no re-fetch path ever recovers (see CLAUDE.md, 'Late companion tags'). Keys are 24-char hex check-in ids; recognised fields are with_name, with_id, overlaps_name, overlaps_id, plus remove_ids (comma-separated user ids to DROP from with/overlaps, for a friend tagged by mistake). Comma-separate for several people, keeping name and id order aligned. Keys starting with _ are ignored.",
+  "_comment": "Per-checkin_id companion overrides, applied in transform.apply_transforms() and reconciled into D1 by sync_to_d1.py on every sync. Use when Foursquare shows a companion that our snapshot missed - typically a `with` tag added to a check-in AFTER we first fetched it, which no re-fetch path ever recovers (see CLAUDE.md, 'Late companion tags'). Keys are 24-char hex check-in ids; recognised fields are with_name, with_id, overlaps_name, overlaps_id, plus remove_ids (comma-separated user ids to DROP from with/overlaps, for a friend tagged by mistake) and shout (replaces the shout text whenever present; an empty string hides it). Comma-separate for several people, keeping name and id order aligned. Keys starting with _ are ignored.",
 
   "6a78cbfb0ed66f3afd084001": {
     "with_name": "Ghennadi Rips",
@@ -13,5 +13,5 @@
     "_note": "Moldexpo, 2013-07-11 ('Типо Земфира.'). The Swarm app shows 'with Anna' and the score says 'first check-in with Anna', but the API returns no `with` field for this check-in (she is not a Swarm friend). Profile app.foursquare.com/share/profile/21870766 (@reinannx)."
   },
 
-  "6aec7dfcb786ec244124c645": { "remove_ids": "494921984", "_note": "Дмитрий Брыксенков tagged by mistake (IPTEH, 2026-11-05); Swarm will not untag" }
+  "6aec7dfcb786ec244124c645": { "remove_ids": "494921984", "shout": "", "_note": "Дмитрий Брыксенков tagged by mistake (IPTEH, 2026-11-05); Swarm will not untag" }
 }

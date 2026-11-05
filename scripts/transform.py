@@ -158,6 +158,10 @@ COMPANION_FIX_FIELDS = ("with_name", "with_id", "overlaps_name", "overlaps_id")
 #: check-in's with_* and overlaps_* lists — a friend tagged by mistake that Swarm
 #: will not let you untag. Applied after the overrides above.
 COMPANION_REMOVE_FIELD = "remove_ids"
+#: companion_fixes.json key that REPLACES the check-in's shout text. Unlike the
+#: fields above it is applied whenever present, even empty: "" hides a shout
+#: (e.g. the "with X" text of a mistaken tag).
+COMPANION_SHOUT_FIELD = "shout"
 
 
 def remove_companions(row: dict, ids: str) -> None:
@@ -263,6 +267,8 @@ def apply_transforms(
                     row[_f] = cfix[_f]
             if cfix.get(COMPANION_REMOVE_FIELD):
                 remove_companions(row, cfix[COMPANION_REMOVE_FIELD])
+            if isinstance(cfix.get(COMPANION_SHOUT_FIELD), str):
+                row["shout"] = cfix[COMPANION_SHOUT_FIELD]
 
         # Per-venue category (venue_category_fixes.json): Foursquare's own
         # category is sometimes the wrong kind of place (Суперпрод, a corner

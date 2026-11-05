@@ -224,8 +224,9 @@ with nothing to preserve across a re-fetch.
   (comma-separated) from the row's `with_*` and `overlaps_*` lists after the
   overrides, keeping names and ids aligned (`transform.remove_companions`; a list
   whose name/id counts differ is left alone; an emptied `overlaps_id` keeps the
-  `-` sentinel). The same D1 reconcile pushes the result. The shout text is not
-  touched — it is the API's own text.
+  `-` sentinel). `"shout": ""` hides the shout (any string replaces it; applied
+  whenever the key is present, even empty — e.g. the "with X" text of a mistaken
+  tag). The same D1 reconcile pushes both (it compares `shout` too).
 - Applied **before** the `venue_fixes` branch in the row loop — that branch
   `continue`s once it sets a city, which would otherwise skip the companion fix on
   any venue carrying a city override.

@@ -764,8 +764,9 @@ def main() -> None:
         # Column positions in SQL_CHECKINS_NEW. Deriving the list from
         # transform.COMPANION_FIX_FIELDS means a field added there without a
         # position here fails loudly (KeyError) instead of silently not syncing.
-        _CF_POS = {"with_name": 16, "with_id": 17, "overlaps_name": 20, "overlaps_id": 21}
-        cf_cols = list(_transform.COMPANION_FIX_FIELDS)
+        # shout too: an entry may replace or hide it (transform.COMPANION_SHOUT_FIELD)
+        _CF_POS = {"with_name": 16, "with_id": 17, "overlaps_name": 20, "overlaps_id": 21, "shout": 13}
+        cf_cols = list(_transform.COMPANION_FIX_FIELDS) + [_transform.COMPANION_SHOUT_FIELD]
         cf_idx  = [_CF_POS[c] for c in cf_cols]
         csv_cf = {row[0]: tuple(row[i] for i in cf_idx)
                   for row in all_checkin_rows if row[0] in cfix_ids}
