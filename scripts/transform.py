@@ -154,6 +154,30 @@ def build_blank_city_resolver(review_csv_path: str | Path):
 #: metrics.collect_companions() reads them. sync_to_d1.py imports this so the
 #: D1 reconcile patches exactly the same set.
 COMPANION_FIX_FIELDS = ("with_name", "with_id", "overlaps_name", "overlaps_id")
+#: companion_fixes.json key that REMOVES people (comma-separated user ids) from a
+#: check-in's with_* and overlaps_* lists — a friend tagged by mistake that Swarm
+#: will not let you untag. Applied after the overrides above.
+COMPANION_REMOVE_FIELD = "remove_ids"
+
+
+def remove_companions(row: dict, ids: str) -> None:
+    """Drop the users in `ids` from row's with_name/with_id and overlaps_name/
+    overlaps_id, keeping the name↔id pairs aligned. A list whose names and ids do
+    not line up is left alone (removing by position would hit the wrong person).
+    An emptied overlaps_id keeps the "-" sentinel ("checked, nobody")."""
+    drop = {i.strip() for i in (ids or "").split(",") if i.strip()}
+    if not drop:
+        return
+    for name_f, id_f in (("with_name", "with_id"), ("overlaps_name", "overlaps_id")):
+        id_list = [i.strip() for i in (row.get(id_f) or "").split(",") if i.strip() and i.strip() != "-"]
+        if not drop.intersection(id_list):
+            continue
+        names = [n.strip() for n in (row.get(name_f) or "").replace(" ,", ",").split(",") if n.strip()]
+        if len(names) != len(id_list):
+            continue
+        kept = [(n, i) for n, i in zip(names, id_list) if i not in drop]
+        row[name_f] = ", ".join(n for n, _ in kept)
+        row[id_f] = ", ".join(i for _, i in kept) or ("-" if id_f == "overlaps_id" else "")
 
 
 def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
@@ -237,6 +261,8 @@ def apply_transforms(
             for _f in COMPANION_FIX_FIELDS:
                 if cfix.get(_f):
                     row[_f] = cfix[_f]
+            if cfix.get(COMPANION_REMOVE_FIELD):
+                remove_companions(row, cfix[COMPANION_REMOVE_FIELD])
 
         # Per-venue category (venue_category_fixes.json): Foursquare's own
         # category is sometimes the wrong kind of place (Суперпрод, a corner

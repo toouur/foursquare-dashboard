@@ -103,7 +103,7 @@ def check_companion_fixes():
         return
     raw = json.loads(COMPANION_FIXES.read_text(encoding='utf-8'))
     hex_re = re.compile(r'^[0-9a-f]{24}$')
-    fields = ('with_name', 'with_id', 'overlaps_name', 'overlaps_id')
+    fields = ('with_name', 'with_id', 'overlaps_name', 'overlaps_id', 'remove_ids')
     for k, v in raw.items():
         if k.startswith('_'):
             continue
@@ -119,6 +119,9 @@ def check_companion_fixes():
             val = v.get(fld)
             if val is not None and (not isinstance(val, str) or not val or val != val.strip()):
                 errors.append(f'companion_fixes.json: {k!r} {fld} must be a non-empty trimmed string')
+        rm = v.get('remove_ids')
+        if isinstance(rm, str) and rm and not re.fullmatch(r'\d+(,\d+)*', rm):
+            errors.append(f'companion_fixes.json: {k!r} remove_ids must be comma-separated numeric user ids')
         names, ids = v.get('with_name', ''), v.get('with_id', '')
         if isinstance(names, str) and isinstance(ids, str) and names and ids:
             if len(names.split(',')) != len(ids.split(',')):

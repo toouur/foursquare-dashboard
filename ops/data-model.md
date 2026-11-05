@@ -220,6 +220,12 @@ with nothing to preserve across a re-fetch.
   (`transform.COMPANION_FIX_FIELDS`). Comma-separate for several people, keeping
   name and id order aligned. Only **non-empty** values override, so a partial entry
   can't blank a real value. Keys starting with `_` are ignored (comments).
+- **Removing a mistaken tag:** `"remove_ids": "494921984"` drops those user ids
+  (comma-separated) from the row's `with_*` and `overlaps_*` lists after the
+  overrides, keeping names and ids aligned (`transform.remove_companions`; a list
+  whose name/id counts differ is left alone; an emptied `overlaps_id` keeps the
+  `-` sentinel). The same D1 reconcile pushes the result. The shout text is not
+  touched — it is the API's own text.
 - Applied **before** the `venue_fixes` branch in the row loop — that branch
   `continue`s once it sets a city, which would otherwise skip the companion fix on
   any venue carrying a city override.

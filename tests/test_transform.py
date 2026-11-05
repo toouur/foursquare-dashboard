@@ -136,6 +136,21 @@ class TestCompanionFixes:
         assert row["overlaps_name"] == "Ghennadi Rips"
         assert row["overlaps_id"] == "1416805649"
 
+    def test_remove_ids_drops_a_mistaken_tag(self):
+        row = make_row(704, checkin_id=self.CID, with_name="Дмитрий Брыксенков,Joanna", with_id="494921984,77",
+                       overlaps_name="Дмитрий Брыксенков", overlaps_id="494921984")
+        apply_transforms([row], mappings(companion_fixes={self.CID: {"remove_ids": "494921984"}}))
+        assert (row["with_name"], row["with_id"]) == ("Joanna", "77")   # one left: no separator
+        assert (row["overlaps_name"], row["overlaps_id"]) == ("", "-")       # "checked, nobody" sentinel
+
+    def test_remove_ids_only_tag_leaves_row_alone_when_misaligned(self):
+        row = make_row(705, checkin_id=self.CID, with_name="Дмитрий", with_id="494921984")
+        apply_transforms([row], mappings(companion_fixes={self.CID: {"remove_ids": "494921984"}}))
+        assert (row["with_name"], row["with_id"]) == ("", "")
+        bad = make_row(706, checkin_id=self.CID, with_name="A,B", with_id="494921984")   # counts differ
+        apply_transforms([bad], mappings(companion_fixes={self.CID: {"remove_ids": "494921984"}}))
+        assert (bad["with_name"], bad["with_id"]) == ("A,B", "494921984")
+
     def test_other_rows_untouched(self):
         row = make_row(703, checkin_id="d" * 24, with_name="")
         m = mappings(companion_fixes={self.CID: {"with_name": "Ghennadi Rips"}})
@@ -159,7 +174,7 @@ class TestCompanionFixes:
         for k, v in entries.items():
             assert len(k) == 24 and all(c in "0123456789abcdef" for c in k)
             assert any(v.get(f) for f in
-                       ("with_name", "with_id", "overlaps_name", "overlaps_id"))
+                       ("with_name", "with_id", "overlaps_name", "overlaps_id", "remove_ids"))
 
 
 class TestApostropheNormalisation:
