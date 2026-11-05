@@ -548,3 +548,26 @@ def test_non_census_sync_does_not_recount_untouched_tables(env):
     _run(env, csv_path, "--trips", str(trips), "--trips-changed", "true")
     assert not [t for t in seen if t in untouched + ("trips",)], (
         f"nothing written -> nothing re-counted, got {seen}")
+
+
+def test_fix_overlaps_ids_reconciles_old_checkins_by_id(env):
+    """fix-overlaps.yml re-fetches overlaps of years-old check-ins (e.g. ones a
+    friend created, whose companions live only in `overlaps`); D1 is append-only,
+    so --fix-overlaps-ids must UPDATE exactly those rows whatever their age."""
+    old, other = "6547f3a87103cb5fd70b33b0", "6547f3a87103cb5fd70b33b1"
+    rows = [_crow(old, 1000, "vA"), _crow(other, 1100, "vA")]
+    csv_path = env.tmp_path / "checkins.csv"
+    _write_csv(csv_path, rows)
+    _run(env, csv_path)
+    for r in rows:
+        r.update(overlaps_name="NIkita Boyko", overlaps_id="50740862")
+    _write_csv(csv_path, rows)
+
+    def ov(cid):
+        return env.fake.conn.execute("SELECT overlaps_name, overlaps_id FROM checkins WHERE id=?", (cid,)).fetchone()
+
+    _run(env, csv_path, "--fix-overlaps-hours", "1")          # ts 1000 is far outside any window
+    assert ov(old)["overlaps_name"] in ("", None)
+    _run(env, csv_path, "--fix-overlaps-ids", f"https://swarmapp.com/user/1/checkin/{old}?s=x")
+    assert (ov(old)["overlaps_name"], ov(old)["overlaps_id"]) == ("NIkita Boyko", "50740862")
+    assert ov(other)["overlaps_name"] in ("", None)              # not named: untouched

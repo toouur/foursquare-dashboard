@@ -39,6 +39,7 @@ import csv
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 from collections import defaultdict
@@ -553,6 +554,10 @@ def main() -> None:
     ap.add_argument("--fix-city-country", dest="fix_city_country", action="store_true",
                     help="UPDATE all D1 checkin rows where transform changed city or country "
                          "(fixes blank cities synced before transform pipeline was applied)")
+    ap.add_argument("--fix-overlaps-ids", dest="fix_overlaps_ids", default="",
+                    help="Same overlaps_* reconcile as --fix-overlaps-hours, but for these check-in "
+                         "ids (comma/space separated, Swarm URLs fine) whatever their age — for a "
+                         "historic re-fetch (fix-overlaps.yml) of old check-ins")
     ap.add_argument("--fix-overlaps-hours", dest="fix_overlaps_hours", type=int, default=0,
                     help="UPDATE overlaps_name/overlaps_id in D1 for check-ins within the last N "
                          "hours whose companions changed since first sync. Check-ins are otherwise "
@@ -694,7 +699,8 @@ def main() -> None:
             sent += len(chunk)
         print(f"\r  fix-city-country: {sent}/{len(stmts)} done    ")
 
-    if args.fix_overlaps_hours > 0:
+    fix_ov_ids = set(re.findall(r"[0-9a-f]{24}", (args.fix_overlaps_ids or "").lower()))
+    if args.fix_overlaps_hours > 0 or fix_ov_ids:
         # Targeted UPDATE of overlaps_* for rows enriched AFTER their first sync.
         # Check-ins insert as INSERT OR IGNORE (append-only), so a friend-overlap
         # the daily recheck adds to an already-synced check-in never reaches D1 via
@@ -702,10 +708,13 @@ def main() -> None:
         # late companion. Compare the CSV's overlaps_name/id against D1 for rows
         # inside the recheck window and UPDATE any that drifted. Brand-new rows in
         # the window aren't in D1 yet → skipped here, carried by the insert below.
-        ov_cutoff = int(time.time()) - args.fix_overlaps_hours * 3600
+        # --fix-overlaps-ids adds named check-ins of any age to the window.
+        ov_cutoff = (int(time.time()) - args.fix_overlaps_hours * 3600
+                     if args.fix_overlaps_hours > 0 else None)
         # row layout (SQL_CHECKINS_NEW): id=0, date=1, overlaps_name=20, overlaps_id=21
         csv_ov = {row[0]: (row[20], row[21]) for row in all_checkin_rows
-                  if row[0] and _int(row[1]) >= ov_cutoff}
+                  if row[0] and ((ov_cutoff is not None and _int(row[1]) >= ov_cutoff)
+                                 or row[0] in fix_ov_ids)}
         d1_ov: dict = {}
         ov_ids = list(csv_ov.keys())
         for i in range(0, len(ov_ids), D1_BIND_CHUNK):

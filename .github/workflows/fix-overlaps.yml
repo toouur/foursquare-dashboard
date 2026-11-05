@@ -10,7 +10,13 @@
 #   checkin_ids  — comma- or newline-separated check-in IDs or full Swarm URLs
 #   recent_count — re-check the N most-recent check-ins regardless of cache (default 0)
 #
-# After updating checkins.csv, the workflow rebuilds the dashboard and syncs D1.
+# After updating checkins.csv, the workflow pushes the changed overlaps to D1
+# (check-ins there are append-only, so it reconciles exactly the re-fetched ids,
+# whatever their age) and then dispatches "Update check-in dashboard", which
+# rebuilds and deploys the site (Pages direct upload; nothing is committed here).
+#
+# Foursquare allows roughly 500 API calls an hour per token, and the hourly
+# update spends some too: keep one run to ~250 ids and space batches an hour apart.
 #
 # Required secrets:
 #   FOURSQUARE_TOKEN  — Foursquare OAuth token
@@ -34,6 +40,7 @@ on:
 
 permissions:
   contents: write
+  actions: write     # dispatch the deploy workflow at the end
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -105,31 +112,17 @@ jobs:
             echo "CHANGED=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "fix(overlaps): re-fetch overlapping friends"
-            git push
+            # Other workflows push the same data-repo ref — rebase-and-retry (BUG-014).
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:main && break
+              [ "$i" = 5 ] && { echo "push failed after 5 attempts"; exit 1; }
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+            done
             echo "CHANGED=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # ── 6. Rebuild dashboard ─────────────────────────────────────────────
-      - name: Rebuild dashboard
-        if: steps.commit_data.outputs.CHANGED == 'true'
-        env:
-          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
-        run: |
-          PIX_URL_ARG=""
-          if [ -n "$R2_PUBLIC_URL" ]; then PIX_URL_ARG="--pix-url ${R2_PUBLIC_URL}"; fi
-          PHOTOS_ARG=""
-          if [ -f private-data/photos.json ]; then PHOTOS_ARG="--photos private-data/photos.json"; fi
-          RATINGS_ARG=""
-          if [ -f private-data/venueRatings.json ]; then RATINGS_ARG="--ratings private-data/venueRatings.json"; fi
-          LISTS_ARG=""
-          if [ -f private-data/lists.json ]; then LISTS_ARG="--lists private-data/lists.json"; fi
-          python scripts/build.py \
-            --input private-data/checkins.csv \
-            --config-dir config \
-            --output-dir . \
-            $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
-
-      # ── 7. Sync to D1 ───────────────────────────────────────────────────
+      # ── 6. Sync to D1 ───────────────────────────────────────────────────
       - name: Sync to D1
         if: steps.commit_data.outputs.CHANGED == 'true'
         env:
@@ -140,24 +133,23 @@ jobs:
           if [ -z "$CF_D1_TOKEN" ]; then
             echo "CF_D1_TOKEN not set — skipping D1 sync."
           else
+            # --fix-overlaps-ids: the re-fetched check-ins can be years old, past any
+            # hours window; --fix-overlaps-hours covers the recent_count input.
+            HOURS="${{ github.event.inputs.recent_count }}"
             python scripts/sync_to_d1.py \
               --csv   private-data/checkins.csv \
               --tips  private-data/tips.json \
-              --trips trips_meta.json
+              --config-dir config \
+              --fix-overlaps-ids "${{ github.event.inputs.checkin_ids }}" \
+              --fix-overlaps-hours "${HOURS:-0}"
           fi
 
-      # ── 8. Commit rebuilt HTML → Cloudflare Pages auto-deploys ──────────
-      - name: Commit rebuilt HTML
+      # ── 7. Rebuild + deploy through the main workflow ───────────────────
+      # The site is deployed by direct upload (generated HTML is gitignored), so
+      # hand over to "Update check-in dashboard": a manual dispatch there always
+      # rebuilds from the data repo, syncs D1 and deploys.
+      - name: Dispatch the dashboard deploy
         if: steps.commit_data.outputs.CHANGED == 'true'
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add companions.html index.html
-          [ -f private-data/venueRatings.json ] && git add ratings.html || true
-          if git diff --cached --quiet; then
-            echo "Nothing to commit."
-          else
-            TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-            git commit -m "fix(overlaps): rebuild after overlap re-fetch [${TIMESTAMP}]"
-            git push
-          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run update-dashboard.yml --ref main -R "${{ github.repository }}"
