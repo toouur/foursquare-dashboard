@@ -117,7 +117,9 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None,
     from metrics.venues import _Localiser, _f
     local = _Localiser()
     overrides = load_companion_countries(config_dir)
-    for name, checkins in comp_sorted[:30]:
+    # Everyone, not a top 30: once the sweeps found more people, a one-check-in
+    # companion (Anna Grosul) silently fell off the bottom of the list.
+    for name, checkins in comp_sorted:
         ci = []
         for r in sorted(checkins, key=lambda x: int(x.get('date',0) or 0), reverse=True):
             ts = int(r.get('date',0) or 0)
