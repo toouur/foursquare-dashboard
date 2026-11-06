@@ -105,6 +105,8 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None,
     for r in rows:
         seen_in_row = set()
         for name in [n.strip() for n in r.get('with_name','').split(',') if n.strip()]:
+            if name in seen_in_row:     # one person tagged twice (two accounts) counts once
+                continue
             comp_rows[name].append(r)
             seen_in_row.add(name)
         cb_name = r.get('created_by_name', '').strip()
