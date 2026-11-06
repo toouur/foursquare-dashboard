@@ -463,6 +463,22 @@ def build_companion_rows(rows: list) -> list:
             for k, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
 
 
+def surplus_copies(source_rows: list, d1_counts: dict) -> dict:
+    """{check-in id: copies D1 holds beyond what the source lists}.
+
+    Only ids the source still lists count: an id gone from the CSV entirely is a
+    deletion and stays delete_checkin.py's job. Two cases produce a surplus: the
+    double-insert race in dedupe_against_d1, and a CSV row that used to repeat an
+    id and now carries its own (a same-second double check-in whose second id the
+    fetch had lost).
+    """
+    src: dict = {}
+    for r in source_rows:
+        src[r[0]] = src.get(r[0], 0) + 1
+    return {cid: n - src[cid] for cid, n in d1_counts.items()
+            if cid in src and n > src[cid]}
+
+
 def dedupe_against_d1(candidates: list, source_rows: list, d1_counts: dict) -> list:
     """Keep only as many copies of each check-in id as D1 is still missing.
 
@@ -884,6 +900,29 @@ def main() -> None:
                                 "WHERE id >= 'rf' AND id < 'rg'")
         rf_d1_count  = (rf_d1[0].get("n") or 0) if rf_d1 else 0
         real_d1_count = d1_count - rf_d1_count
+
+        # Copy-count reconcile: drop D1 copies the CSV no longer lists (newest seq
+        # first). GATED on a sync_state hash of the CSV's repeated ids, so the one
+        # GROUP BY scan runs when that set changes, plus on the daily census. Removing
+        # copies lowers real_d1_count, so the count guard below then finds and
+        # inserts any id that was hidden behind a repeat.
+        src_counts: dict = {}
+        for r in real_rows:
+            src_counts[r[0]] = src_counts.get(r[0], 0) + 1
+        dup_hash = _rows_hash(sorted(f"{k}:{n}" for k, n in src_counts.items() if n > 1))
+        if census or dup_hash != sync_hashes.get("checkin_copies"):
+            rep = d1.query("SELECT id, COUNT(*) AS n FROM checkins "
+                           "GROUP BY id HAVING COUNT(*) > 1") or []
+            surplus = surplus_copies(real_rows, {row["id"]: (row.get("n") or 0) for row in rep})
+            for cid, extra in sorted(surplus.items()):
+                d1.query("DELETE FROM checkins WHERE seq IN (SELECT seq FROM checkins "
+                         "WHERE id = ? ORDER BY seq DESC LIMIT ?)", [cid, extra])
+                print(f"D1 sync: removed {extra} surplus copy(ies) of check-in {cid}", flush=True)
+                d1_count -= extra
+                real_d1_count -= extra
+                checkin_count_after -= extra
+            _save_sync_hash("checkin_copies", dup_hash)
+
         if len(real_rows) > real_d1_count + len(new_checkin_rows):
             missing = len(real_rows) - real_d1_count - len(new_checkin_rows)
             print(f"D1 sync: row-count mismatch ({missing} unaccounted) — "

@@ -124,3 +124,28 @@ def test_full_mode_end_to_end(tmp_path, monkeypatch, complete):
     else:
         assert out.read_text(encoding="utf-8") == "" and probed == []
         assert [r["checkin_id"] for r in anomalies["missing"]] == ["stale"]  # untouched
+
+
+def test_full_fetch_keeps_same_second_twins_apart(tmp_path, monkeypatch):
+    """Two check-ins at one venue and second keep their own ids through a merge."""
+    csv_path = tmp_path / "checkins.csv"
+    fetched = [_row("first", 100), _row("second", 100), _row("other", 200)]
+    for r in fetched:
+        r["venue"] = "Fresh"
+    monkeypatch.setattr(fc, "IS_CI", True)
+    monkeypatch.setattr(fc, "SLEEP", 0)
+    monkeypatch.setattr(fc, "fetch_full_timestamp", lambda token: (fetched, True))
+    monkeypatch.setattr(sys, "argv", ["fetch_checkins.py", "--token", "t", "--csv", str(csv_path), "--full"])
+    _write_csv(csv_path, [_row("first", 100), _row("second", 100), _row("other", 200)])
+    fc.main()
+    rows = list(csv.DictReader(open(csv_path, encoding="utf-8")))
+    assert sorted(r["checkin_id"] for r in rows) == ["first", "other", "second"]
+    assert {r["venue"] for r in rows} == {"Fresh"}
+    anomalies = json.loads((tmp_path / "checkins_anomalies.json").read_text(encoding="utf-8"))
+    assert anomalies["duplicates"] == [] and anomalies["_meta"]["duplicates_count"] == 0
+
+
+def test_row_key_is_the_checkin_id():
+    assert fc.row_key(_row("a", 1)) != fc.row_key(_row("b", 1))
+    assert fc.row_key(_row("a", 1)) == fc.row_key(_row("a", 1, vid="n" * 24))
+    assert fc.row_key(_row("", 1)) == ("v" * 24, "1")

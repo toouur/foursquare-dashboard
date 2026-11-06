@@ -1019,7 +1019,7 @@ if __name__ == "__main__":
                     'padding:6px 14px;border-radius:8px;background:rgba(244,131,31,.08);'
                     'border:1px solid rgba(244,131,31,.25);font-family:\'DM Mono\',monospace;'
                     'font-size:.65rem;flex-wrap:wrap;">'
-                    f'<span title="Duplicate (venue_id, date) pairs in CSV" style="color:#f4831f">'
+                    f'<span title="Check-in ids stored on more than one CSV row" style="color:#f4831f">'
                     f'⚠ {_n_dup} duplicate check-in{"s" if _n_dup != 1 else ""}</span>'
                     '</div>'
                 )

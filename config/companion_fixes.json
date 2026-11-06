@@ -745,5 +745,5 @@
   "6995f68f7fb450120f94c069": {"overlaps_name": "Darya", "overlaps_id": "1413067054", "_note": "Троицкое предместье / Траецкае прадмесьце, 2026-02-18: Swarm overlaps add Darya (friend-search sweep 2026-11)"},
   "69a424731184bc476c49827f": {"overlaps_name": "Darya", "overlaps_id": "1413067054", "_note": "Большой Харитоньевский переулок, 2026-03-01: Swarm overlaps add Darya (friend-search sweep 2026-11)"},
   "69d0e16cbf59033b8fa11562": {"overlaps_name": "Darya", "overlaps_id": "1413067054", "_note": "Лермонтова 43, 2026-04-04: Swarm overlaps add Darya (friend-search sweep 2026-11)"},
-  "52c441ae11d2091fade36822": {"overlaps_name": "Joanna K.", "overlaps_id": "54679415", "_note": "Станция метро «Каменная горка», 2014-01-01: double check-in in the same second; Swarm lists Joanna K. as an overlap on the twin 52c441ae498e386e0009573f, which our CSV stores under this id (fetch dedupes by venue+date)"}
+  "52c441ae498e386e0009573f": {"overlaps_name": "Joanna K.", "overlaps_id": "54679415", "_note": "Станция метро «Каменная горка», 2014-01-01: double check-in in the same second; Swarm lists Joanna K. as an overlap on the twin 52c441ae498e386e0009573f, which the CSV now carries on its own row (the fetch used to fold same-second twins into one id)"}
 }

@@ -571,3 +571,10 @@ def test_fix_overlaps_ids_reconciles_old_checkins_by_id(env):
     _run(env, csv_path, "--fix-overlaps-ids", f"https://swarmapp.com/user/1/checkin/{old}?s=x")
     assert (ov(old)["overlaps_name"], ov(old)["overlaps_id"]) == ("NIkita Boyko", "50740862")
     assert ov(other)["overlaps_name"] in ("", None)              # not named: untouched
+
+
+def test_surplus_copies_counts_only_listed_ids():
+    src = [["a"], ["a"], ["b"], ["c"]]
+    d1 = {"a": 2, "b": 3, "c": 1, "gone": 4}
+    # b: one CSV row, three D1 copies; gone: not in the CSV -> deletion, not ours
+    assert sync_to_d1.surplus_copies(src, d1) == {"b": 2}

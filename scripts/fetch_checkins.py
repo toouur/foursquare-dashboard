@@ -72,7 +72,16 @@ def load_existing(csv_path: Path) -> list[dict]:
 
 
 def row_key(row: dict) -> tuple[str, str]:
-    """Stable dedupe key: (venue_id, date)."""
+    """Stable dedupe key: the check-in id, or (venue_id, date) for a row without one.
+
+    Keyed by id because two genuine check-ins can share venue AND second (a double
+    tap in the app — twelve such pairs 2013-2022): a (venue_id, date) key folded
+    each pair into one fetched row, so the CSV held the first id twice and the
+    second check-in's id, likes and companions were lost.
+    """
+    cid = str(row.get("checkin_id", "")).strip()
+    if cid:
+        return ("id", cid)
     return (row.get("venue_id", "").strip(), str(row.get("date", "")).strip())
 
 
@@ -495,7 +504,8 @@ def update_anomalies(
 ) -> None:
     """
     Merge duplicate and missing rows into <csv_dir>/checkins_anomalies.json.
-    Existing entries are preserved; new ones are added (keyed by venue_id+date).
+    Duplicates (one check-in id on several rows) are replaced by this run's list;
+    missing entries are merged (keyed by venue_id+date).
     replace_missing=True (a verified-complete fetch) rewrites "missing" to this
     run's list, so it states what Swarm lacks NOW instead of accumulating every
     row a truncated run once failed to see.
@@ -508,14 +518,11 @@ def update_anomalies(
         except (ValueError, OSError):
             existing = {}
 
-    # Merge duplicates: accumulate by (venue_id, date) key
-    dup_index: dict[str, dict] = {
-        f"{r.get('venue_id','')}|{r.get('date','')}" : r
-        for r in existing.get("duplicates", [])
-    }
+    # Duplicates are recomputed from the CSV on every full fetch, so this run's
+    # list replaces the old one (accumulating kept pairs that had been repaired).
+    dup_index: dict[str, dict] = {}
     for r in dup_rows:
-        k = f"{r.get('venue_id','')}|{r.get('date','')}"
-        dup_index[k] = r
+        dup_index[str(r.get("checkin_id") or f"{r.get('venue_id','')}|{r.get('date','')}")] = r
 
     # Merge missing: accumulate by (venue_id, date) key
     miss_index: dict[str, dict] = {} if replace_missing else {
@@ -532,9 +539,7 @@ def update_anomalies(
         "_meta": {
             "description": "Tracked CSV anomalies: duplicate rows and check-ins missing from API responses.",
             "updated": today,
-            "duplicates_count": dup_key_count or len({
-                f"{r.get('venue_id','')}|{r.get('date','')}" for r in dup_index.values()
-            }),
+            "duplicates_count": dup_key_count,
             "missing_count": len(miss_index),
         },
         "duplicates": sorted(dup_index.values(), key=lambda r: int(r.get("date") or 0)),
@@ -622,7 +627,8 @@ def main() -> None:
             print("CHANGED=false")
             return
 
-        # Detect and log duplicates in existing CSV (same venue_id+date appearing >1 time)
+        # Detect and log duplicates in existing CSV (same row_key, i.e. one check-in id,
+        # appearing >1 time). Two check-ins at one venue and second are NOT duplicates.
         existing_key_count: dict[tuple[str, str], int] = {}
         for row in existing_rows:
             k = row_key(row)
@@ -636,7 +642,7 @@ def main() -> None:
                 writer.writeheader()
                 writer.writerows(dup_rows)
             log.warning(
-                "%d duplicate (venue_id, date) pair(s) in existing CSV (%d rows) — saved to %s",
+                "%d duplicate check-in id(s) in existing CSV (%d rows) — saved to %s",
                 len(dup_keys), len(dup_rows), dup_log_path,
             )
 
