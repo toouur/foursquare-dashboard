@@ -217,10 +217,14 @@ def main(argv: list[str] | None = None) -> int:
         log.error("no token (--token or FOURSQUARE_TOKEN)")
         return 1
     me = my_id(token)
-    names = friends(token)
+    try:
+        names = friends(token)
+    except RuntimeError as e:     # users/self/friends answered 404 in CI (2026-11-06)
+        log.warning("friends list unavailable (%s) — sweeping the people in our data", e)
+        names = {}
     log.info("me=%s, %d friends", me, len(names))
     if args.probe:
-        fid = (args.friends.split(",")[0].strip() if args.friends else next(iter(names), ""))
+        fid = (args.friends.split(",")[0].strip() if args.friends else next(iter(names), "65059151"))
         resp = _get(token, "users/self/historysearch", {"friendId": fid, "limit": 5})
         items = (resp.get("checkins") or {}).get("items") or []
         hit = sum(1 for c in items if any(str((o.get("user") or {}).get("id")) == fid
