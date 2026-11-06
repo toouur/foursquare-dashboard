@@ -1,0 +1,5 @@
+{
+  "_comment": "One person, several Swarm accounts: {alias user id: {id: canonical user id, name: display name}}. Applied in transform.apply_transforms() after companion_fixes, to with_*, created_by_* and overlaps_*; sync_to_d1.py reconciles the rewritten rows in D1.",
+  "111394185": {"id": "1392149517", "name": "Александр Брыксенков", "_note": "older account"},
+  "537334281": {"id": "39817835", "name": "Максим Солодкий", "_note": "Ximon Sweet is Максим's second account"}
+}

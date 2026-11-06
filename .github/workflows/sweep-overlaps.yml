@@ -1,0 +1,98 @@
+# .github/workflows/sweep-overlaps.yml
+#
+# Monthly friend-overlap sweep (scripts/sweep_overlaps.py): walks every friend's
+# shared check-ins in Swarm and adds the companions our rows lack to
+# config/companion_fixes.json (committed to this repo), then dispatches
+# "Update check-in dashboard" so the build and the D1 companion reconcile pick
+# them up. Overlaps you created but later untagged are only REPORTED (private
+# Telegram chat + run summary). ~120 API calls per run.
+#
+# Required secrets: FOURSQUARE_TOKEN, DATA_REPO_PAT (read), TELEGRAM_BOT_TOKEN,
+# TELEGRAM_CHAT_ID.
+
+name: Overlap sweep (monthly)
+
+on:
+  schedule:
+    - cron: '37 6 3 * *'   # 3rd of the month, 06:37 UTC
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'probe = check the API endpoint only; dry = report only; apply = write + deploy'
+        type: choice
+        options: [apply, dry, probe]
+        default: apply
+      friends:
+        description: 'Optional comma-separated friend ids (default: all friends)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  actions: write   # dispatch the deploy workflow
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  sweep:
+    if: vars.UPDATES_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: toouur/foursquare-data
+          token: ${{ secrets.DATA_REPO_PAT }}
+          path: private-data
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Probe the history-search endpoint
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+        run: python scripts/sweep_overlaps.py --csv private-data/checkins.csv --probe --friends "${{ inputs.friends }}"
+
+      - name: Sweep
+        if: inputs.mode != 'probe'
+        env:
+          FOURSQUARE_TOKEN: ${{ secrets.FOURSQUARE_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python scripts/sweep_overlaps.py --csv private-data/checkins.csv --config-dir config \
+            --friends "${{ inputs.friends }}" --telegram \
+            ${{ inputs.mode == 'dry' && '--dry-run' || '' }} | tee -a "$GITHUB_STEP_SUMMARY"
+          exit ${PIPESTATUS[0]}
+
+      - name: Commit companion_fixes.json
+        id: commit
+        if: inputs.mode != 'probe' && inputs.mode != 'dry'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/companion_fixes.json
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."; echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/check_city_config.py
+            git commit -m "companion_fixes: monthly overlap sweep"
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              echo "push rejected (attempt $i) — rebasing onto latest main"
+              git pull --rebase origin main
+              [ "$i" = 5 ] && { echo "push still failing after rebase retries"; exit 1; }
+            done
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run update-dashboard.yml --ref main

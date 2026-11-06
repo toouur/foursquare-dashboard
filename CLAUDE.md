@@ -51,7 +51,7 @@ Venue renames, monthly re-fetch and deletions: `ops/d1.md`.
 
 ### Run tests / lint
 ```bash
-# Offline suite (553 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (561 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 python -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 27 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -101,9 +101,11 @@ Full map: `ops/internals.md`. Most used:
 - `scripts/seo.py` — last build pass: extensionless canonical/og URLs (Pages 308s every `*.html`), og:image (+ generated `og-card.png`), JSON-LD, `404.html` (no 404 = Pages serves index with 200), sitemap with per-page lastmod
 - `scripts/build_backfill.py`, `scripts/refresh_backfill_venue.py`
 - `scripts/check_city_count.py` (also SPELLING TWIN? pairs; known-distinct in `config/city_twins_ok.json`), `scripts/check_city_config.py`, `scripts/validate_html.py`
+- `scripts/sweep_overlaps.py` — monthly `sweep-overlaps.yml`: every friend's shared check-ins via Swarm history search; missing overlaps → `companion_fixes.json` (committed + deploy), untagged-later → private Telegram chat only
+- `config/companion_aliases.json` — second Swarm accounts of one person (alias id → canonical id/name), applied in transform after companion_fixes; D1 reconciles the rewritten rows
 - `scripts/audit_report.py` — monthly `data-audit.yml`: city twins, unknown categories, category suspects (reviewed ids in `config/category_audit_ok.json`) → private Telegram chat
-- Tests: `tests/` — pytest suite (610 tests: 553 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
-- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 96 files) and must stay so.
+- Tests: `tests/` — pytest suite (618 tests: 561 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
+- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 97 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
   NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in `fetch_*` — drift from a newer local `requests`, not a code change.
 

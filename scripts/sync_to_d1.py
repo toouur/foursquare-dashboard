@@ -127,6 +127,10 @@ SQL_COMPANIONS = (
 # 128 unsynced check-ins went through them (the city-gate outage of 2026-10-01).
 D1_BIND_CHUNK = 90
 
+#: Check-in ids whose companions companion_aliases.json rewrote (filled while the
+#: CSV is parsed); the companion reconcile patches them in D1 like a companion fix.
+_ALIASED_IDS: set = set()
+
 SQL_TIPS = (
     "INSERT OR REPLACE INTO tips "
     "(id,ts,text,venue,venue_id,city,country,lat,lng,category,"
@@ -183,6 +187,8 @@ def parse_checkins(csv_path: str, config_dir: str | None = None, city_review: st
         if city_review and Path(city_review).exists():
             resolver = _transform.build_blank_city_resolver(city_review)
         raw_rows = _transform.apply_transforms(raw_rows, mappings, blank_city_resolver=resolver)
+        _ALIASED_IDS.update(_str(r.get("checkin_id")) for r in raw_rows
+                            if r.get(_transform.COMPANION_ALIASED_KEY))
     for row in raw_rows:
         cid = _str(row.get("checkin_id"))
         if not cid:
@@ -785,13 +791,17 @@ def main() -> None:
                         if not k.startswith("_")}
         except (json.JSONDecodeError, OSError) as exc:
             print(f"  companion-fixes: cannot read {cfix_path} — {exc}", flush=True)
+    cfix_ids |= _ALIASED_IDS
     if cfix_ids:
         # Column positions in SQL_CHECKINS_NEW. Deriving the list from
         # transform.COMPANION_FIX_FIELDS means a field added there without a
         # position here fails loudly (KeyError) instead of silently not syncing.
         # shout too: an entry may replace or hide it (transform.COMPANION_SHOUT_FIELD)
-        _CF_POS = {"with_name": 16, "with_id": 17, "overlaps_name": 20, "overlaps_id": 21, "shout": 13}
-        cf_cols = list(_transform.COMPANION_FIX_FIELDS) + [_transform.COMPANION_SHOUT_FIELD]
+        _CF_POS = {"with_name": 16, "with_id": 17, "overlaps_name": 20, "overlaps_id": 21, "shout": 13,
+                   "created_by_name": 18, "created_by_id": 19}
+        # created_by too: an alias (companion_aliases.json) may rewrite the creator
+        cf_cols = (list(_transform.COMPANION_FIX_FIELDS) + [_transform.COMPANION_SHOUT_FIELD]
+                   + ["created_by_name", "created_by_id"])
         cf_idx  = [_CF_POS[c] for c in cf_cols]
         csv_cf = {row[0]: tuple(row[i] for i in cf_idx)
                   for row in all_checkin_rows if row[0] in cfix_ids}
@@ -812,7 +822,8 @@ def main() -> None:
         for i in range(0, len(cf_stmts), 50):
             d1._raw_with_retry("; ".join(cf_stmts[i:i + 50]))
         missing = len(cfix_ids) - len(csv_cf)
-        print(f"  companion-fixes: {len(cfix_ids)} override(s), {len(cf_stmts)} UPDATE(s) applied"
+        print(f"  companion-fixes: {len(cfix_ids)} override(s) incl. {len(_ALIASED_IDS)} aliased, "
+              f"{len(cf_stmts)} UPDATE(s) applied"
               + (f", {missing} id(s) not in this CSV" if missing > 0 else ""), flush=True)
 
     # Per-table FTS dirtiness. `changed` is the coarse CI-facing "something

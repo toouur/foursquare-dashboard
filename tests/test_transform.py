@@ -400,3 +400,16 @@ class TestLoadMappings:
         assert isinstance(m["city_merge"], dict) and m["city_merge"]
         assert isinstance(m["venue_fixes"], dict)
         assert isinstance(m["category_groups"], dict) and m["category_groups"]
+
+
+def test_companion_aliases_merge_accounts():
+    import transform
+    aliases = {"2": {"id": "1", "name": "Max"}}
+    row = {"with_name": "Ximon, Ann", "with_id": "2, 3", "overlaps_name": "Max, Ximon",
+           "overlaps_id": "1, 2", "created_by_name": "Ximon", "created_by_id": "2"}
+    assert transform.merge_companion_aliases(row, aliases)
+    assert (row["with_name"], row["with_id"]) == ("Max, Ann", "1, 3")
+    assert (row["overlaps_name"], row["overlaps_id"]) == ("Max", "1")
+    assert (row["created_by_name"], row["created_by_id"]) == ("Max", "1")
+    untouched = {"with_name": "Ann", "with_id": "3"}
+    assert not transform.merge_companion_aliases(untouched, aliases)

@@ -184,6 +184,40 @@ def remove_companions(row: dict, ids: str) -> None:
         row[id_f] = ", ".join(i for _, i in kept) or ("-" if id_f == "overlaps_id" else "")
 
 
+#: Row key set by apply_transforms on a check-in whose companions an alias rewrote,
+#: so sync_to_d1.py can reconcile exactly those rows in D1.
+COMPANION_ALIASED_KEY = "_companion_aliased"
+
+
+def merge_companion_aliases(row: dict, aliases: dict) -> bool:
+    """Rewrite secondary Swarm accounts to one person (companion_aliases.json:
+    {alias user id: {"id": canonical id, "name": display name}}) in with_*,
+    created_by_* and overlaps_*. A list whose names and ids do not line up is left
+    alone; a person listed twice after the rewrite is kept once. True if changed."""
+    if not aliases:
+        return False
+    changed = False
+    for name_f, id_f in (("with_name", "with_id"), ("overlaps_name", "overlaps_id"),
+                         ("created_by_name", "created_by_id")):
+        id_list = [i.strip() for i in (row.get(id_f) or "").split(",") if i.strip() and i.strip() != "-"]
+        if not any(i in aliases for i in id_list):
+            continue
+        names = [n.strip() for n in (row.get(name_f) or "").replace(" ,", ",").split(",") if n.strip()]
+        if len(names) != len(id_list):
+            continue
+        out: list[tuple[str, str]] = []
+        for n, i in zip(names, id_list):
+            a = aliases.get(i)
+            if isinstance(a, dict) and a.get("id"):
+                n, i = a.get("name") or n, str(a["id"])
+            if i not in {x for _, x in out}:
+                out.append((n, i))
+        row[name_f] = ", ".join(n for n, _ in out)
+        row[id_f] = ", ".join(i for _, i in out)
+        changed = True
+    return changed
+
+
 def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
     """Load city_merge (YAML), country_fixes and categories (JSON) from config/."""
 
@@ -207,6 +241,8 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
     city_fixes    = _load_file("city_fixes.json")   # per-timestamp city overrides
     venue_fixes   = _load_file("venue_fixes.json")  # per-venue_id city/country overrides
     companion_fixes = _load_file("companion_fixes.json")  # per-checkin_id companion overrides
+    companion_aliases = {k: v for k, v in _load_file("companion_aliases.json").items()
+                         if not k.startswith("_")}  # second Swarm accounts -> one person
     venue_category_fixes = _load_file("venue_category_fixes.json")  # per-venue_id category overrides
     city_merge    = _load_file("city_merge.yaml")
     cats_raw      = _load_file("categories.json")
@@ -216,6 +252,7 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
         "city_fixes":      city_fixes,
         "venue_fixes":     venue_fixes,
         "companion_fixes": companion_fixes,
+        "companion_aliases": companion_aliases,
         "venue_category_fixes": {k: (v.get("category") if isinstance(v, dict) else v)
                                  for k, v in venue_category_fixes.items() if not k.startswith("_")},
         "city_merge":      city_merge,
@@ -242,6 +279,7 @@ def apply_transforms(
     city_fixes    = mappings.get("city_fixes", {})
     venue_fixes   = mappings.get("venue_fixes", {})
     companion_fixes = mappings.get("companion_fixes", {})
+    companion_aliases = mappings.get("companion_aliases", {})
     venue_category_fixes = mappings.get("venue_category_fixes", {})
     city_merge    = mappings.get("city_merge", {})
 
@@ -269,6 +307,10 @@ def apply_transforms(
                 remove_companions(row, cfix[COMPANION_REMOVE_FIELD])
             if isinstance(cfix.get(COMPANION_SHOUT_FIELD), str):
                 row["shout"] = cfix[COMPANION_SHOUT_FIELD]
+        # One person, two Swarm accounts (companion_aliases.json) — after the
+        # per-check-in fixes, so a fix may name either account.
+        if merge_companion_aliases(row, companion_aliases):
+            row[COMPANION_ALIASED_KEY] = "1"
 
         # Per-venue category (venue_category_fixes.json): Foursquare's own
         # category is sometimes the wrong kind of place (Суперпрод, a corner

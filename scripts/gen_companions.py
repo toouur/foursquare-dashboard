@@ -59,7 +59,7 @@ def trips_lite(trips) -> list:
     return out
 
 
-def likers(likes_by_checkin) -> list:
+def likers(likes_by_checkin, aliases=None) -> list:
     """[[user_id, name, check-ins liked], …] — everyone who likes your check-ins, most
     first. All of them, not a top 40: a companion's profile reads its like count from
     this list, and Joanna K. (61, #41) silently lost hers."""
@@ -67,6 +67,9 @@ def likers(likes_by_checkin) -> list:
     names: dict = {}
     for v in (likes_by_checkin or {}).values():
         for uid, name in v.get("by") or []:
+            a = (aliases or {}).get(str(uid))   # companion_aliases.json: one person
+            if isinstance(a, dict) and a.get("id"):
+                uid, name = str(a["id"]), a.get("name") or name
             n[uid] += 1
             names[uid] = name
     return [[uid, names[uid], c] for uid, c in n.most_common()]
@@ -148,7 +151,7 @@ def build_page(csv_path, config_dir, out_path, tmpl_path=None, social_data=None,
     html = html.replace('SOCIAL_STATS_PLACEHOLDER', social_json)
     html = html.replace('TRIPS_LITE_PLACEHOLDER', json.dumps(trips_lite(trips), ensure_ascii=False, separators=(',', ':')))
     html = html.replace('PIX_URL_PLACEHOLDER', json.dumps(pix_url or ""))
-    html = html.replace('LIKERS_PLACEHOLDER', json.dumps(likers(likes_by_checkin), ensure_ascii=False, separators=(',', ':')))
+    html = html.replace('LIKERS_PLACEHOLDER', json.dumps(likers(likes_by_checkin, mappings.get("companion_aliases")), ensure_ascii=False, separators=(',', ':')))
     Path(out_path).write_text(html, encoding='utf-8')
     print(f"companions.html -> {out_path}  ({Path(out_path).stat().st_size//1024}KB)")
 
