@@ -219,7 +219,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 </div>
 <script>
 const COMP=COMP_DATA_PLACEHOLDER;
-const TRIPS_LITE=TRIPS_LITE_PLACEHOLDER;   // [id, name, start_ts, end_ts, cover]
+const TRIPS_LITE=TRIPS_LITE_PLACEHOLDER;   // [id, name, start_ts, end_ts, cover, n, days, first_ts, last_ts]
 const PIX=PIX_URL_PLACEHOLDER;
 const LIKERS=LIKERS_PLACEHOLDER;   // [user_id, name, check-ins of yours they liked]
 const LIKED_BY=Object.fromEntries(LIKERS.map(l=>[l[0],l[2]]));
@@ -368,11 +368,15 @@ function show(idx){
   const nCities=new Set(all.map(r=>r[4]).filter(Boolean)).size, nCtry=new Set(all.map(r=>r[5]).filter(Boolean)).size;
   // a trip counts as "together" only when the companion was really on it: at least 30% of the
   // trip's check-ins, and on 2+ different days of a multi-day trip — seeing someone off at the
-  // bus station is a few shared check-ins on the first day, not a trip together
+  // bus station is a few shared check-ins on the first day, not a trip together. And 3+ of
+  // them must fall between the trip's own first and last check-in, so a day trip does not
+  // take in the evening at home after it (Cricova, 2026-10-11: Дмитрий joined only back in
+  // Chișinău)
   const together=TRIPS_LITE.map(t=>{
     const inT=ts.filter(x=>x>=t[2]&&x<t[3]+43200), days=new Set(inT.map(x=>Math.floor(x/86400))).size;
-    return [t,inT.length,days];
-  }).filter(([t,k,days])=>k>=3&&k>=0.3*(t[5]||k)&&(t[6]<=1||days>=2)).sort((a,b)=>b[0][2]-a[0][2]);
+    const inSpan=inT.filter(x=>x>=(t[7]??t[2])&&x<=(t[8]??t[3]+43200)).length;
+    return [t,inT.length,days,inSpan];
+  }).filter(([t,k,days,inSpan])=>inSpan>=3&&k>=0.3*(t[5]||k)&&(t[6]<=1||days>=2)).sort((a,b)=>b[0][2]-a[0][2]);
   TOGETHER=together;
   const tripsHtml=together.slice(0,6).map(tripTile).join('');
   // every shared photo goes into the lightbox; the strip shows 12 and loads more in steps of 24

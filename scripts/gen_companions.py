@@ -39,9 +39,10 @@ def companion_country(name: str, rows: list, overrides: dict) -> str:
 
 
 def trips_lite(trips) -> list:
-    """[id, name, start_ts, end_ts, cover photo key, check-ins, days] — what the
-    profile needs to decide which trips a companion was really on (a cover from
-    the middle of the trip)."""
+    """[id, name, start_ts, end_ts, cover photo key, check-ins, days, first_ts, last_ts]
+    — what the profile needs to decide which trips a companion was really on (a
+    cover from the middle of the trip). first/last are the trip's own first and last
+    check-in: a day trip must not absorb an evening spent at home on the same date."""
     out = []
     for t in trips or []:
         try:
@@ -49,9 +50,12 @@ def trips_lite(trips) -> list:
             b = int(datetime.strptime(t["end_date"], "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()) + 86400
         except (KeyError, ValueError):
             continue
-        shots = [c["photos"][0] for c in t.get("checkins") or [] if c.get("photos")]
+        cis = t.get("checkins") or []
+        shots = [c["photos"][0] for c in cis if c.get("photos")]
+        tss = [int(c["ts"]) for c in cis if c.get("ts")]
         out.append([t["id"], t.get("name", ""), a, b, shots[len(shots) // 2] if shots else "",
-                    int(t.get("checkin_count") or 0), int(t.get("duration") or 1)])
+                    int(t.get("checkin_count") or 0), int(t.get("duration") or 1),
+                    min(tss) if tss else a, max(tss) if tss else b])
     return out
 
 

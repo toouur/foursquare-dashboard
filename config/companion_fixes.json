@@ -745,5 +745,9 @@
   "6995f68f7fb450120f94c069": {"overlaps_name": "Darya", "overlaps_id": "1413067054", "_note": "Троицкое предместье / Траецкае прадмесьце, 2026-02-18: Swarm overlaps add Darya (friend-search sweep 2026-11)"},
   "69a424731184bc476c49827f": {"overlaps_name": "Darya", "overlaps_id": "1413067054", "_note": "Большой Харитоньевский переулок, 2026-03-01: Swarm overlaps add Darya (friend-search sweep 2026-11)"},
   "69d0e16cbf59033b8fa11562": {"overlaps_name": "Darya", "overlaps_id": "1413067054", "_note": "Лермонтова 43, 2026-04-04: Swarm overlaps add Darya (friend-search sweep 2026-11)"},
-  "52c441ae498e386e0009573f": {"overlaps_name": "Joanna K.", "overlaps_id": "54679415", "_note": "Станция метро «Каменная горка», 2014-01-01: double check-in in the same second; Swarm lists Joanna K. as an overlap on the twin 52c441ae498e386e0009573f, which the CSV now carries on its own row (the fetch used to fold same-second twins into one id)"}
+  "52c441ae498e386e0009573f": {"overlaps_name": "Joanna K.", "overlaps_id": "54679415", "_note": "Станция метро «Каменная горка», 2014-01-01: double check-in in the same second; Swarm lists Joanna K. as an overlap on the twin 52c441ae498e386e0009573f, which the CSV now carries on its own row (the fetch used to fold same-second twins into one id)"},
+  "5d502dde8ec3580008c76bdd": {"overlaps_name": "Ximon Sweet", "overlaps_id": "537334281", "_note": "Lviv Croissants, 2019-08-11: Swarm overlaps add Ximon Sweet (friend-search sweep 2026-11)"},
+  "60f6d9a72f4dd610b976b4d2": {"overlaps_name": "Mohammed Shammout", "overlaps_id": "21572974", "_note": "Arrows & Sparrows, 2021-07-20: Swarm overlaps add Mohammed Shammout (friend-search sweep 2026-11)"},
+  "61f81fc3aa15ce5d5de1f535": {"overlaps_name": "Elena", "overlaps_id": "65059151", "_note": "Yandex.Taxi, 2022-01-31: Swarm overlaps add Elena (friend-search sweep 2026-11)"},
+  "654e4bf0392af21d4130b5c7": {"overlaps_name": "Marianna", "overlaps_id": "41241020", "_note": "Minsk International Airport (MSQ) (Нацыянальны аэрапорт «Мінск»), 2023-11-10: Swarm overlaps add Marianna (friend-search sweep 2026-11)"}
 }
