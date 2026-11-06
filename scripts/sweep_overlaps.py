@@ -21,7 +21,8 @@ leaves gaps. This walks each friend's list and:
     python scripts/sweep_overlaps.py --csv $DATA/checkins.csv --config-dir config \\
         [--friends 1413067054,50740862] [--dry-run] [--telegram] [--probe]
 
-Cost: one API call per 100 shared check-ins (~120 calls for the whole history).
+Cost: one API call per person (most have no shared check-ins) plus one per further
+100 shared check-ins: ~250-400 calls per full run.
 """
 from __future__ import annotations
 
@@ -92,6 +93,27 @@ def shared_checkins(token: str, friend_id: str, getter=requests.get) -> list[dic
             return out
         offset += PAGE
         time.sleep(SLEEP)
+
+
+def known_people(rows: list[dict], likes: dict | None = None) -> dict[str, str]:
+    """{user id: name} of everyone our data has met: companions, check-in creators
+    and likers. Swarm's history search works for non-friends too (Ecaterina Albu,
+    2013), so the sweep must not stop at the current friends list."""
+    out: dict[str, str] = {}
+    for r in rows:
+        for fi, fn in (("with_id", "with_name"), ("overlaps_id", "overlaps_name"),
+                       ("created_by_id", "created_by_name")):
+            ids = (r.get(fi) or "").split(",")
+            nms = (r.get(fn) or "").split(",")
+            for i, uid in enumerate(ids):
+                uid = uid.strip()
+                if uid and uid != "-":
+                    out.setdefault(uid, nms[i].strip() if i < len(nms) and len(nms) == len(ids) else "")
+    for people in (likes or {}).values():
+        for p in people or []:
+            if isinstance(p, (list, tuple)) and p and str(p[0]).strip():
+                out.setdefault(str(p[0]).strip(), str(p[1]).strip() if len(p) > 1 else "")
+    return out
 
 
 def _ids(row: dict, *fields: str) -> set[str]:
@@ -184,7 +206,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--csv", required=True)
     ap.add_argument("--config-dir", default=str(Path(__file__).parent.parent / "config"))
     ap.add_argument("--token", default="")
-    ap.add_argument("--friends", default="", help="comma-separated user ids (default: all friends)")
+    ap.add_argument("--friends", default="", help="comma-separated user ids (default: friends + everyone in the data)")
+    ap.add_argument("--likes", default="", help="checkin_likes.json: likers join the default targets")
     ap.add_argument("--dry-run", action="store_true", help="report only, do not edit companion_fixes.json")
     ap.add_argument("--telegram", action="store_true", help="send the report to TELEGRAM_CHAT_ID")
     ap.add_argument("--probe", action="store_true", help="check the history-search endpoint and exit")
@@ -212,7 +235,15 @@ def main(argv: list[str] | None = None) -> int:
     rows_by_id = {r["checkin_id"]: r for r in rows if r.get("checkin_id")}
     fixes = mappings.get("companion_fixes", {})
 
-    targets = [f.strip() for f in args.friends.split(",") if f.strip()] or list(names)
+    likes = {}
+    if args.likes and Path(args.likes).exists():
+        likes = json.loads(Path(args.likes).read_text(encoding="utf-8"))
+    for uid, nm in known_people(rows, likes).items():
+        if nm and uid not in names:
+            names[uid] = nm
+    known = [u for u in known_people(rows, likes) if u != me]
+    targets = ([f.strip() for f in args.friends.split(",") if f.strip()]
+               or list(dict.fromkeys(list(names) + known)))
     added: dict[str, list[str]] = {}
     untagged: list = []
     missing: list = []

@@ -47,3 +47,12 @@ def test_write_fixes_appends_and_keeps_existing(tmp_path):
     assert n == 1 and data["old"] == {"remove_ids": "1"}
     assert data["a"]["overlaps_id"] == "3, 5" and data["a"]["overlaps_name"] == "Bob, Eve"
     assert p.read_text(encoding="utf-8").startswith('{\n  "_comment": "x",\n  "old": {"remove_ids": "1"}')
+
+
+def test_known_people_covers_non_friends():
+    rows = [{"with_id": "1, 2", "with_name": "A, B", "overlaps_id": "-", "overlaps_name": "",
+             "created_by_id": "3", "created_by_name": "C"},
+            {"with_id": "4,5", "with_name": "only-one", "overlaps_id": "", "overlaps_name": ""}]
+    likes = {"cid": [["21874795", "Ecaterina Albu"], ["1", "A again"]]}
+    got = so.known_people(rows, likes)
+    assert got == {"1": "A", "2": "B", "3": "C", "4": "", "5": "", "21874795": "Ecaterina Albu"}

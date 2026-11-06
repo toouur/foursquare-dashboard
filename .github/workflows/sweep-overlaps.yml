@@ -1,11 +1,12 @@
 # .github/workflows/sweep-overlaps.yml
 #
 # Monthly friend-overlap sweep (scripts/sweep_overlaps.py): walks every friend's
-# shared check-ins in Swarm and adds the companions our rows lack to
+# shared check-ins in Swarm (friends + every person in the data: companions,
+# creators, likers) and adds the companions our rows lack to
 # config/companion_fixes.json (committed to this repo), then dispatches
 # "Update check-in dashboard" so the build and the D1 companion reconcile pick
 # them up. Overlaps you created but later untagged are only REPORTED (private
-# Telegram chat + run summary). ~120 API calls per run.
+# Telegram chat + run summary). ~250-400 API calls per run.
 #
 # Required secrets: FOURSQUARE_TOKEN, DATA_REPO_PAT (read), TELEGRAM_BOT_TOKEN,
 # TELEGRAM_CHAT_ID.
@@ -66,7 +67,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python scripts/sweep_overlaps.py --csv private-data/checkins.csv --config-dir config \
-            --friends "${{ inputs.friends }}" --telegram \
+            --likes private-data/checkin_likes.json --friends "${{ inputs.friends }}" --telegram \
             ${{ inputs.mode == 'dry' && '--dry-run' || '' }} | tee -a "$GITHUB_STEP_SUMMARY"
           exit ${PIPESTATUS[0]}
 
