@@ -7,6 +7,18 @@
     "_note": "Taproom by Litra & Friends, 2026-08-10. Tagged on Swarm after our fetch; row has empty shout+with_name and overlaps_id='-' (Ghennadi did not check in separately)."
   },
 
+  "51a5f951498e44cabc37fdc0": {
+    "with_name": "Joanna K.",
+    "with_id": "54679415",
+    "_note": "Wydział Lingwistyki Stosowanej, Warsaw, 2013-05-29. Shout says 'With Joanna' but Swarm has no with/overlaps (pre-tagging era); Joanna K. is the Warsaw companion of those years (135 check-ins there)."
+  },
+
+  "51a63138498e948f8b756611": {
+    "with_name": "Joanna K.",
+    "with_id": "54679415",
+    "_note": "Mariensztat, Warsaw, 2013-05-29. Shout says 'With Joanna'; same case as 51a5f951498e44cabc37fdc0."
+  },
+
   "51deee63498eb0b755cdfc0f": {
     "with_name": "Anna Grosul",
     "with_id": "21870766",
