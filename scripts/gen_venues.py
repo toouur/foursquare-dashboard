@@ -18,13 +18,17 @@ TOP_N = 500
 PRIVATE_CATS = ("Home (private)",)   # never shown with a photo
 
 
-def build_page(csv_path, config_dir, out_path, tmpl_path=None, photos_by_checkin=None, pix_url=""):
+def build_page(csv_path, config_dir, out_path, tmpl_path=None, photos_by_checkin=None, pix_url="",
+               rows=None):
+    """`rows`: build.py's transformed rows, which include the reconstructed backfill
+    (rf*) check-ins. Re-reading csv_path alone dropped them, so this page showed
+    Суперпрод at 769 while stats/index/venue pages said 773 (2026-11-07)."""
     TEMPLATE = Path(tmpl_path).read_text(encoding="utf-8")
     sys.path.insert(0, str(Path(__file__).parent))
-    from transform import load_mappings, apply_transforms
-    rows = list(csv.DictReader(open(csv_path, encoding='utf-8')))
-    mappings = load_mappings(config_dir)
-    rows = apply_transforms(rows, mappings)
+    if rows is None:
+        from transform import load_mappings, apply_transforms
+        rows = list(csv.DictReader(open(csv_path, encoding='utf-8')))
+        rows = apply_transforms(rows, load_mappings(config_dir))
     photos_by_checkin = photos_by_checkin or {}
     vm = defaultdict(lambda: {'count':0,'name':'','city':'','country':'','category':'','vid':'','years':set(),'photo':('', 0)})
     for r in rows:
