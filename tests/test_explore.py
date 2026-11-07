@@ -134,3 +134,18 @@ def test_fill_elevation_and_weather_only_ask_for_missing(monkeypatch):
     fgc.fill_weather(wx, {"Minsk|Belarus": (53.9, 27.56)}, {"Minsk|Belarus": {date(2024, 7, 10)}}, 5,
                      date(2024, 9, 1), session=s2)
     assert len(s2.calls) == 1                                                  # nothing left to fetch
+
+
+def test_network_error_ends_that_service_not_the_script(monkeypatch):
+    import requests
+    monkeypatch.setattr(fgc.time, "sleep", lambda s: None)
+
+    class Boom:
+        calls = 0
+
+        def get(self, url, **kw):
+            Boom.calls += 1
+            raise requests.ReadTimeout("slow")
+    cache: dict = {}
+    assert fgc.fill_elevation(cache, {"1.000,2.000"}, 5, session=Boom()) == 1 and cache == {}
+    assert fgc.fill_regions(cache, {"A|B": (1.0, 2.0), "C|D": (3.0, 4.0)}, 5, 0.0, session=Boom()) == 1

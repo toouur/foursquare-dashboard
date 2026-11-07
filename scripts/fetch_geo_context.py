@@ -116,6 +116,22 @@ def ranges(days: list[date], gap: int = RANGE_GAP_DAYS) -> list[tuple[date, date
     return out
 
 
+def _fetch(session, url: str, **kw) -> tuple[int, dict]:
+    """(HTTP status, JSON body); (0, {}) on a timeout or connection error, so a
+    flaky service ends that service's run instead of the whole script."""
+    try:
+        r = session.get(url, **kw)
+    except requests.RequestException as exc:
+        print(f"{url}: {exc}", file=sys.stderr)
+        return 0, {}
+    if r.status_code != 200:
+        return r.status_code, {}
+    try:
+        return 200, r.json() or {}
+    except ValueError:
+        return 0, {}
+
+
 def fill_elevation(cache: dict, coords: set[str], budget: int, session=requests) -> int:
     todo = sorted(c for c in coords if c not in cache)
     calls = 0
@@ -125,12 +141,12 @@ def fill_elevation(cache: dict, coords: set[str], budget: int, session=requests)
         batch = todo[i:i + 100]
         lats = ",".join(c.split(",")[0] for c in batch)
         lngs = ",".join(c.split(",")[1] for c in batch)
-        r = session.get(ELEV_URL, params={"latitude": lats, "longitude": lngs}, timeout=60)
+        status, body = _fetch(session, ELEV_URL, params={"latitude": lats, "longitude": lngs}, timeout=60)
         calls += 1
-        if r.status_code != 200:
-            print(f"elevation: HTTP {r.status_code} — stopping", file=sys.stderr)
+        if status != 200:
+            print(f"elevation: {status or 'network error'} — stopping", file=sys.stderr)
             break
-        for c, e in zip(batch, r.json().get("elevation") or []):
+        for c, e in zip(batch, body.get("elevation") or []):
             if e is not None:
                 cache[c] = round(e)
         time.sleep(ELEV_PAUSE)
@@ -150,18 +166,18 @@ def fill_weather(cache: dict, centre: dict, days: dict, budget: int, today: date
             if calls >= budget:
                 return calls
             lat, lng = centre[k]
-            r = session.get(ARCHIVE_URL, params={
+            status, body = _fetch(session, ARCHIVE_URL, params={
                 "latitude": round(lat, 3), "longitude": round(lng, 3),
                 "start_date": a.isoformat(), "end_date": b.isoformat(),
                 "daily": DAILY, "timezone": "auto"}, timeout=60)
             calls += 1
-            if r.status_code == 429:
-                print("weather: rate limited — stopping for today", file=sys.stderr)
+            if status in (0, 429):
+                print(f"weather: {status or 'network error'} — stopping for today", file=sys.stderr)
                 return calls
-            if r.status_code != 200:
-                print(f"weather {k} {a}..{b}: HTTP {r.status_code}", file=sys.stderr)
+            if status != 200:
+                print(f"weather {k} {a}..{b}: HTTP {status}", file=sys.stderr)
                 continue
-            dly = r.json().get("daily") or {}
+            dly = body.get("daily") or {}
             want = {d.isoformat() for d in missing}
             for i, day in enumerate(dly.get("time") or []):
                 if day not in want:
@@ -191,17 +207,17 @@ def fill_regions(cache: dict, centre: dict, budget: int, now: float, session=req
             continue
         if calls >= budget:
             break
-        r = session.get(REVERSE_URL, params={"lat": lat, "lon": lng, "format": "jsonv2", "zoom": 8,
-                                             "addressdetails": 1, "accept-language": "en"},
-                        headers={"User-Agent": UA}, timeout=30)
+        status, body = _fetch(session, REVERSE_URL, params={"lat": lat, "lon": lng, "format": "jsonv2", "zoom": 8,
+                                                            "addressdetails": 1, "accept-language": "en"},
+                              headers={"User-Agent": UA}, timeout=30)
         calls += 1
         time.sleep(1.1)
-        if r.status_code != 200:
-            print(f"region {k}: HTTP {r.status_code}", file=sys.stderr)
-            if r.status_code in (403, 429):
+        if status != 200:
+            print(f"region {k}: {status or 'network error'}", file=sys.stderr)
+            if status in (0, 403, 429):
                 break
             continue
-        code, name = _region((r.json() or {}).get("address") or {})
+        code, name = _region(body.get("address") or {})
         cache[k] = {"code": code, "name": name, "t": int(now)}
     return calls
 
@@ -223,14 +239,19 @@ def main() -> int:
     for part in ("elevation", "weather", "regions"):
         cache.setdefault(part, {})
 
+    def save() -> None:
+        path.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n",
+                        encoding="utf-8")
+
     coords, centre, days = needs(rows)
     now = datetime.now(timezone.utc)
+    # Saved after every service, so a failure in a later one keeps what came before.
     ne = fill_elevation(cache["elevation"], coords, args.max_elevation)
+    save()
     nw = fill_weather(cache["weather"], centre, days, args.max_weather, now.date())
+    save()
     nr = fill_regions(cache["regions"], centre, args.max_regions, now.timestamp())
-
-    path.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n",
-                    encoding="utf-8")
+    save()
     have_days = sum(len(v) for v in cache["weather"].values())
     need_days = sum(len(v) for v in days.values())
     print(f"elevation {len(cache['elevation'])}/{len(coords)} points ({ne} calls) · "
