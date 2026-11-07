@@ -38,6 +38,18 @@ on:
         description: "Max missing routes for legs outside trips (feed day routes; paced 1/s)"
         required: false
         default: "2500"
+      max_elevation:
+        description: "Max Open-Meteo elevation calls (100 points each)"
+        required: false
+        default: "400"
+      max_weather:
+        description: "Max Open-Meteo archive requests (weather of check-in days)"
+        required: false
+        default: "600"
+      max_regions:
+        description: "Max Nominatim reverse lookups for admin regions (1/s)"
+        required: false
+        default: "900"
 
 permissions:
   contents: write
@@ -47,7 +59,7 @@ jobs:
     # Honor the same pause switch as the hourly update job.
     if: vars.UPDATES_PAUSED != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 120   # the paced 1 request/second drain is ~45 min for 2,500
+    timeout-minutes: 170   # paced route drain ~45 min for 2,500 + geo context up to 40 min
 
     steps:
       - uses: actions/checkout@v7
@@ -105,6 +117,20 @@ jobs:
             --backfill private-data/backfill.csv --config-dir config \
             --cache private-data/boundaries.json --max 200
 
+      # ── Elevation, weather and admin regions for the stats page ───────────────
+      #   Only what is missing: new coordinates, new check-in days (the ERA5
+      #   archive trails ~5 days), new cities; capped per service so a first fill
+      #   drains over a few nights. Never fails the run.
+      - name: Fetch missing geo context
+        continue-on-error: true
+        timeout-minutes: 40
+        run: |
+          python scripts/fetch_geo_context.py --csv private-data/checkins.csv --config-dir config \
+            --cache private-data/geo_context.json \
+            --max-elevation "${{ github.event.inputs.max_elevation || '400' }}" \
+            --max-weather "${{ github.event.inputs.max_weather || '600' }}" \
+            --max-regions "${{ github.event.inputs.max_regions || '900' }}"
+
       # ── Persist the warmed cache to the data repo ─────────────────────────────
       #   The next scheduled update-dashboard run checks out the data repo fresh,
       #   sees the enlarged cache, and ships the newly-warmed polylines.
@@ -115,6 +141,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           [ -f routes_cache.json ] && git add routes_cache.json || true
           [ -f boundaries.json ] && git add boundaries.json || true
+          [ -f geo_context.json ] && git add geo_context.json || true
           if git diff --cached --quiet; then
             echo "Route cache unchanged — no backlog to drain."
           else

@@ -22,6 +22,7 @@ from .shouts import (
     shout_records,
 )
 from .coverage import compute_coverage
+from .explore import compute_explore
 from .milestones import compute_milestones
 from .stats import cross_dim_analysis, process
 from .trips import (
@@ -55,4 +56,5 @@ __all__ = [
     "_BICYCLE_PASSTHROUGH_CATS",
     "compute_milestones",
     "compute_coverage",
+    "compute_explore",
 ]

@@ -139,6 +139,34 @@ a{color:inherit;}
 .ms-tag.t-total,.ms-tag.t-milestone_big{background:rgba(232,184,109,0.15);color:var(--gold);}
 .ms-tag.t-comeback_long{background:rgba(155,135,245,0.15);color:#a99af0;}
 
+/* ── EXPLORE (edges, tiles, sun, weather, regions, capitals, chains, bonds) ── */
+.ex-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:16px;}
+.ex-tile{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:0;}
+.ex-tile .k{font-family:'DM Mono',monospace;font-size:0.56rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);}
+.ex-tile .v{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--gold);line-height:1.15;margin:4px 0 2px;}
+.ex-tile .s{font-size:0.72rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;}
+.ex-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.78rem;}
+.ex-row:last-child{border-bottom:0;}
+.ex-row .m{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--muted);white-space:nowrap;text-align:right;}
+.ex-row .p{font-size:0.68rem;color:var(--text2);}
+.ex-sub{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);margin:18px 0 8px;}
+.ex-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.ex-chip{font-size:0.7rem;padding:3px 8px;border-radius:12px;background:rgba(78,205,196,0.1);color:var(--text);border:1px solid rgba(78,205,196,0.25);}
+.ex-chip.off{background:transparent;color:var(--muted);border-style:dashed;border-color:var(--border);}
+.ex-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;}
+.ex-stack{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--card2);flex:1;}
+.ex-stack span{display:block;height:100%;}
+.ex-yr{display:grid;grid-template-columns:44px 1fr 64px;gap:8px;align-items:center;margin:3px 0;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);}
+.ex-tbl{width:100%;border-collapse:collapse;font-size:0.76rem;}
+.ex-tbl th,.ex-tbl td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:right;}
+.ex-tbl th:first-child,.ex-tbl td:first-child{text-align:left;}
+.ex-tbl th{font-family:'DM Mono',monospace;font-size:0.56rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);font-weight:400;}
+.ex-ctry{padding:8px 0;border-bottom:1px solid var(--border);}
+.ex-ctry b{font-size:0.8rem;color:var(--text);font-weight:600;}
+.ex-ctry .n{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--gold);margin-left:6px;}
+.ex-ctry .ex-chips{margin-top:6px;}
+@media(max-width:600px){.ex-tiles{grid-template-columns:1fr 1fr;}.ex-tile .v{font-size:1.1rem;}}
+
 /* ── COVERAGE (radius of gyration grid) ── */
 .cov-grid{display:grid;grid-template-columns:40px repeat(12,1fr);gap:3px;align-items:center;max-width:560px;}
 .cov-grid .heatmap-cell{width:auto;height:14px;}
@@ -487,6 +515,65 @@ a{color:inherit;}
     <div class="cov-legend" id="covLegend"></div>
     <div class="card-title" style="margin-top:22px">City coverage <em>&middot; distinct ~500 m cells checked in</em></div>
     <div id="covCities"></div>
+  </div>
+
+  <!-- 35. Edges & heights -->
+  <div data-tab="movement" class="card full" id="exEdgesCard" style="display:none;">
+    <div class="card-title">Edges &amp; Heights <em>&middot; the farthest points of the map and the highest and lowest check-ins</em></div>
+    <div class="ex-tiles" id="exEdges"></div>
+    <div class="ex-cols" id="exHeights"></div>
+  </div>
+
+  <!-- 36. Explored tiles -->
+  <div data-tab="movement" class="card full" id="exTilesCard" style="display:none;">
+    <div class="card-title">Explored Tiles <em>&middot; distinct zoom-14 map squares with a check-in (~1.5 km at Minsk)</em></div>
+    <div class="ex-tiles" id="exTilesKpi"></div>
+    <div id="exTilesYears"></div>
+  </div>
+
+  <!-- 37. Sun -->
+  <div data-tab="time" class="card full" id="exSunCard" style="display:none;">
+    <div class="card-title">Daylight <em>&middot; where the real sun was at each check-in, not the clock</em></div>
+    <div class="ex-tiles" id="exSunKpi"></div>
+    <div id="exSunYears"></div>
+    <div id="exSunNights"></div>
+  </div>
+
+  <!-- 38. Weather -->
+  <div data-tab="time movement" class="card full" id="exWxCard" style="display:none;">
+    <div class="card-title">Weather <em>&middot; the days you checked in, from the ERA5 archive (Open-Meteo)</em></div>
+    <div class="ex-tiles" id="exWxRec"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Home vs away</div><table class="ex-tbl" id="exWxTbl"></table></div>
+      <div><div class="ex-sub">Warmest trips</div><div id="exWxWarm"></div></div>
+      <div><div class="ex-sub">Coldest trips</div><div id="exWxCold"></div></div>
+    </div>
+  </div>
+
+  <!-- 39. Regions -->
+  <div data-tab="places" class="card full" id="exRegCard" style="display:none;">
+    <div class="card-title">Regions <em>&middot; first-level regions (oblasts, voivodeships, states) with a check-in</em></div>
+    <div class="ex-tiles" id="exRegKpi"></div>
+    <div class="scroll-list" id="exRegList" style="max-height:520px"></div>
+  </div>
+
+  <!-- 40. Capitals -->
+  <div data-tab="places" class="card" id="exCapCard" style="display:none;">
+    <div class="card-title">Capitals <em>&middot; of the countries you have been to</em></div>
+    <div class="ex-tiles" id="exCapKpi"></div>
+    <div class="ex-chips" id="exCapList"></div>
+  </div>
+
+  <!-- 41. Longest bonds -->
+  <div data-tab="places" class="card" id="exBondCard" style="display:none;">
+    <div class="card-title">Longest Bonds <em>&middot; first to latest visit, 3+ visits</em></div>
+    <div id="exBondList"></div>
+  </div>
+
+  <!-- 42. Chains -->
+  <div data-tab="places" class="card full" id="exChainCard" style="display:none;">
+    <div class="card-title">Chains <em>&middot; the same brand across countries</em></div>
+    <div id="exChainList"></div>
   </div>
 
 </div><!-- /.grid -->
@@ -1457,6 +1544,117 @@ new Chart(document.getElementById('catChart'),{
     var w=Math.max(2,Math.round(c.cells/mx*100));
     return '<div class="bar-row"><div class="bar-label">'+esc(c.city)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+w+'%;background:var(--teal)"></div></div><div class="bar-val">'+c.cells.toLocaleString()+' · '+c.km2+' km²</div></div>';
   }).join('');
+})();
+
+// ── 35–42. Explore: edges, tiles, sun, weather, regions, capitals, bonds, chains ──
+(function(){
+  var X=S.explore;if(!X)return;
+  function show(id){document.getElementById(id).style.display='';}
+  function put(id,h){document.getElementById(id).innerHTML=h;}
+  function n(x){return Number(x||0).toLocaleString('en-US');}
+  function vl(o){return o.venue_id?'<a href="venue.html#'+esc(o.venue_id)+'">'+esc(o.venue)+'</a>':esc(o.venue);}
+  function where(o){return [o.city,o.country].filter(Boolean).map(esc).join(', ');}
+  function tile(k,v,s){return '<div class="ex-tile"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+(s||'')+'</div></div>';}
+  function row(main,sub,m){return '<div class="ex-row"><div>'+main+(sub?'<div class="p">'+sub+'</div>':'')+'</div><div class="m">'+m+'</div></div>';}
+  function deg(x,p,q){return Math.abs(x).toFixed(2)+'° '+(x>=0?p:q);}
+  function bars(list,lab,val,txt,col){
+    var mx=Math.max.apply(null,list.map(val).concat([1]));
+    return list.map(function(r){return '<div class="bar-row"><div class="bar-label">'+lab(r)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(2,Math.round(val(r)/mx*100))+'%;background:'+(col||'var(--teal)')+'"></div></div><div class="bar-val">'+txt(r)+'</div></div>';}).join('');
+  }
+
+  var E=X.extremes,H=X.elevation;
+  if(E&&E.north){
+    show('exEdgesCard');
+    var h=tile('Northernmost',deg(E.north.lat,'N','S'),vl(E.north)+' · '+where(E.north))
+         +tile('Southernmost',deg(E.south.lat,'N','S'),vl(E.south)+' · '+where(E.south))
+         +tile('Westernmost',deg(E.west.lng,'E','W'),vl(E.west)+' · '+where(E.west))
+         +tile('Easternmost',deg(E.east.lng,'E','W'),vl(E.east)+' · '+where(E.east));
+    if(H&&H.highest&&H.highest.length){
+      h+=tile('Highest',n(H.highest[0].m)+' m',vl(H.highest[0])+' · '+where(H.highest[0]));
+      h+=tile('Lowest',n(H.lowest[0].m)+' m',vl(H.lowest[0])+' · '+where(H.lowest[0]));
+    }
+    put('exEdges',h);
+    if(H&&H.highest){
+      var f=function(o){return row(vl(o),where(o)+' · '+esc(o.date),n(o.m)+' m');};
+      put('exHeights','<div><div class="ex-sub">Highest</div>'+H.highest.map(f).join('')+'</div><div><div class="ex-sub">Lowest</div>'+H.lowest.map(f).join('')+'</div>');
+    }
+  }
+
+  var T=X.tiles;
+  if(T&&T.total){
+    show('exTilesCard');
+    var kmAt=function(lat){return 40075*Math.cos(lat*Math.PI/180)/Math.pow(2,T.zoom);};
+    var sq=T.square||{},cl=T.cluster||{};
+    put('exTilesKpi',tile('Tiles',n(T.total),'zoom '+T.zoom)
+      +(sq.side?tile('Max square',sq.side+'×'+sq.side,'~'+(sq.side*kmAt(sq.lat)).toFixed(1)+' km a side · '+esc(sq.city)):'')
+      +(cl.size?tile('Max cluster',n(cl.size),'tiles with all four neighbours visited · '+esc(cl.city)):''));
+    put('exTilesYears','<div class="ex-sub">New tiles per year · running total</div>'+bars(T.years,function(r){return r[0];},function(r){return r[1];},function(r){return n(r[1])+' · '+n(r[2]);}));
+  }
+
+  var U=X.sun;
+  if(U&&U.years){
+    show('exSunCard');
+    var all=U.day+U.twilight+U.night||1,pc=function(x){return Math.round(x/all*100)+'%';};
+    var k=tile('In daylight',pc(U.day),n(U.day)+' check-ins')+tile('Twilight',pc(U.twilight),'sun 0–6° below the horizon')+tile('After dark',pc(U.night),n(U.night)+' check-ins');
+    if(U.deepest)k+=tile('Darkest',U.deepest.deg+'°',vl(U.deepest)+' · '+where(U.deepest)+' · '+esc(U.deepest.date)+' '+esc(U.deepest.time));
+    put('exSunKpi',k);
+    put('exSunYears','<div class="ex-sub">Day · twilight · dark, by year</div>'+U.years.map(function(y){
+      var t=y[1]+y[2]+y[3]||1;
+      return '<div class="ex-yr"><span>'+y[0]+'</span><div class="ex-stack"><span style="width:'+(y[1]/t*100)+'%;background:var(--gold)"></span><span style="width:'+(y[2]/t*100)+'%;background:var(--teal)"></span><span style="width:'+(y[3]/t*100)+'%;background:#39406a"></span></div><span>'+Math.round(y[3]/t*100)+'% dark</span></div>';
+    }).join(''));
+    var nl=function(lst,ttl){return lst&&lst.length?'<div class="ex-sub">'+ttl+'</div><div class="ex-chips">'+lst.slice(0,24).map(function(c){return '<span class="ex-chip" title="'+esc(c[2])+' → '+esc(c[3])+'">'+esc(c[0])+' · '+c[1]+' d</span>';}).join('')+'</div>':'';};
+    put('exSunNights',nl(U.white_nights,'White nights · the sun never sank below 9°')+nl(U.polar_day,'Midnight sun')+nl(U.polar_night,'Polar night'));
+  }
+
+  var W=X.weather;
+  if(W&&W.days){
+    show('exWxCard');
+    var wd=function(o){return esc(o.city)+' · '+esc(o.date);};
+    var r=tile('Coldest day',W.coldest.tmin+'°C',wd(W.coldest))+tile('Hottest day',W.hottest.tmax+'°C',wd(W.hottest))+tile('Wettest day',W.wettest.precip+' mm',wd(W.wettest));
+    if(W.snowiest)r+=tile('Snowiest day',W.snowiest.snow+' cm',wd(W.snowiest));
+    put('exWxRec',r);
+    var cols=[['all','All'],['home','Home'],['away','Away']];
+    var line=function(lbl,f){return '<tr><td>'+lbl+'</td>'+cols.map(function(c){return '<td>'+(W[c[0]]&&W[c[0]].n?f(W[c[0]]):'—')+'</td>';}).join('')+'</tr>';};
+    put('exWxTbl','<tr><th></th>'+cols.map(function(c){return '<th>'+c[1]+'</th>';}).join('')+'</tr>'
+      +line('Days',function(s){return n(s.n);})+line('Avg high',function(s){return s.tmax+'°';})
+      +line('Rain ≥1 mm',function(s){return s.rain+'%';})+line('Snow',function(s){return s.snow+'%';})
+      +line('High below 0°',function(s){return s.frost+'%';})+line('High 30°+',function(s){return s.hot+'%';}));
+    var tl=function(l){return (l||[]).map(function(t){return row(esc(t.name),esc(t.start)+' · '+t.days+' days',t.tmax+'°');}).join('');};
+    put('exWxWarm',tl(W.trips_warmest));put('exWxCold',tl(W.trips_coldest));
+  }
+
+  var R=X.regions;
+  if(R&&R.total){
+    show('exRegCard');
+    put('exRegKpi',tile('Regions',n(R.total),'in '+R.countries.length+' countries')+tile('Most in one country',R.countries[0].n,esc(R.countries[0].country)));
+    put('exRegList',R.countries.map(function(c){
+      return '<div class="ex-ctry"><b>'+esc(c.country)+'</b><span class="n">'+c.n+'</span><div class="ex-chips">'+c.regions.map(function(g){return '<span class="ex-chip" title="'+n(g[1])+' check-ins">'+esc(g[0])+'</span>';}).join('')+'</div></div>';
+    }).join(''));
+  }
+
+  var C=X.capitals;
+  if(C&&C.of){
+    show('exCapCard');
+    put('exCapKpi',tile('Capitals',C.visited.length+' / '+C.of,C.missed.length?'missed: '+C.missed.map(function(m){return esc(m[0]);}).join(', '):'all of them'));
+    put('exCapList',C.visited.map(function(v){return '<span class="ex-chip" title="'+esc(v[1])+' · first '+esc(v[2])+' · '+n(v[3])+' check-ins">'+esc(v[0])+' · '+esc(String(v[2]).slice(0,4))+'</span>';}).join('')
+      +C.missed.map(function(m){return '<span class="ex-chip off" title="'+esc(m[1])+'">'+esc(m[0])+'</span>';}).join(''));
+  }
+
+  var B=X.bonds;
+  if(B&&B.length){
+    show('exBondCard');
+    put('exBondList',B.map(function(b){return row(vl(b),where(b)+' · '+esc(b.first)+' → '+esc(b.last)+' · '+n(b.visits)+' visits',b.years+' y');}).join(''));
+  }
+
+  var K=X.chains;
+  if(K&&K.length){
+    show('exChainCard');
+    put('exChainList',bars(K,function(c){return esc(c.brand);},function(c){return c.countries;},function(c){
+      return '<span title="'+esc(c.country_list.join(', '))+'">'+c.countries+' countries · '+n(c.visits)+' visits</span>';
+    },'var(--gold)')+'<div class="ex-sub">First and latest</div>'+K.slice(0,8).map(function(c){
+      return row(esc(c.brand),esc(c.first.city)+' '+esc(c.first.date)+' → '+esc(c.last.city)+' '+esc(c.last.date),c.cities+' cities');
+    }).join(''));
+  }
 })();
 </script>
 

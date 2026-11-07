@@ -18,7 +18,7 @@ from pathlib import Path
 import yaml
 
 from transform import load_mappings, apply_transforms, build_blank_city_resolver, home_countries, pin_rentals
-from metrics import compute_coverage, compute_milestones, process
+from metrics import compute_coverage, compute_explore, compute_milestones, process
 from metrics.trip_insights import trip_used_plane
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
@@ -250,6 +250,10 @@ if __name__ == "__main__":
                         help="Path to boundaries.json (OSM outlines of the country/city "
                              "pages, filled by fetch_boundaries.py; data repo). Without "
                              "it the pages look the outline up live in the browser.")
+    parser.add_argument("--geo-context", default=None,
+                        help="Path to geo_context.json (elevation, weather, admin regions; "
+                             "filled by fetch_geo_context.py; data repo). Without it the "
+                             "stats page skips those three views.")
     parser.add_argument("--routes-max-fetch", type=int, default=250,
                         help="Max missing routes to fetch per build (default 250); "
                              "the cache warms up over successive CI builds.")
@@ -434,6 +438,14 @@ if __name__ == "__main__":
         data["coverage"] = compute_coverage(rows, home_city, home_history)
     except Exception as _cve:
         log.warning("coverage failed: %s", _cve)
+    try:
+        _geo_path = Path(args.geo_context) if args.geo_context else None
+        _geo = (json.loads(_geo_path.read_text(encoding="utf-8"))
+                if _geo_path and _geo_path.exists() else {})
+        data["explore"] = compute_explore(rows, config_dir, _geo, trips, home_city, home_history)
+        log.info("explore: %s", ", ".join(sorted(data["explore"])))
+    except Exception as _exe:
+        log.warning("explore failed: %s", _exe)
 
     # ── trip_names.json self-heal (see metrics/trip_names.py) ─────────────────
     # detect_trips already rendered the healed names; here the heal is logged,

@@ -333,6 +333,7 @@ jobs:
             --routes-cache private-data/routes_cache.json \
             --routes-max-fetch 0 \
             --boundaries private-data/boundaries.json \
+            --geo-context private-data/geo_context.json \
             --trip-names-healed-out "$RUNNER_TEMP/trip_names_healed.json" \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
@@ -700,6 +701,7 @@ jobs:
             --routes-cache private-data/routes_cache.json \
             --routes-max-fetch 0 \
             --boundaries private-data/boundaries.json \
+            --geo-context private-data/geo_context.json \
             $PHOTOS_ARG $PIX_URL_ARG $RATINGS_ARG $LISTS_ARG
 
       - name: Validate generated HTML
