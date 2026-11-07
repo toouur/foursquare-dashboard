@@ -8,7 +8,10 @@ Three free services, each asked once per thing and kept in the data repo's
 geo_context.json, so the build never waits on the network:
 
   elevation  {"53.904,27.561": 221}            Open-Meteo elevation, 100 points per call,
-                                               coordinates rounded to 3 decimals (~100 m)
+                                               coordinates rounded to 3 decimals (~100 m);
+                                               every point counts against Open-Meteo's
+                                               limits (600/min, 10k/day), so calls are 12 s
+                                               apart and capped low per run
   weather    {"Minsk|Belarus": {"2024-07-21": [tmax, tmin, precip_mm, snow_cm, wmo]}}
                                                Open-Meteo archive (ERA5), only the LOCAL days
                                                that have a check-in there; contiguous days
@@ -21,7 +24,7 @@ Run from warm-routes.yml (nightly, commits the cache); --max-* caps each service
 per run so a first fill drains over a few nights. build.py --geo-context reads it.
 
     python scripts/fetch_geo_context.py --csv $DATA/checkins.csv --config-dir config \\
-        --cache $DATA/geo_context.json [--max-elevation 400] [--max-weather 600] [--max-regions 900]
+        --cache $DATA/geo_context.json [--max-elevation 25] [--max-weather 600] [--max-regions 900]
 """
 from __future__ import annotations
 
@@ -47,6 +50,7 @@ DAILY = "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,we
 ARCHIVE_LAG_DAYS = 7          # ERA5 trails real time by ~5 days
 RANGE_GAP_DAYS = 20           # merge needed days closer than this into one request
 RETRY_DAYS = 90               # a region lookup that found nothing is retried after this
+ELEV_PAUSE = 12.0             # 100 points a call = 100 of Open-Meteo's 600 per minute
 
 
 def coord_key(lat: float, lng: float) -> str:
@@ -129,7 +133,7 @@ def fill_elevation(cache: dict, coords: set[str], budget: int, session=requests)
         for c, e in zip(batch, r.json().get("elevation") or []):
             if e is not None:
                 cache[c] = round(e)
-        time.sleep(0.2)
+        time.sleep(ELEV_PAUSE)
     return calls
 
 
@@ -207,7 +211,8 @@ def main() -> int:
     ap.add_argument("--csv", required=True)
     ap.add_argument("--config-dir", default="config")
     ap.add_argument("--cache", required=True)
-    ap.add_argument("--max-elevation", type=int, default=400, help="elevation calls (100 points each)")
+    ap.add_argument("--max-elevation", type=int, default=25,
+                    help="elevation calls (100 points each; each point counts toward the 10k/day limit)")
     ap.add_argument("--max-weather", type=int, default=600, help="archive range requests")
     ap.add_argument("--max-regions", type=int, default=900, help="Nominatim lookups (1/s)")
     args = ap.parse_args()
