@@ -116,13 +116,21 @@ def ranges(days: list[date], gap: int = RANGE_GAP_DAYS) -> list[tuple[date, date
     return out
 
 
-def _fetch(session, url: str, **kw) -> tuple[int, dict]:
-    """(HTTP status, JSON body); (0, {}) on a timeout or connection error, so a
-    flaky service ends that service's run instead of the whole script."""
-    try:
-        r = session.get(url, **kw)
-    except requests.RequestException as exc:
-        print(f"{url}: {exc}", file=sys.stderr)
+def _fetch(session, url: str, tries: int = 3, **kw) -> tuple[int, dict]:
+    """(HTTP status, JSON body). A timeout, connection error or 5xx is retried
+    with a growing pause; after `tries` it is (0, {}), so a flaky service ends
+    that service's run instead of the whole script."""
+    for attempt in range(tries):
+        try:
+            r = session.get(url, **kw)
+        except requests.RequestException as exc:
+            print(f"{url}: {exc}", file=sys.stderr)
+            r = None
+        if r is not None and r.status_code < 500:
+            break
+        if attempt < tries - 1:
+            time.sleep(15 * (attempt + 1))
+    else:
         return 0, {}
     if r.status_code != 200:
         return r.status_code, {}
