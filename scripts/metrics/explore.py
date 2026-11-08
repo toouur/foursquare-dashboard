@@ -357,11 +357,30 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
         return {}
     vals = list(days.items())
 
-    def top(key, n: int = 10, keep=lambda w: True) -> list[dict]:
-        """The n most extreme days by key (largest first), one per city."""
+    # A trip is one weather story: its days share one slot in each top list.
+    trip_of: dict[tuple[str, str], str] = {}
+    for tr in trips or []:
+        for c in tr.get("checkins") or []:
+            trip_of[(f"{c.get('city', '')}|{c.get('country', '')}", c.get("date", ""))] = f"trip:{tr.get('start_ts')}"
+
+    def top(key, tie, n: int = 10, keep=lambda w: True) -> list[dict]:
+        """The n most extreme days by key (largest first), one per trip (a home day is
+        its own slot) and one per city: three rainy stops on one road are one rainy
+        day, told by its most extreme place. Places in the same ERA5 cell tie; `tie`
+        (harsher weather) picks the one to show — the cold pass over the village."""
+        main: dict[str, tuple] = {}
+        for kv in vals:
+            (k, day), (w, _r, _h) = kv
+            if not keep(w):
+                continue
+            slot = trip_of.get((k, day)) or day
+            rank = (key(w), tie(w))
+            if slot not in main or rank > main[slot][0]:
+                main[slot] = (rank, kv)
         out, cities = [], set()
-        for (k, day), (w, r, _h) in sorted(vals, key=lambda kv: key(kv[1][0]), reverse=True):
-            if k in cities or not keep(w):
+        for (k, day), (w, r, _h) in sorted((kv for _, kv in main.values()),
+                                           key=lambda kv: key(kv[1][0]), reverse=True):
+            if k in cities:
                 continue
             cities.add(k)
             out.append({"city": r.get("city", ""), "country": r.get("country", ""), "date": day,
@@ -380,10 +399,10 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
                 "hot": round(100 * sum(1 for w, _, _ in sel if w[0] >= 30) / n)}
     allv = [v for _, v in vals]
     out = {"days": len(days),
-           "hottest": top(lambda w: w[0]),
-           "coldest": top(lambda w: -w[1]),
-           "wettest": top(lambda w: w[2] or 0, keep=lambda w: (w[2] or 0) > 0),
-           "snowiest": top(lambda w: w[3] or 0, keep=lambda w: (w[3] or 0) > 0),
+           "hottest": top(lambda w: w[0], lambda w: w[1]),
+           "coldest": top(lambda w: -w[1], lambda w: -w[0]),
+           "wettest": top(lambda w: w[2] or 0, lambda w: -w[0], keep=lambda w: (w[2] or 0) > 0),
+           "snowiest": top(lambda w: w[3] or 0, lambda w: -w[0], keep=lambda w: (w[3] or 0) > 0),
            "all": share(allv),
            "home": share([v for v in allv if v[2]]),
            "away": share([v for v in allv if not v[2]])}

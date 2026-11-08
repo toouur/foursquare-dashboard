@@ -159,3 +159,21 @@ def test_country_checkin_is_not_an_extreme():
                      lat="38.96", lng="35.24", category="Country")]
     e = ex.compute_explore(rows, "config")["extremes"]
     assert {v["venue_id"] for v in e.values()} == {"v1"}
+
+
+def test_weather_top_lists_one_slot_per_trip_and_harsher_tie():
+    def row(t, city, country, lat, lng):
+        return make_row(t, city=city, country=country, venue="X", venue_id=city, lat=lat, lng=lng)
+    rows = [row(ts(2025, 8, 31, 9), "Oberkerz", "Romania", "45.6", "24.6"),
+            row(ts(2025, 8, 31, 12), "Transfăgărășan", "Romania", "45.6", "24.6"),
+            row(ts(2025, 9, 1, 12), "Cârțișoara", "Romania", "45.7", "24.6"),
+            row(ts(2024, 7, 1, 12), "Minsk", "Belarus", "53.9", "27.56")]
+    wx = {"Oberkerz|Romania": {"2025-08-31": [12.0, 7.5, 56.0, 0.0, 65]},
+          "Transfăgărășan|Romania": {"2025-08-31": [10.3, 5.9, 56.0, 0.0, 65]},
+          "Cârțișoara|Romania": {"2025-09-01": [18.9, 13.7, 51.6, 0.0, 65]},
+          "Minsk|Belarus": {"2024-07-01": [22.0, 12.0, 20.0, 0.0, 61]}}
+    trip = {"name": "Romania", "start_ts": 1, "start_date": "2025-08-31",
+            "checkins": [{"city": c, "country": "Romania", "date": d} for c, d in
+                         (("Oberkerz", "2025-08-31"), ("Transfăgărășan", "2025-08-31"), ("Cârțișoara", "2025-09-01"))]}
+    w = ex.compute_explore(rows, "config", {"weather": wx}, trips=[trip], home_city="Minsk")["weather"]
+    assert [(d["city"], d["precip"]) for d in w["wettest"]] == [("Transfăgărășan", 56.0), ("Minsk", 20.0)]
