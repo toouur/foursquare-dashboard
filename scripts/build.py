@@ -137,6 +137,12 @@ def _write_trip_checkin_shards(trips, out_dir):
     return h.hexdigest()[:8], inline
 
 
+def _beside_input(args, name: str) -> Path | None:
+    """A data-repo file next to --input (checkins.csv), when the flag naming it was left out."""
+    p = Path(args.input).resolve().parent / name if getattr(args, "input", None) else None
+    return p if p and p.exists() else None
+
+
 def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     import os
     # ── Externalize the heavy below-the-fold map payload ────────────────────
@@ -446,7 +452,10 @@ if __name__ == "__main__":
     except Exception as _cve:
         log.warning("coverage failed: %s", _cve)
     try:
-        _geo_path = Path(args.geo_context) if args.geo_context else None
+        # Default: the data repo's file beside --input — every workflow that builds
+        # (recheck-enrich, photos, ratings…) gets the weather/heights cards, not
+        # only the ones that remember the flag.
+        _geo_path = Path(args.geo_context) if args.geo_context else _beside_input(args, "geo_context.json")
         _geo = (json.loads(_geo_path.read_text(encoding="utf-8"))
                 if _geo_path and _geo_path.exists() else {})
         data["explore"] = compute_explore(rows, config_dir, _geo, trips, home_city, home_history)
@@ -1332,8 +1341,9 @@ if __name__ == "__main__":
                 trips=trips,
                 home_city=home_city,
                 home_history=home_history,
-                boundaries=(json.loads(Path(args.boundaries).read_text(encoding="utf-8"))
-                            if args.boundaries and Path(args.boundaries).exists() else None),
+                boundaries=(json.loads(_bnd.read_text(encoding="utf-8"))
+                            if (_bnd := Path(args.boundaries) if args.boundaries
+                                else _beside_input(args, "boundaries.json")) and _bnd.exists() else None),
             )
         except Exception as _ce:
             log.warning("gen_country_pages failed: %s", _ce)
