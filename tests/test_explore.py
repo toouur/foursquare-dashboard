@@ -82,7 +82,7 @@ def test_weather_records_and_home_split():
           "Rome|Italy": {"2024-07-12": [36.0, 22.0, 0.0, 0.0, 0]}}
     w = ex.compute_explore(rows, "config", {"weather": wx}, home_city="Minsk")["weather"]
     assert w["coldest"][0]["tmin"] == -20.5 and w["hottest"][0]["city"] == "Rome"
-    assert [d["city"] for d in w["hottest"]] == ["Rome", "Minsk"]          # one day per city
+    assert [d["city"] for d in w["hottest"]] == ["Rome", "Minsk", "Minsk"]  # a city may repeat on other days
     assert w["snowiest"] == [w["coldest"][0]] and len(w["wettest"]) == 1    # dry/snowless days left out
     assert w["home"]["n"] == 2 and w["away"]["n"] == 1 and w["away"]["hot"] == 100 and w["home"]["rain"] == 50
 

@@ -1618,10 +1618,10 @@ new Chart(document.getElementById('catChart'),{
     if(one(W.snowiest))r+=tile('Snowiest day',W.snowiest[0].snow+' cm',wd(W.snowiest[0]));
     put('exWxRec',r);
     var lst=function(l,ttl,f){return l&&l.length?'<div><div class="ex-sub">'+ttl+'</div>'+l.map(function(o){return row(esc(o.city)+(o.country?', '+esc(o.country):''),esc(o.date),f(o));}).join('')+'</div>':'';};
-    put('exWxTop',lst(W.hottest,'Hottest days · one per day',function(o){return o.tmax+'°';})
-      +lst(W.coldest,'Coldest nights · one per day',function(o){return o.tmin+'°';})
-      +lst(W.wettest,'Wettest days · one per day',function(o){return o.precip+' mm';})
-      +lst(W.snowiest,'Snowiest days · one per day',function(o){return o.snow+' cm';}));
+    put('exWxTop',lst(W.hottest,'Hottest days · one per day, top 10',function(o){return o.tmax+'°';})
+      +lst(W.coldest,'Coldest nights · one per day, top 10',function(o){return o.tmin+'°';})
+      +lst(W.wettest,'Wettest days · one per day, top 10',function(o){return o.precip+' mm';})
+      +lst(W.snowiest,'Snowiest days · one per day, top 10',function(o){return o.snow+' cm';}));
     var cols=[['all','All'],['home','Home'],['away','Away']];
     var line=function(lbl,f){return '<tr><td>'+lbl+'</td>'+cols.map(function(c){return '<td>'+(W[c[0]]&&W[c[0]].n?f(W[c[0]]):'—')+'</td>';}).join('')+'</tr>';};
     put('exWxTbl','<tr><th></th>'+cols.map(function(c){return '<th>'+c[1]+'</th>';}).join('')+'</tr>'

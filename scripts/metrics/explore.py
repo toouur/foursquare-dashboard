@@ -358,11 +358,11 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
     vals = list(days.items())
 
     def top(key, tie, n: int = 10, keep=lambda w: True) -> list[dict]:
-        """The n most extreme days by key (largest first), one per date and one per
-        city: three rainy stops on one road on one day are one rainy day, told by its
-        most extreme place (other days and cities of the same trip keep their own
-        rows). Places in one ERA5 cell tie; `tie` (harsher weather) picks the one to
-        show — the cold pass over the village below it."""
+        """The n most extreme days by key (largest first), one per date: three rainy
+        stops on one road on one day are one rainy day, told by its most extreme
+        place; other days keep their own rows, the same city included (a heatwave's
+        second day, Minsk's hottest days of different years). Places in one ERA5 cell
+        tie; `tie` (harsher weather) picks the one to show — the pass over the village."""
         main: dict[str, tuple] = {}
         for kv in vals:
             (k, day), (w, _r, _h) = kv
@@ -371,12 +371,9 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
             rank = (key(w), tie(w))
             if day not in main or rank > main[day][0]:
                 main[day] = (rank, kv)
-        out, cities = [], set()
+        out = []
         for (k, day), (w, r, _h) in sorted((kv for _, kv in main.values()),
                                            key=lambda kv: key(kv[1][0]), reverse=True):
-            if k in cities:
-                continue
-            cities.add(k)
             out.append({"city": r.get("city", ""), "country": r.get("country", ""), "date": day,
                         "tmax": w[0], "tmin": w[1], "precip": w[2], "snow": w[3], "code": w[4]})
             if len(out) == n:
