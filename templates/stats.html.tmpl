@@ -1628,10 +1628,10 @@ new Chart(document.getElementById('catChart'),{
         +(l.length>10?'<button class="ex-more" onclick="exWxMore(\''+id+'\',this)">SHOW ALL '+l.length+' ▾</button>':'')+'</div>';
     };
     window.exWxMore=function(id,b){var p=WXL[id],el=document.getElementById(id);el.innerHTML=p[0].map(p[1]).join('');el.className='scroll-list';el.style.maxHeight='460px';b.remove();};
-    put('exWxTop',lst('exWxHot',W.hottest,'Hottest days · '+(FL.hot||30)+'°+',function(o){return o.tmax+'°';})
-      +lst('exWxCold',W.coldest,'Coldest nights · '+(FL.cold||-10)+'° and below',function(o){return o.tmin+'°';})
-      +lst('exWxWet',W.wettest,'Wettest days · '+(FL.wet||20)+' mm+',function(o){return o.precip+' mm';})
-      +lst('exWxSnow',W.snowiest,'Snowiest days · '+(FL.snow||3)+' cm+',function(o){return o.snow+' cm';}));
+    put('exWxTop',lst('exWxLHot',W.hottest,'Hottest days · '+(FL.hot||30)+'°+',function(o){return o.tmax+'°';})
+      +lst('exWxLCold',W.coldest,'Coldest nights · '+(FL.cold||-10)+'° and below',function(o){return o.tmin+'°';})
+      +lst('exWxLWet',W.wettest,'Wettest days · '+(FL.wet||20)+' mm+',function(o){return o.precip+' mm';})
+      +lst('exWxLSnow',W.snowiest,'Snowiest days · '+(FL.snow||3)+' cm+',function(o){return o.snow+' cm';}));
     var cols=[['all','All'],['home','Home'],['away','Away']];
     var line=function(lbl,f){return '<tr><td>'+lbl+'</td>'+cols.map(function(c){return '<td>'+(W[c[0]]&&W[c[0]].n?f(W[c[0]]):'—')+'</td>';}).join('')+'</tr>';};
     put('exWxTbl','<tr><th></th>'+cols.map(function(c){return '<th>'+c[1]+'</th>';}).join('')+'</tr>'
