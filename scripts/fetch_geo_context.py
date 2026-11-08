@@ -24,7 +24,7 @@ Run from warm-routes.yml (nightly, commits the cache); --max-* caps each service
 per run so a first fill drains over a few nights. build.py --geo-context reads it.
 
     python scripts/fetch_geo_context.py --csv $DATA/checkins.csv --config-dir config \\
-        --cache $DATA/geo_context.json [--max-elevation 25] [--max-weather 600] [--max-regions 900]
+        --cache $DATA/geo_context.json [--max-elevation 80] [--max-weather 600] [--max-regions 900]
 """
 from __future__ import annotations
 
@@ -227,7 +227,7 @@ def main() -> int:
     ap.add_argument("--csv", required=True)
     ap.add_argument("--config-dir", default="config")
     ap.add_argument("--cache", required=True)
-    ap.add_argument("--max-elevation", type=int, default=25,
+    ap.add_argument("--max-elevation", type=int, default=80,
                     help="elevation calls (100 points each; each point counts toward the 10k/day limit)")
     ap.add_argument("--max-weather", type=int, default=600, help="archive range requests")
     ap.add_argument("--max-regions", type=int, default=900, help="Nominatim lookups (1/s)")

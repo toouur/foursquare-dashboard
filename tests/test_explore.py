@@ -81,7 +81,9 @@ def test_weather_records_and_home_split():
     wx = {"Minsk|Belarus": {"2024-01-10": [-12.0, -20.5, 0.0, 3.1, 73], "2024-07-10": [25.0, 14.0, 6.0, 0.0, 61]},
           "Rome|Italy": {"2024-07-12": [36.0, 22.0, 0.0, 0.0, 0]}}
     w = ex.compute_explore(rows, "config", {"weather": wx}, home_city="Minsk")["weather"]
-    assert w["coldest"]["tmin"] == -20.5 and w["hottest"]["city"] == "Rome" and w["snowiest"]["snow"] == 3.1
+    assert w["coldest"][0]["tmin"] == -20.5 and w["hottest"][0]["city"] == "Rome"
+    assert [d["city"] for d in w["hottest"]] == ["Rome", "Minsk"]          # one day per city
+    assert w["snowiest"] == [w["coldest"][0]] and len(w["wettest"]) == 1    # dry/snowless days left out
     assert w["home"]["n"] == 2 and w["away"]["n"] == 1 and w["away"]["hot"] == 100 and w["home"]["rain"] == 50
 
 
@@ -149,3 +151,11 @@ def test_network_error_ends_that_service_not_the_script(monkeypatch):
     cache: dict = {}
     assert fgc.fill_elevation(cache, {"1.000,2.000"}, 5, session=Boom()) == 1 and cache == {}
     assert fgc.fill_regions(cache, {"A|B": (1.0, 2.0), "C|D": (3.0, 4.0)}, 5, 0.0, session=Boom()) == 1
+
+
+def test_country_checkin_is_not_an_extreme():
+    rows = [minsk(ts(2024, 1, 1)),
+            make_row(ts(2024, 2, 1), city="", country="Turkey", venue="Turkey", venue_id="tr",
+                     lat="38.96", lng="35.24", category="Country")]
+    e = ex.compute_explore(rows, "config")["extremes"]
+    assert {v["venue_id"] for v in e.values()} == {"v1"}

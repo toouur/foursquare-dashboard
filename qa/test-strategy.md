@@ -17,7 +17,7 @@ list, not the other way around.
 
 | # | Risk | Impact | Likelihood | Mitigation |
 |---|------|--------|-----------|------------|
-| R1 | **Data-transform regressions** — city/country normalization, trip detection, companion collection silently produce wrong numbers | High: every page shows wrong stats; wrong data syncs to D1 | High: this logic changes most often | 575 offline unit/parity tests; mutation testing on `transform.py` |
+| R1 | **Data-transform regressions** — city/country normalization, trip detection, companion collection silently produce wrong numbers | High: every page shows wrong stats; wrong data syncs to D1 | High: this logic changes most often | 576 offline unit/parity tests; mutation testing on `transform.py` |
 | R2 | **Broken generated HTML deployed** — unfilled `{{PLACEHOLDER}}`, truncated page, invalid embedded JSON | High: visibly broken production page | Medium: template edits are frequent | `validate_html.py` deploy gate — deploy is blocked, not just warned |
 | R3 | **Data drift from the upstream API** — Foursquare renames cities, changes encodings (NFC/NFD), returns new anomalies | Medium: phantom cities, split counts | High: happened repeatedly ([BUG-001](bug-reports/BUG-001-nfd-phantom-cities.md), [BUG-005](bug-reports/BUG-005-gateway-border-city.md)) | `check_city_count.py` baseline gate in the hourly pipeline; config-integrity gate `check_city_config.py` |
 | R4 | **API contract breaks** — `/api/search`, `/api/feed` change shape or die (D1 binding lost, schema drift) | High: search/feed dead in prod | Medium | 22 live API contract tests weekly + on demand; `/api/health` probed hourly |
@@ -27,18 +27,18 @@ list, not the other way around.
 | R8 | **Accessibility regressions** | Medium | Medium: pages are regenerated constantly | axe-core audits with a `KNOWN_ISSUES` baseline — **new** critical/serious violations fail, pre-existing debt is tracked, not ignored |
 | R9 | **Quota/rate-limit exhaustion of upstream APIs** | Medium: data category stops updating for a month | Low after fix | Learned the hard way ([BUG-003](bug-reports/BUG-003-ratings-quota-burn.md)); fetches are now throttled and the throttle is documented |
 
-## 2. Test pyramid — 632 tests
+## 2. Test pyramid — 633 tests
 
 ```
         8   axe-core a11y audits      (live, weekly)      ← slowest, broadest
        27   Playwright E2E smoke      (live, weekly)
        22   API contract tests        (live, weekly)
-      575   offline unit/parity tests (every push, seconds) ← fastest, most numerous
+      576   offline unit/parity tests (every push, seconds) ← fastest, most numerous
 ```
 
 The split is enforced with pytest markers (`live`, `e2e`) registered in `tests/conftest.py`.
 
-### Ring 1 — offline unit/parity tests (575, run on every push, no network/secrets)
+### Ring 1 — offline unit/parity tests (576, run on every push, no network/secrets)
 
 Target: the pure-Python transform layer, because that is where R1 lives and where changes
 are most frequent. Highlights:
@@ -118,7 +118,7 @@ Honest tradeoffs, reviewed rather than forgotten:
   dev (`wrangler pages dev`) covers function changes pre-merge. Cost of a staging Pages
   project + second D1: real; marginal risk reduction: small. Revisit if write endpoints
   ever appear.
-- **No test-management tool (TestRail etc.).** One person, 632 automated tests as the
+- **No test-management tool (TestRail etc.).** One person, 633 automated tests as the
   system of record, exploratory charter in [exploratory-checklist.md](exploratory-checklist.md).
   A TCM layer would be pure ceremony here. The bug-report discipline is kept instead —
   see [bug-reports/](bug-reports/).

@@ -543,6 +543,7 @@ a{color:inherit;}
   <div data-tab="time movement" class="card full" id="exWxCard" style="display:none;">
     <div class="card-title">Weather <em>&middot; the days you checked in, from the ERA5 archive (Open-Meteo)</em></div>
     <div class="ex-tiles" id="exWxRec"></div>
+    <div class="ex-cols" id="exWxTop"></div>
     <div class="ex-cols">
       <div><div class="ex-sub">Home vs away</div><table class="ex-tbl" id="exWxTbl"></table></div>
       <div><div class="ex-sub">Warmest trips</div><div id="exWxWarm"></div></div>
@@ -1610,9 +1611,17 @@ new Chart(document.getElementById('catChart'),{
   if(W&&W.days){
     show('exWxCard');
     var wd=function(o){return esc(o.city)+' · '+esc(o.date);};
-    var r=tile('Coldest day',W.coldest.tmin+'°C',wd(W.coldest))+tile('Hottest day',W.hottest.tmax+'°C',wd(W.hottest))+tile('Wettest day',W.wettest.precip+' mm',wd(W.wettest));
-    if(W.snowiest)r+=tile('Snowiest day',W.snowiest.snow+' cm',wd(W.snowiest));
+    var one=function(l){return l&&l.length?l[0]:null;},r='';
+    if(one(W.coldest))r+=tile('Coldest night',W.coldest[0].tmin+'°C',wd(W.coldest[0]));
+    if(one(W.hottest))r+=tile('Hottest day',W.hottest[0].tmax+'°C',wd(W.hottest[0]));
+    if(one(W.wettest))r+=tile('Wettest day',W.wettest[0].precip+' mm',wd(W.wettest[0]));
+    if(one(W.snowiest))r+=tile('Snowiest day',W.snowiest[0].snow+' cm',wd(W.snowiest[0]));
     put('exWxRec',r);
+    var lst=function(l,ttl,f){return l&&l.length?'<div><div class="ex-sub">'+ttl+'</div>'+l.map(function(o){return row(esc(o.city)+(o.country?', '+esc(o.country):''),esc(o.date),f(o));}).join('')+'</div>':'';};
+    put('exWxTop',lst(W.hottest,'Hottest days · one per city',function(o){return o.tmax+'°';})
+      +lst(W.coldest,'Coldest nights · one per city',function(o){return o.tmin+'°';})
+      +lst(W.wettest,'Wettest days',function(o){return o.precip+' mm';})
+      +lst(W.snowiest,'Snowiest days',function(o){return o.snow+' cm';}));
     var cols=[['all','All'],['home','Home'],['away','Away']];
     var line=function(lbl,f){return '<tr><td>'+lbl+'</td>'+cols.map(function(c){return '<td>'+(W[c[0]]&&W[c[0]].n?f(W[c[0]]):'—')+'</td>';}).join('')+'</tr>';};
     put('exWxTbl','<tr><th></th>'+cols.map(function(c){return '<th>'+c[1]+'</th>';}).join('')+'</tr>'

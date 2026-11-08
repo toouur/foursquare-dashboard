@@ -2,7 +2,8 @@
 
 One payload, ``data["explore"]``, eight small views:
 
-* extremes   — northern-, southern-, western-, easternmost check-ins
+* extremes   — northern-, southern-, western-, easternmost check-ins (a check-in into a
+               whole country or region is skipped: its point is a centroid, not a place)
 * elevation  — highest / lowest check-ins (geo_context.json, Open-Meteo)
 * tiles      — distinct zoom-14 map tiles (~2.4 km at the equator, ~1.5 km at
                Minsk), the largest fully visited square and cluster (a tile whose
@@ -37,6 +38,7 @@ TILE_ZOOM = 14
 HOME_CATEGORY = "Home (private)"
 SUNSET_DEG = -0.833          # sun's upper limb on the horizon, with refraction
 CIVIL_DEG = -6.0
+COARSE_CATS = {"Country", "State", "County", "States and Municipalities"}
 WHITE_NIGHT_DEG = -9.0       # St Petersburg's white nights: the sun stays above -9°
 AREA_GROUP = "Streets & Areas"
 
@@ -78,7 +80,7 @@ def extremes(pts: list[tuple[dict, datetime, float, float]]) -> dict:
 
 # ── elevation ───────────────────────────────────────────────────────────────
 
-def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict, top: int = 5) -> dict:
+def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict, top: int = 10) -> dict:
     best: dict[str, tuple[int, dict, datetime]] = {}
     for r, d, lat, lng in pts:
         e = elev.get(f"{lat:.3f},{lng:.3f}")
@@ -92,8 +94,17 @@ def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict, top: i
     ranked = sorted(best.values(), key=lambda t: t[0])
 
     def rows(seq):
-        return [{**_place(r, d), "m": e} for e, r, d in seq]
-    return {"highest": rows(ranked[::-1][:top]), "lowest": rows(ranked[:top]),
+        """The first `top` of seq, one per city (five beaches in Rio say less than five cities)."""
+        out, cities = [], set()
+        for e, r, d in seq:
+            if r.get("city") in cities:
+                continue
+            cities.add(r.get("city"))
+            out.append({**_place(r, d), "m": e})
+            if len(out) == top:
+                break
+        return out
+    return {"highest": rows(ranked[::-1]), "lowest": rows(ranked),
             "venues": len(best)}
 
 
@@ -346,10 +357,18 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
         return {}
     vals = list(days.items())
 
-    def rec(fn, key):
-        (k, day), (w, r, _h) = fn(vals, key=key)
-        return {"city": r.get("city", ""), "country": r.get("country", ""), "date": day,
-                "tmax": w[0], "tmin": w[1], "precip": w[2], "snow": w[3], "code": w[4]}
+    def top(key, n: int = 10, keep=lambda w: True) -> list[dict]:
+        """The n most extreme days by key (largest first), one per city."""
+        out, cities = [], set()
+        for (k, day), (w, r, _h) in sorted(vals, key=lambda kv: key(kv[1][0]), reverse=True):
+            if k in cities or not keep(w):
+                continue
+            cities.add(k)
+            out.append({"city": r.get("city", ""), "country": r.get("country", ""), "date": day,
+                        "tmax": w[0], "tmin": w[1], "precip": w[2], "snow": w[3], "code": w[4]})
+            if len(out) == n:
+                break
+        return out
 
     def share(sel):
         n = len(sel) or 1
@@ -361,15 +380,13 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
                 "hot": round(100 * sum(1 for w, _, _ in sel if w[0] >= 30) / n)}
     allv = [v for _, v in vals]
     out = {"days": len(days),
-           "coldest": rec(min, lambda kv: kv[1][0][1]),
-           "hottest": rec(max, lambda kv: kv[1][0][0]),
-           "wettest": rec(max, lambda kv: kv[1][0][2] or 0),
+           "hottest": top(lambda w: w[0]),
+           "coldest": top(lambda w: -w[1]),
+           "wettest": top(lambda w: w[2] or 0, keep=lambda w: (w[2] or 0) > 0),
+           "snowiest": top(lambda w: w[3] or 0, keep=lambda w: (w[3] or 0) > 0),
            "all": share(allv),
            "home": share([v for v in allv if v[2]]),
            "away": share([v for v in allv if not v[2]])}
-    snowy = [kv for kv in vals if (kv[1][0][3] or 0) > 0]
-    if snowy:
-        out["snowiest"] = rec(max, lambda kv: kv[1][0][3] or 0)
     tw = []
     for t in trips or []:
         seen, temps = set(), []
@@ -422,8 +439,8 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
 
     pts = []
     for r in rows:
-        if _is_rf(r):
-            continue
+        if _is_rf(r) or group_category(r) in COARSE_CATS:
+            continue                 # day/city-level rows; a check-in into a whole country
         lat, lng = _f(r.get("lat")), _f(r.get("lng"))
         d = stamp(r)
         if lat is None or lng is None or d is None:

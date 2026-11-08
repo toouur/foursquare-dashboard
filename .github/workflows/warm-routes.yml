@@ -41,7 +41,7 @@ on:
       max_elevation:
         description: "Max Open-Meteo elevation calls (100 points each, 12 s apart)"
         required: false
-        default: "25"
+        default: "80"
       max_weather:
         description: "Max Open-Meteo archive requests (weather of check-in days)"
         required: false
@@ -123,11 +123,11 @@ jobs:
       #   drains over a few nights. Never fails the run.
       - name: Fetch missing geo context
         continue-on-error: true
-        timeout-minutes: 40
+        timeout-minutes: 50
         run: |
           python scripts/fetch_geo_context.py --csv private-data/checkins.csv --config-dir config \
             --cache private-data/geo_context.json \
-            --max-elevation "${{ github.event.inputs.max_elevation || '25' }}" \
+            --max-elevation "${{ github.event.inputs.max_elevation || '80' }}" \
             --max-weather "${{ github.event.inputs.max_weather || '600' }}" \
             --max-regions "${{ github.event.inputs.max_regions || '900' }}"
 
