@@ -39,9 +39,9 @@ on:
         required: false
         default: "2500"
       max_elevation:
-        description: "Max Open-Meteo elevation calls (100 points each, 12 s apart)"
+        description: "Max OpenTopoData elevation calls (100 points each, 1/s)"
         required: false
-        default: "80"
+        default: "300"
       max_weather:
         description: "Max Open-Meteo archive requests (weather of check-in days)"
         required: false
@@ -127,7 +127,7 @@ jobs:
         run: |
           python scripts/fetch_geo_context.py --csv private-data/checkins.csv --config-dir config \
             --cache private-data/geo_context.json \
-            --max-elevation "${{ github.event.inputs.max_elevation || '80' }}" \
+            --max-elevation "${{ github.event.inputs.max_elevation || '300' }}" \
             --max-weather "${{ github.event.inputs.max_weather || '600' }}" \
             --max-regions "${{ github.event.inputs.max_regions || '900' }}"
 

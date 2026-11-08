@@ -7,11 +7,9 @@
 Three free services, each asked once per thing and kept in the data repo's
 geo_context.json, so the build never waits on the network:
 
-  elevation  {"53.904,27.561": 221}            Open-Meteo elevation, 100 points per call,
-                                               coordinates rounded to 3 decimals (~100 m);
-                                               every point counts against Open-Meteo's
-                                               limits (600/min, 10k/day), so calls are 12 s
-                                               apart and capped low per run
+  elevation  {"53.904,27.561": 221}            OpenTopoData (ASTER 30 m), 100 points per
+                                               call, 1 call/s, coordinates rounded to 3
+                                               decimals (~100 m)
   weather    {"Minsk|Belarus": {"2024-07-21": [tmax, tmin, precip_mm, snow_cm, wmo]}}
                                                Open-Meteo archive (ERA5), only the LOCAL days
                                                that have a check-in there; contiguous days
@@ -24,7 +22,7 @@ Run from warm-routes.yml (nightly, commits the cache); --max-* caps each service
 per run so a first fill drains over a few nights. build.py --geo-context reads it.
 
     python scripts/fetch_geo_context.py --csv $DATA/checkins.csv --config-dir config \\
-        --cache $DATA/geo_context.json [--max-elevation 80] [--max-weather 600] [--max-regions 900]
+        --cache $DATA/geo_context.json [--max-elevation 300] [--max-weather 600] [--max-regions 900]
 """
 from __future__ import annotations
 
@@ -42,7 +40,11 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-ELEV_URL = "https://api.open-meteo.com/v1/elevation"
+# OpenTopoData public API, ASTER 30 m: land of 83°N–83°S, 0 over the sea (no seabed
+# depths to pass for "below sea level"). 100 points a call, 1 call/s, 1,000 calls/day.
+# Open-Meteo's elevation API counted every point against 5,000/hour and timed out
+# from GitHub runners altogether.
+ELEV_URL = "https://api.opentopodata.org/v1/aster30m"
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
 UA = "4sq-dashboard geo-context (+https://github.com/toouur/foursquare-dashboard)"
@@ -50,7 +52,7 @@ DAILY = "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,we
 ARCHIVE_LAG_DAYS = 7          # ERA5 trails real time by ~5 days
 RANGE_GAP_DAYS = 20           # merge needed days closer than this into one request
 RETRY_DAYS = 90               # a region lookup that found nothing is retried after this
-ELEV_PAUSE = 12.0             # 100 points a call = 100 of Open-Meteo's 600 per minute
+ELEV_PAUSE = 1.1              # OpenTopoData: at most one call a second
 
 
 def coord_key(lat: float, lng: float) -> str:
@@ -147,14 +149,13 @@ def fill_elevation(cache: dict, coords: set[str], budget: int, session=requests)
         if calls >= budget:
             break
         batch = todo[i:i + 100]
-        lats = ",".join(c.split(",")[0] for c in batch)
-        lngs = ",".join(c.split(",")[1] for c in batch)
-        status, body = _fetch(session, ELEV_URL, params={"latitude": lats, "longitude": lngs}, timeout=60)
+        status, body = _fetch(session, ELEV_URL, params={"locations": "|".join(batch)}, timeout=60)
         calls += 1
         if status != 200:
             print(f"elevation: {status or 'network error'} — stopping", file=sys.stderr)
             break
-        for c, e in zip(batch, body.get("elevation") or []):
+        for c, hit in zip(batch, body.get("results") or []):
+            e = (hit or {}).get("elevation")
             if e is not None:
                 cache[c] = round(e)
         time.sleep(ELEV_PAUSE)
@@ -235,8 +236,8 @@ def main() -> int:
     ap.add_argument("--csv", required=True)
     ap.add_argument("--config-dir", default="config")
     ap.add_argument("--cache", required=True)
-    ap.add_argument("--max-elevation", type=int, default=80,
-                    help="elevation calls (100 points each; each point counts toward the 10k/day limit)")
+    ap.add_argument("--max-elevation", type=int, default=300,
+                    help="elevation calls (100 points each, 1/s; OpenTopoData allows 1,000 a day)")
     ap.add_argument("--max-weather", type=int, default=600, help="archive range requests")
     ap.add_argument("--max-regions", type=int, default=900, help="Nominatim lookups (1/s)")
     args = ap.parse_args()

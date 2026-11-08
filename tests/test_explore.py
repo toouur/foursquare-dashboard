@@ -121,9 +121,9 @@ class _Session:
 def test_fill_elevation_and_weather_only_ask_for_missing(monkeypatch):
     monkeypatch.setattr(fgc.time, "sleep", lambda s: None)
     cache = {"53.900,27.560": 220}
-    s = _Session(lambda u, p: _Resp({"elevation": [5.4] * len(p["latitude"].split(","))}))
+    s = _Session(lambda u, p: _Resp({"results": [{"elevation": 5.4}] * len(p["locations"].split("|"))}))
     fgc.fill_elevation(cache, {"53.900,27.560", "41.890,12.490"}, 10, session=s)
-    assert len(s.calls) == 1 and s.calls[0][1]["latitude"] == "41.890" and cache["41.890,12.490"] == 5
+    assert len(s.calls) == 1 and s.calls[0][1]["locations"] == "41.890,12.490" and cache["41.890,12.490"] == 5
 
     def arch(u, p):
         return _Resp({"daily": {"time": ["2024-07-10", "2024-07-11"], "temperature_2m_max": [25.04, 26.0],
