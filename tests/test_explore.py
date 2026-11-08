@@ -161,7 +161,7 @@ def test_country_checkin_is_not_an_extreme():
     assert {v["venue_id"] for v in e.values()} == {"v1"}
 
 
-def test_weather_top_lists_one_slot_per_trip_and_harsher_tie():
+def test_weather_top_lists_one_row_per_date_and_harsher_tie():
     def row(t, city, country, lat, lng):
         return make_row(t, city=city, country=country, venue="X", venue_id=city, lat=lat, lng=lng)
     rows = [row(ts(2025, 8, 31, 9), "Oberkerz", "Romania", "45.6", "24.6"),
@@ -176,4 +176,6 @@ def test_weather_top_lists_one_slot_per_trip_and_harsher_tie():
             "checkins": [{"city": c, "country": "Romania", "date": d} for c, d in
                          (("Oberkerz", "2025-08-31"), ("Transfăgărășan", "2025-08-31"), ("Cârțișoara", "2025-09-01"))]}
     w = ex.compute_explore(rows, "config", {"weather": wx}, trips=[trip], home_city="Minsk")["weather"]
-    assert [(d["city"], d["precip"]) for d in w["wettest"]] == [("Transfăgărășan", 56.0), ("Minsk", 20.0)]
+    # same day, same region → one row; the next day of the same trip keeps its own
+    assert [(d["city"], d["precip"]) for d in w["wettest"]] == [
+        ("Transfăgărășan", 56.0), ("Cârțișoara", 51.6), ("Minsk", 20.0)]
