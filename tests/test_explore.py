@@ -84,6 +84,7 @@ def test_weather_records_and_home_split():
     assert w["coldest"][0]["tmin"] == -20.5 and w["hottest"][0]["city"] == "Rome"
     assert [d["city"] for d in w["hottest"]] == ["Rome", "Minsk", "Minsk"]  # a city may repeat on other days
     assert w["snowiest"] == [w["coldest"][0]] and len(w["wettest"]) == 1    # dry/snowless days left out
+    assert w["floors"]["hot"] == 30.0
     assert w["home"]["n"] == 2 and w["away"]["n"] == 1 and w["away"]["hot"] == 100 and w["home"]["rain"] == 50
 
 
@@ -151,6 +152,14 @@ def test_network_error_ends_that_service_not_the_script(monkeypatch):
     cache: dict = {}
     assert fgc.fill_elevation(cache, {"1.000,2.000"}, 5, session=Boom()) == 1 and cache == {}
     assert fgc.fill_regions(cache, {"A|B": (1.0, 2.0), "C|D": (3.0, 4.0)}, 5, 0.0, session=Boom()) == 1
+
+
+def test_weather_lists_keep_every_day_past_the_floor_but_at_least_ten():
+    rows = [minsk(ts(2024, 7, 1) + i * 86400) for i in range(30)]
+    wx = {"Minsk|Belarus": {f"2024-07-{i + 1:02d}": [20.0 + i, 10.0, 0.0, 0.0, 0] for i in range(30)}}
+    w = ex.compute_explore(rows, "config", {"weather": wx}, home_city="Minsk")["weather"]
+    assert [d["tmax"] for d in w["hottest"]] == [49.0 - i for i in range(20)]   # 30°+ only: 20 days
+    assert len(w["coldest"]) == 10                                            # none past -10°: top 10
 
 
 def test_country_checkin_is_not_an_extreme():

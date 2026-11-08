@@ -165,6 +165,8 @@ a{color:inherit;}
 .ex-ctry b{font-size:0.8rem;color:var(--text);font-weight:600;}
 .ex-ctry .n{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--gold);margin-left:6px;}
 .ex-ctry .ex-chips{margin-top:6px;}
+.ex-more{display:block;margin:10px 0 0;background:var(--card2);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.08em;color:var(--text);cursor:pointer;}
+.ex-more:hover{border-color:var(--gold);color:var(--gold);}
 @media(max-width:600px){.ex-tiles{grid-template-columns:1fr 1fr;}.ex-tile .v{font-size:1.1rem;}}
 
 /* ── COVERAGE (radius of gyration grid) ── */
@@ -1617,11 +1619,19 @@ new Chart(document.getElementById('catChart'),{
     if(one(W.wettest))r+=tile('Wettest day',W.wettest[0].precip+' mm',wd(W.wettest[0]));
     if(one(W.snowiest))r+=tile('Snowiest day',W.snowiest[0].snow+' cm',wd(W.snowiest[0]));
     put('exWxRec',r);
-    var lst=function(l,ttl,f){return l&&l.length?'<div><div class="ex-sub">'+ttl+'</div>'+l.map(function(o){return row(esc(o.city)+(o.country?', '+esc(o.country):''),esc(o.date),f(o));}).join('')+'</div>':'';};
-    put('exWxTop',lst(W.hottest,'Hottest days · one per day, top 10',function(o){return o.tmax+'°';})
-      +lst(W.coldest,'Coldest nights · one per day, top 10',function(o){return o.tmin+'°';})
-      +lst(W.wettest,'Wettest days · one per day, top 10',function(o){return o.precip+' mm';})
-      +lst(W.snowiest,'Snowiest days · one per day, top 10',function(o){return o.snow+' cm';}));
+    var FL=W.floors||{},WXL={};
+    var lst=function(id,l,ttl,f){
+      if(!l||!l.length)return '';
+      var item=function(o){return row(esc(o.city)+(o.country?', '+esc(o.country):''),esc(o.date),f(o));};
+      WXL[id]=[l,item];
+      return '<div><div class="ex-sub">'+ttl+' · '+l.length+' days</div><div id="'+id+'">'+l.slice(0,10).map(item).join('')+'</div>'
+        +(l.length>10?'<button class="ex-more" onclick="exWxMore(\''+id+'\',this)">SHOW ALL '+l.length+' ▾</button>':'')+'</div>';
+    };
+    window.exWxMore=function(id,b){var p=WXL[id],el=document.getElementById(id);el.innerHTML=p[0].map(p[1]).join('');el.className='scroll-list';el.style.maxHeight='460px';b.remove();};
+    put('exWxTop',lst('exWxHot',W.hottest,'Hottest days · '+(FL.hot||30)+'°+',function(o){return o.tmax+'°';})
+      +lst('exWxCold',W.coldest,'Coldest nights · '+(FL.cold||-10)+'° and below',function(o){return o.tmin+'°';})
+      +lst('exWxWet',W.wettest,'Wettest days · '+(FL.wet||20)+' mm+',function(o){return o.precip+' mm';})
+      +lst('exWxSnow',W.snowiest,'Snowiest days · '+(FL.snow||3)+' cm+',function(o){return o.snow+' cm';}));
     var cols=[['all','All'],['home','Home'],['away','Away']];
     var line=function(lbl,f){return '<tr><td>'+lbl+'</td>'+cols.map(function(c){return '<td>'+(W[c[0]]&&W[c[0]].n?f(W[c[0]]):'—')+'</td>';}).join('')+'</tr>';};
     put('exWxTbl','<tr><th></th>'+cols.map(function(c){return '<th>'+c[1]+'</th>';}).join('')+'</tr>'

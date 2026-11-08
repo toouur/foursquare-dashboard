@@ -41,6 +41,10 @@ CIVIL_DEG = -6.0
 COARSE_CATS = {"Country", "State", "County", "States and Municipalities"}
 WHITE_NIGHT_DEG = -9.0       # St Petersburg's white nights: the sun stays above -9°
 AREA_GROUP = "Streets & Areas"
+# Weather lists keep every day past these (high °C, low °C, rain mm, snow cm),
+# at least 10 per list; the page shows 10 and expands to the rest.
+WX_FLOORS = {"hot": 30.0, "cold": -10.0, "wet": 20.0, "snow": 3.0}
+WX_LIST_CAP = 500
 
 
 def _f(v) -> float | None:
@@ -357,8 +361,10 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
         return {}
     vals = list(days.items())
 
-    def top(key, tie, n: int = 10, keep=lambda w: True) -> list[dict]:
-        """The n most extreme days by key (largest first), one per date: three rainy
+    def top(key, tie, floor: float, keep=lambda w: True, n_min: int = 10,
+            cap: int = WX_LIST_CAP) -> list[dict]:
+        """Every day whose key reaches `floor` (largest first; at least n_min days
+        whatever the floor, at most cap), one per date: three rainy
         stops on one road on one day are one rainy day, told by its most extreme
         place; other days keep their own rows, the same city included (a heatwave's
         second day, Minsk's hottest days of different years). Places in one ERA5 cell
@@ -374,10 +380,10 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
         out = []
         for (k, day), (w, r, _h) in sorted((kv for _, kv in main.values()),
                                            key=lambda kv: key(kv[1][0]), reverse=True):
+            if len(out) >= cap or (len(out) >= n_min and key(w) < floor):
+                break
             out.append({"city": r.get("city", ""), "country": r.get("country", ""), "date": day,
                         "tmax": w[0], "tmin": w[1], "precip": w[2], "snow": w[3], "code": w[4]})
-            if len(out) == n:
-                break
         return out
 
     def share(sel):
@@ -390,10 +396,13 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
                 "hot": round(100 * sum(1 for w, _, _ in sel if w[0] >= 30) / n)}
     allv = [v for _, v in vals]
     out = {"days": len(days),
-           "hottest": top(lambda w: w[0], lambda w: w[1]),
-           "coldest": top(lambda w: -w[1], lambda w: -w[0]),
-           "wettest": top(lambda w: w[2] or 0, lambda w: -w[0], keep=lambda w: (w[2] or 0) > 0),
-           "snowiest": top(lambda w: w[3] or 0, lambda w: -w[0], keep=lambda w: (w[3] or 0) > 0),
+           "hottest": top(lambda w: w[0], lambda w: w[1], WX_FLOORS["hot"]),
+           "coldest": top(lambda w: -w[1], lambda w: -w[0], -WX_FLOORS["cold"]),
+           "wettest": top(lambda w: w[2] or 0, lambda w: -w[0], WX_FLOORS["wet"],
+                          keep=lambda w: (w[2] or 0) > 0),
+           "snowiest": top(lambda w: w[3] or 0, lambda w: -w[0], WX_FLOORS["snow"],
+                           keep=lambda w: (w[3] or 0) > 0),
+           "floors": WX_FLOORS,
            "all": share(allv),
            "home": share([v for v in allv if v[2]]),
            "away": share([v for v in allv if not v[2]])}
