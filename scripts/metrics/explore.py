@@ -52,6 +52,8 @@ PEAK_STEPS = (500, 1000, 2000, 3000, 4000, 5000)
 # Below sea level only from -10 m: Palm Jumeirah or Alexandria's seafront read -9 m
 # in the elevation model; Baku (-28 m) or the Dead Sea are the real thing.
 BELOW_SEA_M = -10
+HIGH_M = 2000             # the heights list keeps every venue from here up
+LIST_CAP = 300
 
 
 def _f(v) -> float | None:
@@ -92,8 +94,10 @@ def extremes(pts: list[tuple[dict, datetime, float, float]]) -> dict:
 # ── elevation ───────────────────────────────────────────────────────────────
 
 def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict,
-              pins: set[str] | frozenset = frozenset(), top: int = 10) -> dict:
-    """`pins`: venue ids pinned on a summit only seen from below (config/summit_pins.json)."""
+              pins: set[str] | frozenset = frozenset()) -> dict:
+    """Every venue from HIGH_M up (at least 10, the highest), and every venue below
+    the sea from BELOW_SEA_M down, one row per venue. `pins`: venue ids pinned on a
+    summit only seen from below (config/summit_pins.json) — listed, marked."""
     best: dict[str, tuple[int, dict, datetime]] = {}
     for r, d, lat, lng in pts:
         e = elev.get(f"{lat:.3f},{lng:.3f}")
@@ -106,21 +110,15 @@ def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict,
         return {}
     ranked = sorted(best.values(), key=lambda t: t[0])
 
-    def rows(seq):
-        """The first `top` of seq, one per city (five beaches in Rio say less than five cities)."""
-        out, cities = [], set()
-        for e, r, d in seq:
-            if r.get("city") in cities:
-                continue
-            cities.add(r.get("city"))
-            item = {**_place(r, d), "m": e}
-            if r.get("venue_id") in pins:
-                item["summit"] = True     # the venue pin is the peak, not where you stood
-            out.append(item)
-            if len(out) == top:
-                break
-        return out
-    return {"highest": rows(ranked[::-1]), "lowest": rows(ranked),
+    def item(e, r, d):
+        it = {**_place(r, d), "m": e}
+        if r.get("venue_id") in pins:
+            it["summit"] = True         # the venue pin is the peak, not where you stood
+        return it
+    high = [item(e, r, d) for i, (e, r, d) in enumerate(ranked[::-1])
+            if (e >= HIGH_M or i < 10) and i < LIST_CAP]
+    low = [item(e, r, d) for e, r, d in ranked if e <= BELOW_SEA_M][:LIST_CAP]
+    return {"highest": high, "lowest": low, "high_m": HIGH_M, "low_m": BELOW_SEA_M,
             "venues": len(best)}
 
 

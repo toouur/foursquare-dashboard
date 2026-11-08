@@ -222,6 +222,17 @@ def test_mountain_category_alone_is_not_a_summit_pin():
     assert "summit" not in e["elevation"]["highest"][0] and e["peaks"]["best"]["venue_id"] == "tochal"
 
 
+def test_heights_lists_keep_everything_past_the_floors():
+    rows = [make_row(ts(2024, 1, 1 + i), city=f"C{i}", country="Chile", venue=f"V{i}", venue_id=f"v{i}",
+                     lat=f"-33.{100 + i}", lng="-70.5") for i in range(14)]
+    elev = {f"-33.{100 + i:03d},-70.500": h for i, h in enumerate(
+        [2500, 2400, 2300, 2200, 2100, 2050, 2010, 2000, 1999, 1500, 900, 300, -12, -28])}
+    h = ex.compute_explore(rows, "config", {"elevation": elev}, summit_pins=set())["elevation"]
+    assert [x["m"] for x in h["highest"]][:8] == [2500, 2400, 2300, 2200, 2100, 2050, 2010, 2000]
+    assert len(h["highest"]) == 10                  # 8 from 2,000 m up, topped up to ten
+    assert [x["m"] for x in h["lowest"]] == [-28, -12]
+
+
 def test_country_checkin_is_not_an_extreme():
     rows = [minsk(ts(2024, 1, 1)),
             make_row(ts(2024, 2, 1), city="", country="Turkey", venue="Turkey", venue_id="tr",

@@ -1575,13 +1575,17 @@ new Chart(document.getElementById('catChart'),{
          +tile('Easternmost',deg(E.east.lng,'E','W'),vl(E.east)+' · '+where(E.east));
     if(H&&H.highest&&H.highest.length){
       h+=tile('Highest',n(H.highest[0].m)+' m',vl(H.highest[0])+' · '+where(H.highest[0])+(H.highest[0].summit?SUMMIT:''));
-      h+=tile('Lowest',n(H.lowest[0].m)+' m',vl(H.lowest[0])+' · '+where(H.lowest[0]));
+      if(H.lowest&&H.lowest.length)h+=tile('Lowest',n(H.lowest[0].m)+' m',vl(H.lowest[0])+' · '+where(H.lowest[0]));
     }
     put('exEdges',h);
     if(H&&H.highest){
       var f=function(o){return row(vl(o),where(o)+' · '+esc(o.date)+(o.summit?SUMMIT:''),n(o.m)+' m');};
       var note=H.highest.some(function(o){return o.summit;})?'<div class="p" style="font-size:.68rem;color:var(--muted);margin-top:8px">⛰ seen from below: the venue is pinned on the summit and the check-in was made from below, so its height is the mountain\'s, not yours (config/summit_pins.json).</div>':'';
-      put('exHeights','<div><div class="ex-sub">Highest</div>'+H.highest.map(f).join('')+note+'</div><div><div class="ex-sub">Lowest</div>'+H.lowest.map(f).join('')+'</div>');
+      var HL={},more=function(id,l){HL[id]=l;return l.length>10?'<button class="ex-more" onclick="exHtMore(\''+id+'\',this)">SHOW ALL '+l.length+' ▾</button>':'';};
+      window.exHtMore=function(id,b){var el=document.getElementById(id);el.innerHTML=HL[id].map(f).join('');el.className='scroll-list';el.style.maxHeight='460px';b.remove();};
+      var lows=H.lowest||[];
+      put('exHeights','<div><div class="ex-sub">Highest · '+n(H.high_m||2000)+' m and up · '+H.highest.length+' places</div><div id="exHtHigh">'+H.highest.slice(0,10).map(f).join('')+'</div>'+more('exHtHigh',H.highest)+note+'</div>'
+        +'<div><div class="ex-sub">Below sea level · '+(H.low_m||-10)+' m and down · '+lows.length+' places</div>'+(lows.length?'<div id="exHtLow">'+lows.slice(0,10).map(f).join('')+'</div>'+more('exHtLow',lows):'<div class="p" style="font-size:.72rem;color:var(--muted)">No check-in below sea level yet (the Caspian shore at Baku is −28 m, the Dead Sea −430 m).</div>')+'</div>');
     }
   }
 
