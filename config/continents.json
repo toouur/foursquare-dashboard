@@ -1,0 +1,43 @@
+{
+  "_comment": "Country -> continent for the Peak Hunter (metrics/explore.py peaks()), plus each continent's highest summit and lowest dry land. Russia east of 60°E (the Urals) and Turkey off the European bank of the Bosphorus are split by coordinates in code.",
+  "countries": {
+    "Albania": "Europe", "Austria": "Europe", "Belarus": "Europe", "Belgium": "Europe",
+    "Bosnia and Herzegovina": "Europe", "Bulgaria": "Europe", "Croatia": "Europe", "Cyprus": "Europe",
+    "Czech Republic": "Europe", "Denmark": "Europe", "Estonia": "Europe", "Finland": "Europe",
+    "France": "Europe", "Germany": "Europe", "Greece": "Europe", "Holy See (Vatican City State)": "Europe",
+    "Hungary": "Europe", "Italy": "Europe", "Latvia": "Europe", "Liechtenstein": "Europe",
+    "Lithuania": "Europe", "Luxembourg": "Europe", "Malta": "Europe", "Moldova": "Europe",
+    "Montenegro": "Europe", "Netherlands": "Europe", "North Macedonia": "Europe", "Norway": "Europe",
+    "Poland": "Europe", "Portugal": "Europe", "Romania": "Europe", "Russia": "Europe",
+    "Serbia": "Europe", "Slovakia": "Europe", "Slovenia": "Europe", "Spain": "Europe",
+    "Sweden": "Europe", "Switzerland": "Europe", "Ukraine": "Europe", "United Kingdom": "Europe",
+    "Ireland": "Europe", "Iceland": "Europe", "Andorra": "Europe", "Monaco": "Europe",
+    "San Marino": "Europe", "Kosovo": "Europe",
+    "Turkey": "Asia", "Armenia": "Asia", "Azerbaijan": "Asia", "Georgia": "Asia",
+    "Cambodia": "Asia", "China": "Asia", "Hong Kong": "Asia", "Macao": "Asia", "India": "Asia",
+    "Indonesia": "Asia", "Iran": "Asia", "Kazakhstan": "Asia", "Kyrgyzstan": "Asia",
+    "Malaysia": "Asia", "Oman": "Asia", "Qatar": "Asia", "Singapore": "Asia", "Tajikistan": "Asia",
+    "United Arab Emirates": "Asia", "Uzbekistan": "Asia", "Vietnam": "Asia", "Japan": "Asia",
+    "Thailand": "Asia", "South Korea": "Asia", "Israel": "Asia", "Jordan": "Asia", "Turkmenistan": "Asia",
+    "Mongolia": "Asia", "Nepal": "Asia", "Sri Lanka": "Asia", "Philippines": "Asia", "Laos": "Asia",
+    "Saudi Arabia": "Asia", "Bahrain": "Asia", "Kuwait": "Asia", "Lebanon": "Asia", "Taiwan": "Asia",
+    "Egypt": "Africa", "Morocco": "Africa", "Tunisia": "Africa", "Kenya": "Africa", "Tanzania": "Africa",
+    "South Africa": "Africa", "Ethiopia": "Africa",
+    "Argentina": "South America", "Brazil": "South America", "Chile": "South America",
+    "Uruguay": "South America", "Peru": "South America", "Bolivia": "South America",
+    "Colombia": "South America", "Ecuador": "South America", "Paraguay": "South America",
+    "Venezuela": "South America",
+    "United States": "North America", "Canada": "North America", "Mexico": "North America",
+    "Cuba": "North America",
+    "Australia": "Oceania", "New Zealand": "Oceania"
+  },
+  "peaks": {
+    "Asia": ["Everest", 8849], "South America": ["Aconcagua", 6961], "North America": ["Denali", 6190],
+    "Africa": ["Kilimanjaro", 5895], "Europe": ["Elbrus", 5642], "Antarctica": ["Vinson", 4892],
+    "Oceania": ["Puncak Jaya", 4884]
+  },
+  "lows": {
+    "Asia": ["Dead Sea shore", -430], "Africa": ["Lake Assal", -155], "South America": ["Laguna del Carbón", -105],
+    "North America": ["Badwater Basin", -86], "Europe": ["Caspian shore", -28], "Oceania": ["Lake Eyre", -15]
+  }
+}

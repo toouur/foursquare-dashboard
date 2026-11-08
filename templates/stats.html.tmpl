@@ -277,7 +277,7 @@ a{color:inherit;}
 {{ANOMALIES}}
 
 <div class="grid" id="statGrid" data-active="overview">
-<script>document.getElementById('statGrid').dataset.active=(function(){const h=(location.hash||'').slice(1);return ['overview','time','places','movement','people','words','data'].includes(h)?h:'overview';})();</script>
+<script>document.getElementById('statGrid').dataset.active=(function(){const h=({weather:'movement',heights:'movement'})[(location.hash||'').slice(1)]||(location.hash||'').slice(1);return ['overview','time','places','movement','people','words','data'].includes(h)?h:'overview';})();</script>
 
   <!-- 1. Check-ins by Year -->
   <div data-tab="overview time" class="card">
@@ -1566,7 +1566,7 @@ new Chart(document.getElementById('catChart'),{
   }
 
   var E=X.extremes,H=X.elevation;
-  var SUMMIT=' · <span title="Height of the venue pin, which sits on the summit; the check-in was likely made from below" style="color:var(--gold);cursor:help">⛰ summit pin</span>';
+  var SUMMIT=' · <span style="color:var(--gold)">⛰ seen from below</span>';
   if(E&&E.north){
     show('exEdgesCard');
     var h=tile('Northernmost',deg(E.north.lat,'N','S'),vl(E.north)+' · '+where(E.north))
@@ -1580,7 +1580,8 @@ new Chart(document.getElementById('catChart'),{
     put('exEdges',h);
     if(H&&H.highest){
       var f=function(o){return row(vl(o),where(o)+' · '+esc(o.date)+(o.summit?SUMMIT:''),n(o.m)+' m');};
-      put('exHeights','<div><div class="ex-sub">Highest</div>'+H.highest.map(f).join('')+'</div><div><div class="ex-sub">Lowest</div>'+H.lowest.map(f).join('')+'</div>');
+      var note=H.highest.some(function(o){return o.summit;})?'<div class="p" style="font-size:.68rem;color:var(--muted);margin-top:8px">⛰ seen from below: the venue is pinned on the summit and the check-in was made from below, so its height is the mountain\'s, not yours (config/summit_pins.json).</div>':'';
+      put('exHeights','<div><div class="ex-sub">Highest</div>'+H.highest.map(f).join('')+note+'</div><div><div class="ex-sub">Lowest</div>'+H.lowest.map(f).join('')+'</div>');
     }
   }
 
@@ -1711,7 +1712,10 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
   document.getElementById('phTitle').innerHTML=n(S.total)+' check-ins, <em>the patterns</em>';
   const grid=document.getElementById('statGrid'), tabs=[...document.querySelectorAll('#stTabs button')];
   tabs.forEach(b=>{const k=b.dataset.t;const c=[...grid.querySelectorAll('.card')].filter(x=>(x.dataset.tab||'').split(' ').includes(k)).length;if(k!=='overview')b.insertAdjacentHTML('beforeend','<b>'+c+'</b>');});
+  // #weather / #heights: open Movement and scroll to that card (links from the index).
+  const JUMP={weather:'exWxCard',heights:'exEdgesCard'};
   function show(k){
+    const jump=JUMP[k];if(jump)k='movement';
     if(!tabs.some(b=>b.dataset.t===k)) k='overview';
     grid.dataset.active=k;
     tabs.forEach(b=>b.classList.toggle('on',b.dataset.t===k));
@@ -1719,9 +1723,10 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
     buildDeferred(k);
     // a chart that was built in a card hidden by another tab keeps a stale size: re-measure
     requestAnimationFrame(()=>{ Object.values(_Chart.instances||{}).forEach(c=>{ try{ c.resize(); }catch(e){} }); });
+    if(jump)setTimeout(()=>{const el=document.getElementById(jump);if(el)el.scrollIntoView({block:'start'});},250);
   }
   window.addEventListener('hashchange',()=>show((location.hash||'').slice(1)));
-  window.addEventListener('load',()=>show(grid.dataset.active));
+  window.addEventListener('load',()=>show((location.hash||'').slice(1)||grid.dataset.active));
   tabs.forEach(b=>b.onclick=()=>{history.replaceState(null,'','#'+b.dataset.t);show(b.dataset.t);
     const top=document.getElementById('stTabs').getBoundingClientRect().top+scrollY;if(scrollY>top)scrollTo({top:top});});
   show((location.hash||'').slice(1));

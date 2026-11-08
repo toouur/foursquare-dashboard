@@ -1,0 +1,4 @@
+{
+  "_comment": "Venues pinned on a summit you only saw from below (venue_id -> note). Their height stays in the stats heights list, marked 'seen from below', and never counts in the Peak Hunter. List them by hand: a Mountain category alone says nothing (a gondola station or a lake can carry it too).",
+  "4e15c3f162844b405cb356b0": "Ağrı Dağı (Ararat), 4,954 m — photographed from Doğubayazıt, 2021-09-06"
+}

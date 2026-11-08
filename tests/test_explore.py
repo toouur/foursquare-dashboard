@@ -181,9 +181,45 @@ def test_summit_pins_are_flagged_not_dropped():
     rows = [make_row(ts(2021, 9, 6), city="Doğubayazıt", country="Turkey", venue="Ağrı Dağı",
                      venue_id="ararat", lat="39.706", lng="44.295", category="Mountain"),
             minsk(ts(2024, 1, 1))]
-    e = ex.compute_explore(rows, "config", {"elevation": {"39.706,44.295": 4954, "53.900,27.560": 220}})
+    e = ex.compute_explore(rows, "config", {"elevation": {"39.706,44.295": 4954, "53.900,27.560": 220}},
+                           summit_pins={"ararat"})
     top = e["elevation"]["highest"]
     assert top[0]["venue_id"] == "ararat" and top[0]["summit"] is True and "summit" not in top[1]
+
+
+def test_peaks_per_continent_badges_and_summit_pins():
+    def row(t, city, country, lat, lng, cat="Café", vid=None):
+        return make_row(t, city=city, country=country, venue=city, venue_id=vid or city,
+                        lat=lat, lng=lng, category=cat)
+    rows = [row(ts(2019, 1, 1), "Minsk", "Belarus", "53.9", "27.56"),
+            row(ts(2021, 6, 1), "Shymbulak", "Kazakhstan", "43.128", "77.081"),
+            row(ts(2022, 1, 1), "Baku", "Azerbaijan", "40.409", "49.867"),
+            row(ts(2024, 12, 3), "Puente del Inca", "Argentina", "-32.825", "-69.909"),
+            row(ts(2021, 9, 6), "Doğubayazıt", "Turkey", "39.706", "44.295", cat="Mountain", vid="ararat")]
+    elev = {"53.900,27.560": 220, "43.128,77.081": 2260, "40.409,49.867": -28,
+            "-32.825,-69.909": 2801, "39.706,44.295": 4954}
+    p = ex.compute_explore(rows, "config", {"elevation": elev}, summit_pins={"ararat"})["peaks"]
+    assert p["best"]["city"] == "Puente del Inca" and p["goal"] == 8849
+    assert p["summit_pins"][0]["venue_id"] == "ararat"           # 4,954 m pin never counts as reached
+    b = {x["m"]: x for x in p["badges"]}
+    assert b[2000]["first"]["city"] == "Shymbulak" and "first" not in b[3000]
+    asia = next(c for c in p["continents"] if c["continent"] == "Asia")
+    assert asia["high"]["city"] == "Shymbulak" and asia["low"]["m"] == -28 and asia["peak"] == ["Everest", 8849]
+    assert "low" not in next(c for c in p["continents"] if c["continent"] == "Europe")
+
+
+def test_coastal_dem_noise_is_not_below_sea_level():
+    rows = [make_row(ts(2024, 2, 12), city="Dubai", country="United Arab Emirates", venue="Palm Mall",
+                     venue_id="palm", lat="25.11", lng="55.14")]
+    p = ex.compute_explore(rows, "config", {"elevation": {"25.110,55.140": -9}}, summit_pins=set())["peaks"]
+    assert "low" not in p["continents"][0]
+
+
+def test_mountain_category_alone_is_not_a_summit_pin():
+    rows = [make_row(ts(2025, 12, 16), city="Tehran", country="Iran", venue="7th Tochal Station",
+                     venue_id="tochal", lat="35.89", lng="51.4", category="Mountain")]
+    e = ex.compute_explore(rows, "config", {"elevation": {"35.890,51.400": 3736}}, summit_pins=set())
+    assert "summit" not in e["elevation"]["highest"][0] and e["peaks"]["best"]["venue_id"] == "tochal"
 
 
 def test_country_checkin_is_not_an_extreme():

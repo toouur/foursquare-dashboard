@@ -154,6 +154,9 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     _hunt = ((data.get('explore') or {}).get('weather') or {}).get('hunter')
     if _hunt:
         stats_slim['hunter'] = _hunt
+    _peaks = (data.get('explore') or {}).get('peaks')
+    if _peaks:
+        stats_slim['peaks'] = _peaks
     stats_json = json.dumps(stats_slim, ensure_ascii=False).replace('</', '<\\/')
 
     # ── index.html ──────────────────────────────────────────────────────────

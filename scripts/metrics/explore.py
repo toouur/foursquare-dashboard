@@ -48,9 +48,10 @@ WX_LIST_CAP = 500
 # Temperature Hunter (index page): badges for the day max / night min reached.
 HUNT_HEAT = (30, 35, 40, 45, 50)
 HUNT_COLD = (-10, -20, -30, -40)
-# A mountain venue is pinned on its summit: its height is the peak's, and the
-# check-in was often made from below (Ağrı Dağı from Doğubayazıt). Kept, flagged.
-SUMMIT_CATS = {"Mountain", "Volcano", "Hill"}
+PEAK_STEPS = (500, 1000, 2000, 3000, 4000, 5000)
+# Below sea level only from -10 m: Palm Jumeirah or Alexandria's seafront read -9 m
+# in the elevation model; Baku (-28 m) or the Dead Sea are the real thing.
+BELOW_SEA_M = -10
 
 
 def _f(v) -> float | None:
@@ -90,7 +91,9 @@ def extremes(pts: list[tuple[dict, datetime, float, float]]) -> dict:
 
 # ── elevation ───────────────────────────────────────────────────────────────
 
-def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict, top: int = 10) -> dict:
+def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict,
+              pins: set[str] | frozenset = frozenset(), top: int = 10) -> dict:
+    """`pins`: venue ids pinned on a summit only seen from below (config/summit_pins.json)."""
     best: dict[str, tuple[int, dict, datetime]] = {}
     for r, d, lat, lng in pts:
         e = elev.get(f"{lat:.3f},{lng:.3f}")
@@ -111,7 +114,7 @@ def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict, top: i
                 continue
             cities.add(r.get("city"))
             item = {**_place(r, d), "m": e}
-            if r.get("category") in SUMMIT_CATS:
+            if r.get("venue_id") in pins:
                 item["summit"] = True     # the venue pin is the peak, not where you stood
             out.append(item)
             if len(out) == top:
@@ -479,6 +482,68 @@ def hunter(vals: list) -> dict:
     }
 
 
+# ── peaks (index Peak Hunter) ───────────────────────────────────────────────
+
+def continent_of(country: str, lat: float, lng: float, cmap: dict) -> str:
+    c = cmap.get(country, "")
+    if country == "Russia" and lng >= 60:
+        return "Asia"                                 # east of the Urals
+    if country == "Turkey" and lng < 29.05 and lat > 40.9:
+        return "Europe"                               # Istanbul's European bank, Thrace
+    return c
+
+
+def peaks(pts: list[tuple[dict, datetime, float, float]], elev: dict, cfg: dict,
+          pins: set[str] | frozenset = frozenset()) -> dict:
+    """Highest check-in overall and per continent, height badges with the first
+    day reached, and land below sea level. Summit pins (a mountain venue pinned on
+    its peak) never count as reached; the top few are listed apart."""
+    cmap = cfg.get("countries") or {}
+    seen = []
+    pinned: dict[str, dict] = {}
+    for r, d, lat, lng in pts:
+        e = elev.get(f"{lat:.3f},{lng:.3f}")
+        if e is None:
+            continue
+        item = {**_place(r, d), "m": int(e), "continent": continent_of(r.get("country", ""), lat, lng, cmap)}
+        if r.get("venue_id") in pins:
+            vid = r.get("venue_id") or item["venue"]
+            if vid not in pinned or pinned[vid]["m"] < item["m"]:
+                pinned[vid] = item
+            continue
+        seen.append((d, item))
+    if not seen:
+        return {}
+    seen.sort(key=lambda t: t[0])
+    best = max((it for _, it in seen), key=lambda it: it["m"])
+    badges = []
+    for s in PEAK_STEPS:
+        first = next((it for _, it in seen if it["m"] >= s), None)
+        badges.append({"m": s, **({"first": first} if first else {})})
+    conts: dict[str, dict] = {}
+    for _, it in seen:
+        c = it["continent"]
+        if not c:
+            continue
+        slot = conts.setdefault(c, {"continent": c, "high": it, "low": it})
+        if it["m"] > slot["high"]["m"]:
+            slot["high"] = it
+        if it["m"] < slot["low"]["m"]:
+            slot["low"] = it
+    top, lows = cfg.get("peaks") or {}, cfg.get("lows") or {}
+    rows = []
+    for c, v in conts.items():
+        row = {"continent": c, "high": v["high"], "peak": top.get(c)}
+        if v["low"]["m"] <= BELOW_SEA_M:           # real depressions; a few metres is coastal DEM noise
+            row["low"] = v["low"]
+            row["deepest"] = lows.get(c)
+        rows.append(row)
+    rows.sort(key=lambda t: -t["high"]["m"])
+    return {"best": best, "goal": max((p[1] for p in top.values()), default=8849), "badges": badges,
+            "continents": rows,
+            "summit_pins": sorted(pinned.values(), key=lambda it: -it["m"])[:3]}
+
+
 # ── entry point ─────────────────────────────────────────────────────────────
 
 def _load(path: Path) -> dict:
@@ -495,7 +560,7 @@ def _skip_cats(cfg: Path) -> set[str]:
 
 def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None = None,
                     trips: list[dict] | None = None, home_city: str = "",
-                    home_history=None) -> dict:
+                    home_history=None, summit_pins: set[str] | None = None) -> dict:
     cfg = Path(config_dir)
     geo = geo or {}
     local: dict[int, datetime | None] = {}
@@ -523,7 +588,10 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
     out: dict = {"extremes": extremes(pts), "tiles": tiles(pts), "sun": sun(pts),
                  "bonds": bonds(rows, stamp, _skip_cats(cfg))}
     if geo.get("elevation"):
-        out["elevation"] = elevation(pts, geo["elevation"])
+        pins = summit_pins if summit_pins is not None else {
+            k for k in _load(cfg / "summit_pins.json") if not k.startswith("_")}
+        out["elevation"] = elevation(pts, geo["elevation"], pins)
+        out["peaks"] = peaks(pts, geo["elevation"], _load(cfg / "continents.json"), pins)
     if geo.get("regions"):
         out["regions"] = regions(rows, geo["regions"])
     if geo.get("weather"):

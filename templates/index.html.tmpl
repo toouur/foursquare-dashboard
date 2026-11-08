@@ -75,7 +75,21 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .th-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
 .th-k{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);}
 .th-v{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;line-height:1;}
-.th-v small{font-size:0.9rem;opacity:.55;font-weight:400;}
+.th-v small{font-size:0.95rem;opacity:.6;font-weight:400;margin-left:2px;}
+.th-bar i{position:absolute;top:-1px;bottom:-1px;width:1px;background:var(--bg);opacity:.9;}
+.th-scale{display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:0.54rem;color:var(--muted);margin-top:2px;}
+.th-peak .th-v{color:#b9a7ff;}
+.th-peak .th-bar span{background:linear-gradient(90deg,#7fd1a3,#b9a7ff,#e8e2ff);}
+.th-peak .th-b.on{background:rgba(185,167,255,.12);border-color:rgba(185,167,255,.45);}
+.th-cont{display:grid;grid-template-columns:96px 1fr auto;gap:4px 10px;align-items:center;font-size:0.74rem;padding:6px 0;border-bottom:1px solid var(--border);}
+.th-cont:last-child{border-bottom:0;}
+.th-cont .c{font-family:'DM Mono',monospace;font-size:0.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+.th-cont .bar{height:6px;border-radius:4px;background:var(--card2);overflow:hidden;}
+.th-cont .bar span{display:block;height:100%;background:linear-gradient(90deg,#7fd1a3,#b9a7ff);}
+.th-cont .bar.low span{background:linear-gradient(90deg,#6db6ff,#3d6fe0);}
+.th-cont .m{font-family:'DM Mono',monospace;font-size:0.64rem;color:var(--text);white-space:nowrap;text-align:right;}
+.th-cont .p{grid-column:2/4;font-size:0.66rem;color:var(--text2);margin-top:-2px;}
+.th-note{font-size:0.68rem;color:var(--muted);margin-top:10px;}
 .th-heat .th-v{color:#f08a4b;}.th-cold .th-v{color:#6db6ff;}
 .th-sub{font-size:0.74rem;color:var(--text2);margin-top:4px;}
 .th-bar{height:10px;border-radius:6px;background:var(--card2);border:1px solid var(--border);margin:12px 0 6px;overflow:hidden;position:relative;}
@@ -690,8 +704,13 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
 
 <div class="grid">
   <div class="card full" id="s-hunter" style="display:none;">
-    <div class="card-title">Temperature Hunter <em>&middot; the hottest day and the coldest night you checked in on &middot; <a href="stats.html#exWxCard" style="color:inherit">all weather ↗</a></em></div>
+    <div class="card-title">Temperature Hunter <em>&middot; the hottest day and the coldest night you checked in on &middot; <a href="stats.html#weather" style="color:inherit">all weather ↗</a></em></div>
     <div class="th-grid" id="thGrid"></div>
+  </div>
+
+  <div class="card full" id="s-peaks" style="display:none;">
+    <div class="card-title">Peak Hunter <em>&middot; the highest place you checked in on, per continent &middot; <a href="stats.html#heights" style="color:inherit">all heights ↗</a></em></div>
+    <div class="th-grid" id="pkGrid"></div>
   </div>
 
   <div class="card full" id="s-timeline">
@@ -2296,21 +2315,51 @@ function buildCityMap(){
   function sign(t){return (t>0?'+':t<0?'−':'')+Math.abs(t);}
   function fmt(t){return sign(Math.round(t*10)/10);}
   function side(cls,label,o,unit){
-    var best=o.best.t,goal=o.goal,from=cls==='th-heat'?0:0;
-    var pct=Math.max(2,Math.min(100,Math.round(Math.abs(best-from)/Math.abs(goal-from)*100)));
+    var best=o.best.t,goal=o.goal;
+    var pct=Math.max(2,Math.min(100,Math.abs(best)/Math.abs(goal)*100));
     var left=Math.round(Math.abs(goal-best)*10)/10;
+    var ticks=o.badges.map(function(b){return '<i style="left:'+(Math.abs(b.t)/Math.abs(goal)*100)+'%"></i>';}).join('');
     var badges=o.badges.map(function(b){
       var tip=b.first?('first: '+b.first.city+', '+b.first.date+' · '+b.days+' day'+(b.days===1?'':'s')):'not yet';
       return '<span class="th-b'+(b.first?' on':'')+'" title="'+esc(tip)+'">'+(b.first?'✓ ':'')+sign(b.t)+'°</span>';
     }).join('');
     var st=o.streak&&o.streak.days>1?'<div class="th-streak">Longest run: <b>'+o.streak.days+' days</b> '+(cls==='th-heat'?'at +30° or more':'below 0° all day')+' · '+esc(o.streak.from)+' → '+esc(o.streak.to)+'</div>':'';
     return '<div class="'+cls+'"><div class="th-head"><span class="th-k">'+label+'</span><span class="th-left">goal '+sign(goal)+'°'+(left>0?' · '+left+'° to go':' · done')+'</span></div>'
-      +'<div class="th-v">'+fmt(best)+'°<small>C</small></div>'
+      +'<div class="th-v">'+fmt(best)+'<small>°C</small></div>'
       +'<div class="th-sub">'+esc(o.best.city)+(o.best.country?', '+esc(o.best.country):'')+' · '+esc(o.best.date)+'</div>'
-      +'<div class="th-bar"><span style="width:'+pct+'%"></span></div>'
+      +'<div class="th-bar"><span style="width:'+pct+'%"></span>'+ticks+'</div>'
+      +'<div class="th-scale"><span>0°</span><span>'+sign(goal)+'°</span></div>'
       +'<div class="th-badges">'+badges+'</div>'+st+'</div>';
   }
   document.getElementById('thGrid').innerHTML=side('th-heat','Heat · day max',H.heat)+side('th-cold','Frost · night min',H.cold);
+})();
+
+// ── Peak Hunter: highest check-in, height badges, per continent ──
+(function(){
+  var P=S.peaks;if(!P||!P.best)return;
+  document.getElementById('s-peaks').style.display='';
+  function m(x){return (x<0?'−':'')+Math.abs(x).toLocaleString('en-US')+' m';}
+  var goal=P.goal||8849,b=P.best;
+  var ticks=P.badges.map(function(x){return '<i style="left:'+(x.m/goal*100)+'%"></i>';}).join('');
+  var badges=P.badges.map(function(x){
+    var tip=x.first?('first: '+x.first.city+', '+x.first.date):'not yet';
+    return '<span class="th-b'+(x.first?' on':'')+'" title="'+esc(tip)+'">'+(x.first?'✓ ':'')+x.m.toLocaleString('en-US')+'</span>';
+  }).join('');
+  var pins=(P.summit_pins||[]).length?'<div class="th-note">⛰ Summit pins seen from below, not counted: '+P.summit_pins.map(function(p){return esc(p.venue)+' '+m(p.m);}).join(' · ')+'</div>':'';
+  var left='<div class="th-peak"><div class="th-head"><span class="th-k">Highest check-in</span><span class="th-left">Everest '+m(goal)+' · '+m(goal-b.m)+' to go</span></div>'
+    +'<div class="th-v">'+b.m.toLocaleString('en-US')+'<small>m</small></div>'
+    +'<div class="th-sub">'+esc(b.venue)+' · '+esc(b.city)+(b.country?', '+esc(b.country):'')+' · '+esc(b.date)+'</div>'
+    +'<div class="th-bar"><span style="width:'+Math.max(2,b.m/goal*100)+'%"></span>'+ticks+'</div>'
+    +'<div class="th-scale"><span>0 m</span><span>'+m(goal)+'</span></div>'
+    +'<div class="th-badges">'+badges+'</div>'+pins+'</div>';
+  var right='<div>'+P.continents.map(function(c){
+    var pk=c.peak||['',0],h='<div class="th-cont"><span class="c">'+esc(c.continent)+'</span><div class="bar"><span style="width:'+(pk[1]?Math.max(2,Math.min(100,c.high.m/pk[1]*100)):0)+'%"></span></div><span class="m">'+m(c.high.m)+'</span>'
+      +'<span class="p">'+esc(c.high.city)+(pk[0]?' · '+esc(pk[0])+' '+m(pk[1]):'')+'</span></div>';
+    if(c.low){var dp=c.deepest||['',0];h+='<div class="th-cont"><span class="c">↓ below sea</span><div class="bar low"><span style="width:'+(dp[1]?Math.max(2,Math.min(100,c.low.m/dp[1]*100)):0)+'%"></span></div><span class="m">'+m(c.low.m)+'</span>'
+      +'<span class="p">'+esc(c.low.city)+(dp[0]?' · '+esc(dp[0])+' '+m(dp[1]):'')+'</span></div>';}
+    return h;
+  }).join('')+'</div>';
+  document.getElementById('pkGrid').innerHTML=left+right;
 })();
 </script>
 <footer style="text-align:center;padding:24px 20px 32px;font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted);">Designed by <a href="https://t.me/toouur" style="color:var(--gold);text-decoration:underline;text-underline-offset:2px;" target="_blank" rel="noopener">@toouur</a></footer>
