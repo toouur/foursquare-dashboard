@@ -45,6 +45,12 @@ AREA_GROUP = "Streets & Areas"
 # at least 10 per list; the page shows 10 and expands to the rest.
 WX_FLOORS = {"hot": 30.0, "cold": -10.0, "wet": 20.0, "snow": 3.0}
 WX_LIST_CAP = 500
+# Temperature Hunter (index page): badges for the day max / night min reached.
+HUNT_HEAT = (30, 35, 40, 45, 50)
+HUNT_COLD = (-10, -20, -30, -40)
+# A mountain venue is pinned on its summit: its height is the peak's, and the
+# check-in was often made from below (Ağrı Dağı from Doğubayazıt). Kept, flagged.
+SUMMIT_CATS = {"Mountain", "Volcano", "Hill"}
 
 
 def _f(v) -> float | None:
@@ -104,7 +110,10 @@ def elevation(pts: list[tuple[dict, datetime, float, float]], elev: dict, top: i
             if r.get("city") in cities:
                 continue
             cities.add(r.get("city"))
-            out.append({**_place(r, d), "m": e})
+            item = {**_place(r, d), "m": e}
+            if r.get("category") in SUMMIT_CATS:
+                item["summit"] = True     # the venue pin is the peak, not where you stood
+            out.append(item)
             if len(out) == top:
                 break
         return out
@@ -406,6 +415,7 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
            "all": share(allv),
            "home": share([v for v in allv if v[2]]),
            "away": share([v for v in allv if not v[2]])}
+    out["hunter"] = hunter(vals)
     tw = []
     for t in trips or []:
         seen, temps = set(), []
@@ -423,6 +433,50 @@ def weather(pts: list[tuple[dict, datetime, float, float]], wx: dict, trips: lis
         out["trips_coldest"] = tw[:5]
         out["trips_warmest"] = tw[::-1][:5]
     return out
+
+
+def _streak(dates: list[str]) -> tuple[int, str, str]:
+    """Longest run of consecutive calendar days in `dates` → (length, first, last)."""
+    from datetime import date as _d
+    best, cur, start, bs, be, prev = 0, 0, "", "", "", None
+    for s in sorted(set(dates)):
+        d = _d.fromisoformat(s)
+        cur = cur + 1 if prev is not None and (d - prev).days == 1 else 1
+        if cur == 1:
+            start = s
+        if cur > best:
+            best, bs, be = cur, start, s
+        prev = d
+    return best, bs, be
+
+
+def hunter(vals: list) -> dict:
+    """Temperature Hunter: the hottest day max and coldest night min reached, each
+    badge with the first day it was reached, and the longest hot / ice streaks.
+    `vals` = [((city key, day), (w, row, home))] as built by weather()."""
+    def place(day, w, r, val):
+        return {"city": r.get("city", ""), "country": r.get("country", ""), "date": day, "t": val}
+    by_date = sorted(vals, key=lambda kv: kv[0][1])
+    hot = max(vals, key=lambda kv: kv[1][0][0])
+    cold = min(vals, key=lambda kv: kv[1][0][1])
+
+    def badges(steps, reached):
+        out = []
+        for s in steps:
+            first = next(((day, w, r) for (k, day), (w, r, _h) in by_date if reached(w, s)), None)
+            n = len({day for (k, day), (w, _r, _h) in vals if reached(w, s)})
+            out.append({"t": s, "days": n, **({"first": place(first[0], first[1], first[2], s)} if first else {})})
+        return out
+    hs = _streak([day for (k, day), (w, _r, _h) in vals if w[0] >= 30])
+    ice = _streak([day for (k, day), (w, _r, _h) in vals if w[0] < 0])
+    return {
+        "heat": {"best": place(hot[0][1], hot[1][0], hot[1][1], hot[1][0][0]), "goal": HUNT_HEAT[-1],
+                 "badges": badges(HUNT_HEAT, lambda w, s: w[0] >= s),
+                 "streak": {"days": hs[0], "from": hs[1], "to": hs[2]}},
+        "cold": {"best": place(cold[0][1], cold[1][0], cold[1][1], cold[1][0][1]), "goal": HUNT_COLD[-1],
+                 "badges": badges(HUNT_COLD, lambda w, s: w[1] <= s),
+                 "streak": {"days": ice[0], "from": ice[1], "to": ice[2]}},
+    }
 
 
 # ── entry point ─────────────────────────────────────────────────────────────

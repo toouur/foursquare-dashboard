@@ -162,6 +162,30 @@ def test_weather_lists_keep_every_day_past_the_floor_but_at_least_ten():
     assert len(w["coldest"]) == 10                                            # none past -10°: top 10
 
 
+def test_hunter_badges_first_reach_and_streaks():
+    rows = [minsk(ts(2024, 1, d)) for d in (5, 6, 7)] + [minsk(ts(2024, 7, d)) for d in (1, 2)]
+    wx = {"Minsk|Belarus": {"2024-01-05": [-5.0, -12.0, 0, 0, 0], "2024-01-06": [-8.0, -21.0, 0, 0, 0],
+                            "2024-01-07": [-1.0, -9.0, 0, 0, 0], "2024-07-01": [31.0, 18.0, 0, 0, 0],
+                            "2024-07-02": [36.0, 20.0, 0, 0, 0]}}
+    h = ex.compute_explore(rows, "config", {"weather": wx}, home_city="Minsk")["weather"]["hunter"]
+    assert h["heat"]["best"]["t"] == 36.0 and h["cold"]["best"]["t"] == -21.0 and h["heat"]["goal"] == 50
+    b = {x["t"]: x for x in h["cold"]["badges"]}
+    assert b[-10]["first"]["date"] == "2024-01-05" and b[-20]["first"]["date"] == "2024-01-06"
+    assert b[-10]["days"] == 2 and "first" not in b[-30]
+    assert [x["days"] for x in h["heat"]["badges"]][:3] == [2, 1, 0]
+    assert h["cold"]["streak"] == {"days": 3, "from": "2024-01-05", "to": "2024-01-07"}
+    assert h["heat"]["streak"]["days"] == 2
+
+
+def test_summit_pins_are_flagged_not_dropped():
+    rows = [make_row(ts(2021, 9, 6), city="Doğubayazıt", country="Turkey", venue="Ağrı Dağı",
+                     venue_id="ararat", lat="39.706", lng="44.295", category="Mountain"),
+            minsk(ts(2024, 1, 1))]
+    e = ex.compute_explore(rows, "config", {"elevation": {"39.706,44.295": 4954, "53.900,27.560": 220}})
+    top = e["elevation"]["highest"]
+    assert top[0]["venue_id"] == "ararat" and top[0]["summit"] is True and "summit" not in top[1]
+
+
 def test_country_checkin_is_not_an_extreme():
     rows = [minsk(ts(2024, 1, 1)),
             make_row(ts(2024, 2, 1), city="", country="Turkey", venue="Turkey", venue_id="tr",

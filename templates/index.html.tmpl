@@ -70,6 +70,27 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .card.full{grid-column:1/-1;}
 .card-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .card-title em{opacity:0.5;font-style:normal;}
+/* ── TEMPERATURE HUNTER ── */
+.th-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.th-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.th-k{font-family:'DM Mono',monospace;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);}
+.th-v{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;line-height:1;}
+.th-v small{font-size:0.9rem;opacity:.55;font-weight:400;}
+.th-heat .th-v{color:#f08a4b;}.th-cold .th-v{color:#6db6ff;}
+.th-sub{font-size:0.74rem;color:var(--text2);margin-top:4px;}
+.th-bar{height:10px;border-radius:6px;background:var(--card2);border:1px solid var(--border);margin:12px 0 6px;overflow:hidden;position:relative;}
+.th-bar span{display:block;height:100%;border-radius:6px;}
+.th-heat .th-bar span{background:linear-gradient(90deg,#e8b86d,#f08a4b,#e0453a);}
+.th-cold .th-bar span{background:linear-gradient(90deg,#9fe3dc,#6db6ff,#3d6fe0);}
+.th-left{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);}
+.th-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
+.th-b{font-family:'DM Mono',monospace;font-size:0.64rem;padding:4px 9px;border-radius:999px;border:1px dashed var(--border);color:var(--muted);}
+.th-b.on{border-style:solid;color:var(--text);}
+.th-heat .th-b.on{background:rgba(240,138,75,.12);border-color:rgba(240,138,75,.45);}
+.th-cold .th-b.on{background:rgba(109,182,255,.12);border-color:rgba(109,182,255,.45);}
+.th-streak{font-size:0.72rem;color:var(--text2);margin-top:10px;}
+@media(max-width:700px){.th-grid{grid-template-columns:1fr;}.th-v{font-size:1.6rem;}}
+
 .section-insight{display:block;font-family:'DM Sans',sans-serif;font-size:0.82rem;color:var(--muted);font-style:italic;margin-top:-10px;margin-bottom:14px;line-height:1.5;}
 
 /* ── TABS ── */
@@ -668,6 +689,11 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
 </div>
 
 <div class="grid">
+  <div class="card full" id="s-hunter" style="display:none;">
+    <div class="card-title">Temperature Hunter <em>&middot; the hottest day and the coldest night you checked in on &middot; <a href="stats.html#exWxCard" style="color:inherit">all weather ↗</a></em></div>
+    <div class="th-grid" id="thGrid"></div>
+  </div>
+
   <div class="card full" id="s-timeline">
     <div class="card-title">Travel Timeline <em>&middot; trips away from Minsk &middot; click a bar for details</em></div>
     <span class="section-insight" id="insight-timeline"></span>
@@ -2261,6 +2287,30 @@ function buildCityMap(){
     if(tab==='country' && !document.getElementById('byCountryList').innerHTML) buildByCountry(_byCountrySort);
     if(tab==='world' && !document.getElementById('worldCitiesList').innerHTML) buildWorldCities('ALL');
   };
+})();
+
+// ── Temperature Hunter: hottest day max / coldest night min, badges, streaks ──
+(function(){
+  var H=S.hunter;if(!H||!H.heat)return;
+  document.getElementById('s-hunter').style.display='';
+  function sign(t){return (t>0?'+':t<0?'−':'')+Math.abs(t);}
+  function fmt(t){return sign(Math.round(t*10)/10);}
+  function side(cls,label,o,unit){
+    var best=o.best.t,goal=o.goal,from=cls==='th-heat'?0:0;
+    var pct=Math.max(2,Math.min(100,Math.round(Math.abs(best-from)/Math.abs(goal-from)*100)));
+    var left=Math.round(Math.abs(goal-best)*10)/10;
+    var badges=o.badges.map(function(b){
+      var tip=b.first?('first: '+b.first.city+', '+b.first.date+' · '+b.days+' day'+(b.days===1?'':'s')):'not yet';
+      return '<span class="th-b'+(b.first?' on':'')+'" title="'+esc(tip)+'">'+(b.first?'✓ ':'')+sign(b.t)+'°</span>';
+    }).join('');
+    var st=o.streak&&o.streak.days>1?'<div class="th-streak">Longest run: <b>'+o.streak.days+' days</b> '+(cls==='th-heat'?'at +30° or more':'below 0° all day')+' · '+esc(o.streak.from)+' → '+esc(o.streak.to)+'</div>':'';
+    return '<div class="'+cls+'"><div class="th-head"><span class="th-k">'+label+'</span><span class="th-left">goal '+sign(goal)+'°'+(left>0?' · '+left+'° to go':' · done')+'</span></div>'
+      +'<div class="th-v">'+fmt(best)+'°<small>C</small></div>'
+      +'<div class="th-sub">'+esc(o.best.city)+(o.best.country?', '+esc(o.best.country):'')+' · '+esc(o.best.date)+'</div>'
+      +'<div class="th-bar"><span style="width:'+pct+'%"></span></div>'
+      +'<div class="th-badges">'+badges+'</div>'+st+'</div>';
+  }
+  document.getElementById('thGrid').innerHTML=side('th-heat','Heat · day max',H.heat)+side('th-cold','Frost · night min',H.cold);
 })();
 </script>
 <footer style="text-align:center;padding:24px 20px 32px;font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted);">Designed by <a href="https://t.me/toouur" style="color:var(--gold);text-decoration:underline;text-underline-offset:2px;" target="_blank" rel="noopener">@toouur</a></footer>

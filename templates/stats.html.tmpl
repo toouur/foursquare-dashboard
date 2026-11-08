@@ -1566,6 +1566,7 @@ new Chart(document.getElementById('catChart'),{
   }
 
   var E=X.extremes,H=X.elevation;
+  var SUMMIT=' · <span title="Height of the venue pin, which sits on the summit; the check-in was likely made from below" style="color:var(--gold);cursor:help">⛰ summit pin</span>';
   if(E&&E.north){
     show('exEdgesCard');
     var h=tile('Northernmost',deg(E.north.lat,'N','S'),vl(E.north)+' · '+where(E.north))
@@ -1573,12 +1574,12 @@ new Chart(document.getElementById('catChart'),{
          +tile('Westernmost',deg(E.west.lng,'E','W'),vl(E.west)+' · '+where(E.west))
          +tile('Easternmost',deg(E.east.lng,'E','W'),vl(E.east)+' · '+where(E.east));
     if(H&&H.highest&&H.highest.length){
-      h+=tile('Highest',n(H.highest[0].m)+' m',vl(H.highest[0])+' · '+where(H.highest[0]));
+      h+=tile('Highest',n(H.highest[0].m)+' m',vl(H.highest[0])+' · '+where(H.highest[0])+(H.highest[0].summit?SUMMIT:''));
       h+=tile('Lowest',n(H.lowest[0].m)+' m',vl(H.lowest[0])+' · '+where(H.lowest[0]));
     }
     put('exEdges',h);
     if(H&&H.highest){
-      var f=function(o){return row(vl(o),where(o)+' · '+esc(o.date),n(o.m)+' m');};
+      var f=function(o){return row(vl(o),where(o)+' · '+esc(o.date)+(o.summit?SUMMIT:''),n(o.m)+' m');};
       put('exHeights','<div><div class="ex-sub">Highest</div>'+H.highest.map(f).join('')+'</div><div><div class="ex-sub">Lowest</div>'+H.lowest.map(f).join('')+'</div>');
     }
   }

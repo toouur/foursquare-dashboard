@@ -149,7 +149,11 @@ def build(data, trips, out_dir='.', extra_replacements=None, pix_dir_json='""'):
     with open(os.path.join(out_dir, 'map_data.json'), 'w', encoding='utf-8') as f:
         json.dump(map_payload, f, ensure_ascii=False, separators=(',', ':'))
     # STATS without the map keys — do NOT mutate `data` (later generators read it).
-    stats_slim = {k: v for k, v in data.items() if k not in _MAP_KEYS}
+    stats_slim = {k: v for k, v in data.items() if k not in _MAP_KEYS and k != 'explore'}
+    # The index only shows the Temperature Hunter; the rest of explore stays on stats.html.
+    _hunt = ((data.get('explore') or {}).get('weather') or {}).get('hunter')
+    if _hunt:
+        stats_slim['hunter'] = _hunt
     stats_json = json.dumps(stats_slim, ensure_ascii=False).replace('</', '<\\/')
 
     # ── index.html ──────────────────────────────────────────────────────────
