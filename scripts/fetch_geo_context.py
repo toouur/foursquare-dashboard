@@ -52,6 +52,7 @@ DAILY = "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,we
 ARCHIVE_LAG_DAYS = 7          # ERA5 trails real time by ~5 days
 RANGE_GAP_DAYS = 20           # merge needed days closer than this into one request
 RETRY_DAYS = 90               # a region lookup that found nothing is retried after this
+MOVED_DEG = 0.02              # a city whose median point moved this far is asked again
 ELEV_PAUSE = 1.1              # OpenTopoData: at most one call a second
 
 
@@ -89,12 +90,20 @@ def local_day(r: dict) -> date | None:
     return _localise(d, float(r["lat"]), float(r["lng"]), r.get("country", "")).date()
 
 
+# A check-in into a whole country/state carries the country's centroid (Minsk for
+# Belarus, Kyiv for Ukraine), whatever city the trip context gave it: no point, no day.
+COARSE_CATS = {"Country", "State", "County", "States and Municipalities"}
+
+
 def needs(rows: list[dict]) -> tuple[set[str], dict[str, tuple[float, float]], dict[str, set[date]]]:
     """(coord keys, city median points, city → local days with a check-in)."""
+    from transform import group_category
     coords: set[str] = set()
     pts: dict[str, list[tuple[float, float]]] = defaultdict(list)
     days: dict[str, set[date]] = defaultdict(set)
     for r in _real(rows):
+        if group_category(r) in COARSE_CATS:
+            continue
         lat, lng = float(r["lat"]), float(r["lng"])
         coords.add(coord_key(lat, lng))
         k = city_key(r["city"], r.get("country", ""))
@@ -201,10 +210,16 @@ def fill_weather(cache: dict, centre: dict, days: dict, budget: int, today: date
     return calls
 
 
+REGION_LEVELS = ("ISO3166-2-lvl4", "ISO3166-2-lvl3", "ISO3166-2-lvl5", "ISO3166-2-lvl6",
+                 # Small countries keep their ISO subdivision on a municipal level:
+                 # Slovenia, Malta, Liechtenstein (lvl8), North Macedonia (lvl7).
+                 "ISO3166-2-lvl7", "ISO3166-2-lvl8")
+REGION_ZOOMS = (8, 10)        # 8 = state level; 10 reaches the municipal codes above
+
+
 def _region(addr: dict) -> tuple[str | None, str]:
-    code = next((addr[k] for k in ("ISO3166-2-lvl4", "ISO3166-2-lvl3", "ISO3166-2-lvl5", "ISO3166-2-lvl6")
-                 if addr.get(k)), None)
-    name = next((addr[k] for k in ("state", "region", "province", "county") if addr.get(k)), "")
+    code = next((addr[k] for k in REGION_LEVELS if addr.get(k)), None)
+    name = next((addr[k] for k in ("state", "region", "province", "county", "municipality") if addr.get(k)), "")
     return code, name
 
 
@@ -212,22 +227,30 @@ def fill_regions(cache: dict, centre: dict, budget: int, now: float, session=req
     calls = 0
     for k, (lat, lng) in sorted(centre.items()):
         hit = cache.get(k)
-        if hit and (hit.get("code") or now - hit.get("t", 0) < RETRY_DAYS * 86400):
+        at = (hit or {}).get("at")
+        moved = not at or abs(at[0] - lat) > MOVED_DEG or abs(at[1] - lng) > MOVED_DEG
+        if hit and not moved and (hit.get("code") or now - hit.get("t", 0) < RETRY_DAYS * 86400):
             continue
         if calls >= budget:
             break
-        status, body = _fetch(session, REVERSE_URL, params={"lat": lat, "lon": lng, "format": "jsonv2", "zoom": 8,
-                                                            "addressdetails": 1, "accept-language": "en"},
-                              headers={"User-Agent": UA}, timeout=30)
-        calls += 1
-        time.sleep(1.1)
+        code, name, status = None, "", 200
+        for zoom in REGION_ZOOMS:
+            status, body = _fetch(session, REVERSE_URL, params={
+                "lat": lat, "lon": lng, "format": "jsonv2", "zoom": zoom,
+                "addressdetails": 1, "accept-language": "en"}, headers={"User-Agent": UA}, timeout=30)
+            calls += 1
+            time.sleep(1.1)
+            if status != 200:
+                break
+            code, name = _region(body.get("address") or {})
+            if code:
+                break
         if status != 200:
             print(f"region {k}: {status or 'network error'}", file=sys.stderr)
             if status in (0, 403, 429):
                 break
             continue
-        code, name = _region(body.get("address") or {})
-        cache[k] = {"code": code, "name": name, "t": int(now)}
+        cache[k] = {"code": code, "name": name, "t": int(now), "at": [round(lat, 3), round(lng, 3)]}
     return calls
 
 

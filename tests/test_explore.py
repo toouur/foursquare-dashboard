@@ -66,6 +66,28 @@ def test_extremes_capitals_chains_regions():
     assert out["regions"]["total"] == 3 and out["regions"]["countries"][0]["country"] == "Norway"
 
 
+def test_region_code_fixes_borders_parents_and_territories():
+    iso = {"parents": {"BE-VAN": "BE-VLG"}, "totals": {"BY": 7, "BE": 3}}
+    reg = {"Smolensk Region|Belarus": {"code": "RU-SMO"}, "Antwerp|Belgium": {"code": "BE-VAN"},
+           "Hong Kong|Hong Kong": {"code": "CN-HK"}, "Ungheni|Romania": {"code": "MD-UN"}}
+    fixes = {"Ungheni|Romania": "RO-IS", "Iffezheim|France": None}
+    assert ex.region_code("Smolensk Region|Belarus", "by", reg, iso, fixes) is None   # across the border
+    assert ex.region_code("Antwerp|Belgium", "be", reg, iso, fixes) == "BE-VLG"       # province → region
+    assert ex.region_code("Hong Kong|Hong Kong", "hk", reg, iso, fixes) == "CN-HK"
+    assert ex.region_code("Ungheni|Romania", "ro", reg, iso, fixes) == "RO-IS"        # fix wins
+    assert ex.region_code("Iffezheim|France", "fr", {"Iffezheim|France": {"code": "FR-GES"}}, iso, fixes) is None
+
+
+def test_regions_skip_country_checkins_and_count_of_total():
+    rows = [minsk(ts(2020, 1, 1)),
+            make_row(ts(2020, 2, 1), city="Dolostsy", country="Belarus", venue="Belarus", venue_id="c",
+                     lat="53.9", lng="27.56", category="Country")]
+    reg = {"Minsk|Belarus": {"code": "BY-HM", "name": ""}, "Dolostsy|Belarus": {"code": "BY-VI"}}
+    r = ex.regions(rows, reg, {"totals": {"BY": 2}, "names": {"BY-HM": "Minsk (city)"}}, {}, {"Belarus": "by"})
+    assert r["total"] == 1 and r["countries"][0]["of"] == 2 and r["complete"] == []
+    assert r["countries"][0]["regions"] == [["Minsk (city)", 1, "BY-HM"]]
+
+
 def test_bonds_skip_homes_and_areas():
     rows = [minsk(ts(2010 + i, 3, 1), venue="Old Bar", vid="bar") for i in range(5)]
     rows += [minsk(ts(2008 + i, 3, 1), venue="Flat", vid="home", category="Home (private)") for i in range(9)]
@@ -99,6 +121,22 @@ def test_fetch_ranges_and_region_parse():
     assert fgc._region({"ISO3166-2-lvl4": "BY-MI", "state": "Minsk Region"}) == ("BY-MI", "Minsk Region")
     assert fgc._region({"ISO3166-2-lvl6": "X-1", "county": "Y"}) == ("X-1", "Y")
     assert fgc._region({}) == (None, "")
+    assert fgc._region({"ISO3166-2-lvl8": "SI-003", "municipality": "Bled"}) == ("SI-003", "Bled")
+
+
+def test_fill_regions_retries_at_municipal_zoom_and_when_the_point_moved(monkeypatch):
+    monkeypatch.setattr(fgc.time, "sleep", lambda s: None)
+
+    def rev(u, p):
+        return _Resp({"address": {"ISO3166-2-lvl8": "SI-003"}} if p["zoom"] == 10 else {"address": {}})
+    s = _Session(rev)
+    cache = {"Minsk|Belarus": {"code": "BY-HM", "name": "", "t": 0, "at": [53.9, 27.56]},
+             "Gomel|Belarus": {"code": "RU-SMO", "name": "", "t": 0, "at": [54.7, 31.0]}}
+    fgc.fill_regions(cache, {"Bled|Slovenia": (46.37, 14.11), "Minsk|Belarus": (53.9, 27.56),
+                             "Gomel|Belarus": (52.43, 31.0)}, 10, 1e9, session=s)
+    assert [c[1]["zoom"] for c in s.calls] == [8, 10, 8, 10]       # Bled, then Gomel (moved); Minsk kept
+    assert cache["Bled|Slovenia"]["code"] == "SI-003" and cache["Bled|Slovenia"]["at"] == [46.37, 14.11]
+    assert cache["Minsk|Belarus"]["code"] == "BY-HM"
 
 
 class _Resp:

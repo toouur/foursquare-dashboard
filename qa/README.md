@@ -1,12 +1,12 @@
 # QA
 
 Quality documentation for this project. The automated suite itself lives in
-[`tests/`](../tests/) (641 pytest tests) and is documented file-by-file in the main
+[`tests/`](../tests/) (644 pytest tests) and is documented file-by-file in the main
 [README](../README.md#tests); this directory holds the thinking around it.
 
 | Document | What it is |
 |----------|------------|
-| [test-strategy.md](test-strategy.md) | Risk analysis → test pyramid (584 offline unit/parity / 22 API contract / 27 Playwright E2E / 8 axe-core a11y), quality gates per lifecycle stage, test-data strategy, and the honest list of what is deliberately **not** tested and why |
+| [test-strategy.md](test-strategy.md) | Risk analysis → test pyramid (587 offline unit/parity / 22 API contract / 27 Playwright E2E / 8 axe-core a11y), quality gates per lifecycle stage, test-data strategy, and the honest list of what is deliberately **not** tested and why |
 | [exploratory-checklist.md](exploratory-checklist.md) | Manual pre-release charter: what a human checks that automation can't (visual layout, generated prose quality, post-deploy spot checks) |
 | [bug-reports/](bug-reports/) | Fourteen real defects found (and all but one fixed) in this project, written up Jira-style: repro, expected/actual, root cause, fix, regression coverage, and lessons |
 

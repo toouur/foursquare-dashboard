@@ -210,22 +210,60 @@ def tiles(pts: list[tuple[dict, datetime, float, float]]) -> dict:
 
 # ── regions ─────────────────────────────────────────────────────────────────
 
-def regions(rows: list[dict], reg: dict) -> dict:
+def region_code(key: str, country_iso: str, reg: dict, iso: dict, fixes: dict) -> str | None:
+    """The ISO 3166-2 first-level code of a "City|Country" key, or None.
+
+    config/region_fixes.json wins (a gateway whose median point sits across the
+    border, a city Nominatim has no code for). A cached code from another country
+    is dropped: the city's median point fell over a border, and counting
+    Smolensk Oblast as a region of Belarus is worse than not counting it. A code
+    below the first level climbs to it (Belgian provinces → Flanders/Wallonia),
+    so `of` (ISO's count of first-level units) compares like with like."""
+    if key in fixes:
+        code = fixes[key]
+    else:
+        code = (reg.get(key) or {}).get("code")
+    if not code:
+        return None
+    cc = country_iso.upper()
+    head, _, tail = code.partition("-")
+    if cc and head != cc and tail != cc:          # tail: Hong Kong is CN-HK
+        return None
+    return (iso.get("parents") or {}).get(code, code)
+
+
+def regions(rows: list[dict], reg: dict, iso: dict | None = None, fixes: dict | None = None,
+            flags: dict | None = None) -> dict:
+    """First-level regions per country with a check-in. A check-in into a whole
+    country (or state) carries the country's centroid, not a place, so it never
+    marks a region."""
+    iso, fixes, flags = iso or {}, fixes or {}, flags or {}
+    names, totals = iso.get("names") or {}, iso.get("totals") or {}
+    codes: dict[str, str | None] = {}
     by_c: dict[str, dict[str, list]] = defaultdict(dict)
     for r in rows:
-        hit = reg.get(_city_key(r)) or {}
-        code = hit.get("code")
+        if group_category(r) in COARSE_CATS:
+            continue
+        key, country = _city_key(r), r.get("country", "")
+        if key not in codes:
+            codes[key] = region_code(key, flags.get(country, ""), reg, iso, fixes)
+        code = codes[key]
         if not code:
             continue
-        slot = by_c[r.get("country", "")].setdefault(code, [hit.get("name") or code, 0])
+        name = names.get(code) or (reg.get(key) or {}).get("name") or code
+        slot = by_c[country].setdefault(code, [name, 0, code])
         slot[1] += 1
     if not by_c:
         return {}
-    out: list[dict] = [{"country": c, "n": len(v),
-            "regions": sorted(([n, k] for n, k in v.values()), key=lambda t: -t[1])}
-           for c, v in by_c.items()]
+    out: list[dict] = []
+    for c, v in by_c.items():
+        cc = (flags.get(c) or "").upper()
+        of = totals.get(cc) if cc and all(k.startswith(cc + "-") for k in v) else None
+        out.append({"country": c, "n": len(v), "of": of,
+                    "regions": sorted(v.values(), key=lambda t: (-t[1], t[0]))})
     out.sort(key=lambda t: (-t["n"], t["country"]))
-    return {"total": sum(t["n"] for t in out), "countries": out}
+    return {"total": sum(t["n"] for t in out), "countries": out,
+            "complete": [t["country"] for t in out if t["of"] and t["n"] >= t["of"]]}
 
 
 # ── chains ──────────────────────────────────────────────────────────────────
@@ -591,7 +629,9 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
         out["elevation"] = elevation(pts, geo["elevation"], pins)
         out["peaks"] = peaks(pts, geo["elevation"], _load(cfg / "continents.json"), pins)
     if geo.get("regions"):
-        out["regions"] = regions(rows, geo["regions"])
+        out["regions"] = regions(rows, geo["regions"], _load(cfg / "regions_iso.json"),
+                                 {k: v for k, v in _load(cfg / "region_fixes.json").items() if not k.startswith("_")},
+                                 _load(cfg / "country_flags.json"))
     if geo.get("weather"):
         out["weather"] = weather(pts, geo["weather"], trips, home_city, home_history)
     ch = _load(cfg / "chains.json")
