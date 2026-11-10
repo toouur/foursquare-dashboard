@@ -306,3 +306,19 @@ def test_weather_top_lists_one_row_per_date_and_harsher_tie():
     # same day, same region → one row; the next day of the same trip keeps its own
     assert [(d["city"], d["precip"]) for d in w["wettest"]] == [
         ("Transfăgărășan", 56.0), ("Cârțișoara", 51.6), ("Minsk", 20.0)]
+
+
+def test_stats_page_ships_only_the_keys_it_reads():
+    import gen_stats
+    tmpl = "const S={{STATS}};var a=S.explore; var b=S['by_hour']; nomad=S.nomad_kpis||{};"
+    data = {"explore": 1, "by_hour": 2, "nomad_kpis": 3, "unique_places": [0] * 9, "venues_heatmap": [1]}
+    assert gen_stats.used_keys(tmpl, data) == {"explore": 1, "by_hour": 2, "nomad_kpis": 3}
+
+
+def test_region_map_geometry_is_simplified():
+    g = {"type": "Polygon", "coordinates": [[[27.4012, 53.8701], [27.4049, 53.8698], [27.5, 53.9],
+                                             [27.6, 53.8], [27.4012, 53.8701]],
+                                            [[27.45, 53.85], [27.451, 53.851], [27.452, 53.85], [27.45, 53.85]]]}
+    s = ex.simplify_geometry(g)
+    assert s["coordinates"] == [[[27.4, 53.87], [27.5, 53.9], [27.6, 53.8], [27.4, 53.87]]]   # tiny hole gone
+    assert ex.simplify_geometry({"type": "Point", "coordinates": [1, 2]}) is None

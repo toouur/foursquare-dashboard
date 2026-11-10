@@ -63,11 +63,11 @@ a{color:inherit;}
 
 /* ── GRID ── */
 .grid{padding:16px 56px 72px;display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1500px;}
-.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;position:relative;overflow:hidden;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px 30px;position:relative;overflow:hidden;scroll-margin-top:76px;}
 .card::after{content:'';position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.35;}
 .card.full{grid-column:1/-1;}
 .card-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.card-title em{opacity:0.5;font-style:normal;}
+.card-title em{color:var(--muted);font-style:normal;text-transform:none;letter-spacing:.02em;font-size:1.12em;}
 
 /* ── STREAK ── */
 .streak-row{display:flex;gap:28px;flex-wrap:wrap;padding:4px 0 16px;}
@@ -144,6 +144,8 @@ a{color:inherit;}
 .ex-tile{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:0;}
 .ex-tile .k{font-family:'DM Mono',monospace;font-size:0.56rem;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);}
 .ex-tile .v{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--gold);line-height:1.15;margin:4px 0 2px;}
+.ex-tile .v.txt{font-size:1rem;line-height:1.25;}
+.ex-map-wait{display:flex;align-items:center;justify-content:center;height:100%;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
 .ex-tile .s{font-size:0.72rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;}
 .ex-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.78rem;}
 .ex-row:last-child{border-bottom:0;}
@@ -235,6 +237,12 @@ a{color:inherit;}
 .st-tabs::-webkit-scrollbar{display:none;}
 .st-tabs button{white-space:nowrap;background:var(--card2);border:1px solid var(--border);border-radius:999px;padding:8px 16px;font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:.06em;color:var(--text);cursor:pointer;}
 .st-tabs button:hover{border-color:var(--gold);}
+@media(max-width:700px){.st-tabs{padding:10px 16px;-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent);}.st-tabs button{min-height:44px;padding:8px 14px;}.st-tabs.end{-webkit-mask-image:none;mask-image:none;}}
+.st-toc{display:flex;flex-wrap:wrap;gap:6px;padding:0 56px 14px;max-width:1500px;}
+.st-toc[hidden]{display:none;}
+.st-toc button{background:transparent;border:1px solid var(--border);border-radius:999px;padding:6px 12px;min-height:32px;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.06em;color:var(--muted);cursor:pointer;}
+.st-toc button:hover,.st-toc button:focus-visible{border-color:var(--gold);color:var(--text);}
+@media(max-width:700px){.st-toc{padding:0 16px 12px;}.st-toc button{min-height:40px;}}
 .st-tabs button.on{background:linear-gradient(135deg,#f6d38b,#ff9a6b 55%,#ff6fae);color:#1a1206;border-color:transparent;}
 .st-tabs button b{font-weight:400;opacity:.6;margin-left:5px;}
 .ins-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:6px 56px 0;margin-bottom:14px;max-width:1500px;}
@@ -277,6 +285,7 @@ a{color:inherit;}
   <button data-t="movement">Movement</button><button data-t="people">People</button><button data-t="words">Words</button><button data-t="data">Data</button>
 </div>
 <div class="ins-grid" id="insGrid"></div>
+<nav class="st-toc" id="stToc" aria-label="Cards in this tab" hidden></nav>
 
 <div class="page-insight" id="page-insight"></div>
 
@@ -600,7 +609,7 @@ a{color:inherit;}
 
   <!-- 43. Borders -->
   <div data-tab="places movement" class="card full" id="exBordCard" style="display:none;">
-    <div class="card-title">Borders <em>&middot; crossed by land or sea: consecutive check-ins in two countries within a day, no flight between</em></div>
+    <div class="card-title">Borders <em>&middot; crossed by land or sea — two check-ins in two countries within a day, no flight between</em></div>
     <div class="ex-tiles" id="exBordKpi"></div>
     <div class="ex-cols">
       <div><div class="ex-sub">Most crossed borders</div><div id="exBordPairs"></div></div>
@@ -655,13 +664,12 @@ a{color:inherit;}
     <div class="ex-cols" id="exMoodCols"></div>
   </div>
 
-  <!-- 49. Left behind -->
+  <!-- 49. Coming back (places left behind: card "What You Miss") -->
   <div data-tab="places" class="card full" id="exLeftCard" style="display:none;">
-    <div class="card-title">Left Behind <em>&middot; places with 10+ visits not seen for two years, and the cities you come back to</em></div>
+    <div class="card-title">Coming Back <em>&middot; share of a city's places you visited twice or more (cities with 40+ places)</em></div>
     <div class="ex-cols">
-      <div><div class="ex-sub">Once regular</div><div class="scroll-list" id="exLeftList" style="max-height:460px"></div></div>
-      <div><div class="ex-sub">Most returned-to places · share of places visited twice or more</div><div id="exRetLoyal"></div>
-        <div class="ex-sub">Explorer cities · the lowest share</div><div id="exRetExpl"></div></div>
+      <div><div class="ex-sub">Most returned-to</div><div id="exRetLoyal"></div></div>
+      <div><div class="ex-sub">Explorer cities · the lowest share</div><div id="exRetExpl"></div></div>
     </div>
   </div>
 
@@ -1674,7 +1682,7 @@ new Chart(document.getElementById('catChart'),{
   function n(x){return Number(x||0).toLocaleString('en-US');}
   function vl(o){return o.venue_id?'<a href="venue.html#'+esc(o.venue_id)+'">'+esc(o.venue)+'</a>':esc(o.venue);}
   function where(o){return [o.city,o.country].filter(Boolean).map(esc).join(', ');}
-  function tile(k,v,s){return '<div class="ex-tile"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+(s||'')+'</div></div>';}
+  function tile(k,v,s){var txt=String(v).replace(/<[^>]*>/g,'');var long=txt.length>14&&/[A-Za-zА-я]{4}/.test(txt);return '<div class="ex-tile"><div class="k">'+k+'</div><div class="v'+(long?' txt':'')+'">'+v+'</div><div class="s">'+(s||'')+'</div></div>';}
   function row(main,sub,m){return '<div class="ex-row"><div>'+main+(sub?'<div class="p">'+sub+'</div>':'')+'</div><div class="m">'+m+'</div></div>';}
   function deg(x,p,q){return Math.abs(x).toFixed(2)+'° '+(x>=0?p:q);}
   function bars(list,lab,val,txt,col){
@@ -1795,14 +1803,14 @@ new Chart(document.getElementById('catChart'),{
       put('exRegNext',NR.complete_next.map(function(g){return row('<b>'+esc(g.country)+'</b> · '+g.n+' / '+g.of,'missing: '+g.missing.map(esc).join(', ')+(g.left>g.missing.length?' …':''),g.left+' to go');}).join(''));
     }
     if(R.map){
-      var mapEl=document.getElementById('exRegMap');mapEl.style.display='';
+      var mapEl=document.getElementById('exRegMap');mapEl.style.display='';mapEl.innerHTML='<div class="ex-map-wait">Loading '+n(R.map)+' region outlines…</div>';
       var drawMap=function(){
         if(mapEl.dataset.done)return;mapEl.dataset.done='1';
         var css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
         var js=document.createElement('script');js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
         js.onload=function(){
           fetch('regions-map.json').then(function(r){return r.json();}).then(function(G){
-            var m=L.map(mapEl,{preferCanvas:true,scrollWheelZoom:false,worldCopyJump:true});
+            mapEl.innerHTML='';var m=L.map(mapEl,{preferCanvas:true,scrollWheelZoom:false,worldCopyJump:true});
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={{CARTO_KEY}}',
               {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',subdomains:'abcd',maxZoom:12}).addTo(m);
             var mx=Math.log(1+Math.max.apply(null,G.features.map(function(f){return f.properties.n;})));
@@ -1824,7 +1832,7 @@ new Chart(document.getElementById('catChart'),{
                 var y=y0;set(y);btn.textContent='❚❚';tm=setInterval(function(){y++;if(y>y1){clearInterval(tm);tm=null;btn.textContent='▶';return;}set(y);},700);};
               set(y1);
             }
-          }).catch(function(){mapEl.style.display='none';});
+          }).catch(function(){mapEl.innerHTML='<div class="ex-map-wait">The map could not load — the lists below have everything.</div>';});
         };
         document.head.appendChild(js);
       };
@@ -1885,7 +1893,7 @@ new Chart(document.getElementById('catChart'),{
     if(Z.far)zk+=tile('Farthest from home time',hrs(Z.far.hours),where(Z.far)+' · '+esc(Z.far.date));
     if(Z.jump)zk+=tile('Biggest jump',hrs(Z.jump.hours),esc(Z.jump.from.city)+' → '+esc(Z.jump.to.city)+' · '+esc(Z.jump.to.date));
     put('exZoneKpi',zk);
-    put('exZoneList',Z.offsets.map(function(o){return '<span class="ex-chip" title="'+esc(o[1].venue)+' · '+esc(o[1].date)+'">'+utc(o[0])+' · '+esc(o[1].city||o[1].country)+'</span>';}).join(''));
+    put('exZoneList',Z.offsets.map(function(o){return '<span class="ex-chip">'+utc(o[0])+' · '+esc(o[1].city||o[1].country)+' <span style="opacity:.65">'+esc(String(o[1].date||'').slice(0,4))+'</span></span>';}).join(''));
   }
 
   var ST=X.streaks;
@@ -1925,7 +1933,7 @@ new Chart(document.getElementById('catChart'),{
     put('exSoundCtry',SD.countries.map(function(c){return row('<b>'+esc(c.country)+'</b> · '+c.artists.map(function(a){return esc(a[0]);}).join(', '),
       '♪ '+esc(c.track[0])+' — '+esc(c.track[1])+' ×'+c.track[2],n(c.n));}).join(''));
     put('exSoundSig',(SD.signature||[]).map(function(s){return row(esc(s.artist),esc(s.country)+' · '+s.share+'% of all their plays',n(s.plays));}).join('')||'<div class="p">—</div>');
-    put('exSoundCity',(SD.cities||[]).map(function(c){return '<span class="ex-chip" title="'+n(c.n)+' scrobbles · '+n(c.plays)+' of '+esc(c.artist)+'">'+esc(c.city)+' · '+esc(c.artist)+'</span>';}).join(''));
+    put('exSoundCity',(SD.cities||[]).map(function(c){return '<span class="ex-chip">'+esc(c.city)+' · '+esc(c.artist)+' <span style="opacity:.65">'+n(c.plays)+'/'+n(c.n)+'</span></span>';}).join(''));
   }
 
   var MD=X.weather_mood;
@@ -1939,10 +1947,9 @@ new Chart(document.getElementById('catChart'),{
         +B.less.map(function(g){return row(esc(g[0]),n(g[2])+' check-ins','<span style="color:#e07a5f">'+pc(g[1])+'</span>');}).join('')+'</div>';}).join(''));
   }
 
-  var LB=X.abandoned,CR=X.city_returns;
-  if((LB&&LB.length)||(CR&&CR.loyal)){
+  var CR=X.city_returns;
+  if(CR&&CR.loyal){
     show('exLeftCard');
-    put('exLeftList',(LB||[]).map(function(v){return row(vl(v),where(v)+' · '+esc(v.first.slice(0,4))+' → '+esc(v.last),n(v.visits)+'× · '+v.years_gone+' y ago');}).join('')||'<div class="p">—</div>');
     var rr=function(l){return (l||[]).map(function(c){return row(esc(c.city),esc(c.country)+' · '+c.returned+' of '+c.venues+' places',c.pct+'%');}).join('');};
     if(CR){put('exRetLoyal',rr(CR.loyal));put('exRetExpl',rr(CR.explorer));}
   }
@@ -1952,10 +1959,11 @@ new Chart(document.getElementById('catChart'),{
     show('exLagCard');
     put('exLagKpi',tile('Jumps of 3+ h',JL.jumps,'between two check-ins within 48 h')
       +tile('At home',hm(JL.baseline.first)+' → '+hm(JL.baseline.last),'median first → last check-in'));
-    var cv=JL.curve||{},tr='<tr><th>Day</th><th>Flying east</th><th>Flying west</th></tr>';
-    for(var dI=1;dI<=5;dI++){var e=(cv.east||[]).find(function(x){return x[0]===dI;}),w=(cv.west||[]).find(function(x){return x[0]===dI;});
-      tr+='<tr><td>'+dI+'</td><td>'+(e?hm(e[1])+' → '+hm(e[2]):'—')+'</td><td>'+(w?hm(w[1])+' → '+hm(w[2]):'—')+'</td></tr>';}
-    put('exLagTbl',tr);
+    var cv=JL.curve||{},sides=[['east','Flying east'],['west','Flying west']].filter(function(s){return (cv[s[0]]||[]).length>1;});
+    var cell=function(x){return x?hm(x[1])+' → '+hm(x[2])+' <span style="opacity:.55">n='+x[3]+'</span>':'—';};
+    var tr='<tr><th>Day</th>'+sides.map(function(s){return '<th>'+s[1]+'</th>';}).join('')+'</tr>';
+    for(var dI=1;dI<=5;dI++)tr+='<tr><td>'+dI+'</td>'+sides.map(function(s){return '<td>'+cell((cv[s[0]]||[]).find(function(x){return x[0]===dI;}))+'</td>';}).join('')+'</tr>';
+    put('exLagTbl',sides.length?tr:'<tr><td>Too few jumps with check-ins on the following days yet.</td></tr>');
     put('exLagList',JL.trips.map(function(t){return row(esc(t.from)+' → '+esc(t.to),esc(t.date)+(t.first.length?' · first check-in '+t.first.map(function(f){return 'd'+f[0]+' '+hm(f[1]);}).join(', '):''),hrs(t.shift));}).join(''));
   }
 
@@ -2017,7 +2025,22 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
     // a chart that was built in a card hidden by another tab keeps a stale size: re-measure
     requestAnimationFrame(()=>{ Object.values(_Chart.instances||{}).forEach(c=>{ try{ c.resize(); }catch(e){} }); });
     if(jump)setTimeout(()=>{const el=document.getElementById(jump);if(el)el.scrollIntoView({block:'start'});},250);
+    setTimeout(()=>toc(k),0);
   }
+  // In-tab index: a tab with many cards gets a row of shortcuts to them.
+  function toc(k){
+    const nav=document.getElementById('stToc');
+    const cards=[...grid.querySelectorAll(':scope > .card')].filter(c=>(c.dataset.tab||'').split(' ').includes(k)&&c.style.display!=='none'&&c.offsetHeight>0);
+    if(k==='overview'||cards.length<9){nav.hidden=true;nav.innerHTML='';return;}
+    nav.innerHTML=cards.map((c,i)=>{if(!c.id)c.id='card-'+k+'-'+i;const t=c.querySelector('.card-title');
+      const name=t?(t.childNodes[0].textContent||t.textContent).split('·')[0].trim():'';
+      return name?'<button type="button" data-go="'+c.id+'">'+name.replace(/[<>&]/g,'')+'</button>':'';}).join('');
+    nav.hidden=false;
+  }
+  document.getElementById('stToc').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b){const el=document.getElementById(b.dataset.go);if(el)el.scrollIntoView({block:'start',behavior:'smooth'});}});
+  const tabBar=document.getElementById('stTabs');
+  const tabEnd=()=>tabBar.classList.toggle('end',tabBar.scrollLeft+tabBar.clientWidth>=tabBar.scrollWidth-4);
+  tabBar.addEventListener('scroll',tabEnd,{passive:true});tabEnd();
   window.addEventListener('hashchange',()=>show((location.hash||'').slice(1)));
   window.addEventListener('load',()=>show((location.hash||'').slice(1)||grid.dataset.active));
   tabs.forEach(b=>b.onclick=()=>{history.replaceState(null,'','#'+b.dataset.t);show(b.dataset.t);

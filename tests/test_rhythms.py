@@ -45,11 +45,7 @@ def test_weather_mood_lift_of_a_group_on_rainy_days():
     assert m["buckets"]["rain"]["more"][0][0] == "Culture" and m["buckets"]["rain"]["more"][0][1] == 2.0
 
 
-def test_abandoned_and_city_returns():
-    pts = [pt(T0 + i * DAY, "Minsk", "Belarus", vid="canteen", venue="Canteen") for i in range(12)]
-    pts += [pt(T0 + 1200 * DAY, "Minsk", "Belarus", vid="new")]
-    a = rh.abandoned(pts, set())
-    assert a[0]["venue_id"] == "canteen" and a[0]["visits"] == 12 and a[0]["years_gone"] > 3
+def test_city_returns():
     pts2 = [pt(T0 + i, "Oslo", "Norway", vid=f"o{i}") for i in range(45)]
     pts2 += [pt(T0 + 100 + i, "Oslo", "Norway", vid=f"o{i}") for i in range(9)]
     assert rh.city_returns(pts2, set())["loyal"][0]["pct"] == 20
@@ -90,10 +86,11 @@ def test_companion_reach_counts_countries_and_regions():
                       "first": reach[0]["first"]}]
 
 
-def test_a_private_home_is_masked_only_when_asked(monkeypatch):
+def test_a_private_home_is_masked_only_when_asked():
+    from metrics.explore import mask_homes
     eve = int(datetime(2025, 12, 31, 22, tzinfo=timezone.utc).timestamp())
     pts = [pt(eve, "Minsk", "Belarus", category="Home (private)", venue="Lermontova 43", vid="h")]
-    assert rh.holidays(pts, None, {}, "Minsk", None)["new_year"][0]["venue"] == "Lermontova 43"
-    monkeypatch.setattr(rh, "HIDE_HOME", True)
-    e = rh.holidays(pts, None, {}, "Minsk", None)["new_year"][0]
+    h = rh.holidays(pts, None, {}, "Minsk", None)
+    assert h["new_year"][0]["venue"] == "Lermontova 43"
+    e = mask_homes(h, {"h"})["new_year"][0]
     assert e["venue"] == "Home" and e["venue_id"] == ""

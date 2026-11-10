@@ -69,7 +69,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 .card::after{content:'';position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.35;}
 .card.full{grid-column:1/-1;}
 .card-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.card-title em{opacity:0.5;font-style:normal;}
+.card-title em{color:var(--muted);font-style:normal;text-transform:none;letter-spacing:.02em;font-size:1.12em;}
 /* ── TEMPERATURE HUNTER ── */
 .th-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
 .th-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
@@ -714,7 +714,7 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
   </div>
 
   <div class="card full" id="s-timeline">
-    <div class="card-title">Travel Timeline <em>&middot; trips away from Minsk &middot; click a bar for details</em></div>
+    <div class="card-title">Travel Timeline <em>&middot; trips away from home &middot; click a bar for details</em></div>
     <span class="section-insight" id="insight-timeline"></span>
     <div id="timelineCont"></div>
   </div>

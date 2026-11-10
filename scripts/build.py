@@ -457,8 +457,8 @@ if __name__ == "__main__":
         # (recheck-enrich, photos, ratings…) gets the weather/heights cards, not
         # only the ones that remember the flag.
         _geo_path = Path(args.geo_context) if args.geo_context else _beside_input(args, "geo_context.json")
-        _geo = (json.loads(_geo_path.read_text(encoding="utf-8"))
-                if _geo_path and _geo_path.exists() else {})
+        from fetch_geo_context import load_geo   # + region_shapes.json beside it
+        _geo = load_geo(_geo_path) if _geo_path and _geo_path.exists() else {}
         try:
             from culture_sources import load_scrobbles
             _scrobbles = load_scrobbles(Path(args.input).resolve().parent / "lastfm")

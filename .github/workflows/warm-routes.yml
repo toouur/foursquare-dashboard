@@ -142,6 +142,7 @@ jobs:
           [ -f routes_cache.json ] && git add routes_cache.json || true
           [ -f boundaries.json ] && git add boundaries.json || true
           [ -f geo_context.json ] && git add geo_context.json || true
+          [ -f region_shapes.json ] && git add region_shapes.json || true
           if git diff --cached --quiet; then
             echo "Route cache unchanged — no backlog to drain."
           else

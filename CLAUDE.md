@@ -51,10 +51,10 @@ Venue renames, monthly re-fetch and deletions: `ops/d1.md`.
 
 ### Run tests / lint
 ```bash
-# Offline suite (600 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (602 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 python -m pytest tests/ -m "not live" -q
 
-# Live suite (22 API contract + 27 Playwright E2E + 8 axe-core a11y against the deployed site)
+# Live suite (22 API contract + 33 Playwright E2E + 8 axe-core a11y against the deployed site)
 python -m pytest tests/ -m live -q
 
 python -m ruff check scripts/ tests/          # ruff.toml; E401/E701/E702/E731 ignored on purpose
@@ -64,6 +64,7 @@ python scripts/check_city_count.py --csv $DATA/checkins.csv --backfill $DATA/bac
   --baseline config/city_count_baseline.json  # city-set drift gate
 python scripts/sync_doc_counts.py --check     # quoted test/file counts in README/CLAUDE/solution/qa
 python scripts/sync_readme_stats.py --check   # README headline stats vs live site_stats.json
+python scripts/sync_shared.py --other ../swarm-journal --check   # code both dashboards share (--write copies ours)
 ```
 
 ## Data and Build Model
@@ -104,8 +105,8 @@ Full map: `ops/internals.md`. Most used:
 - `scripts/sweep_overlaps.py` — monthly `sweep-overlaps.yml`: every friend's shared check-ins via Swarm history search; missing overlaps → `companion_fixes.json` (committed + deploy), untagged-later → private Telegram chat only
 - `config/companion_aliases.json` — second Swarm accounts of one person (alias id → canonical id/name), applied in transform after companion_fixes; D1 reconciles the rewritten rows
 - `scripts/audit_report.py` — monthly `data-audit.yml`: city twins, unknown categories, category suspects (reviewed ids in `config/category_audit_ok.json`) → private Telegram chat
-- Tests: `tests/` — pytest suite (657 tests: 600 offline, 22 live API contract, 35 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
-- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 101 files) and must stay so.
+- Tests: `tests/` — pytest suite (665 tests: 602 offline, 22 live API contract, 41 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
+- Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 102 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
   NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in `fetch_*` — drift from a newer local `requests`, not a code change.
 
@@ -142,6 +143,10 @@ Full map: `ops/internals.md`. Most used:
   rebase-and-retry loop, no repo-wide `concurrency` group. → `ops/internals.md`
 - **Last.fm raw layer is the truth** (`lastfm/scrobbles_<YYYY>.tsv`): repeats kept, every run
   replaces the last 14 days (late offline scrobbles), the year state is rebuilt from it. → `ops/pipelines.md`
+- **Shared code with swarm-journal** is listed in `scripts/sync_shared.py` (explore/frontiers/rhythms,
+  fetch_geo_context, gen_stats, region/category configs): change it here, `--write`, never port by hand.
+- **stats.html ships only the `S.key`s its template reads** (`gen_stats.used_keys`); a new key a card
+  reads arrives on its own, a key read some other way (e.g. `S[name]`) does not.
 - **Cloudflare via the MCP plugin is read-only** (OAuth "Read only"); every call still asks first.
   Never write to Cloudflare without explicit confirmation; writes stay in CI with its own tokens.
 

@@ -29,10 +29,12 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import statistics
 import sys
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
+from urllib.parse import urlparse
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -127,6 +129,11 @@ def ranges(days: list[date], gap: int = RANGE_GAP_DAYS) -> list[tuple[date, date
     return out
 
 
+# Failures per service host this run (network errors / 5xx after retries, 4xx/429),
+# for the GitHub step summary.
+FAILS: Counter = Counter()
+
+
 def _fetch(session, url: str, tries: int = 3, **kw) -> tuple[int, dict]:
     """(HTTP status, JSON body). A timeout, connection error or 5xx is retried
     with a growing pause; after `tries` it is (0, {}), so a flaky service ends
@@ -142,8 +149,11 @@ def _fetch(session, url: str, tries: int = 3, **kw) -> tuple[int, dict]:
         if attempt < tries - 1:
             time.sleep(15 * (attempt + 1))
     else:
+        FAILS[urlparse(url).netloc] += 1
         return 0, {}
     if r.status_code != 200:
+        if r.status_code not in (204, 404):
+            FAILS[urlparse(url).netloc] += 1
         return r.status_code, {}
     try:
         return 200, r.json() or {}
@@ -417,6 +427,47 @@ def fill_holidays(cache: dict, pairs: set[str], budget: int, session=requests) -
     return calls
 
 
+# ── cache files ─────────────────────────────────────────────────────────────
+# One entry per line, sorted: a night that adds a few days of weather changes a
+# few lines, and git stores a small delta instead of a new 2.7 MB one-line blob.
+# The region outlines (1.7 MB, written once) live in their own file beside it.
+
+SHAPES_FILE = "region_shapes.json"
+PARTS = ("elevation", "weather", "regions", "region_shapes", "normals", "holidays")
+
+
+def dumps_lines(d: dict) -> str:
+    """{"section": {"key": value, ...}} with one key per line."""
+    def one(v) -> str:
+        return json.dumps(v, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    parts = []
+    for sec in sorted(d):
+        v = d[sec]
+        if isinstance(v, dict) and v:
+            inner = ",\n".join(f"{one(k)}:{one(v[k])}" for k in sorted(v))
+            parts.append(f"{one(sec)}:{{\n{inner}\n}}")
+        else:
+            parts.append(f"{one(sec)}:{one(v)}")
+    return "{\n" + ",\n".join(parts) + "\n}\n"
+
+
+def load_geo(path: Path) -> dict:
+    """geo_context.json + region_shapes.json beside it (an older single-file cache
+    still carrying region_shapes is read as it is)."""
+    cache = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    shapes = path.with_name(SHAPES_FILE)
+    if shapes.exists():
+        cache["region_shapes"] = json.loads(shapes.read_text(encoding="utf-8")).get("region_shapes", {})
+    return cache
+
+
+def save_geo(path: Path, cache: dict) -> None:
+    main = {k: v for k, v in cache.items() if k != "region_shapes"}
+    path.write_text(dumps_lines(main), encoding="utf-8", newline="\n")
+    path.with_name(SHAPES_FILE).write_text(dumps_lines({"region_shapes": cache.get("region_shapes") or {}}),
+                                           encoding="utf-8", newline="\n")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--csv", required=True)
@@ -434,13 +485,12 @@ def main() -> int:
 
     rows = load_rows(Path(args.csv), Path(args.config_dir))
     path = Path(args.cache)
-    cache = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    for part in ("elevation", "weather", "regions", "region_shapes", "normals", "holidays"):
+    cache = load_geo(path)
+    for part in PARTS:
         cache.setdefault(part, {})
 
     def save() -> None:
-        path.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n",
-                        encoding="utf-8")
+        save_geo(path, cache)
 
     coords, centre, days = needs(rows)
     now = datetime.now(timezone.utc)
@@ -472,6 +522,19 @@ def main() -> int:
           f"outlines {sum(1 for c in points if (cache['region_shapes'].get(c) or {}).get('g'))}/{len(points)} ({ns} calls) · "
           f"normals {sum(len(v) for v in cache['normals'].values())} city-months ({nn} calls) · "
           f"holidays {len(cache['holidays'])} country-years ({nh} calls)")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        lines = ["### Geo context", "", "| Service | Cached | Calls this run |", "|---|---|---|",
+                 f"| Elevation (OpenTopoData) | {len(cache['elevation'])} of {len(coords)} points | {ne} |",
+                 f"| Weather (Open-Meteo ERA5) | {have_days} of {need_days} city-days | {nw} |",
+                 f"| Regions (Nominatim) | {sum(1 for v in cache['regions'].values() if v.get('code'))} of {len(centre)} cities | {nr} |",
+                 f"| Outlines (Nominatim) | {sum(1 for c in points if (cache['region_shapes'].get(c) or {}).get('g'))} of {len(points)} regions | {ns} |",
+                 f"| Normals (Open-Meteo ERA5) | {sum(len(v) for v in cache['normals'].values())} city-months | {nn} |",
+                 f"| Holidays (Nager.Date) | {len(cache['holidays'])} country-years | {nh} |", ""]
+        if FAILS:
+            lines += ["**Failures:** " + ", ".join(f"{h} ×{n}" for h, n in FAILS.most_common()), ""]
+        with open(summary, "a", encoding="utf-8") as fh:
+            fh.write("\n".join(lines) + "\n")
     return 0
 
 

@@ -8,7 +8,6 @@ metrics.explore: (row, LOCAL datetime, lat, lng), real place check-ins, time ord
                  SOUND_MAX_H): top artists per country and city, and the artists that
                  belong to one country more than to the rest of the library
   weather_mood   which category groups gain or lose share on rainy / freezing / hot days
-  abandoned      places once regular (ABANDON_MIN visits) not seen for ABANDON_YEARS
   city_returns   per city, the share of its places visited more than once
   jetlag         after a jump of JETLAG_MIN_H hours: first/last check-in hour on the
                  next days, against the home-day baseline
@@ -31,8 +30,6 @@ from .trips import _home_at
 SOUND_MAX_H = 12
 SOUND_MIN_COUNTRY = 50          # scrobbles for a country row
 SOUND_MIN_CITY = 150
-ABANDON_MIN = 10
-ABANDON_YEARS = 2
 RETURN_MIN_VENUES = 40
 JETLAG_MIN_H = 3
 JETLAG_DAYS = 5
@@ -52,14 +49,8 @@ def _wake_day(d: datetime) -> tuple[date, float]:
     return s.date(), _hour(s) + DAY_START_H
 
 
-HOME_CATEGORY = "Home (private)"
-HIDE_HOME = False      # config/privacy.json "hide_home" (set by compute_explore)
-
-
 def _place(r: dict, d: datetime | None = None) -> dict:
-    """A place as the page shows it; with HIDE_HOME a private home is "Home", not its address."""
-    home = HIDE_HOME and group_category(r) == HOME_CATEGORY
-    out = {"venue": "Home" if home else r.get("venue", ""), "venue_id": "" if home else r.get("venue_id", ""),
+    out = {"venue": r.get("venue", ""), "venue_id": r.get("venue_id", ""),
            "city": r.get("city", ""), "country": r.get("country", "")}
     if d is not None:
         out["date"] = d.strftime("%Y-%m-%d")
@@ -175,30 +166,7 @@ def weather_mood(pts: list, wx: dict, categorize, skip: set[str]) -> dict:
     return out if out["buckets"] else {}
 
 
-# ── places left behind, cities you return to ────────────────────────────────
-
-def abandoned(pts: list, skip: set[str]) -> list[dict]:
-    if not pts:
-        return []
-    end = max(int(r["date"]) for r, *_ in pts)
-    v: dict[str, list] = {}
-    for r, d, *_ in pts:
-        vid = r.get("venue_id")
-        if not vid or group_category(r) in skip:
-            continue
-        if vid not in v:
-            v[vid] = [r, d, d, 0]
-        v[vid][2] = d
-        v[vid][3] += 1
-    out: list[dict] = []
-    for r, first, last, n in v.values():
-        gone = (end - int(last.timestamp())) / (365.25 * 86400)
-        if n >= ABANDON_MIN and gone >= ABANDON_YEARS:
-            out.append({**_place(r), "visits": n, "first": first.strftime("%Y-%m-%d"),
-                        "last": last.strftime("%Y-%m-%d"), "years_gone": round(gone, 1)})
-    out.sort(key=lambda x: (-x["visits"], x["last"]))
-    return out[:25]
-
+# ── cities you come back to (places left behind: stats.dormant_venues) ──────
 
 def city_returns(pts: list, skip: set[str]) -> dict:
     per: dict[str, Counter] = defaultdict(Counter)

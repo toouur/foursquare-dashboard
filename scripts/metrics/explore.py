@@ -234,6 +234,59 @@ def region_code(key: str, country_iso: str, reg: dict, iso: dict, fixes: dict) -
     return (iso.get("parents") or {}).get(code, code)
 
 
+MAP_DIGITS = 2            # ~1 km: plenty for a world map of regions
+MAP_TOLERANCE = 0.02      # Douglas-Peucker, degrees (~2 km): a region keeps its shape
+
+
+def _rdp(pts: list, eps: float) -> list:
+    """Douglas-Peucker, iterative: the points that keep the line within eps."""
+    if len(pts) < 3:
+        return pts
+    keep = [False] * len(pts)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(pts) - 1)]
+    while stack:
+        i, j = stack.pop()
+        (x1, y1), (x2, y2) = pts[i], pts[j]
+        dx, dy = x2 - x1, y2 - y1
+        norm = math.hypot(dx, dy)
+        far, at = -1.0, -1
+        for k in range(i + 1, j):
+            x, y = pts[k]
+            d = (abs(dy * x - dx * y + x2 * y1 - y2 * x1) / norm) if norm else math.hypot(x - x1, y - y1)
+            if d > far:
+                far, at = d, k
+        if far > eps and at > 0:
+            keep[at] = True
+            stack += [(i, at), (at, j)]
+    return [p for p, k in zip(pts, keep) if k]
+
+
+def _ring(ring: list) -> list | None:
+    out: list = []
+    for x, y, *_ in _rdp([(p[0], p[1]) for p in ring], MAP_TOLERANCE):
+        p = [round(x, MAP_DIGITS), round(y, MAP_DIGITS)]
+        if not out or p != out[-1]:
+            out.append(p)
+    if len(out) >= 3 and out[0] != out[-1]:
+        out.append(out[0])
+    return out if len(out) >= 4 else None
+
+
+def simplify_geometry(g: dict) -> dict | None:
+    """Round to MAP_DIGITS, drop repeated points and rings that collapse."""
+    def poly(rings):
+        rs = [_ring(r) for r in rings]
+        return [r for r in rs if r] if rs and rs[0] else None
+    if g.get("type") == "Polygon":
+        p = poly(g["coordinates"])
+        return {"type": "Polygon", "coordinates": p} if p else None
+    if g.get("type") == "MultiPolygon":
+        ps = [q for q in (poly(p) for p in g["coordinates"]) if q]
+        return {"type": "MultiPolygon", "coordinates": ps} if ps else None
+    return None
+
+
 def region_map(regions_out: dict | None, shapes: dict | None) -> dict | None:
     """GeoJSON of the visited regions with an outline, for the stats map (a file of
     its own, fetched when the card is opened: outlines are too heavy for S)."""
@@ -242,7 +295,8 @@ def region_map(regions_out: dict | None, shapes: dict | None) -> dict | None:
     feats = []
     for c in regions_out.get("countries", []):
         for g in c["regions"]:
-            geom = (shapes.get(g[2]) or {}).get("g") if len(g) > 2 else None
+            raw = (shapes.get(g[2]) or {}).get("g") if len(g) > 2 else None
+            geom = (simplify_geometry(raw) or raw) if raw else None
             if geom:
                 feats.append({"type": "Feature", "geometry": geom,
                               "properties": {"code": g[2], "name": g[0], "n": g[1], "country": c["country"],
@@ -630,6 +684,20 @@ def _load(path: Path) -> dict:
         return {}
 
 
+def mask_homes(node, home_ids: set[str]):
+    """config/privacy.json hide_home: every place dict whose venue_id is a private
+    home shows as "Home", without its address or link. In place, any depth."""
+    if isinstance(node, dict):
+        if node.get("venue_id") in home_ids:
+            node["venue"], node["venue_id"] = "Home", ""
+        for v in node.values():
+            mask_homes(v, home_ids)
+    elif isinstance(node, list):
+        for v in node:
+            mask_homes(v, home_ids)
+    return node
+
+
 def _skip_cats(cfg: Path) -> set[str]:
     groups = _load(cfg / "categories.json").get("category_groups") or {}
     return set(groups.get(AREA_GROUP) or []) | {HOME_CATEGORY}
@@ -671,7 +739,6 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
         out["elevation"] = elevation(pts, geo["elevation"], pins)
         out["peaks"] = peaks(pts, geo["elevation"], _load(cfg / "continents.json"), pins)
     pts.sort(key=lambda p: int(p[0]["date"]))
-    fr.HIDE_HOME = rh.HIDE_HOME = bool(_load(cfg / "privacy.json").get("hide_home"))
     out["borders"] = fr.borders(pts)
     out["zones"] = fr.zones(pts, home_city, home_history)
     out["streaks"] = fr.streaks(pts, home_city, home_history)
@@ -701,7 +768,6 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
         out["weather_mood"] = rh.weather_mood(pts, geo["weather"], build_categorize_fn(cats) if cats else None,
                                               _skip_cats(cfg))
     skip = _skip_cats(cfg)
-    out["abandoned"] = rh.abandoned(pts, skip)
     out["city_returns"] = rh.city_returns(pts, skip)
     out["jetlag"] = rh.jetlag(pts, home_city, home_history)
     out["holidays"] = rh.holidays(pts, geo.get("holidays"), _load(cfg / "country_flags.json"), home_city, home_history)
@@ -712,4 +778,6 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
     caps = _load(cfg / "capitals.json")
     if caps:
         out["capitals"] = capitals(rows, caps, stamp)
+    if _load(cfg / "privacy.json").get("hide_home"):
+        mask_homes(out, {str(r["venue_id"]) for r in rows if group_category(r) == HOME_CATEGORY and r.get("venue_id")})
     return {k: v for k, v in out.items() if v}

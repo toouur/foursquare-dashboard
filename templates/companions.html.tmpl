@@ -170,7 +170,7 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .card::after{content:'';position:absolute;top:0;left:24px;right:24px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.35;}
 .card.full{grid-column:1/-1;}
 .card-title{font-family:'DM Mono',monospace;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.2em;color:var(--gold);margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.card-title em{opacity:0.5;font-style:normal;}
+.card-title em{color:var(--muted);font-style:normal;text-transform:none;letter-spacing:.02em;font-size:1.12em;}
 .section-insight{display:block;font-family:'DM Sans',sans-serif;font-size:0.82rem;color:var(--muted);font-style:italic;margin-top:-10px;margin-bottom:14px;line-height:1.5;}
 .social-kpi-row{display:flex;gap:10px;margin-bottom:16px;}
 .social-kpi{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
@@ -178,7 +178,12 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .social-kpi .sk-lbl{font-size:.58rem;color:var(--muted);margin-top:2px;}
 .cc-list{display:flex;flex-direction:column;gap:5px;}
 .reach-map{height:360px;border-radius:10px;overflow:hidden;margin:0 0 12px;border:1px solid var(--border);background:#0e1018;}
+.reach-row{width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:44px;grid-template-columns:150px 1fr auto;}
+.reach-n{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);white-space:nowrap;}
+@media(max-width:700px){.reach-row{grid-template-columns:1fr;gap:6px;}.reach-n{white-space:normal;}}
 .reach-row.on{border-color:#4ecdc4;}
+.reach-row:focus-visible{outline:2px solid #4ecdc4;outline-offset:2px;}
+.reach-wait{display:flex;align-items:center;justify-content:center;height:100%;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
 .cc-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:8px 12px;background:var(--card2);border:1px solid var(--border);border-radius:7px;}
 .cc-name{font-size:.78rem;color:var(--text);}
 .cc-flags{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
@@ -575,22 +580,23 @@ show(idx>=0?idx:0);
     document.getElementById('reachCard').style.display='';
     const list=document.getElementById('reachList'), mapEl=document.getElementById('reachMap');
     let lay=null, G=null, pick=RC[0].name;
-    list.innerHTML=RC.map((c,i)=>`<div class="cc-row reach-row${i===0?' on':''}" data-i="${i}" style="grid-template-columns:150px 1fr auto;cursor:pointer">
+    list.innerHTML=RC.map((c,i)=>`<button type="button" class="cc-row reach-row${i===0?' on':''}" data-i="${i}" aria-pressed="${i===0}">
         <div class="cc-name">${esc(c.name)}</div>
         <div class="cc-flags" style="justify-content:flex-start;gap:6px">${c.country_list.slice(0,14).map(co=>flagHtml(co,'1.05em')).join('')}</div>
-        <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);white-space:nowrap">${c.countries} countries · ${c.regions} regions · ${c.cities} cities · ${c.checkins.toLocaleString('en-US')} together</div>
-      </div>`).join('');
+        <div class="reach-n">${c.countries} countries · ${c.regions} regions · ${c.cities} cities · ${c.checkins.toLocaleString('en-US')} together</div>
+      </button>`).join('');
     const paint=()=>{ if(!lay) return; const on=new Set((RC.find(c=>c.name===pick)||{}).codes||[]);
       lay.setStyle(f=>on.has(f.properties.code)?{color:'#4ecdc4',weight:1,opacity:.9,fillColor:'#4ecdc4',fillOpacity:.5}
                                              :{color:'#e8b04a',weight:.5,opacity:.25,fillColor:'#e8b04a',fillOpacity:.06}); };
     list.addEventListener('click',e=>{const row=e.target.closest('.reach-row'); if(!row) return;
-      list.querySelectorAll('.reach-row').forEach(r=>r.classList.toggle('on',r===row)); pick=RC[+row.dataset.i].name; paint();});
+      list.querySelectorAll('.reach-row').forEach(r=>{r.classList.toggle('on',r===row);r.setAttribute('aria-pressed',String(r===row));}); pick=RC[+row.dataset.i].name; paint();});
     const draw=()=>{
       const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
       const js=document.createElement('script');js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      mapEl.style.display=''; mapEl.innerHTML='<div class="reach-wait">Loading the map…</div>';
       js.onload=()=>fetch('regions-map.json').then(r=>r.ok?r.json():null).then(g=>{
-        if(!g||!g.features||!g.features.length) return;
-        G=g; mapEl.style.display='';
+        if(!g||!g.features||!g.features.length){ mapEl.style.display='none'; return; }
+        G=g; mapEl.innerHTML='';
         const m=L.map(mapEl,{preferCanvas:true,scrollWheelZoom:false,worldCopyJump:true});
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={{CARTO_KEY}}',
           {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',subdomains:'abcd',maxZoom:12}).addTo(m);
