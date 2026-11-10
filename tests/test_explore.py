@@ -124,6 +124,13 @@ def test_fetch_ranges_and_region_parse():
     assert fgc._region({"ISO3166-2-lvl8": "SI-003", "municipality": "Bled"}) == ("SI-003", "Bled")
 
 
+def test_outline_hit_must_be_the_region_itself():
+    minsk = {"extratags": {"admin_level": "4", "place": "city"}, "address": {"ISO3166-2-lvl4": "BY-HM"}}
+    district = {"extratags": {"admin_level": "6"}, "address": {"ISO3166-2-lvl4": "BY-MI"}}
+    assert fgc._is_region(minsk, "BY-HM") and not fgc._is_region(district, "BY-MI")
+    assert fgc._is_region({"extratags": {"ISO3166-2": "SI-003"}}, "SI-003")
+
+
 def test_fill_regions_retries_at_municipal_zoom_and_when_the_point_moved(monkeypatch):
     monkeypatch.setattr(fgc.time, "sleep", lambda s: None)
 

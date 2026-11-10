@@ -460,6 +460,13 @@ if __name__ == "__main__":
                 if _geo_path and _geo_path.exists() else {})
         data["explore"] = compute_explore(rows, config_dir, _geo, trips, home_city, home_history)
         log.info("explore: %s", ", ".join(sorted(data["explore"])))
+        from metrics.explore import region_map
+        _rmap = region_map(data["explore"].get("regions"), _geo.get("region_shapes"))
+        if _rmap:
+            Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+            (Path(args.output_dir) / "regions-map.json").write_text(
+                json.dumps(_rmap, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            data["explore"]["regions"]["map"] = len(_rmap["features"])
     except Exception as _exe:
         log.warning("explore failed: %s", _exe)
 

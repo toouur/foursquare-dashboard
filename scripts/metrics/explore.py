@@ -32,6 +32,7 @@ from pathlib import Path
 
 from transform import group_category
 
+from . import frontiers as fr
 from .trips import _home_at, _localise, _parse_ts
 
 TILE_ZOOM = 14
@@ -230,6 +231,21 @@ def region_code(key: str, country_iso: str, reg: dict, iso: dict, fixes: dict) -
     if cc and head != cc and tail != cc:          # tail: Hong Kong is CN-HK
         return None
     return (iso.get("parents") or {}).get(code, code)
+
+
+def region_map(regions_out: dict | None, shapes: dict | None) -> dict | None:
+    """GeoJSON of the visited regions with an outline, for the stats map (a file of
+    its own, fetched when the card is opened: outlines are too heavy for S)."""
+    if not regions_out or not shapes:
+        return None
+    feats = []
+    for c in regions_out.get("countries", []):
+        for g in c["regions"]:
+            geom = (shapes.get(g[2]) or {}).get("g") if len(g) > 2 else None
+            if geom:
+                feats.append({"type": "Feature", "geometry": geom,
+                              "properties": {"code": g[2], "name": g[0], "n": g[1], "country": c["country"]}})
+    return {"type": "FeatureCollection", "features": feats} if feats else None
 
 
 def regions(rows: list[dict], reg: dict, iso: dict | None = None, fixes: dict | None = None,
@@ -628,12 +644,24 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
             k for k in _load(cfg / "summit_pins.json") if not k.startswith("_")}
         out["elevation"] = elevation(pts, geo["elevation"], pins)
         out["peaks"] = peaks(pts, geo["elevation"], _load(cfg / "continents.json"), pins)
+    pts.sort(key=lambda p: int(p[0]["date"]))
+    out["borders"] = fr.borders(pts)
+    out["zones"] = fr.zones(pts, home_city, home_history)
+    out["streaks"] = fr.streaks(pts, home_city, home_history)
     if geo.get("regions"):
-        out["regions"] = regions(rows, geo["regions"], _load(cfg / "regions_iso.json"),
+        iso, flags = _load(cfg / "regions_iso.json"), _load(cfg / "country_flags.json")
+        out["regions"] = regions(rows, geo["regions"], iso,
                                  {k: v for k, v in _load(cfg / "region_fixes.json").items() if not k.startswith("_")},
-                                 _load(cfg / "country_flags.json"))
+                                 flags)
+        here = [(lat, lng) for r, _d, lat, lng in pts if home_city and r.get("city") == home_city]
+        home = ((sorted(p[0] for p in here)[len(here) // 2], sorted(p[1] for p in here)[len(here) // 2])
+                if here else None)
+        out["nearest"] = fr.nearest(out["regions"], iso, flags, home)
     if geo.get("weather"):
         out["weather"] = weather(pts, geo["weather"], trips, home_city, home_history)
+        if geo.get("normals"):
+            homes = {home_city, *(c for _, c in (home_history or []))}
+            out["luck"] = fr.luck(geo["weather"], geo["normals"], homes)
     ch = _load(cfg / "chains.json")
     if ch:
         out["chains"] = chains(rows, ch, stamp)

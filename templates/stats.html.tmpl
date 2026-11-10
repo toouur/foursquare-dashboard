@@ -165,6 +165,7 @@ a{color:inherit;}
 .ex-ctry b{font-size:0.8rem;color:var(--text);font-weight:600;}
 .ex-ctry .n{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--gold);margin-left:6px;}
 .ex-ctry .ex-chips{margin-top:6px;}
+.ex-map{height:380px;border-radius:10px;overflow:hidden;margin:4px 0 6px;border:1px solid var(--border);background:#0e1018;}
 .ex-ctry .of{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);}
 .ex-ctry .bar{height:3px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden;max-width:260px;}
 .ex-ctry .bar i{display:block;height:100%;background:var(--gold);}
@@ -561,8 +562,15 @@ a{color:inherit;}
   <div data-tab="places" class="card full" id="exRegCard" style="display:none;">
     <div class="card-title">Regions <em>&middot; ISO 3166-2 first-level units (oblasts, voivodeships, states, councils) with a check-in</em></div>
     <div class="ex-tiles" id="exRegKpi"></div>
+    <div class="ex-map" id="exRegMap" style="display:none;"></div>
+    <div class="ex-cols">
+      <div id="exRegNearBox" style="display:none;"><div class="ex-sub">Nearest not yet · from home</div><div id="exRegNear"></div></div>
+      <div id="exRegNextBox" style="display:none;"><div class="ex-sub">Within reach · countries half done or more</div><div id="exRegNext"></div></div>
+    </div>
+    <div class="ex-sub">By country</div>
     <div class="scroll-list" id="exRegList" style="max-height:520px"></div>
   </div>
+
 
   <!-- 40. Capitals -->
   <div data-tab="places" class="card" id="exCapCard" style="display:none;">
@@ -581,6 +589,46 @@ a{color:inherit;}
   <div data-tab="places" class="card full" id="exChainCard" style="display:none;">
     <div class="card-title">Chains <em>&middot; the same brand across countries</em></div>
     <div id="exChainList"></div>
+  </div>
+
+  <!-- 43. Borders -->
+  <div data-tab="places movement" class="card full" id="exBordCard" style="display:none;">
+    <div class="card-title">Borders <em>&middot; crossed by land or sea: consecutive check-ins in two countries within a day, no flight between</em></div>
+    <div class="ex-tiles" id="exBordKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Most crossed borders</div><div id="exBordPairs"></div></div>
+      <div><div class="ex-sub">Border posts you checked in at</div><div class="scroll-list" id="exBordPosts" style="max-height:420px"></div></div>
+    </div>
+  </div>
+
+  <!-- 44. Time zones -->
+  <div data-tab="time" class="card full" id="exZoneCard" style="display:none;">
+    <div class="card-title">Time Zones <em>&middot; the UTC offsets of your check-ins</em></div>
+    <div class="ex-tiles" id="exZoneKpi"></div>
+    <div class="ex-sub">Every offset · where it was first</div>
+    <div class="ex-chips" id="exZoneList"></div>
+  </div>
+
+  <!-- 45. Streaks -->
+  <div data-tab="time" class="card full" id="exStreakCard" style="display:none;">
+    <div class="card-title">Streaks <em>&middot; runs of days and years</em></div>
+    <div class="ex-tiles" id="exStreakKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Longest runs abroad</div><div id="exStreakAbroad"></div></div>
+      <div><div class="ex-sub">Years in a row in one country</div><div id="exStreakYears"></div></div>
+    </div>
+  </div>
+
+  <!-- 46. Weather luck -->
+  <div data-tab="time movement" class="card full" id="exLuckCard" style="display:none;">
+    <div class="card-title">Weather Luck <em>&middot; your visit days against the 2011–2020 normal of the same months at the same place (ERA5)</em></div>
+    <div class="ex-tiles" id="exLuckKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Warmer than usual</div><div id="exLuckWarm"></div></div>
+      <div><div class="ex-sub">Colder than usual</div><div id="exLuckCold"></div></div>
+      <div><div class="ex-sub">Rainier than usual</div><div id="exLuckWet"></div></div>
+      <div><div class="ex-sub">Drier than usual</div><div id="exLuckDry"></div></div>
+    </div>
   </div>
 
 </div><!-- /.grid -->
@@ -1665,6 +1713,40 @@ new Chart(document.getElementById('catChart'),{
       var bar=c.of?'<div class="bar"><i style="width:'+Math.min(100,Math.round(100*c.n/c.of))+'%"></i></div>':'';
       return '<div class="ex-ctry'+(c.of&&c.n>=c.of?' full':'')+'"><b>'+esc(c.country)+'</b><span class="n">'+c.n+'</span>'+of+bar+'<div class="ex-chips">'+c.regions.map(function(g){return '<span class="ex-chip" title="'+esc(g[2]||'')+' · '+n(g[1])+' check-ins">'+esc(g[0])+'</span>';}).join('')+'</div></div>';
     }).join(''));
+    var NR=X.nearest||{};
+    if(NR.home&&NR.home.length){
+      show('exRegNearBox');
+      put('exRegNear',NR.home.map(function(r){return row(esc(r.name),esc(r.country),n(r.km)+' km');}).join(''));
+    }
+    if(NR.complete_next&&NR.complete_next.length){
+      show('exRegNextBox');
+      put('exRegNext',NR.complete_next.map(function(g){return row('<b>'+esc(g.country)+'</b> · '+g.n+' / '+g.of,'missing: '+g.missing.map(esc).join(', ')+(g.left>g.missing.length?' …':''),g.left+' to go');}).join(''));
+    }
+    if(R.map){
+      var mapEl=document.getElementById('exRegMap');mapEl.style.display='';
+      var drawMap=function(){
+        if(mapEl.dataset.done)return;mapEl.dataset.done='1';
+        var css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
+        var js=document.createElement('script');js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        js.onload=function(){
+          fetch('regions-map.json').then(function(r){return r.json();}).then(function(G){
+            var m=L.map(mapEl,{preferCanvas:true,scrollWheelZoom:false,worldCopyJump:true});
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={{CARTO_KEY}}',
+              {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',subdomains:'abcd',maxZoom:12}).addTo(m);
+            var mx=Math.log(1+Math.max.apply(null,G.features.map(function(f){return f.properties.n;})));
+            var lay=L.geoJSON(G,{style:function(f){var a=Math.log(1+f.properties.n)/mx;
+              return {color:'#e8b04a',weight:1,opacity:.8,fillColor:'#e8b04a',fillOpacity:.15+.55*a};},
+              onEachFeature:function(f,l){var p=f.properties;l.bindTooltip(esc(p.name)+' · '+esc(p.country)+'<br>'+n(p.n)+' check-ins',{sticky:true});}}).addTo(m);
+            m.fitBounds(lay.getBounds(),{padding:[10,10]});
+          }).catch(function(){mapEl.style.display='none';});
+        };
+        document.head.appendChild(js);
+      };
+      if('IntersectionObserver' in window){
+        var io=new IntersectionObserver(function(es){if(es.some(function(e){return e.isIntersecting;})){io.disconnect();drawMap();}});
+        io.observe(mapEl);
+      } else drawMap();
+    }
   }
 
   var C=X.capitals;
@@ -1689,6 +1771,62 @@ new Chart(document.getElementById('catChart'),{
     },'var(--gold)')+'<div class="ex-sub">First and latest</div>'+K.slice(0,8).map(function(c){
       return row(esc(c.brand),esc(c.first.city)+' '+esc(c.first.date)+' → '+esc(c.last.city)+' '+esc(c.last.date),c.cities+' cities');
     }).join(''));
+  }
+
+  // ── 43–46. Borders, time zones, streaks, weather luck ──
+  function utc(o){var s=o<0?'−':'+',a=Math.abs(o),h=Math.floor(a),mm=Math.round((a-h)*60);return 'UTC'+s+h+(mm?':'+(mm<10?'0':'')+mm:'');}
+  function hrs(h){return (h>0?'+':h<0?'−':'')+Math.abs(h)+' h';}
+  function dd(a,b){return a===b?esc(a):esc(a)+' → '+esc(b);}
+
+  var BD=X.borders;
+  if(BD&&(BD.crossings||BD.post_count)){
+    show('exBordCard');
+    var bz=BD.busiest;
+    put('exBordKpi',tile('Crossings',n(BD.crossings),BD.countries+' countries · '+BD.pair_count+' borders')
+      +(bz?tile('Busiest day',(bz.route.filter(function(c,i,a){return a.indexOf(c)===i;}).length)+' countries',esc(bz.date)+' · '+bz.route.map(esc).join(' → ')):'')
+      +tile('Border posts',n(BD.post_count),'with a check-in')
+      +(BD.first?tile('First crossing',esc(BD.first.date),esc(BD.first.from)+' → '+esc(BD.first.to)):''));
+    put('exBordPairs',bars(BD.pairs,function(p){return esc(p[0])+' ↔ '+esc(p[1]);},function(p){return p[2];},function(p){return p[2]+'×';},'var(--gold)'));
+    put('exBordPosts',BD.posts.map(function(p){return row(vl(p),where(p)+' · last '+esc(p.last),n(p.visits)+'×');}).join(''));
+  }
+
+  var Z=X.zones;
+  if(Z&&Z.count){
+    show('exZoneCard');
+    var zk=tile('Time zones',Z.count,'offsets · '+Z.span+' h wide')
+      +tile('Westmost clock',utc(Z.west.offset),vl(Z.west)+' · '+where(Z.west))
+      +tile('Eastmost clock',utc(Z.east.offset),vl(Z.east)+' · '+where(Z.east));
+    if(Z.far)zk+=tile('Farthest from home time',hrs(Z.far.hours),where(Z.far)+' · '+esc(Z.far.date));
+    if(Z.jump)zk+=tile('Biggest jump',hrs(Z.jump.hours),esc(Z.jump.from.city)+' → '+esc(Z.jump.to.city)+' · '+esc(Z.jump.to.date));
+    put('exZoneKpi',zk);
+    put('exZoneList',Z.offsets.map(function(o){return '<span class="ex-chip" title="'+esc(o[1].venue)+' · '+esc(o[1].date)+'">'+utc(o[0])+' · '+esc(o[1].city||o[1].country)+'</span>';}).join(''));
+  }
+
+  var ST=X.streaks;
+  if(ST){
+    show('exStreakCard');
+    var ab=(ST.abroad||[])[0];
+    put('exStreakKpi',(ab?tile('Longest abroad',ab.days+' days',dd(ab.from,ab.to)):'')
+      +(ST.new_places&&ST.new_places.days?tile('New place every day',ST.new_places.days+' days',dd(ST.new_places.from,ST.new_places.to)):'')
+      +(ST.new_cities&&ST.new_cities.days?tile('New city every day',ST.new_cities.days+' days',dd(ST.new_cities.from,ST.new_cities.to)):'')
+      +(ST.new_country_years&&ST.new_country_years.years?tile('New country every year',ST.new_country_years.years+' years',ST.new_country_years.from+' → '+ST.new_country_years.to):''));
+    put('exStreakAbroad',(ST.abroad||[]).map(function(r){return row(dd(r.from,r.to),r.countries.map(esc).join(', '),r.days+' d');}).join(''));
+    put('exStreakYears',(ST.country_years||[]).map(function(c){return row(esc(c.country),c.from+' → '+c.to,c.years+' y');}).join(''));
+  }
+
+  var LK=X.luck;
+  if(LK&&LK.summary){
+    show('exLuckCard');
+    var sg=function(x){return (x>0?'+':x<0?'−':'±')+Math.abs(x).toFixed(1)+'°';};
+    var lk='';
+    [['all','All visit days'],['away','Away from home']].forEach(function(p){var s=LK.summary[p[0]];if(s)lk+=tile(p[1],sg(s.dt),'vs normal · rain on '+s.rain+'% of days (normal '+s.rain_norm+'%) · '+n(s.days)+' days');});
+    lk+=tile('Cities judged',LK.cities,'4+ visit days each');
+    put('exLuckKpi',lk);
+    var ln=function(l,f){return (l||[]).map(function(c){return row(esc(c.city),esc(c.country)+' · '+c.days+' days',f(c));}).join('');};
+    put('exLuckWarm',ln(LK.warmer,function(c){return sg(c.dt);}));
+    put('exLuckCold',ln(LK.colder,function(c){return sg(c.dt);}));
+    put('exLuckWet',ln(LK.wetter,function(c){return c.rain+'% vs '+c.rain_norm+'%';}));
+    put('exLuckDry',ln(LK.drier,function(c){return c.rain+'% vs '+c.rain_norm+'%';}));
   }
 })();
 </script>

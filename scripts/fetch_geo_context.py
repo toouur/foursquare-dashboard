@@ -254,6 +254,130 @@ def fill_regions(cache: dict, centre: dict, budget: int, now: float, session=req
     return calls
 
 
+# ── region outlines (the regions map) ──────────────────────────────────────
+
+SHAPE_ZOOMS = (8, 5, 6, 10, 7, 9, 4)   # whichever level carries the code's own boundary
+SHAPE_THRESHOLD = 0.005                 # Nominatim simplification, ~500 m
+SHAPE_DIGITS = 3
+
+
+def _round(c, nd: int = SHAPE_DIGITS):
+    return round(c, nd) if isinstance(c, (int, float)) else [_round(x, nd) for x in c]
+
+
+def region_points(reg: dict, centre: dict, counts: dict, config_dir: Path) -> dict[str, tuple[float, float]]:
+    """ISO code → the median point of its busiest city, codes resolved exactly as
+    the stats card resolves them (fixes, border drop, parent climb)."""
+    from metrics.explore import _load, region_code
+    iso = _load(config_dir / "regions_iso.json")
+    fixes = {k: v for k, v in _load(config_dir / "region_fixes.json").items() if not k.startswith("_")}
+    flags = _load(config_dir / "country_flags.json")
+    best: dict[str, tuple[int, tuple[float, float]]] = {}
+    for k, pt in centre.items():
+        code = region_code(k, flags.get(k.split("|", 1)[1], ""), reg, iso, fixes)
+        if code and counts.get(k, 0) > best.get(code, (-1, pt))[0]:
+            best[code] = (counts.get(k, 0), pt)
+    return {c: v[1] for c, v in best.items()}
+
+
+def _is_region(body: dict, code: str) -> bool:
+    """The reverse hit IS the region `code`, not a city or county inside it: its own
+    ISO3166-2 tag says so, or its admin_level is the level at which the address
+    carries the code (Minsk: a place node merged into the level-4 boundary carries
+    no ISO tag of its own, only admin_level 4 next to ISO3166-2-lvl4 = BY-HM)."""
+    tags = body.get("extratags") or {}
+    if tags.get("ISO3166-2") == code:
+        return True
+    addr = body.get("address") or {}
+    levels = {k.rsplit("lvl", 1)[1] for k, v in addr.items() if k.startswith("ISO3166-2-lvl") and v == code}
+    return str(tags.get("admin_level") or "") in levels
+
+
+def fill_region_shapes(shapes: dict, points: dict, budget: int, now: float, session=requests) -> int:
+    """{code: {"g": GeoJSON geometry | None, "t": ts}} — Nominatim reverse at the
+    region's point, walking zoom levels until the hit's own ISO3166-2 tag is the
+    code (so a county or a city is never stored as the region)."""
+    calls = 0
+    for code, (lat, lng) in sorted(points.items()):
+        hit = shapes.get(code)
+        if hit and (hit.get("g") or now - hit.get("t", 0) < RETRY_DAYS * 86400):
+            continue
+        if calls >= budget:
+            break
+        got, status = None, 200
+        for zoom in SHAPE_ZOOMS:
+            status, body = _fetch(session, REVERSE_URL, params={
+                "lat": lat, "lon": lng, "format": "jsonv2", "zoom": zoom, "extratags": 1, "addressdetails": 1,
+                "polygon_geojson": 1, "polygon_threshold": SHAPE_THRESHOLD}, headers={"User-Agent": UA}, timeout=60)
+            calls += 1
+            time.sleep(1.1)
+            if status != 200:
+                break
+            if _is_region(body, code):
+                g = body.get("geojson") or {}
+                if "Polygon" in (g.get("type") or ""):
+                    got = {"type": g["type"], "coordinates": _round(g["coordinates"])}
+                break
+        if status != 200:
+            print(f"shape {code}: {status or 'network error'}", file=sys.stderr)
+            if status in (0, 403, 429):
+                break
+            continue
+        shapes[code] = {"g": got, "t": int(now)}
+    return calls
+
+
+# ── climate normals (weather luck) ─────────────────────────────────────────
+
+NORMAL_YEARS = range(2011, 2021)      # ERA5, the same source as the visit days
+NORMAL_MIN_DAYS = 4                   # a city needs this many weather days to be judged
+
+
+def fill_normals(cache: dict, wx: dict, centre: dict, budget: int, session=requests) -> int:
+    """{"City|Country": {"07": [mean tmax, mean precip mm, share of days >= 1 mm, n]}}
+    for the calendar months a city was visited in, from the same point and the
+    same archive as the visit days; one request per month and year."""
+    calls = 0
+    for k in sorted(wx, key=lambda c: -len(wx[c])):
+        if len(wx[k]) < NORMAL_MIN_DAYS or k not in centre:
+            continue
+        have = cache.setdefault(k, {})
+        for m in sorted({d[5:7] for d in wx[k]}):
+            if m in have:
+                continue
+            if calls + len(NORMAL_YEARS) > budget:
+                if not have:
+                    cache.pop(k, None)
+                return calls
+            lat, lng = centre[k]
+            vals: list[tuple[float, float]] = []
+            for y in NORMAL_YEARS:
+                a = date(y, int(m), 1)
+                b = (a + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+                status, body = _fetch(session, ARCHIVE_URL, params={
+                    "latitude": round(lat, 3), "longitude": round(lng, 3), "start_date": a.isoformat(),
+                    "end_date": b.isoformat(), "daily": "temperature_2m_max,precipitation_sum",
+                    "timezone": "auto"}, timeout=60)
+                calls += 1
+                if status in (0, 429):
+                    print(f"normals: {status or 'network error'} — stopping for today", file=sys.stderr)
+                    if not have:
+                        cache.pop(k, None)
+                    return calls
+                dly = body.get("daily") or {}
+                vals += [(tx, p) for tx, p in zip(dly.get("temperature_2m_max") or [],
+                                                  dly.get("precipitation_sum") or [])
+                         if tx is not None and p is not None]
+                time.sleep(0.3)
+            if vals:
+                have[m] = [round(sum(v[0] for v in vals) / len(vals), 1),
+                           round(sum(v[1] for v in vals) / len(vals), 2),
+                           round(sum(1 for v in vals if v[1] >= 1) / len(vals), 3), len(vals)]
+        if not have:
+            cache.pop(k, None)
+    return calls
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--csv", required=True)
@@ -263,12 +387,15 @@ def main() -> int:
                     help="elevation calls (100 points each, 1/s; OpenTopoData allows 1,000 a day)")
     ap.add_argument("--max-weather", type=int, default=600, help="archive range requests")
     ap.add_argument("--max-regions", type=int, default=900, help="Nominatim lookups (1/s)")
+    ap.add_argument("--max-shapes", type=int, default=500, help="Nominatim outline lookups (1/s)")
+    ap.add_argument("--max-normals", type=int, default=400,
+                    help="archive requests for climate normals (10 per city-month)")
     args = ap.parse_args()
 
     rows = load_rows(Path(args.csv), Path(args.config_dir))
     path = Path(args.cache)
     cache = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    for part in ("elevation", "weather", "regions"):
+    for part in ("elevation", "weather", "regions", "region_shapes", "normals"):
         cache.setdefault(part, {})
 
     def save() -> None:
@@ -284,11 +411,22 @@ def main() -> int:
     save()
     nr = fill_regions(cache["regions"], centre, args.max_regions, now.timestamp())
     save()
+    from collections import Counter
+    from transform import group_category
+    counts = Counter(city_key(r["city"], r.get("country", "")) for r in _real(rows)
+                     if group_category(r) not in COARSE_CATS)
+    points = region_points(cache["regions"], centre, counts, Path(args.config_dir))
+    ns = fill_region_shapes(cache["region_shapes"], points, args.max_shapes, now.timestamp())
+    save()
+    nn = fill_normals(cache["normals"], cache["weather"], centre, args.max_normals)
+    save()
     have_days = sum(len(v) for v in cache["weather"].values())
     need_days = sum(len(v) for v in days.values())
     print(f"elevation {len(cache['elevation'])}/{len(coords)} points ({ne} calls) · "
           f"weather {have_days}/{need_days} city-days ({nw} calls) · "
-          f"regions {sum(1 for v in cache['regions'].values() if v.get('code'))}/{len(centre)} cities ({nr} calls)")
+          f"regions {sum(1 for v in cache['regions'].values() if v.get('code'))}/{len(centre)} cities ({nr} calls) · "
+          f"outlines {sum(1 for c in points if (cache['region_shapes'].get(c) or {}).get('g'))}/{len(points)} ({ns} calls) · "
+          f"normals {sum(len(v) for v in cache['normals'].values())} city-months ({nn} calls)")
     return 0
 
 
