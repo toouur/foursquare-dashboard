@@ -177,6 +177,8 @@ tr:hover td{background:rgba(255,255,255,.02);}
 .social-kpi .sk-num{font-family:'DM Mono',monospace;font-size:1.2rem;}
 .social-kpi .sk-lbl{font-size:.58rem;color:var(--muted);margin-top:2px;}
 .cc-list{display:flex;flex-direction:column;gap:5px;}
+.reach-map{height:360px;border-radius:10px;overflow:hidden;margin:0 0 12px;border:1px solid var(--border);background:#0e1018;}
+.reach-row.on{border-color:#4ecdc4;}
 .cc-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:8px 12px;background:var(--card2);border:1px solid var(--border);border-radius:7px;}
 .cc-name{font-size:.78rem;color:var(--text);}
 .cc-flags{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
@@ -457,6 +459,12 @@ show(idx>=0?idx:0);
       <span class="section-insight" id="insight-companions"></span>
       <div class="cc-list" id="companionCountriesList"></div>
     </div>
+
+    <div class="card full" id="reachCard" style="display:none;">
+      <div class="card-title">Across the Map <em>&middot; countries, first-level regions and cities seen together — pick a person to light up your shared regions</em></div>
+      <div class="reach-map" id="reachMap" style="display:none;"></div>
+      <div class="cc-list" id="reachList"></div>
+    </div>
   </div>
 </div>
 
@@ -559,6 +567,40 @@ show(idx>=0?idx:0);
         <div class="cc-flags" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">${items}</div>
       </div>`;
     }).join('');
+  }
+
+  // ── Across the map: countries / regions / cities per companion ──────────
+  const RC=SDATA.companion_reach||[];
+  if(RC.length){
+    document.getElementById('reachCard').style.display='';
+    const list=document.getElementById('reachList'), mapEl=document.getElementById('reachMap');
+    let lay=null, G=null, pick=RC[0].name;
+    list.innerHTML=RC.map((c,i)=>`<div class="cc-row reach-row${i===0?' on':''}" data-i="${i}" style="grid-template-columns:150px 1fr auto;cursor:pointer">
+        <div class="cc-name">${esc(c.name)}</div>
+        <div class="cc-flags" style="justify-content:flex-start;gap:6px">${c.country_list.slice(0,14).map(co=>flagHtml(co,'1.05em')).join('')}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);white-space:nowrap">${c.countries} countries · ${c.regions} regions · ${c.cities} cities · ${c.checkins.toLocaleString('en-US')} together</div>
+      </div>`).join('');
+    const paint=()=>{ if(!lay) return; const on=new Set((RC.find(c=>c.name===pick)||{}).codes||[]);
+      lay.setStyle(f=>on.has(f.properties.code)?{color:'#4ecdc4',weight:1,opacity:.9,fillColor:'#4ecdc4',fillOpacity:.5}
+                                             :{color:'#e8b04a',weight:.5,opacity:.25,fillColor:'#e8b04a',fillOpacity:.06}); };
+    list.addEventListener('click',e=>{const row=e.target.closest('.reach-row'); if(!row) return;
+      list.querySelectorAll('.reach-row').forEach(r=>r.classList.toggle('on',r===row)); pick=RC[+row.dataset.i].name; paint();});
+    const draw=()=>{
+      const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
+      const js=document.createElement('script');js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      js.onload=()=>fetch('regions-map.json').then(r=>r.ok?r.json():null).then(g=>{
+        if(!g||!g.features||!g.features.length) return;
+        G=g; mapEl.style.display='';
+        const m=L.map(mapEl,{preferCanvas:true,scrollWheelZoom:false,worldCopyJump:true});
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={{CARTO_KEY}}',
+          {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',subdomains:'abcd',maxZoom:12}).addTo(m);
+        lay=L.geoJSON(G,{onEachFeature:(f,l)=>l.bindTooltip(esc(f.properties.name)+' · '+esc(f.properties.country),{sticky:true})}).addTo(m);
+        m.fitBounds(lay.getBounds(),{padding:[10,10]}); paint();
+      }).catch(()=>{});
+      document.head.appendChild(js);
+    };
+    if('IntersectionObserver' in window){const io=new IntersectionObserver(es=>{if(es.some(x=>x.isIntersecting)){io.disconnect();draw();}});io.observe(list);}
+    else draw();
   }
 })();
 </script>

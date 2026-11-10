@@ -85,7 +85,9 @@ def test_regions_skip_country_checkins_and_count_of_total():
     reg = {"Minsk|Belarus": {"code": "BY-HM", "name": ""}, "Dolostsy|Belarus": {"code": "BY-VI"}}
     r = ex.regions(rows, reg, {"totals": {"BY": 2}, "names": {"BY-HM": "Minsk (city)"}}, {}, {"Belarus": "by"})
     assert r["total"] == 1 and r["countries"][0]["of"] == 2 and r["complete"] == []
-    assert r["countries"][0]["regions"] == [["Minsk (city)", 1, "BY-HM"]]
+    assert r["countries"][0]["regions"] == [["Minsk (city)", 1, "BY-HM", 2020]]
+    assert r["years"] == [{"year": 2020, "new": 1, "names": ["Minsk (city)"], "total": 1,
+                           "top": ["Minsk (city)", "Belarus", 1]}]
 
 
 def test_bonds_skip_homes_and_areas():

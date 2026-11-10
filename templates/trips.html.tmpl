@@ -383,6 +383,10 @@ a.detail-city:hover{border-color:#ff9a6b;color:#ff9a6b;}
       <div class="detail-card-title">Sound · Taste · Frame <a href="culture.html" style="font-size:.6rem;color:var(--gold);text-decoration:none;margin-left:8px">all culture →</a></div>
       <div id="detailCulture" class="trip-culture"></div>
     </div>
+    <div class="detail-card full" id="detailElevCard" style="display:none">
+      <div class="detail-card-title">Height profile <span id="detailElevSub" style="font-size:.6rem;color:var(--muted);margin-left:8px"></span></div>
+      <div id="detailElev"></div>
+    </div>
     <div class="detail-card full" id="detail-timeline-card">
       <div class="detail-card-title">Check-in Timeline</div>
       <div class="detail-timeline" id="detailTimeline"></div>
@@ -580,7 +584,28 @@ function showTrip(id){
   const t = TRIPS.find(x=>x.id===id);
   if(!t) return Promise.resolve();
   return loadTripCheckins(t).catch(()=>{ t.checkins = t.checkins || []; })
-    .then(()=>{ _renderTrip(t); renderTripCulture(t); });
+    .then(()=>{ _renderTrip(t); renderTripCulture(t); renderTripElev(t); });
+}
+// Height profile: elevation of every check-in (ASTER 30 m, from the build's geo cache),
+// in time order; shown when the trip climbs or drops 150 m or more.
+function renderTripElev(t){
+  const card=document.getElementById('detailElevCard'), box=document.getElementById('detailElev');
+  card.style.display='none';
+  const P=(t.checkins||[]).filter(c=>typeof c.elev==='number'&&c.ts);
+  if(P.length<3) return;
+  const lo=Math.min(...P.map(c=>c.elev)), hi=Math.max(...P.map(c=>c.elev));
+  if(hi-lo<150) return;
+  const W=1000,H=180,pad=6, t0=P[0].ts, t1=P[P.length-1].ts||t0+1;
+  const x=c=>pad+(W-2*pad)*((c.ts-t0)/Math.max(1,t1-t0)), y=e=>H-pad-(H-2*pad)*((e-Math.min(0,lo))/Math.max(1,hi-Math.min(0,lo)));
+  const pts=P.map(c=>x(c).toFixed(1)+','+y(c.elev).toFixed(1)).join(' ');
+  const top=P.reduce((a,c)=>c.elev>a.elev?c:a,P[0]);
+  const e=s=>String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]);
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:160px;display:block" role="img" aria-label="Elevation of the trip's check-ins over time">
+      <polygon points="${pad},${y(Math.min(0,lo))} ${pts} ${W-pad},${y(Math.min(0,lo))}" fill="rgba(232,176,74,.15)"/>
+      <polyline points="${pts}" fill="none" stroke="#e8b04a" stroke-width="2" vector-effect="non-scaling-stroke"/>
+      <circle cx="${x(top)}" cy="${y(top.elev)}" r="4" fill="#e8b04a"/></svg>`;
+  document.getElementById('detailElevSub').textContent=`${lo.toLocaleString('en-US')} → ${hi.toLocaleString('en-US')} m · top: ${top.venue||''} (${top.city||''}) ${top.elev.toLocaleString('en-US')} m`;
+  card.style.display='';
 }
 function _renderTrip(t){
   const id = t.id;

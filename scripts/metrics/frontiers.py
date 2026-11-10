@@ -41,8 +41,14 @@ def _km(la: float, ga: float, lb: float, gb: float) -> float:
     return 2 * 6371.0 * math.asin(min(1.0, math.sqrt(h)))
 
 
+HOME_CATEGORY = "Home (private)"
+HIDE_HOME = False      # config/privacy.json "hide_home" (set by compute_explore)
+
+
 def _place(r: dict, d: datetime | None = None) -> dict:
-    out = {"venue": r.get("venue", ""), "venue_id": r.get("venue_id", ""),
+    """A place as the page shows it; with HIDE_HOME a private home is "Home", not its address."""
+    home = HIDE_HOME and group_category(r) == HOME_CATEGORY
+    out = {"venue": "Home" if home else r.get("venue", ""), "venue_id": "" if home else r.get("venue_id", ""),
            "city": r.get("city", ""), "country": r.get("country", "")}
     if d is not None:
         out["date"] = d.strftime("%Y-%m-%d")

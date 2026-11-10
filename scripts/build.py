@@ -102,7 +102,7 @@ _TRIPS_STATS_KEYS = (
 # Check-in fields shipped in the trip shards, positionally. `datetime` is dropped
 # (the page never reads it); `refurbished` is stored as 1/0.
 _TRIP_CK_FIELDS = ('ts', 'date', 'time', 'venue', 'venue_id', 'city', 'country',
-                   'category', 'lat', 'lng', 'checkin_id', 'refurbished', 'photos', 'm')
+                   'category', 'lat', 'lng', 'checkin_id', 'refurbished', 'photos', 'm', 'elev')
 _TRIP_SHARD = 10
 
 SITE_URL = "https://4sq.pages.dev/"
@@ -451,6 +451,7 @@ if __name__ == "__main__":
         data["coverage"] = compute_coverage(rows, home_city, home_history)
     except Exception as _cve:
         log.warning("coverage failed: %s", _cve)
+    _scrobbles: list = []
     try:
         # Default: the data repo's file beside --input — every workflow that builds
         # (recheck-enrich, photos, ratings…) gets the weather/heights cards, not
@@ -458,7 +459,29 @@ if __name__ == "__main__":
         _geo_path = Path(args.geo_context) if args.geo_context else _beside_input(args, "geo_context.json")
         _geo = (json.loads(_geo_path.read_text(encoding="utf-8"))
                 if _geo_path and _geo_path.exists() else {})
-        data["explore"] = compute_explore(rows, config_dir, _geo, trips, home_city, home_history)
+        try:
+            from culture_sources import load_scrobbles
+            _scrobbles = load_scrobbles(Path(args.input).resolve().parent / "lastfm")
+        except Exception as _sce:
+            log.info("no Last.fm layer for the soundtrack of places: %s", _sce)
+        data["explore"] = compute_explore(rows, config_dir, _geo, trips, home_city, home_history,
+                                          scrobbles=_scrobbles)
+        # Companions page reads it (whitelisted in gen_companions.SOCIAL_KEYS), not stats.
+        data["companion_reach"] = data["explore"].pop("companion_reach", [])
+        # Height of every trip check-in: the trip modal draws its elevation profile.
+        _elev = _geo.get("elevation") or {}
+        _pins = {k for k in json.loads((Path(config_dir) / "summit_pins.json").read_text(encoding="utf-8"))
+                 if not k.startswith("_")} if (Path(config_dir) / "summit_pins.json").exists() else set()
+        for _t in trips if _elev else []:
+            for _c in _t.get("checkins") or []:
+                if _c.get("venue_id") in _pins:
+                    continue                 # a summit seen from below is not where you stood
+                try:
+                    _m = _elev.get(f"{float(_c['lat']):.3f},{float(_c['lng']):.3f}")
+                except (KeyError, TypeError, ValueError):
+                    _m = None
+                if _m is not None:
+                    _c["elev"] = _m
         log.info("explore: %s", ", ".join(sorted(data["explore"])))
         from metrics.explore import region_map
         _rmap = region_map(data["explore"].get("regions"), _geo.get("region_shapes"))
@@ -1277,7 +1300,7 @@ if __name__ == "__main__":
             rows, trips,
             films=load_imdb_any(_cdir),
             wines=load_vivino_any(_cdir),
-            scrobbles=load_scrobbles(_cdir / "lastfm"),
+            scrobbles=_scrobbles or load_scrobbles(_cdir / "lastfm"),
         )
     except Exception as _cue:
         log.warning("culture failed: %s", _cue)

@@ -9,7 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-SOCIAL_KEYS = ('solo_vs_group_totals', 'companions', 'solo_vs_group_by_year', 'companion_countries')
+SOCIAL_KEYS = ('solo_vs_group_totals', 'companions', 'solo_vs_group_by_year', 'companion_countries',
+               'companion_reach')
 
 log = logging.getLogger(__name__)
 

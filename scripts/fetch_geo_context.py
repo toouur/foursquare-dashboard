@@ -378,6 +378,45 @@ def fill_normals(cache: dict, wx: dict, centre: dict, budget: int, session=reque
     return calls
 
 
+# ── public holidays (Nager.Date) ───────────────────────────────────────────
+
+HOLIDAY_URL = "https://date.nager.at/api/v3/PublicHolidays/{year}/{cc}"
+
+
+def holiday_pairs(rows: list[dict], flags: dict) -> set[str]:
+    """"CC-YYYY" for every country and year with a check-in (UTC year is enough:
+    a holiday on Dec 31 / Jan 1 sits in the year it is dated)."""
+    out = set()
+    for r in _real(rows):
+        cc = (flags.get(r.get("country", "")) or "").upper()
+        if cc and r.get("date"):
+            y = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            out.add(f"{cc}-{y}")
+    return out
+
+
+def fill_holidays(cache: dict, pairs: set[str], budget: int, session=requests) -> int:
+    """{"MD-2023": [["2023-01-01", "New Year's Day"], ...]} — nationwide holidays only;
+    a country Nager.Date does not cover is stored as [] (204/404)."""
+    calls = 0
+    for key in sorted(pairs):
+        if key in cache:
+            continue
+        if calls >= budget:
+            break
+        cc, y = key.split("-")
+        status, body = _fetch(session, HOLIDAY_URL.format(year=y, cc=cc), headers={"User-Agent": UA}, timeout=30)
+        calls += 1
+        time.sleep(0.2)
+        if status == 0:
+            print("holidays: network error — stopping", file=sys.stderr)
+            break
+        items = body if isinstance(body, list) else []
+        cache[key] = [[h["date"], h.get("name") or h.get("localName") or ""] for h in items
+                      if h.get("global", True) and h.get("date")]
+    return calls
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--csv", required=True)
@@ -388,6 +427,7 @@ def main() -> int:
     ap.add_argument("--max-weather", type=int, default=600, help="archive range requests")
     ap.add_argument("--max-regions", type=int, default=900, help="Nominatim lookups (1/s)")
     ap.add_argument("--max-shapes", type=int, default=500, help="Nominatim outline lookups (1/s)")
+    ap.add_argument("--max-holidays", type=int, default=300, help="Nager.Date country-year lookups")
     ap.add_argument("--max-normals", type=int, default=400,
                     help="archive requests for climate normals (10 per city-month)")
     args = ap.parse_args()
@@ -395,7 +435,7 @@ def main() -> int:
     rows = load_rows(Path(args.csv), Path(args.config_dir))
     path = Path(args.cache)
     cache = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    for part in ("elevation", "weather", "regions", "region_shapes", "normals"):
+    for part in ("elevation", "weather", "regions", "region_shapes", "normals", "holidays"):
         cache.setdefault(part, {})
 
     def save() -> None:
@@ -420,13 +460,18 @@ def main() -> int:
     save()
     nn = fill_normals(cache["normals"], cache["weather"], centre, args.max_normals)
     save()
+    from metrics.explore import _load
+    nh = fill_holidays(cache["holidays"], holiday_pairs(rows, _load(Path(args.config_dir) / "country_flags.json")),
+                       args.max_holidays)
+    save()
     have_days = sum(len(v) for v in cache["weather"].values())
     need_days = sum(len(v) for v in days.values())
     print(f"elevation {len(cache['elevation'])}/{len(coords)} points ({ne} calls) · "
           f"weather {have_days}/{need_days} city-days ({nw} calls) · "
           f"regions {sum(1 for v in cache['regions'].values() if v.get('code'))}/{len(centre)} cities ({nr} calls) · "
           f"outlines {sum(1 for c in points if (cache['region_shapes'].get(c) or {}).get('g'))}/{len(points)} ({ns} calls) · "
-          f"normals {sum(len(v) for v in cache['normals'].values())} city-months ({nn} calls)")
+          f"normals {sum(len(v) for v in cache['normals'].values())} city-months ({nn} calls) · "
+          f"holidays {len(cache['holidays'])} country-years ({nh} calls)")
     return 0
 
 

@@ -27,12 +27,13 @@ import json
 import math
 import re
 from collections import Counter, defaultdict, deque
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from transform import group_category
 
 from . import frontiers as fr
+from . import rhythms as rh
 from .trips import _home_at, _localise, _parse_ts
 
 TILE_ZOOM = 14
@@ -244,16 +245,22 @@ def region_map(regions_out: dict | None, shapes: dict | None) -> dict | None:
             geom = (shapes.get(g[2]) or {}).get("g") if len(g) > 2 else None
             if geom:
                 feats.append({"type": "Feature", "geometry": geom,
-                              "properties": {"code": g[2], "name": g[0], "n": g[1], "country": c["country"]}})
+                              "properties": {"code": g[2], "name": g[0], "n": g[1], "country": c["country"],
+                                             "y": g[3] if len(g) > 3 else 0}})
     return {"type": "FeatureCollection", "features": feats} if feats else None
 
 
 def regions(rows: list[dict], reg: dict, iso: dict | None = None, fixes: dict | None = None,
-            flags: dict | None = None) -> dict:
+            flags: dict | None = None, home_city: str = "", home_history=None) -> dict:
     """First-level regions per country with a check-in. A check-in into a whole
     country (or state) carries the country's centroid, not a place, so it never
-    marks a region."""
+    marks a region. Each region row is [name, check-ins, code, first year]; `years`
+    lists the regions first reached each year and the region of the year (most
+    check-ins that year outside the region home was in)."""
     iso, fixes, flags = iso or {}, fixes or {}, flags or {}
+    first: dict[str, int] = {}
+    per_year: dict[int, Counter] = defaultdict(Counter)
+    home_codes: dict[int, set[str]] = defaultdict(set)
     names, totals = iso.get("names") or {}, iso.get("totals") or {}
     codes: dict[str, str | None] = {}
     by_c: dict[str, dict[str, list]] = defaultdict(dict)
@@ -267,8 +274,16 @@ def regions(rows: list[dict], reg: dict, iso: dict | None = None, fixes: dict | 
         if not code:
             continue
         name = names.get(code) or (reg.get(key) or {}).get("name") or code
-        slot = by_c[country].setdefault(code, [name, 0, code])
+        slot = by_c[country].setdefault(code, [name, 0, code, 0])
         slot[1] += 1
+        ts = int(r.get("date") or 0)
+        y = datetime.fromtimestamp(ts, tz=timezone.utc).year
+        if code not in first or ts < first[code]:
+            first[code] = ts
+            slot[3] = y
+        per_year[y][code] += 1
+        if home_city and r.get("city") == _home_at(ts, home_city, home_history):
+            home_codes[y].add(code)
     if not by_c:
         return {}
     out: list[dict] = []
@@ -278,7 +293,17 @@ def regions(rows: list[dict], reg: dict, iso: dict | None = None, fixes: dict | 
         out.append({"country": c, "n": len(v), "of": of,
                     "regions": sorted(v.values(), key=lambda t: (-t[1], t[0]))})
     out.sort(key=lambda t: (-t["n"], t["country"]))
-    return {"total": sum(t["n"] for t in out), "countries": out,
+    name_of = {g[2]: g[0] for c in out for g in c["regions"]}
+    ctry_of = {g[2]: c["country"] for c in out for g in c["regions"]}
+    years = []
+    for y in sorted(per_year):
+        new = sorted((c for c, ts in first.items()
+                      if datetime.fromtimestamp(ts, tz=timezone.utc).year == y), key=lambda c: first[c])
+        away = [(c, k) for c, k in per_year[y].most_common() if c not in home_codes[y]]
+        years.append({"year": y, "new": len(new), "names": [name_of[c] for c in new[:10]],
+                      "total": len(per_year[y]),
+                      "top": [name_of[away[0][0]], ctry_of[away[0][0]], away[0][1]] if away else None})
+    return {"total": sum(t["n"] for t in out), "countries": out, "years": years,
             "complete": [t["country"] for t in out if t["of"] and t["n"] >= t["of"]]}
 
 
@@ -612,7 +637,8 @@ def _skip_cats(cfg: Path) -> set[str]:
 
 def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None = None,
                     trips: list[dict] | None = None, home_city: str = "",
-                    home_history=None, summit_pins: set[str] | None = None) -> dict:
+                    home_history=None, summit_pins: set[str] | None = None,
+                    scrobbles: list | None = None) -> dict:
     cfg = Path(config_dir)
     geo = geo or {}
     local: dict[int, datetime | None] = {}
@@ -645,14 +671,22 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
         out["elevation"] = elevation(pts, geo["elevation"], pins)
         out["peaks"] = peaks(pts, geo["elevation"], _load(cfg / "continents.json"), pins)
     pts.sort(key=lambda p: int(p[0]["date"]))
+    fr.HIDE_HOME = rh.HIDE_HOME = bool(_load(cfg / "privacy.json").get("hide_home"))
     out["borders"] = fr.borders(pts)
     out["zones"] = fr.zones(pts, home_city, home_history)
     out["streaks"] = fr.streaks(pts, home_city, home_history)
     if geo.get("regions"):
         iso, flags = _load(cfg / "regions_iso.json"), _load(cfg / "country_flags.json")
-        out["regions"] = regions(rows, geo["regions"], iso,
-                                 {k: v for k, v in _load(cfg / "region_fixes.json").items() if not k.startswith("_")},
-                                 flags)
+        fixes = {k: v for k, v in _load(cfg / "region_fixes.json").items() if not k.startswith("_")}
+        out["regions"] = regions(rows, geo["regions"], iso, fixes, flags, home_city, home_history)
+        rcodes: dict[str, str | None] = {}
+
+        def code_of(r: dict) -> str | None:
+            k = _city_key(r)
+            if k not in rcodes:
+                rcodes[k] = region_code(k, flags.get(r.get("country", ""), ""), geo["regions"], iso, fixes)
+            return rcodes[k]
+        out["companion_reach"] = rh.companion_reach(pts, code_of)
         here = [(lat, lng) for r, _d, lat, lng in pts if home_city and r.get("city") == home_city]
         home = ((sorted(p[0] for p in here)[len(here) // 2], sorted(p[1] for p in here)[len(here) // 2])
                 if here else None)
@@ -662,6 +696,16 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
         if geo.get("normals"):
             homes = {home_city, *(c for _, c in (home_history or []))}
             out["luck"] = fr.luck(geo["weather"], geo["normals"], homes)
+        from transform import build_categorize_fn
+        cats = _load(cfg / "categories.json").get("category_groups") or {}
+        out["weather_mood"] = rh.weather_mood(pts, geo["weather"], build_categorize_fn(cats) if cats else None,
+                                              _skip_cats(cfg))
+    skip = _skip_cats(cfg)
+    out["abandoned"] = rh.abandoned(pts, skip)
+    out["city_returns"] = rh.city_returns(pts, skip)
+    out["jetlag"] = rh.jetlag(pts, home_city, home_history)
+    out["holidays"] = rh.holidays(pts, geo.get("holidays"), _load(cfg / "country_flags.json"), home_city, home_history)
+    out["sound"] = rh.soundtrack(pts, scrobbles)
     ch = _load(cfg / "chains.json")
     if ch:
         out["chains"] = chains(rows, ch, stamp)

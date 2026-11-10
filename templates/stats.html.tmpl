@@ -165,6 +165,9 @@ a{color:inherit;}
 .ex-ctry b{font-size:0.8rem;color:var(--text);font-weight:600;}
 .ex-ctry .n{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--gold);margin-left:6px;}
 .ex-ctry .ex-chips{margin-top:6px;}
+.ex-slider{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-family:'DM Mono',monospace;font-size:.66rem;color:var(--muted);}
+.ex-slider input{flex:1;accent-color:#e8b04a;}
+.ex-slider button{background:var(--card2,#1a1d29);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 10px;cursor:pointer;}
 .ex-map{height:380px;border-radius:10px;overflow:hidden;margin:4px 0 6px;border:1px solid var(--border);background:#0e1018;}
 .ex-ctry .of{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);}
 .ex-ctry .bar{height:3px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden;max-width:260px;}
@@ -451,6 +454,8 @@ a{color:inherit;}
     <div class="card-title">Distance from Home <em>&middot; daily mean km from home centroid</em></div>
     <div class="streak-row" id="nomadKpis"></div>
     <canvas id="distHomeChart" height="220"></canvas>
+    <div class="ex-sub">How far each year · share of days by distance from home</div>
+    <div id="distBands"></div>
   </div>
 
   <!-- 24. Daily Extremes (full-width) -->
@@ -567,6 +572,8 @@ a{color:inherit;}
       <div id="exRegNearBox" style="display:none;"><div class="ex-sub">Nearest not yet · from home</div><div id="exRegNear"></div></div>
       <div id="exRegNextBox" style="display:none;"><div class="ex-sub">Within reach · countries half done or more</div><div id="exRegNext"></div></div>
     </div>
+    <div class="ex-sub">Year by year · new regions and the region of the year (most check-ins away from home)</div>
+    <div class="scroll-list" id="exRegYears" style="max-height:360px"></div>
     <div class="ex-sub">By country</div>
     <div class="scroll-list" id="exRegList" style="max-height:520px"></div>
   </div>
@@ -628,6 +635,53 @@ a{color:inherit;}
       <div><div class="ex-sub">Colder than usual</div><div id="exLuckCold"></div></div>
       <div><div class="ex-sub">Rainier than usual</div><div id="exLuckWet"></div></div>
       <div><div class="ex-sub">Drier than usual</div><div id="exLuckDry"></div></div>
+    </div>
+  </div>
+
+  <!-- 47. Soundtrack of places -->
+  <div data-tab="places" class="card full" id="exSoundCard" style="display:none;">
+    <div class="card-title">Soundtrack of Places <em>&middot; Last.fm scrobbles placed at your last check-in before them (within 12 h)</em></div>
+    <div class="ex-tiles" id="exSoundKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">By country</div><div class="scroll-list" id="exSoundCtry" style="max-height:460px"></div></div>
+      <div><div class="ex-sub">Artists that belong to one country</div><div id="exSoundSig"></div>
+        <div class="ex-sub">By city</div><div class="ex-chips" id="exSoundCity"></div></div>
+    </div>
+  </div>
+
+  <!-- 48. Weather and you -->
+  <div data-tab="time movement" class="card full" id="exMoodCard" style="display:none;">
+    <div class="card-title">Weather &amp; You <em>&middot; which kinds of places gain or lose share of your check-ins in rain, frost and heat</em></div>
+    <div class="ex-cols" id="exMoodCols"></div>
+  </div>
+
+  <!-- 49. Left behind -->
+  <div data-tab="places" class="card full" id="exLeftCard" style="display:none;">
+    <div class="card-title">Left Behind <em>&middot; places with 10+ visits not seen for two years, and the cities you come back to</em></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Once regular</div><div class="scroll-list" id="exLeftList" style="max-height:460px"></div></div>
+      <div><div class="ex-sub">Most returned-to places · share of places visited twice or more</div><div id="exRetLoyal"></div>
+        <div class="ex-sub">Explorer cities · the lowest share</div><div id="exRetExpl"></div></div>
+    </div>
+  </div>
+
+  <!-- 50. Jet lag -->
+  <div data-tab="time" class="card full" id="exLagCard" style="display:none;">
+    <div class="card-title">Jet Lag <em>&middot; first and last check-in of the days after a jump of 3+ time zones (the day starts at 04:00)</em></div>
+    <div class="ex-tiles" id="exLagKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Days after landing · median first → last check-in</div><table class="ex-tbl" id="exLagTbl"></table></div>
+      <div><div class="ex-sub">The jumps</div><div id="exLagList"></div></div>
+    </div>
+  </div>
+
+  <!-- 51. Holidays -->
+  <div data-tab="time" class="card full" id="exHolCard" style="display:none;">
+    <div class="card-title">Holidays <em>&middot; New Year's Eves, and national public holidays where you were (Nager.Date)</em></div>
+    <div class="ex-tiles" id="exHolKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">New Year's Eve</div><div id="exHolNye"></div></div>
+      <div><div class="ex-sub">Public holidays you were there for</div><div class="scroll-list" id="exHolList" style="max-height:460px"></div></div>
     </div>
   </div>
 
@@ -1352,6 +1406,17 @@ new Chart(document.getElementById('catChart'),{
   document.getElementById('nomadKpis').innerHTML=
     '<div class="streak-stat"><div class="s-num">'+(nk.nomad_pct||0)+'%</div><div class="s-lbl">Days &gt; 50 km</div></div>'
    +'<div class="streak-stat"><div class="s-num">'+(nk.max_dist_km||0).toLocaleString()+' km</div><div class="s-lbl">Furthest day</div></div>';
+  // Bands by year: share of days whose mean distance fell in each ring.
+  (function(){
+    var R=[[10,'< 10 km','#4ecdc4'],[100,'10–100','#7fb7be'],[1000,'100–1,000','#e8b04a'],[1e9,'1,000+','#e07a5f']];
+    var Y={};dh.forEach(function(x){var y=String(x[0]).slice(0,4),k=0;while(x[1]>=R[k][0])k++;(Y[y]=Y[y]||[0,0,0,0])[k]++;});
+    var h='<div class="ex-chips" style="margin-bottom:8px">'+R.map(function(r){return '<span class="ex-chip"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+r[2]+';margin-right:5px"></i>'+r[1]+'</span>';}).join('')+'</div>';
+    Object.keys(Y).sort().forEach(function(y){var c=Y[y],t=c[0]+c[1]+c[2]+c[3];
+      h+='<div class="bar-row"><div class="bar-label">'+y+'</div><div class="bar-track" style="display:flex;overflow:hidden">'
+        +c.map(function(v,i){return v?'<div title="'+R[i][1]+': '+v+' days ('+Math.round(100*v/t)+'%)" style="width:'+(100*v/t)+'%;background:'+R[i][2]+'"></div>':'';}).join('')
+        +'</div><div class="bar-val">'+Math.round(100*(c[2]+c[3])/t)+'% far</div></div>';});
+    document.getElementById('distBands').innerHTML=h;
+  })();
   // Down-sample: one point per week for performance
   var sampled=[];for(var i=0;i<dh.length;i+=7) sampled.push(dh[i]);
   new Chart(document.getElementById('distHomeChart'),{
@@ -1713,6 +1778,13 @@ new Chart(document.getElementById('catChart'),{
       var bar=c.of?'<div class="bar"><i style="width:'+Math.min(100,Math.round(100*c.n/c.of))+'%"></i></div>':'';
       return '<div class="ex-ctry'+(c.of&&c.n>=c.of?' full':'')+'"><b>'+esc(c.country)+'</b><span class="n">'+c.n+'</span>'+of+bar+'<div class="ex-chips">'+c.regions.map(function(g){return '<span class="ex-chip" title="'+esc(g[2]||'')+' · '+n(g[1])+' check-ins">'+esc(g[0])+'</span>';}).join('')+'</div></div>';
     }).join(''));
+    if(R.years&&R.years.length){
+      var mxN=Math.max.apply(null,R.years.map(function(y){return y.new;}).concat([1]));
+      put('exRegYears',R.years.slice().reverse().map(function(y){
+        return '<div class="ex-row"><div><b>'+y.year+'</b> · '+(y.new?y.new+' new':'no new')+(y.top?' · <span style="color:var(--gold)">★ '+esc(y.top[0])+'</span> <span class="p">'+esc(y.top[1])+' · '+n(y.top[2])+' check-ins</span>':'')
+          +(y.names.length?'<div class="p">'+y.names.map(esc).join(', ')+(y.new>y.names.length?' …':'')+'</div>':'')+'</div>'
+          +'<div class="m"><span style="display:inline-block;height:6px;width:'+Math.round(80*y.new/mxN)+'px;background:var(--gold);border-radius:3px"></span></div></div>';}).join(''));
+    }
     var NR=X.nearest||{};
     if(NR.home&&NR.home.length){
       show('exRegNearBox');
@@ -1734,10 +1806,24 @@ new Chart(document.getElementById('catChart'),{
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={{CARTO_KEY}}',
               {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',subdomains:'abcd',maxZoom:12}).addTo(m);
             var mx=Math.log(1+Math.max.apply(null,G.features.map(function(f){return f.properties.n;})));
-            var lay=L.geoJSON(G,{style:function(f){var a=Math.log(1+f.properties.n)/mx;
-              return {color:'#e8b04a',weight:1,opacity:.8,fillColor:'#e8b04a',fillOpacity:.15+.55*a};},
-              onEachFeature:function(f,l){var p=f.properties;l.bindTooltip(esc(p.name)+' · '+esc(p.country)+'<br>'+n(p.n)+' check-ins',{sticky:true});}}).addTo(m);
+            var upTo=9999;
+            var sty=function(f){var a=Math.log(1+f.properties.n)/mx,on=!f.properties.y||f.properties.y<=upTo;
+              return {color:'#e8b04a',weight:on?1:0,opacity:on?.8:0,fillColor:'#e8b04a',fillOpacity:on?.15+.55*a:0};};
+            var lay=L.geoJSON(G,{style:sty,
+              onEachFeature:function(f,l){var p=f.properties;l.bindTooltip(esc(p.name)+' · '+esc(p.country)+'<br>'+n(p.n)+' check-ins'+(p.y?' · first '+p.y:''),{sticky:true});}}).addTo(m);
             m.fitBounds(lay.getBounds(),{padding:[10,10]});
+            var ys=G.features.map(function(f){return f.properties.y;}).filter(Boolean),y0=Math.min.apply(null,ys),y1=Math.max.apply(null,ys);
+            if(ys.length&&y1>y0){
+              var bar=document.createElement('div');bar.className='ex-slider';
+              bar.innerHTML='<button type="button" aria-label="Play the years">▶</button><input type="range" min="'+y0+'" max="'+y1+'" value="'+y1+'" aria-label="Regions up to year"><span>'+y1+'</span>';
+              mapEl.parentNode.insertBefore(bar,mapEl.nextSibling);
+              var rng=bar.querySelector('input'),lbl=bar.querySelector('span'),btn=bar.querySelector('button'),tm=null;
+              var set=function(y){upTo=+y;rng.value=y;lbl.textContent=y+' · '+G.features.filter(function(f){return f.properties.y&&f.properties.y<=y;}).length+' regions';lay.setStyle(sty);};
+              rng.oninput=function(){if(tm){clearInterval(tm);tm=null;btn.textContent='▶';}set(rng.value);};
+              btn.onclick=function(){if(tm){clearInterval(tm);tm=null;btn.textContent='▶';return;}
+                var y=y0;set(y);btn.textContent='❚❚';tm=setInterval(function(){y++;if(y>y1){clearInterval(tm);tm=null;btn.textContent='▶';return;}set(y);},700);};
+              set(y1);
+            }
           }).catch(function(){mapEl.style.display='none';});
         };
         document.head.appendChild(js);
@@ -1827,6 +1913,61 @@ new Chart(document.getElementById('catChart'),{
     put('exLuckCold',ln(LK.colder,function(c){return sg(c.dt);}));
     put('exLuckWet',ln(LK.wetter,function(c){return c.rain+'% vs '+c.rain_norm+'%';}));
     put('exLuckDry',ln(LK.drier,function(c){return c.rain+'% vs '+c.rain_norm+'%';}));
+  }
+  // ── 47–51. Soundtrack, weather & you, left behind, jet lag, holidays ──
+  function hm(h){h=((h%24)+24)%24;var H=Math.floor(h),M=Math.round((h-H)*60);if(M===60){H=(H+1)%24;M=0;}return (H<10?'0':'')+H+':'+(M<10?'0':'')+M;}
+  var SD=X.sound;
+  if(SD&&SD.countries&&SD.countries.length){
+    show('exSoundCard');
+    put('exSoundKpi',tile('Scrobbles placed',n(SD.placed),Math.round(100*SD.placed/SD.total)+'% of '+n(SD.total))
+      +tile('Countries with a soundtrack',SD.countries.length,'50+ scrobbles each')
+      +(SD.countries[0]?tile('Home loop',esc(SD.countries[0].artists[0][0]),esc(SD.countries[0].country)+' · '+n(SD.countries[0].artists[0][1])+' plays'):''));
+    put('exSoundCtry',SD.countries.map(function(c){return row('<b>'+esc(c.country)+'</b> · '+c.artists.map(function(a){return esc(a[0]);}).join(', '),
+      '♪ '+esc(c.track[0])+' — '+esc(c.track[1])+' ×'+c.track[2],n(c.n));}).join(''));
+    put('exSoundSig',(SD.signature||[]).map(function(s){return row(esc(s.artist),esc(s.country)+' · '+s.share+'% of all their plays',n(s.plays));}).join('')||'<div class="p">—</div>');
+    put('exSoundCity',(SD.cities||[]).map(function(c){return '<span class="ex-chip" title="'+n(c.n)+' scrobbles · '+n(c.plays)+' of '+esc(c.artist)+'">'+esc(c.city)+' · '+esc(c.artist)+'</span>';}).join(''));
+  }
+
+  var MD=X.weather_mood;
+  if(MD&&MD.buckets){
+    show('exMoodCard');
+    var lab={rain:'🌧 Rainy days (1 mm+)',freezing:'🥶 Freezing days (high below 0°)',hot:'🔥 Hot days (28°+)'};
+    var pc=function(x){var p=Math.round((x-1)*100);return (p>0?'+':'')+p+'%';};
+    put('exMoodCols',['rain','freezing','hot'].filter(function(b){return MD.buckets[b];}).map(function(b){var B=MD.buckets[b];
+      return '<div><div class="ex-sub">'+lab[b]+' · '+n(B.n)+' check-ins</div>'
+        +B.more.map(function(g){return row(esc(g[0]),n(g[2])+' check-ins','<span style="color:#4ecdc4">'+pc(g[1])+'</span>');}).join('')
+        +B.less.map(function(g){return row(esc(g[0]),n(g[2])+' check-ins','<span style="color:#e07a5f">'+pc(g[1])+'</span>');}).join('')+'</div>';}).join(''));
+  }
+
+  var LB=X.abandoned,CR=X.city_returns;
+  if((LB&&LB.length)||(CR&&CR.loyal)){
+    show('exLeftCard');
+    put('exLeftList',(LB||[]).map(function(v){return row(vl(v),where(v)+' · '+esc(v.first.slice(0,4))+' → '+esc(v.last),n(v.visits)+'× · '+v.years_gone+' y ago');}).join('')||'<div class="p">—</div>');
+    var rr=function(l){return (l||[]).map(function(c){return row(esc(c.city),esc(c.country)+' · '+c.returned+' of '+c.venues+' places',c.pct+'%');}).join('');};
+    if(CR){put('exRetLoyal',rr(CR.loyal));put('exRetExpl',rr(CR.explorer));}
+  }
+
+  var JL=X.jetlag;
+  if(JL&&JL.jumps){
+    show('exLagCard');
+    put('exLagKpi',tile('Jumps of 3+ h',JL.jumps,'between two check-ins within 48 h')
+      +tile('At home',hm(JL.baseline.first)+' → '+hm(JL.baseline.last),'median first → last check-in'));
+    var cv=JL.curve||{},tr='<tr><th>Day</th><th>Flying east</th><th>Flying west</th></tr>';
+    for(var dI=1;dI<=5;dI++){var e=(cv.east||[]).find(function(x){return x[0]===dI;}),w=(cv.west||[]).find(function(x){return x[0]===dI;});
+      tr+='<tr><td>'+dI+'</td><td>'+(e?hm(e[1])+' → '+hm(e[2]):'—')+'</td><td>'+(w?hm(w[1])+' → '+hm(w[2]):'—')+'</td></tr>';}
+    put('exLagTbl',tr);
+    put('exLagList',JL.trips.map(function(t){return row(esc(t.from)+' → '+esc(t.to),esc(t.date)+(t.first.length?' · first check-in '+t.first.map(function(f){return 'd'+f[0]+' '+hm(f[1]);}).join(', '):''),hrs(t.shift));}).join(''));
+  }
+
+  var HD=X.holidays;
+  if(HD&&(HD.new_year||HD.public)){
+    show('exHolCard');
+    var ny=HD.new_year||[];
+    put('exHolKpi',(ny.length?tile("New Year's Eves",ny.length,ny.filter(function(e){return e.abroad;}).length+' of them abroad'):'')
+      +(HD.count?tile('Public holidays',n(HD.count),HD.abroad+' abroad'):'')
+      +(HD.top_abroad&&HD.top_abroad.length?tile('Most often abroad',esc(HD.top_abroad[0][0]),HD.top_abroad[0][1]+' times'):''));
+    put('exHolNye',ny.map(function(e){return row(e.year+' · '+vl(e),where(e),e.abroad?'✈ abroad':'home');}).join(''));
+    put('exHolList',(HD.public||[]).map(function(h){return row(esc(h.holiday),vl(h)+' · '+where(h),esc(h.date)+(h.abroad?' ✈':''));}).join(''));
   }
 })();
 </script>
