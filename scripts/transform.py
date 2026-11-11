@@ -252,7 +252,7 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
         "city_fixes":      city_fixes,
         "venue_fixes":     venue_fixes,
         # venue ids that never make a day in a place (stats "By Days"): border shops, transfer desks
-        # venues BETWEEN two countries: each check-in takes the side you came from (resolve_straddles)
+        # venues BETWEEN two countries: for the index "By Days" only (straddle_sides)
         "straddle_venues": {k: v for k, v in _load_file("straddle_venues.json").items() if not k.startswith("_")},
         "day_skip_venues": {k for k in _load_file("day_skip_venues.json") if not k.startswith("_")},
         "companion_fixes": companion_fixes,
@@ -399,9 +399,6 @@ def apply_transforms(
         log.info("Blank-city inference filled %d rows", blank_filled)
     if malformed_dates:
         log.warning("%d rows had non-numeric 'date' values", malformed_dates)
-    _straddled = resolve_straddles(rows, mappings.get("straddle_venues") or {})
-    if _straddled:
-        log.info("Straddle venues: %d check-ins took the side they were made from", _straddled)
 
     return rows
 
@@ -409,14 +406,16 @@ def apply_transforms(
 STRADDLE_WINDOW_S = 12 * 3600
 
 
-def resolve_straddles(rows: list[dict], straddles: dict[str, dict]) -> int:
-    """A venue BETWEEN two countries (config/straddle_venues.json) takes, per
-    check-in, the side you were on before it: the country of the previous
-    check-in within STRADDLE_WINDOW_S (other straddle venues skipped). With no
-    earlier one, the side opposite the next check-in (you were crossing towards
-    it); else the row keeps its venue_fixes / Foursquare side. → rows changed."""
+def straddle_sides(rows: list[dict], straddles: dict[str, dict]) -> dict[int, tuple[str, str]]:
+    """For the index "By Days" only — rows are NOT changed (the feed, D1 and every
+    other stat keep the venue's own side). A venue BETWEEN two countries
+    (config/straddle_venues.json) counts, per check-in, for the side you were on
+    before it: the country of the previous check-in within STRADDLE_WINDOW_S (other
+    straddle venues skipped). With no earlier one, the side opposite the next
+    check-in (you were crossing towards it). → {row index: (country, city)} for the
+    check-ins whose side differs from the row's own."""
     if not straddles:
-        return 0
+        return {}
 
     def ts(r: dict) -> int:
         try:
@@ -425,7 +424,7 @@ def resolve_straddles(rows: list[dict], straddles: dict[str, dict]) -> int:
             return 0
     order = sorted(range(len(rows)), key=lambda i: ts(rows[i]))
     is_s = [(rows[i].get("venue_id") or "").strip() in straddles for i in order]
-    changed = 0
+    out: dict[int, tuple[str, str]] = {}
     for k, i in enumerate(order):
         if not is_s[k]:
             continue
@@ -451,9 +450,8 @@ def resolve_straddles(rows: list[dict], straddles: dict[str, dict]) -> int:
                     side = other[0] if n["country"] in sides and len(other) == 1 else None
                     break
         if side and (r.get("country"), r.get("city")) != (side, sides[side]):
-            r["country"], r["city"] = side, sides[side]
-            changed += 1
-    return changed
+            out[i] = (side, sides[side])
+    return out
 
 
 # ── Category helpers ───────────────────────────────────────────────────────────

@@ -274,19 +274,19 @@ A check-in made from across a border goes to `venue_fixes.json`, pinned to the s
 was made from: Ağrı Dağı seen from Khor Virap → Armenia. Check-ins ≠ days, so a lower
 count is expected.
 
-## Venues between two countries (`config/straddle_venues.json`)
+## Venues between two countries (`config/straddle_venues.json`): By Days only
 
 A bridge over a border river, a point on the line or in the neutral zone has no
 single physical side. Border posts do have one and stay in `venue_fixes.json`.
 
-Such a venue lists its two sides, `{country: city}`. Each check-in there takes the
-side you were on before it: the country of the previous check-in within 12 h, with
-other straddle venues skipped.
+Such a venue lists its two sides, `{country: city}`. For the index "By Days" count
+ONLY, each check-in there counts for the side you were on before it: the country
+of the previous check-in within 12 h, with other straddle venues skipped.
 - Romanian check-ins before the Eiffel Bridge (then Moldovan ones) → Romania.
 - The other way round → Moldova.
 
-With no earlier check-in, the venue takes the side opposite the next one. Otherwise
-it keeps its venue_fixes / Foursquare side.
+With no earlier check-in, it counts for the side opposite the next one.
 
-This runs last in `transform.apply_transforms` (`resolve_straddles`), so the site,
-the city gate and D1 (`fix-city-country-d1.yml` also triggers on this file) all agree.
+`transform.straddle_sides` returns these sides without touching the rows. The feed,
+D1, the city gate and every other stat keep the venue's own (venue_fixes /
+Foursquare) side.

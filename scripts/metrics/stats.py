@@ -10,7 +10,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
-from transform import build_categorize_fn, group_category
+from transform import build_categorize_fn, group_category, straddle_sides
 
 from .companions import collect_companions
 from .shouts import shout_analysis, shout_records
@@ -400,7 +400,9 @@ def process(
     country_days: dict[str, set] = defaultdict(set)
     city_days:    dict[str, set] = defaultdict(set)
     _day_skip = mappings.get("day_skip_venues") or frozenset()
-    for r in rows:
+    # A venue between two countries counts for the side you came from — here only.
+    _sides = straddle_sides(rows, mappings.get("straddle_venues") or {})
+    for _i, r in enumerate(rows):
         if not day_anchors(r, _day_skip):
             continue
         try:
@@ -411,7 +413,7 @@ def process(
         if not ts:
             continue
         day = (ts + int(lng / 15 * 3600)) // 86400
-        c, cy = r.get("country", "").strip(), r.get("city", "").strip()
+        c, cy = _sides.get(_i) or (r.get("country", "").strip(), r.get("city", "").strip())
         if c:
             country_days[c].add(day)
         if cy:

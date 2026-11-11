@@ -41,7 +41,7 @@ def test_skip_list_by_venue_id():
     assert all(len(k) == 24 for k in skip if not k.startswith("_"))
 
 
-# ── transform.resolve_straddles: a venue between two countries takes your side ──
+# ── transform.straddle_sides: a venue between two countries counts for your side (By Days only) ──
 
 def _seq(*items):
     return [make_row(1_700_000_000 + 600 * i, city=c, country=k, venue_id=v, category="Bridge")
@@ -51,26 +51,23 @@ def _seq(*items):
 STR = {"br": {"_name": "bridge", "Moldova": "Ungheni", "Romania": "Ungheni RO"}}
 
 
-def test_straddle_takes_the_country_of_the_previous_checkin():
-    from transform import resolve_straddles
+def test_straddle_takes_the_country_of_the_previous_checkin_without_changing_rows():
+    from transform import straddle_sides
     ro_to_md = _seq(("a", "Romania", "Iași"), ("br", "Romania", "Ungheni RO"), ("b", "Moldova", "Ungheni"))
     md_to_ro = _seq(("b", "Moldova", "Ungheni"), ("br", "Romania", "Ungheni RO"), ("a", "Romania", "Iași"))
-    assert resolve_straddles(ro_to_md, STR) == 0 and ro_to_md[1]["country"] == "Romania"
-    assert resolve_straddles(md_to_ro, STR) == 1
-    assert (md_to_ro[1]["country"], md_to_ro[1]["city"]) == ("Moldova", "Ungheni")
+    assert straddle_sides(ro_to_md, STR) == {}
+    assert straddle_sides(md_to_ro, STR) == {1: ("Moldova", "Ungheni")}
+    assert md_to_ro[1]["country"] == "Romania"              # the row itself is untouched
 
 
 def test_straddle_skips_other_straddles_and_falls_back_to_the_next_side():
-    from transform import resolve_straddles
+    from transform import straddle_sides
     s = {**STR, "mid": {"Moldova": "Ungheni", "Romania": "Ungheni RO"}}
     rows = _seq(("b", "Moldova", "Ungheni"), ("mid", "Romania", "x"), ("br", "Romania", "x"))
-    resolve_straddles(rows, s)
-    assert rows[2]["country"] == "Moldova"                       # previous non-straddle is Moldova
-    alone = _seq(("br", "Moldova", "Ungheni"), ("a", "Romania", "Iași"))
-    resolve_straddles(alone, STR)
-    assert alone[0]["country"] == "Moldova"                      # crossing towards Romania: other side
-    far = _seq(("br", "Romania", "Ungheni RO"))
-    assert resolve_straddles(far, STR) == 0 and far[0]["country"] == "Romania"
+    assert straddle_sides(rows, s)[2] == ("Moldova", "Ungheni")
+    alone = _seq(("br", "Romania", "Ungheni RO"), ("a", "Romania", "Iași"))
+    assert straddle_sides(alone, STR) == {0: ("Moldova", "Ungheni")}   # crossing towards Romania
+    assert straddle_sides(_seq(("br", "Romania", "Ungheni RO")), STR) == {}
 
 
 def test_straddle_config_is_well_formed():

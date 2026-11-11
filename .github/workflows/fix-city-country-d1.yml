@@ -36,7 +36,6 @@ on:
       - "config/city_fixes.json"
       - "config/country_fixes.json"
       - "config/venue_fixes.json"
-      - "config/straddle_venues.json"
       - "config/city_canonical.yaml"
       - "city_review.csv"
       # Normalization LOGIC, not just config: a change to the transform pipeline
