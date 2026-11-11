@@ -513,6 +513,25 @@ def dedupe_against_d1(candidates: list, source_rows: list, d1_counts: dict) -> l
     return out
 
 
+def city_country_updates(rows: list, d1_vals: dict, sql_val) -> list[str]:
+    """UPDATEs for the check-ins whose computed city / country / city_inferred
+    (row layout SQL_CHECKINS_NEW: id=0, city=5, country=7, city_inferred=22)
+    differ from what D1 holds now (`d1_vals`: id -> (city, country, inferred)).
+    Rows not in D1 yet are skipped: the insert path carries them. Empty and NULL
+    compare equal."""
+    out = []
+    for row in rows:
+        cid = row[0]
+        if cid not in d1_vals:
+            continue
+        t_city, t_country, t_inferred = row[5], row[7], _int(row[22], 0)
+        d_city, d_country, d_inferred = d1_vals[cid]
+        if (t_city or None) != (d_city or None) or (t_country or None) != (d_country or None)                 or t_inferred != _int(d_inferred, 0):
+            out.append(f"UPDATE checkins SET city={sql_val(t_city)},country={sql_val(t_country)},"
+                       f"city_inferred={t_inferred} WHERE id={sql_val(cid)}")
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Incremental D1 sync for CI")
     ap.add_argument("--csv",        default=None)
@@ -680,27 +699,25 @@ def main() -> None:
     visited_vids = {r[2] for r in all_checkin_rows if r[2]}  # index 2 = venue_id
 
     if args.fix_city_country:
-        # Build targeted UPDATEs for all rows where transform changed city or country vs raw CSV.
-        # Necessary because existing D1 rows were synced before the transform pipeline ran there.
-        raw_rows_by_id = {}
-        with open(args.csv, encoding="utf-8-sig", newline="") as _fh:
-            for _r in csv.DictReader(_fh):
-                cid = _str(_r.get("checkin_id"))
-                if cid:
-                    raw_rows_by_id[cid] = (_str(_r.get("city")), _str(_r.get("country")), _int(_r.get("city_inferred"), 0))
-        stmts = []
-        for row in all_checkin_rows:
-            cid, _ts, _vid = row[0], row[1], row[2]
-            t_city, t_country, t_inferred = row[5], row[7], row[22]
-            r_city, r_country, r_inferred = raw_rows_by_id.get(cid, (None, None, 0))
-            if t_city != r_city or t_country != r_country or t_inferred != r_inferred:
-                city_lit    = d1._sql_val(t_city)
-                country_lit = d1._sql_val(t_country)
-                id_lit      = d1._sql_val(cid)
-                stmts.append(
-                    f"UPDATE checkins SET city={city_lit},country={country_lit},"
-                    f"city_inferred={t_inferred} WHERE id={id_lit}"
-                )
+        # UPDATE every D1 row whose city / country / city_inferred differs from what
+        # the transform pipeline computes now — compared against D1 ITSELF, not the
+        # raw CSV. Comparing with the raw CSV missed a row whose correct value went
+        # BACK to the raw one (a reverted rule left D1 holding the old value), and
+        # rewrote ~7.9k unchanged rows on every run. Now: one keyset-paged read of
+        # the table (~72k rows read) and writes only for the real drift.
+        d1_vals: dict = {}
+        _last = ""
+        while True:
+            page = d1.query(
+                "SELECT id, city, country, city_inferred FROM checkins WHERE id > ? "
+                "ORDER BY id LIMIT 10000", [_last]) or []
+            for _r in page:
+                d1_vals[_r["id"]] = (_r.get("city"), _r.get("country"), _int(_r.get("city_inferred"), 0))
+            if len(page) < 10000:
+                break
+            _last = page[-1]["id"]
+        print(f"  fix-city-country: {len(d1_vals)} D1 rows read", flush=True)
+        stmts = city_country_updates(all_checkin_rows, d1_vals, d1._sql_val)
         print(f"  fix-city-country: {len(stmts)} rows to UPDATE", flush=True)
         _CHUNK = 90_000
         chunk: list[str] = []

@@ -1,8 +1,10 @@
 # .github/workflows/fix-city-country-d1.yml
 #
-# Manual workflow: UPDATE all D1 checkin rows where the transform pipeline
-# (city_fixes.json, country_fixes.json, city_merge.yaml, blank-city resolver)
-# produces a different city or country than the raw CSV value.
+# UPDATE every D1 checkin row whose city / country / city_inferred differs from
+# what the transform pipeline (city_fixes.json, country_fixes.json, venue_fixes.json,
+# city_merge.yaml, blank-city resolver) computes now. Compared against D1 itself
+# (one ~72k-row read), so a rule that is reverted is undone in D1 too, and only the
+# real drift is written.
 #
 # Runs automatically on any push to main that touches a normalization input
 # (city_merge.yaml, city_fixes.json, country_fixes.json, venue_fixes.json,
