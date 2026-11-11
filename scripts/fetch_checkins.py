@@ -154,8 +154,36 @@ def note_likes(ci: dict) -> None:
     LIKES_SEEN[cid] = v
 
 
+# Venues seen this run → closed? Merged into venue_closed.json next to the CSV (the
+# stats "Gone" card); kept out of checkins.csv for the same reason as the likes.
+CLOSED_SEEN: dict[str, bool] = {}
+
+
+def save_closed(path: Path) -> bool:
+    """Merge CLOSED_SEEN into `path` ({venue_id: true}, closed ones only). → changed?"""
+    old: dict = {}
+    if path.exists():
+        try:
+            old = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            old = {}
+    new = dict(old)
+    for vid, closed in CLOSED_SEEN.items():
+        if closed:
+            new[vid] = True
+        else:
+            new.pop(vid, None)
+    if new == old:
+        return False
+    body = ",\n".join(f"{json.dumps(k)}:true" for k in sorted(new))
+    path.write_text("{\n" + body + "\n}\n" if new else "{}\n", encoding="utf-8", newline="\n")
+    return True
+
+
 def save_likes(path: Path) -> bool:
-    """Merge LIKES_SEEN into `path` (only check-ins with likes are stored). → changed?"""
+    """Merge LIKES_SEEN into `path` (only check-ins with likes are stored). → changed?
+    Also writes venue_closed.json beside it (save_closed)."""
+    save_closed(path.parent / "venue_closed.json")
     old: dict = {}
     if path.exists():
         try:
@@ -200,6 +228,8 @@ def api_to_row(ci: dict) -> dict:
 
     source = ci.get("source", {})
     vid = str(venue.get("id", "") or "")
+    if vid:
+        CLOSED_SEEN[vid] = bool(venue.get("closed"))
 
     # created_by: populated only when a friend checked you in on your behalf
     created_by = ci.get("createdBy", {})

@@ -464,8 +464,29 @@ if __name__ == "__main__":
             _scrobbles = load_scrobbles(Path(args.input).resolve().parent / "lastfm")
         except Exception as _sce:
             log.info("no Last.fm layer for the soundtrack of places: %s", _sce)
+        # Closed places: the check-in venues' own flag (fetch_checkins.py → venue_closed.json)
+        # plus the tips on venues already known closed.
+        _closed: set = set()
+        _vc = _beside_input(args, "venue_closed.json")
+        if _vc:
+            _closed |= {k for k, v in json.loads(_vc.read_text(encoding="utf-8")).items() if v}
+        _tp = Path(args.tips) if getattr(args, "tips", None) else _beside_input(args, "tips.json")
+        if _tp and _tp.exists():
+            try:
+                _tj = json.loads(_tp.read_text(encoding="utf-8"))
+                _closed |= {t.get("venue_id") for t in (_tj if isinstance(_tj, list) else _tj.get("tips", []))
+                            if t.get("closed") and t.get("venue_id")}
+            except (OSError, ValueError, AttributeError):
+                pass
         data["explore"] = compute_explore(rows, config_dir, _geo, trips, home_city, home_history,
-                                          scrobbles=_scrobbles)
+                                          scrobbles=_scrobbles, closed=_closed)
+        # The history player's points are their own lazily fetched file.
+        _hist = data["explore"].pop("history", None)
+        if _hist:
+            Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+            (Path(args.output_dir) / "history-points.json").write_text(
+                json.dumps(_hist, separators=(",", ":")), encoding="utf-8")
+            data["explore"]["history_n"] = len(_hist["p"])
         # Companions page reads it (whitelisted in gen_companions.SOCIAL_KEYS), not stats.
         data["companion_reach"] = data["explore"].pop("companion_reach", [])
         # Height of every trip check-in: the trip modal draws its elevation profile.
@@ -709,6 +730,25 @@ if __name__ == "__main__":
                 cid = c.get("checkin_id", "")
                 c["photos"] = _photos_by_checkin.get(cid, [])
             t["photo_count"] = sum(len(c.get("photos", [])) for c in t.get("checkins", []))
+        # Then & now (stats): one place photographed years apart.
+        try:
+            from metrics.explore import _skip_cats, _localise as _lc, _f as _ff
+            from metrics.horizons import then_now as _then_now
+            from metrics.trips import _parse_ts as _pt
+
+            def _stamp(r):
+                d = _pt(r)
+                la, ln = _ff(r.get("lat")), _ff(r.get("lng"))
+                return _lc(d, la, ln, r.get("country", "")) if d and la is not None and ln is not None else d
+            _tn = _then_now(rows, _photos_by_checkin, _stamp, _skip_cats(Path(config_dir)))
+            if _tn and isinstance(data.get("explore"), dict):
+                for _x in _tn:
+                    for _k in ("a", "b"):
+                        _x[_k]["url"] = _pix_dir_uri + "/" + _x[_k]["src"]
+                        _x[_k]["thumb"] = _pix_dir_uri + "/t/" + _x[_k]["src"]
+                data["explore"]["then_now"] = _tn
+        except Exception as _tne:
+            log.warning("then_now failed: %s", _tne)
 
     # ── Per-segment transport modes (trips map + feed) ───────────────────────
     # Attach checkin["m"] (arrival-mode char) to every trip check-in before

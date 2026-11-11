@@ -45,3 +45,15 @@ def test_own_like_and_non_friends_are_kept_apart(monkeypatch):
         {"type": "others", "count": 2, "items": []}]}})
     assert fc.LIKES_SEEN["self"] == {"n": 1, "by": [], "me": 1}
     assert fc.LIKES_SEEN["mix"] == {"n": 4, "by": [["1", "Iennifer"], ["2", "Bojan B"]]}
+
+
+def test_closed_flag_is_recorded_and_merged(tmp_path, monkeypatch):
+    monkeypatch.setattr(fc, "LIKES_SEEN", {})
+    monkeypatch.setattr(fc, "CLOSED_SEEN", {})
+    p = tmp_path / "venue_closed.json"
+    p.write_text(json.dumps({"reopened": True, "kept": True}), encoding="utf-8")
+    fc.api_to_row({"id": "c1", "createdAt": 1, "venue": {"id": "gone", "name": "Bar", "closed": True}})
+    fc.api_to_row({"id": "c2", "createdAt": 2, "venue": {"id": "reopened", "name": "Cafe"}})
+    assert fc.save_likes(tmp_path / "checkin_likes.json") is False   # no likes; closed file still written
+    assert json.loads(p.read_text(encoding="utf-8")) == {"gone": True, "kept": True}
+    assert fc.save_closed(p) is False

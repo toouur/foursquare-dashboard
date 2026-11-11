@@ -31,12 +31,16 @@ SHARED = (
     "scripts/metrics/explore.py",
     "scripts/metrics/frontiers.py",
     "scripts/metrics/rhythms.py",
+    "scripts/metrics/horizons.py",
     "config/regions_iso.json",
     "config/region_fixes.json",
     "config/categories.json",
     "config/venue_category_fixes.json",
     "config/continents.json",
     "config/chains.json",
+    "config/unesco.json",
+    "config/cuisines.json",
+    "config/countries_geo.json",
 )
 
 

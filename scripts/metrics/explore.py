@@ -33,6 +33,7 @@ from pathlib import Path
 from transform import group_category
 
 from . import frontiers as fr
+from . import horizons as hz
 from . import rhythms as rh
 from .trips import _home_at, _localise, _parse_ts
 
@@ -706,7 +707,7 @@ def _skip_cats(cfg: Path) -> set[str]:
 def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None = None,
                     trips: list[dict] | None = None, home_city: str = "",
                     home_history=None, summit_pins: set[str] | None = None,
-                    scrobbles: list | None = None) -> dict:
+                    scrobbles: list | None = None, closed=None, today=None) -> dict:
     cfg = Path(config_dir)
     geo = geo or {}
     local: dict[int, datetime | None] = {}
@@ -772,6 +773,23 @@ def compute_explore(rows: list[dict], config_dir: Path | str, geo: dict | None =
     out["jetlag"] = rh.jetlag(pts, home_city, home_history)
     out["holidays"] = rh.holidays(pts, geo.get("holidays"), _load(cfg / "country_flags.json"), home_city, home_history)
     out["sound"] = rh.soundtrack(pts, scrobbles)
+    flags_all = _load(cfg / "country_flags.json")
+    sites = _load(cfg / "unesco.json").get("sites") or {}
+    out["unesco"] = hz.unesco(pts, sites, skip)
+    out["cuisines"] = hz.cuisines(pts, {k: v for k, v in _load(cfg / "cuisines.json").items()
+                                        if not k.startswith("_")}, flags_all)
+    out["graveyard"] = hz.graveyard(rows, closed or set(), skip, stamp)
+    out["gravity"] = hz.gravity(pts, home_city, home_history)
+    out["history"] = hz.history([p for p in pts if (p[0].get("category") or "") != HOME_CATEGORY])
+    out["city_twins"] = hz.city_twins(pts, skip, home=_home_at(int(pts[-1][0]["date"]), home_city, home_history)
+                                      if pts and home_city else "")
+    # Today's home: the median of the latest 500 check-ins in the home of their day.
+    here = [(lat, lng) for r, _d, lat, lng in pts
+            if home_city and r.get("city") == _home_at(int(r["date"]), home_city, home_history)][-500:]
+    home_pt = ((sorted(p[0] for p in here)[len(here) // 2], sorted(p[1] for p in here)[len(here) // 2])
+               if here else None)
+    out["forecast"] = hz.forecast(trips, _load(cfg / "countries_geo.json"), flags_all,
+                                  {str(r["country"]) for r in rows if r.get("country")}, home_pt, today)
     ch = _load(cfg / "chains.json")
     if ch:
         out["chains"] = chains(rows, ch, stamp)

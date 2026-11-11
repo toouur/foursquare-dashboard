@@ -171,6 +171,18 @@ a{color:inherit;}
 .ex-slider input{flex:1;accent-color:#e8b04a;}
 .ex-slider button{background:var(--card2,#1a1d29);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 10px;cursor:pointer;}
 .ex-map{height:380px;border-radius:10px;overflow:hidden;margin:4px 0 6px;border:1px solid var(--border);background:#0e1018;}
+.ex-map-tall{height:440px;}
+@media(max-width:600px){.ex-map-tall{height:360px;}}
+.leaflet-tooltip.ex-yr{background:transparent;border:0;box-shadow:none;color:#e6e6e6;font-family:'DM Mono',monospace;font-size:.6rem;padding:0 0 0 2px;}
+.leaflet-tooltip.ex-yr::before{display:none;}
+.ex-pairs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.ex-pair{background:var(--card2);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.ex-pair-img{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--border);}
+.ex-pair-img a{position:relative;display:block;aspect-ratio:1/1;background:#0e1018;}
+.ex-pair-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.ex-pair-img span{position:absolute;left:6px;bottom:6px;font-family:'DM Mono',monospace;font-size:.6rem;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.65);color:#fff;}
+.ex-pair-cap{padding:10px 12px;font-size:.8rem;}
+.ex-pair-cap .p{font-size:.68rem;color:var(--muted);margin-top:3px;}
 .ex-ctry .of{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);}
 .ex-ctry .bar{height:3px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden;max-width:260px;}
 .ex-ctry .bar i{display:block;height:100%;background:var(--gold);}
@@ -690,6 +702,75 @@ a{color:inherit;}
     <div class="ex-cols">
       <div><div class="ex-sub">New Year's Eve</div><div id="exHolNye"></div></div>
       <div><div class="ex-sub">Public holidays you were there for</div><div class="scroll-list" id="exHolList" style="max-height:460px"></div></div>
+    </div>
+  </div>
+
+  <!-- 52. World Heritage -->
+  <div data-tab="places" class="card full" id="exWhsCard" style="display:none;">
+    <div class="card-title">World Heritage <em>&middot; UNESCO sites with a check-in inside one of their parts (Wikidata outlines as circles)</em></div>
+    <div class="ex-tiles" id="exWhsKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Sites · in the order you first reached them</div><div class="scroll-list" id="exWhsList" style="max-height:460px"></div></div>
+      <div><div class="ex-sub">By country</div><div class="ex-chips" id="exWhsCtry"></div>
+        <div class="ex-sub">New sites by year</div><div id="exWhsYears"></div></div>
+    </div>
+  </div>
+
+  <!-- 53. Food passport -->
+  <div data-tab="places" class="card full" id="exFoodCard" style="display:none;">
+    <div class="card-title">Food Passport <em>&middot; national cuisines, by the category of the place, and where you ate them</em></div>
+    <div class="ex-tiles" id="exFoodKpi"></div>
+    <div class="scroll-list" id="exFoodList" style="max-height:520px"></div>
+  </div>
+
+  <!-- 54. Gone -->
+  <div data-tab="places" class="card full" id="exGoneCard" style="display:none;">
+    <div class="card-title">Gone <em>&middot; places from your history that Foursquare now marks closed</em></div>
+    <div class="ex-tiles" id="exGoneKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">The ones you went to most</div><div class="scroll-list" id="exGoneList" style="max-height:460px"></div></div>
+      <div><div class="ex-sub">Share gone · by the year you found them</div><div id="exGoneYears"></div>
+        <div class="ex-sub">Kinds of places that close</div><div class="ex-chips" id="exGoneCats"></div></div>
+    </div>
+  </div>
+
+  <!-- 55. Centre of gravity -->
+  <div data-tab="movement" class="card full" id="exGravCard" style="display:none;">
+    <div class="card-title">Centre of Gravity <em>&middot; the mean point of each year's check-ins, and of the ones away from home</em></div>
+    <div class="ex-tiles" id="exGravKpi"></div>
+    <div class="ex-map" id="exGravMap" style="display:none;"></div>
+    <table class="ex-tbl" id="exGravTbl"></table>
+  </div>
+
+  <!-- 56. History player -->
+  <div data-tab="movement" class="card full" id="exPlayCard" style="display:none;">
+    <div class="card-title">Replay <em>&middot; every day with a check-in, on the map, from the first to today</em></div>
+    <div class="ex-map ex-map-tall" id="exPlayMap"></div>
+  </div>
+
+  <!-- 57. Then and now -->
+  <div data-tab="places" class="card full" id="exThenCard" style="display:none;">
+    <div class="card-title">Then &amp; Now <em>&middot; one place in your photos, five years apart or more</em></div>
+    <div class="ex-pairs" id="exThenList"></div>
+  </div>
+
+  <!-- 58. City twins -->
+  <div data-tab="places" class="card full" id="exTwinCard" style="display:none;">
+    <div class="card-title">City Twins <em>&middot; cities alike by what you did there (the mix of place categories, rare ones weigh more)</em></div>
+    <div class="ex-tiles" id="exTwinKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Most alike · across borders</div><div id="exTwinPairs"></div></div>
+      <div><div class="ex-sub">One of a kind · the least like anywhere else</div><div id="exTwinLone"></div></div>
+    </div>
+  </div>
+
+  <!-- 59. Next trip -->
+  <div data-tab="overview time" class="card full" id="exNextCard" style="display:none;">
+    <div class="card-title">Next Trip <em>&middot; a guess from your rhythm: the usual gap between trips and the months they start in</em></div>
+    <div class="ex-tiles" id="exNextKpi"></div>
+    <div class="ex-cols">
+      <div><div class="ex-sub">Trips started · by month (the last 3 years count double)</div><div id="exNextMonths"></div></div>
+      <div><div class="ex-sub">Nearest countries not visited yet · from home</div><div id="exNextNew"></div></div>
     </div>
   </div>
 
@@ -1982,6 +2063,168 @@ new Chart(document.getElementById('catChart'),{
       +(HD.top_abroad&&HD.top_abroad.length?tile('Most often abroad',esc(HD.top_abroad[0][0]),HD.top_abroad[0][1]+' times'):''));
     put('exHolNye',ny.map(function(e){return row(e.year+' · '+vl(e),where(e),e.abroad?'✈ abroad':'home');}).join(''));
     put('exHolList',(HD.public||[]).map(function(h){return row(esc(h.holiday),vl(h)+' · '+where(h),esc(h.date)+(h.abroad?' ✈':''));}).join(''));
+  }
+
+  // ── 52–59. World heritage, food passport, gone, gravity, replay, then & now, twins, next trip ──
+  function flagOf(iso){return iso&&iso.length===2?String.fromCodePoint.apply(null,iso.toUpperCase().split('').map(function(c){return 127397+c.charCodeAt(0);})):'';}
+  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  // One Leaflet load for every map below; each map is built only after leaflet.css applied.
+  var _leaf=null;
+  function leaf(){
+    if(_leaf)return _leaf;
+    _leaf=new Promise(function(res,rej){
+      if(window.L&&window.L.map){res(window.L);return;}
+      var css=document.querySelector('link[href*="leaflet@1.9.4"]');
+      var cssReady=new Promise(function(r){if(css){r();return;}css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';css.onload=r;css.onerror=r;document.head.appendChild(css);});
+      var js=document.querySelector('script[src*="leaflet@1.9.4"]');
+      var jsReady=new Promise(function(r,e){if(window.L&&window.L.map){r();return;}
+        if(js){js.addEventListener('load',function(){r();});js.addEventListener('error',e);return;}
+        js=document.createElement('script');js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';js.onload=function(){r();};js.onerror=e;document.head.appendChild(js);});
+      Promise.all([cssReady,jsReady]).then(function(){res(window.L);},rej);
+    });
+    return _leaf;
+  }
+  function lazy(el,fn){
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){if(es.some(function(e){return e.isIntersecting;})){io.disconnect();fn();}},{rootMargin:'200px'});io.observe(el);}
+    else fn();
+  }
+  function baseMap(L,el,opt){
+    el.innerHTML='';var m=L.map(el,Object.assign({scrollWheelZoom:false,worldCopyJump:true},opt||{}));
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={{CARTO_KEY}}',
+      {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',subdomains:'abcd',maxZoom:12}).addTo(m);
+    return m;
+  }
+  function keepFit(m,el,bounds){
+    var refit=function(){m.invalidateSize();m.fitBounds(bounds,{padding:[16,16]});};
+    m.fitBounds(bounds,{padding:[16,16]});setTimeout(refit,250);
+    window.addEventListener('orientationchange',function(){setTimeout(refit,300);});
+    if('ResizeObserver' in window)new ResizeObserver(function(){m.invalidateSize();}).observe(el);
+  }
+  function mapFail(el){el.innerHTML='<div class="ex-map-wait">The map could not load.</div>';}
+
+  var WH=X.unesco;
+  if(WH&&WH.n){
+    show('exWhsCard');
+    put('exWhsKpi',tile('Sites',n(WH.n),'of '+n(WH.total)+' on the list')
+      +tile('Countries',WH.countries.length,WH.countries[0]?'most: '+esc(WH.countries[0][0])+' · '+WH.countries[0][1]:'')
+      +tile('First',esc(WH.sites[0].name),esc(WH.sites[0].first))
+      +tile('Most check-ins',esc(WH.most.name),n(WH.most.n)+' check-ins · '+WH.most.years+' years'));
+    put('exWhsList',WH.sites.slice().reverse().map(function(s){return row('<b>'+esc(s.name)+'</b>',vl(s)+' · '+esc(s.country)+' · first '+esc(s.first),n(s.n));}).join(''));
+    put('exWhsCtry',WH.countries.map(function(c){return '<span class="ex-chip">'+esc(c[0])+' · '+c[1]+'</span>';}).join(''));
+    put('exWhsYears',bars(WH.by_year,function(r){return r[0];},function(r){return r[1];},function(r){return r[1];},'#e8b04a'));
+  }
+
+  var FP=X.cuisines;
+  if(FP&&FP.n){
+    show('exFoodCard');
+    put('exFoodKpi',tile('Cuisines',FP.n,n(FP.places)+' places')
+      +tile('Most travelled',flagOf((FP.cuisines.find(function(c){return c.cuisine===FP.widest;})||{}).flag)+' '+esc(FP.widest),'eaten in '+(FP.cuisines.find(function(c){return c.cuisine===FP.widest;})||{where:[]}).where.length+' countries')
+      +tile('Favourite',flagOf(FP.cuisines[0].flag)+' '+esc(FP.cuisines[0].cuisine),n(FP.cuisines[0].n)+' check-ins')
+      +tile('Never at the source',FP.never_at_source.length,FP.never_at_source.slice(0,3).map(esc).join(', ')+(FP.never_at_source.length>3?' …':'')));
+    put('exFoodList',FP.cuisines.map(function(c){
+      var w=c.where.slice(0,5).map(function(x){return esc(x[0])+' '+x[1];}).join(' · ')+(c.where.length>5?' · +'+(c.where.length-5):'');
+      return row('<b>'+flagOf(c.flag)+' '+esc(c.cuisine)+'</b> · '+c.places+' places'+(c.at_source?' · <span style="color:#4ecdc4">at the source ×'+c.at_source+'</span>':''),
+        'eaten in '+w+' · favourite '+vl(c)+(c.city?', '+esc(c.city):'')+' ×'+c.visits,n(c.n));}).join(''));
+  }
+
+  var GN=X.graveyard;
+  if(GN&&GN.n){
+    show('exGoneCard');
+    put('exGoneKpi',tile('Closed',n(GN.n),GN.pct+'% of '+n(GN.of)+' places')
+      +tile('Visits there',n(GN.visits),'check-ins at places that are gone')
+      +tile('Missed most',esc(GN.loved[0].venue),n(GN.loved[0].n)+' visits · last '+esc(GN.loved[0].last)));
+    put('exGoneList',GN.loved.map(function(g){return row(vl(g),where(g)+' · '+esc(g.category)+' · '+esc(g.first.slice(0,4))+'–'+esc(g.last.slice(0,4)),n(g.n));}).join(''));
+    put('exGoneYears',bars(GN.by_year.filter(function(r){return r[2]>=20;}),function(r){return r[0];},function(r){return r[1]/r[2];},function(r){return (Math.round(1000*r[1]/r[2])/10)+'% · '+r[1];},'#e07a5f'));
+    put('exGoneCats',GN.categories.map(function(c){return '<span class="ex-chip">'+esc(c[0])+' · '+c[1]+' <span style="opacity:.65">'+c[2]+'%</span></span>';}).join(''));
+  }
+
+  var GV=X.gravity;
+  if(GV&&GV.years&&GV.years.length>1){
+    show('exGravCard');
+    var ys=GV.years,last=ys[ys.length-1];
+    var nr=function(x){return x?esc(x[0])+', '+esc(x[1])+(x[2]>5?' <span style="opacity:.6">('+n(x[2])+' km off)</span>':''):'—';};
+    put('exGravKpi',tile('This year',esc(last.near?last.near[0]:'—'),'nearest place you have been · '+last.year)
+      +(GV.jump?tile('Biggest shift',n(GV.jump.km)+' km','into '+GV.jump.year):'')
+      +tile('Away from home',esc(last.away_near?last.away_near[0]:'—'),'centre of the trips · '+last.year));
+    put('exGravTbl','<tr><th>Year</th><th>All check-ins</th><th>Away from home</th><th>Moved</th></tr>'+ys.map(function(y){return '<tr><td>'+y.year+'</td><td>'+nr(y.near)+'</td><td>'+nr(y.away_near)+'</td><td>'+(y.moved?n(y.moved)+' km':'—')+'</td></tr>';}).join(''));
+    var gEl=document.getElementById('exGravMap');gEl.style.display='';gEl.innerHTML='<div class="ex-map-wait">Loading the map…</div>';
+    lazy(gEl,function(){leaf().then(function(L){
+      var m=baseMap(L,gEl),pts=ys.map(function(y){return [y.lat,y.lng];});
+      L.polyline(pts,{color:'#4ecdc4',weight:2,opacity:.8}).addTo(m);
+      var aw=ys.filter(function(y){return y.away;}).map(function(y){return y.away;});
+      if(aw.length>1)L.polyline(aw,{color:'#e8b04a',weight:1.5,opacity:.7,dashArray:'4 5'}).addTo(m);
+      var all=pts.concat(aw);
+      ys.forEach(function(y,i){var c=i===ys.length-1?'#fff':'#4ecdc4';
+        L.circleMarker([y.lat,y.lng],{radius:i===ys.length-1?6:4,color:c,fillColor:c,fillOpacity:.9,weight:1}).addTo(m)
+          .bindTooltip(String(y.year),{permanent:true,direction:'right',className:'ex-yr'});
+        if(y.away)L.circleMarker(y.away,{radius:3,color:'#e8b04a',fillColor:'#e8b04a',fillOpacity:.9,weight:1}).addTo(m).bindTooltip(y.year+' · away',{sticky:true});});
+      keepFit(m,gEl,L.latLngBounds(all));
+    }).catch(function(){mapFail(gEl);});});
+  }
+
+  if(X.history_n){
+    show('exPlayCard');
+    var pEl=document.getElementById('exPlayMap');pEl.innerHTML='<div class="ex-map-wait">Loading '+n(X.history_n)+' points…</div>';
+    lazy(pEl,function(){Promise.all([leaf(),fetch('history-points.json').then(function(r){if(!r.ok)throw r;return r.json();})]).then(function(a){
+      var L=a[0],H=a[1],P=H.p,sc=H.scale||100,d0=new Date(H.d0+'T00:00:00Z');
+      var m=baseMap(L,pEl,{preferCanvas:true}),rend=L.canvas({padding:.3}),grp=L.layerGroup().addTo(m);
+      var la=P.map(function(p){return p[1]/sc;}),lo=P.map(function(p){return p[2]/sc;});
+      var s=function(v){return v.slice().sort(function(x,y){return x-y;});},sla=s(la),slo=s(lo),q=function(v,f){return v[Math.floor(f*(v.length-1))];};
+      keepFit(m,pEl,L.latLngBounds([[q(sla,.02),q(slo,.02)],[q(sla,.98),q(slo,.98)]]));
+      var maxD=P[P.length-1][0],shown=0,fresh=[],mk=[],FRESH=30;
+      var dateOf=function(d){var x=new Date(d0.getTime()+d*864e5);return x.toISOString().slice(0,10);};
+      var dim={radius:2,color:'#4ecdc4',fillColor:'#4ecdc4',fillOpacity:.45,opacity:.45,weight:0};
+      var hot={radius:4,color:'#e8b04a',fillColor:'#e8b04a',fillOpacity:.95,opacity:1,weight:1};
+      var bar=document.createElement('div');bar.className='ex-slider';
+      bar.innerHTML='<button type="button" aria-label="Play">▶</button><input type="range" min="0" max="'+maxD+'" value="'+maxD+'" aria-label="Show check-ins up to day"><span></span>';
+      pEl.parentNode.insertBefore(bar,pEl.nextSibling);
+      var rng=bar.querySelector('input'),lbl=bar.querySelector('span'),btn=bar.querySelector('button'),tm=null,cur=0;
+      var set=function(d){
+        if(d<cur){grp.clearLayers();mk=[];fresh=[];shown=0;}
+        while(shown<P.length&&P[shown][0]<=d){var c=L.circleMarker([P[shown][1]/sc,P[shown][2]/sc],Object.assign({renderer:rend,interactive:false},hot));grp.addLayer(c);mk.push(c);fresh.push(shown);shown++;}
+        while(fresh.length&&P[fresh[0]][0]<d-FRESH){mk[fresh.shift()].setStyle(dim).setRadius(2);}
+        cur=d;rng.value=d;lbl.textContent=dateOf(d)+' · '+n(shown)+' points';
+      };
+      var stop=function(){if(tm){clearInterval(tm);tm=null;btn.textContent='▶';}};
+      rng.oninput=function(){stop();set(+rng.value);};
+      btn.onclick=function(){if(tm){stop();return;}var d=cur>=maxD?0:cur;if(d===0)set(0);btn.textContent='❚❚';
+        tm=setInterval(function(){d+=7;if(d>=maxD){set(maxD);stop();return;}set(d);},60);};
+      set(maxD);
+    }).catch(function(){mapFail(pEl);});});
+  }
+
+  var TN=X.then_now;
+  if(TN&&TN.length){
+    show('exThenCard');
+    var im=function(o){return '<a href="'+esc(o.url)+'" target="_blank" rel="noopener"><img loading="lazy" src="'+esc(o.thumb)+'" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=\''+esc(o.url)+'\';}" alt=""><span>'+esc(o.date)+'</span></a>';};
+    put('exThenList',TN.map(function(t){return '<div class="ex-pair"><div class="ex-pair-img">'+im(t.a)+im(t.b)+'</div><div class="ex-pair-cap">'+vl(t)+'<div class="p">'+where(t)+' · '+t.years+' years apart · '+t.photos+' photos</div></div></div>';}).join(''));
+  }
+
+  var TW=X.city_twins;
+  if(TW&&TW.pairs&&TW.pairs.length){
+    show('exTwinCard');
+    var home=TW.home;
+    put('exTwinKpi',tile('Cities compared',TW.n,'60+ check-ins at 25+ places')
+      +(home?tile(esc(home[0])+' is most like',esc(home[2]),esc(home[3])+' · '+home[4]+'% alike'):'')
+      +tile('Closest pair',esc(TW.pairs[0].a)+' ≈ '+esc(TW.pairs[0].b),TW.pairs[0].sim+'% alike'));
+    put('exTwinPairs',TW.pairs.map(function(p){return row('<b>'+esc(p.a)+'</b> ≈ <b>'+esc(p.b)+'</b>',esc(p.a_country)+' · '+esc(p.b_country)+(p.shared.length?' · both: '+p.shared.map(esc).join(', '):''),p.sim+'%');}).join(''));
+    put('exTwinLone',(TW.loners||[]).map(function(c){return row(esc(c.city),esc(c.country)+' · nearest: '+esc(c.twin),c.sim+'%');}).join(''));
+  }
+
+  var NX=X.forecast;
+  if(NX&&(NX.trips||NX.nearest_new)){
+    show('exNextCard');
+    var k='';
+    if(NX.trips){
+      k+=NX.overdue>0?tile('Overdue by',n(NX.overdue)+' days','your usual gap is '+NX.median_gap+' days')
+                     :tile('Next one due',esc(NX.due||'—'),'every ~'+NX.median_gap+' days lately');
+      k+=tile('Likely month',MON[NX.month-1],(NX.month_countries||[]).slice(0,3).map(function(c){return esc(c[0]);}).join(', '));
+      k+=tile('Since the last trip',n(NX.since)+' days','ended '+esc(NX.last_end));
+    }
+    if(NX.nearest_new&&NX.nearest_new.length)k+=tile('Nearest new country',flagOf(NX.nearest_new[0].iso)+' '+esc(NX.nearest_new[0].country),n(NX.nearest_new[0].km)+' km');
+    put('exNextKpi',k);
+    if(NX.months)put('exNextMonths',bars(NX.months.map(function(v,i){return [MON[i],v,i+1];}),function(r){return r[2]===NX.month?'<b>'+r[0]+'</b>':r[0];},function(r){return r[1];},function(r){return r[1];},'#4ecdc4'));
+    put('exNextNew',(NX.nearest_new||[]).map(function(c){return row(flagOf(c.iso)+' '+esc(c.country),'from home, as the crow flies',n(c.km)+' km');}).join(''));
   }
 })();
 </script>
