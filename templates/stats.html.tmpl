@@ -661,7 +661,7 @@ a{color:inherit;}
 
   <!-- 47. Soundtrack of places -->
   <div data-tab="places" class="card full" id="exSoundCard" style="display:none;">
-    <div class="card-title">Soundtrack of Places <em>&middot; Last.fm scrobbles placed at your last check-in before them (within 12 h)</em></div>
+    <div class="card-title">Soundtrack of Places <em>&middot; approximate: each Last.fm scrobble goes to your last check-in in the 12 h before it, where you probably were, not proof you listened there</em></div>
     <div class="ex-tiles" id="exSoundKpi"></div>
     <div class="ex-cols">
       <div><div class="ex-sub">By country</div><div class="scroll-list" id="exSoundCtry" style="max-height:460px"></div></div>
@@ -2014,7 +2014,7 @@ new Chart(document.getElementById('catChart'),{
   var SD=X.sound;
   if(SD&&SD.countries&&SD.countries.length){
     show('exSoundCard');
-    put('exSoundKpi',tile('Scrobbles placed',n(SD.placed),Math.round(100*SD.placed/SD.total)+'% of '+n(SD.total))
+    put('exSoundKpi',tile('Scrobbles placed ≈',n(SD.placed),Math.round(100*SD.placed/SD.total)+'% of '+n(SD.total)+' · by the nearest earlier check-in')
       +tile('Countries with a soundtrack',SD.countries.length,'50+ scrobbles each')
       +(SD.countries[0]?tile('Home loop',esc(SD.countries[0].artists[0][0]),esc(SD.countries[0].country)+' · '+n(SD.countries[0].artists[0][1])+' plays'):''));
     put('exSoundCtry',SD.countries.map(function(c){return row('<b>'+esc(c.country)+'</b> · '+c.artists.map(function(a){return esc(a[0]);}).join(', '),
