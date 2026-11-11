@@ -3,6 +3,16 @@
   "_comment2": "Applied with HIGHEST priority in transform.py (before ts country_fixes / city_fixes), so a single entry covers ALL past AND future check-ins at that venue. Use for gateway venues — border crossings and airports — whose Foursquare city/country is wrong or internally inconsistent (e.g. a venue physically straddling a border that Foursquare tags with the city of one country and the country of the other).",
   "_comment3": "Standard rule for gateways: a per-venue fix CANNOT know travel direction (one venue_id -> one fixed city/country, applied to every check-in both ways). So assign each gateway venue to the PHYSICAL side it sits on (by its coordinates), NOT to 'the side you enter'. Let the trip's own sequence of distinct posts show the direction. A bordering pair of posts (e.g. the two sides of one crossing) thus stays split by geography and reads as a single clean transition whichever way you travel.",
   "_comment_terespol_posts": "Brest<->Terespol crossing on the Bug. Three venues run west(PL)->east(BY): 'Terespol Border Crossing' (lng 23.644, PL post), 'Belarus-Poland Border Crossing' (lng 23.653, mid-river/on the line), 'Пункт пропуска «Брест»' (lng 23.660, BY post). The mid venue is a tie on the line; pinned to the Polish side (matches Foursquare city=Terespol; only its country=Belarus was wrong) so PL<->BY reads as one transition in both directions and never doubles the real Brest post.",
+  "_comment_ararat": "Ağrı Dağı (Mount Ararat) is in Türkiye, but the one check-in there was made from Khor Virap, Armenia (2021-09-06): pinned to the side it was made from (user decision 2026-11-11).",
+  "4e15c3f162844b405cb356b0": {
+    "city": "Lusarat",
+    "country": "Armenia"
+  },
+  "_comment_eiffel_bridge": "Eiffel Bridge (Podul Eiffel) over the Prut at Ungheni: Foursquare puts it in Romania, but every check-in there was made from the train on the Moldovan side (Ungheni station), so it counts for Ungheni, Moldova (user decision 2026-11-11).",
+  "50204b65e4b0112a681172a0": {
+    "city": "Ungheni",
+    "country": "Moldova"
+  },
   "4d45c4930349224bbeb8074f": {
     "city": "Terespol",
     "country": "Poland"

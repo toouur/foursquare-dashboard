@@ -19,6 +19,37 @@ from .trips import _COUNTRY_TZ, _localise, _parse_ts, _tz_at, detect_trips
 
 log = logging.getLogger(__name__)
 
+# ── Days in a country / city: which check-ins prove you were there ───────────
+# Passing through: an airport transfer, a border post (by bus — a rail station
+# still counts: you got off or stood at it), a vehicle, a whole-country or region
+# check-in. Weak: a bridge, a fuel stop, a toll booth on the road — real ground,
+# but on their own they mark a bus going by, not a day in that place.
+DAY_TRANSIT = frozenset({
+    "Border Crossing", "Plane", "Train", "Bus Line", "Boat or Ferry", "Moving Target",
+    "Taxi", "Tram", "Cable Car", "Baggage Claim", "Country", "State", "County",
+    "City", "Town", "Village", "Duty-free Store",
+})
+DAY_WEAK = frozenset({"Bridge", "Fuel Station", "Toll Booth", "Highway", "Tunnel", "River",
+                      "Rest Area", "Road"})
+REFURB = "refurbished"
+
+
+def day_anchors(r: dict, skip_venues: set[str] | frozenset = frozenset()) -> bool:
+    """Does this check-in make a day in its city and country count?
+
+    A reconstructed (rf) row is a day-level record of where you were, so its
+    city / town / country categories anchor; its border crossings do not.
+    """
+    cat = (r.get("category") or "").strip()
+    if (r.get("venue_id") or "") in skip_venues:
+        return False
+    if "Airport" in cat or cat in ("Border Crossing", "Baggage Claim", "Plane"):
+        return False
+    if (r.get("source_app") or "") == REFURB:
+        return True
+    return cat not in DAY_TRANSIT and cat not in DAY_WEAK
+
+
 # ── Cross-dimensional analytics ────────────────────────────────────────────────
 
 def cross_dim_analysis(rows: list[dict], categorize) -> dict:
@@ -363,9 +394,15 @@ def process(
     # ── Countries / cities by days: distinct local days with a check-in there ──
     # Local day from the longitude (15° an hour): a few minutes off near a zone
     # edge at midnight at most, and no timezone lookup for 70k rows.
+    # Only a check-in that shows you were really THERE makes a day (day_anchors):
+    # a transfer at an airport, a border post, a ferry or train passing through, a
+    # bridge or fuel stop on the road do not; a day made only of them is dropped.
     country_days: dict[str, set] = defaultdict(set)
     city_days:    dict[str, set] = defaultdict(set)
+    _day_skip = mappings.get("day_skip_venues") or frozenset()
     for r in rows:
+        if not day_anchors(r, _day_skip):
+            continue
         try:
             ts = int(r.get("date") or 0)
             lng = float(r.get("lng") or 0)

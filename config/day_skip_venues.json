@@ -1,0 +1,11 @@
+{
+  "_comment": "Venues that never make a day in their city or country on the index 'By Days' tabs (metrics.stats.day_anchors), on top of the transit categories there (airports, border crossings, vehicles, whole-area check-ins). For a border or transfer point Foursquare files under some other category. Shared with swarm-journal (sync_shared.py). A check-in made from across a border goes to venue_fixes.json instead (pinned to the side it was made from).",
+  "4dce98247d8b975f18d1e95c": "Belarus-Ukraine Border (Terekhovka), no category",
+  "4ecfff65e3007feb7cfe3e46": "Українсько-Білоруський Кордонний Пункт, filed as Police Station",
+  "662c32bdbe3b1877c79751c8": "Duty Free Helen & Valery, Belarus border post",
+  "4e9d220c6c251c381ddffb5f": "Duty Free Riga Airport",
+  "4e2bd4e862e144b5d3b0effc": "airBaltic Transfer Centre, Riga airport",
+  "51a922d8498e59e832088f1d": "Departures Hall, Tashkent airport",
+  "53e6187e498e40c7e2655c3d": "Business Lounge, Tashkent airport",
+  "4e5b2a45ae6099fc00de6666": "Pajero Sklep, the shop at the Warsaw-Minsk bus rest stop (Hobrow)"
+}

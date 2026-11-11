@@ -41,6 +41,7 @@ SHARED = (
     "config/unesco.json",
     "config/cuisines.json",
     "config/countries_geo.json",
+    "config/day_skip_venues.json",
 )
 
 

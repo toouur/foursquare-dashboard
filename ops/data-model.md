@@ -254,3 +254,22 @@ over 14 days). A flat revisited on another trip is a friend's home; a one-day
 check-in is a call or a famous building. Display keeps Foursquare's category. A
 `venue_category_fixes.json` pin always wins — pin a friend's flat abroad to
 "Apartment or Condo" when the rule gets one wrong.
+
+## Days in a country / city (index "By Days")
+
+A day counts for a city and its country only when a check-in that day shows you were
+really there (`metrics.stats.day_anchors`). It does not count when the only check-ins
+are passing through:
+- airport transfers (any `*Airport*` category, baggage claim, duty free);
+- border posts (`Border Crossing`, plus border venues filed under other categories in
+  `config/day_skip_venues.json`, shared with swarm-journal);
+- vehicles (train, bus line, ferry, plane, taxi, moving target);
+- whole-area check-ins (country, state, city, town, village);
+- a bridge, fuel stop, toll booth or road on its own.
+
+A rail or bus station still counts: you got off or stood there (Terespol by train yes,
+Terespol by bus no). Reconstructed rf rows keep their area-level days.
+
+A check-in made from across a border goes to `venue_fixes.json`, pinned to the side it
+was made from. Examples: the Eiffel Bridge at Ungheni → Moldova; Ağrı Dağı seen from
+Khor Virap → Armenia. Check-ins ≠ days, so a lower count is expected.

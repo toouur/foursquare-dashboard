@@ -251,6 +251,8 @@ def load_mappings(config_dir: str | Path = "config") -> dict[str, Any]:
         "country_fixes":   country_fixes,
         "city_fixes":      city_fixes,
         "venue_fixes":     venue_fixes,
+        # venue ids that never make a day in a place (stats "By Days"): border shops, transfer desks
+        "day_skip_venues": {k for k in _load_file("day_skip_venues.json") if not k.startswith("_")},
         "companion_fixes": companion_fixes,
         "companion_aliases": companion_aliases,
         "venue_category_fixes": {k: (v.get("category") if isinstance(v, dict) else v)
