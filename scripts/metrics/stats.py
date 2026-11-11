@@ -360,6 +360,29 @@ def process(
         for cy, v in sorted(city_vids.items(), key=lambda kv: -len(kv[1]))
     ]
 
+    # ── Countries / cities by days: distinct local days with a check-in there ──
+    # Local day from the longitude (15° an hour): a few minutes off near a zone
+    # edge at midnight at most, and no timezone lookup for 70k rows.
+    country_days: dict[str, set] = defaultdict(set)
+    city_days:    dict[str, set] = defaultdict(set)
+    for r in rows:
+        try:
+            ts = int(r.get("date") or 0)
+            lng = float(r.get("lng") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not ts:
+            continue
+        day = (ts + int(lng / 15 * 3600)) // 86400
+        c, cy = r.get("country", "").strip(), r.get("city", "").strip()
+        if c:
+            country_days[c].add(day)
+        if cy:
+            city_days[cy].add(day)
+    countries_by_days = [[c, len(v)] for c, v in sorted(country_days.items(), key=lambda kv: (-len(kv[1]), kv[0]))]
+    cities_by_days = [[cy, len(v), city_primary_country.get(cy, "")]
+                      for cy, v in sorted(city_days.items(), key=lambda kv: (-len(kv[1]), kv[0]))]
+
     # ── Venues heatmap + per-year + per-catgroup ─────────────────────────────
     import math as _math
     # _vh: venue_id → [lat, lng, total_count, {year: count}, cat_group]
@@ -1815,6 +1838,8 @@ def process(
         "by_dow":             [(k, v) for k, v in sorted(by_dow.items())],
         "countries":          [[c, n] for c, n in countries.most_common()],
         "countries_by_venues":countries_by_venues,
+        "countries_by_days":  countries_by_days,
+        "cities_by_days":     cities_by_days,
         "cities":             [[c, n, city_primary_country.get(c, "")] for c, n in cities.most_common()],
         "cities_by_venues":   cities_by_venues,
         "city_centroids":     city_centroids,

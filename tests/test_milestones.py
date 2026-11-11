@@ -107,3 +107,13 @@ def test_firsts_by_year():
 
 def test_empty():
     assert compute_milestones([]) == {"events": [], "counts": {}, "records": {}, "firsts_by_year": {}}
+
+
+def test_top_venue_counts_reconstructed_visits_like_every_other_page():
+    t0 = 1_600_000_000
+    rows = [_row(t0 + i * 86400, "shop") for i in range(5)]
+    rows += [_row(t0 - (i + 1) * 86400, "shop", source_app="refurbished") for i in range(4)]
+    rows += [_row(t0 + i * 86400 + 3600, "cafe") for i in range(7)]
+    rows.sort(key=lambda r: int(r["date"]))
+    rec = compute_milestones(rows)["records"]
+    assert rec["top_venue"]["venue_id"] == "shop" and rec["top_venue"]["n"] == 9

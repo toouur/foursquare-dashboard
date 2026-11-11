@@ -591,17 +591,22 @@ show(idx>=0?idx:0);
     list.addEventListener('click',e=>{const row=e.target.closest('.reach-row'); if(!row) return;
       list.querySelectorAll('.reach-row').forEach(r=>{r.classList.toggle('on',r===row);r.setAttribute('aria-pressed',String(r===row));}); pick=RC[+row.dataset.i].name; paint();});
     const draw=()=>{
-      const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
+      // Built only once leaflet.css has applied (else the outlines drift off the basemap on a slow phone).
+      const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      const cssReady=new Promise(res=>{css.onload=res;css.onerror=res;});document.head.appendChild(css);
       const js=document.createElement('script');js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
       mapEl.style.display=''; mapEl.innerHTML='<div class="reach-wait">Loading the map…</div>';
-      js.onload=()=>fetch('regions-map.json').then(r=>r.ok?r.json():null).then(g=>{
+      js.onload=()=>Promise.all([cssReady,fetch('regions-map.json').then(r=>r.ok?r.json():null)]).then(([,g])=>{
         if(!g||!g.features||!g.features.length){ mapEl.style.display='none'; return; }
         G=g; mapEl.innerHTML='';
-        const m=L.map(mapEl,{preferCanvas:true,scrollWheelZoom:false,worldCopyJump:true});
+        const m=L.map(mapEl,{preferCanvas:false,scrollWheelZoom:false,worldCopyJump:true});
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={{CARTO_KEY}}',
           {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',subdomains:'abcd',maxZoom:12}).addTo(m);
         lay=L.geoJSON(G,{onEachFeature:(f,l)=>l.bindTooltip(esc(f.properties.name)+' · '+esc(f.properties.country),{sticky:true})}).addTo(m);
         m.fitBounds(lay.getBounds(),{padding:[10,10]}); paint();
+        const refit=()=>{m.invalidateSize();m.fitBounds(lay.getBounds(),{padding:[10,10]});};
+        setTimeout(refit,250); addEventListener('orientationchange',()=>setTimeout(refit,300));
+        if('ResizeObserver' in window) new ResizeObserver(()=>m.invalidateSize()).observe(mapEl);
       }).catch(()=>{});
       document.head.appendChild(js);
     };

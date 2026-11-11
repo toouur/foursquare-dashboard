@@ -223,7 +223,9 @@ def compute_milestones(rows: list[dict], distance_from_home: list | None = None,
     top_name: dict[str, str] = {}
     for _, r in hist:
         vid = (r.get("venue_id") or "").strip()
-        if vid and (r.get("category") or "") != HOME_CATEGORY and (r.get("source_app") or "") != REFURB:
+        # Reconstructed (rf*) visits count, as on the venues page and the index's top
+        # venues: the record and those lists must show the same number (Суперпрод 773).
+        if vid and (r.get("category") or "") != HOME_CATEGORY:
             top_v[vid] += 1
             top_name[vid] = r.get("venue") or ""
     if top_v:

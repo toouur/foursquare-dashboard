@@ -741,11 +741,13 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
       <div class="tabs">
         <div class="tab active" onclick="switchCountryTab('checkins',this)">By Check-ins</div>
         <div class="tab" onclick="switchCountryTab('places',this)">By Unique Places</div>
+        <div class="tab" onclick="switchCountryTab('days',this)" title="Distinct days with a check-in there">By Days</div>
       </div>
     </div>
     <span class="section-insight" id="insight-countries"></span>
     <div class="pane active" id="pane-checkins"><div class="country-table" id="countriesCheckins"></div></div>
     <div class="pane" id="pane-places"><div class="country-table" id="countriesPlaces"></div></div>
+    <div class="pane" id="pane-days"><div class="country-table" id="countriesDays"></div></div>
   </div>
 
   <div class="card full cities-card" id="s-cities">
@@ -753,6 +755,7 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
       <div class="tabs" style="margin-top:6px;">
         <div class="tab active" id="tabCityCheckins" onclick="switchCityTab('checkins',this)">By Check-ins</div>
         <div class="tab" id="tabCityPlaces" onclick="switchCityTab('places',this)">By Unique Places</div>
+        <div class="tab" id="tabCityDays" onclick="switchCityTab('days',this)" title="Distinct days with a check-in there">By Days</div>
         <div class="tab" id="tabCityCountry" onclick="switchCityTab('country',this)">By Country</div>
         <div class="tab" id="tabCityWorld" onclick="switchCityTab('world',this)">World Cities</div>
       </div>
@@ -769,6 +772,12 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
     <div id="paneCityPlaces" class="city-pane" style="display:none">
       <input class="search-box" type="text" placeholder="Search cities..." oninput="filterList('citiesPlacesList',this.value)">
       <div class="bar-list" id="citiesPlacesList"></div>
+    </div>
+
+    <!-- Tab: By days (distinct days with a check-in) -->
+    <div id="paneCityDays" class="city-pane" style="display:none">
+      <input class="search-box" type="text" placeholder="Search cities..." oninput="filterList('citiesDaysList',this.value)">
+      <div class="bar-list" id="citiesDaysList"></div>
     </div>
 
     <!-- Tab: By country -->
@@ -1145,6 +1154,7 @@ function makeCountryGrid(data,id,drilldown){
 }
 makeCountryGrid(S.countries,'countriesCheckins',true);
 makeCountryGrid(S.countries_by_venues,'countriesPlaces');
+if(S.countries_by_days) makeCountryGrid(S.countries_by_days,'countriesDays');
 // event delegation: country count clicks
 document.getElementById('pane-checkins').addEventListener('click',function(e){
   const a=e.target.closest('a[data-filter-country]');
@@ -2299,9 +2309,11 @@ function buildCityMap(){
     document.getElementById('paneCityCheckins').style.display=tab==='checkins'?'':'none';
     document.getElementById('paneCityPlaces').style.display=tab==='places'?'':'none';
     if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues);}
+    document.getElementById('paneCityDays').style.display=tab==='days'?'':'none';
+    if(tab==='days'&&!document.getElementById('citiesDaysList').innerHTML&&S.cities_by_days)barList('citiesDaysList',S.cities_by_days);
     document.getElementById('paneCityCountry').style.display=tab==='country'?'':'none';
     document.getElementById('paneCityWorld').style.display=tab==='world'?'':'none';
-    document.querySelectorAll('#tabCityCheckins,#tabCityPlaces,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('#tabCityCheckins,#tabCityPlaces,#tabCityDays,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));
     el.classList.add('active');
     if(tab==='country' && !document.getElementById('byCountryList').innerHTML) buildByCountry(_byCountrySort);
     if(tab==='world' && !document.getElementById('worldCitiesList').innerHTML) buildWorldCities('ALL');

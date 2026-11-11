@@ -1806,11 +1806,14 @@ new Chart(document.getElementById('catChart'),{
       var mapEl=document.getElementById('exRegMap');mapEl.style.display='';mapEl.innerHTML='<div class="ex-map-wait">Loading '+n(R.map)+' region outlines…</div>';
       var drawMap=function(){
         if(mapEl.dataset.done)return;mapEl.dataset.done='1';
-        var css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
+        // The map is built only once leaflet.css has applied: built before it (a slow
+        // phone), the panes sit in normal flow and the outlines drift off the basemap.
+        var css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        var cssReady=new Promise(function(res){css.onload=res;css.onerror=res;});document.head.appendChild(css);
         var js=document.createElement('script');js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
         js.onload=function(){
-          fetch('regions-map.json').then(function(r){return r.json();}).then(function(G){
-            mapEl.innerHTML='';var m=L.map(mapEl,{preferCanvas:true,scrollWheelZoom:false,worldCopyJump:true});
+          Promise.all([cssReady,fetch('regions-map.json').then(function(r){return r.json();})]).then(function(a){var G=a[1];
+            mapEl.innerHTML='';var m=L.map(mapEl,{preferCanvas:false,scrollWheelZoom:false,worldCopyJump:true});
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={{CARTO_KEY}}',
               {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',subdomains:'abcd',maxZoom:12}).addTo(m);
             var mx=Math.log(1+Math.max.apply(null,G.features.map(function(f){return f.properties.n;})));
@@ -1820,6 +1823,9 @@ new Chart(document.getElementById('catChart'),{
             var lay=L.geoJSON(G,{style:sty,
               onEachFeature:function(f,l){var p=f.properties;l.bindTooltip(esc(p.name)+' · '+esc(p.country)+'<br>'+n(p.n)+' check-ins'+(p.y?' · first '+p.y:''),{sticky:true});}}).addTo(m);
             m.fitBounds(lay.getBounds(),{padding:[10,10]});
+            var refit=function(){m.invalidateSize();m.fitBounds(lay.getBounds(),{padding:[10,10]});};
+            setTimeout(refit,250);window.addEventListener('orientationchange',function(){setTimeout(refit,300);});
+            if('ResizeObserver' in window)new ResizeObserver(function(){m.invalidateSize();}).observe(mapEl);
             var ys=G.features.map(function(f){return f.properties.y;}).filter(Boolean),y0=Math.min.apply(null,ys),y1=Math.max.apply(null,ys);
             if(ys.length&&y1>y0){
               var bar=document.createElement('div');bar.className='ex-slider';
