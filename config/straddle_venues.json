@@ -1,0 +1,15 @@
+{
+  "_comment": "Venues that sit BETWEEN two countries (a bridge over a border river, a point on the line or in the neutral zone). Unlike venue_fixes.json (one fixed side per venue: border posts stand on one physical side), each check-in here takes the side you were on before it: the country of the previous check-in (within 12 h, other straddle venues skipped). With no earlier check-in it takes the side opposite the next one (you were crossing towards it), else the venue_fixes / Foursquare side. venue_id -> {country: city on that side}. Applied last in transform.apply_transforms (resolve_straddles). User decision 2026-11-11.",
+  "50204b65e4b0112a681172a0": {"_name": "Eiffel Bridge (Podul Eiffel), Prut at Ungheni", "Moldova": "Ungheni", "Romania": "Ungheni"},
+  "4dee9fe1c65bebb0611d9ccc": {"_name": "Podul peste Prut, Albița - Leușeni", "Moldova": "Leușeni", "Romania": "Leușeni"},
+  "64cc9daefd9d300c3bb392af": {"_name": "Podul de peste Prut, Sculeni", "Moldova": "Sculeni", "Romania": "Sculeni"},
+  "4d7d1be2e04d6ea8cc5007d6": {"_name": "Giurgiu-Rousse Friendship Bridge (Danube)", "Bulgaria": "Ruse", "Romania": "Giurgiu"},
+  "5019d226e4b09a651c246677": {"_name": "Мост через Буг, Brest - Terespol", "Belarus": "Brest", "Poland": "Terespol"},
+  "569b97e2498e23154001cd1f": {"_name": "Belarus-Poland Border Crossing, mid-river on the Bug", "Belarus": "Brest", "Poland": "Terespol"},
+  "5639ceadcd1054d7f6f5539d": {"_name": "Нейтральная территория, Kamenny Log - Medininkai", "Belarus": "Muravyovka", "Lithuania": "Medininkai"},
+  "4c78f4af794e224b9ec16328": {"_name": "Lithuania - Belarus Border Crossing, the line between Kamenny Log and Medininkai", "Belarus": "Muravyovka", "Lithuania": "Medininkai"},
+  "57cf1906498ebfce353fd8f2": {"_name": "Нейтральная зона РБ/Украина, Novaya Guta - Novi Yarylovychi", "Belarus": "Novaya Guta", "Ukraine": "Skytok"},
+  "4e2309a7ae6015b212b5d705": {"_name": "Граница Беларусь — Россия (M1 line marker)", "Belarus": "Vitebsk Region", "Russia": "Smolensk Region"},
+  "534fd810498e1ef1f686440b": {"_name": "Граница Российской Федерации и Республики Беларусь (Nevel road)", "Belarus": "Dolostsy", "Russia": "Dolostsy"},
+  "4f097f84e4b0aa2dc771b622": {"_name": "Granica Bosna i Hercegovina - Srbija (Drina)", "Bosnia and Herzegovina": "Karakaj", "Serbia": "Mali Zvornik"}
+}

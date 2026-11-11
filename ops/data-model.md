@@ -271,5 +271,22 @@ A rail or bus station still counts: you got off or stood there (Terespol by trai
 Terespol by bus no). Reconstructed rf rows keep their area-level days.
 
 A check-in made from across a border goes to `venue_fixes.json`, pinned to the side it
-was made from. Examples: the Eiffel Bridge at Ungheni → Moldova; Ağrı Dağı seen from
-Khor Virap → Armenia. Check-ins ≠ days, so a lower count is expected.
+was made from: Ağrı Dağı seen from Khor Virap → Armenia. Check-ins ≠ days, so a lower
+count is expected.
+
+## Venues between two countries (`config/straddle_venues.json`)
+
+A bridge over a border river, a point on the line or in the neutral zone has no
+single physical side. Border posts do have one and stay in `venue_fixes.json`.
+
+Such a venue lists its two sides, `{country: city}`. Each check-in there takes the
+side you were on before it: the country of the previous check-in within 12 h, with
+other straddle venues skipped.
+- Romanian check-ins before the Eiffel Bridge (then Moldovan ones) → Romania.
+- The other way round → Moldova.
+
+With no earlier check-in, the venue takes the side opposite the next one. Otherwise
+it keeps its venue_fixes / Foursquare side.
+
+This runs last in `transform.apply_transforms` (`resolve_straddles`), so the site,
+the city gate and D1 (`fix-city-country-d1.yml` also triggers on this file) all agree.
