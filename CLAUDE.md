@@ -108,7 +108,6 @@ Full map: `ops/internals.md`. Most used:
 - Tests: `tests/` — pytest suite (686 tests: 623 offline, 22 live API contract, 41 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
 - Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 103 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
-  NOTE: a local checkout may report ~7 `Argument "params" to "get"` errors in `fetch_*` — drift from a newer local `requests`, not a code change.
 
 ## Invariants (details in ops/)
 
