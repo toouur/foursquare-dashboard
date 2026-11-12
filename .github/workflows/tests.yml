@@ -43,7 +43,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install ruff + mypy
-        run: pip install ruff mypy
+        run: pip install ruff==0.16.1 mypy==2.3.0  # pinned: a newer stub release must not turn the gate red on an unchanged commit
       - name: Ruff check
         run: python -m ruff check scripts/ tests/
       - name: Mypy check

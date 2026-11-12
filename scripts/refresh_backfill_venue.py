@@ -122,7 +122,7 @@ def search_venue(token: str, venue_id: str, name: str, ll: str) -> dict | None:
         resp = requests.get(
             SEARCH_API,
             params={"oauth_token": token, "v": API_V, "ll": ll, "query": name,
-                    "intent": "browse", "radius": 50000, "limit": 50},
+                    "intent": "browse", "radius": "50000", "limit": "50"},
             timeout=30,
         )
     except Exception as exc:

@@ -185,7 +185,7 @@ def fetch_venue_sweep(token: str, venue_ids: list[str], known_ids: set[str]) -> 
         try:
             resp = requests.get(
                 VENUE_API.format(vid=vid),
-                params={"oauth_token": token, "v": API_V, "limit": 200, "filter": "self"},
+                params={"oauth_token": token, "v": API_V, "limit": "200", "filter": "self"},
                 timeout=20,
             )
             resp.raise_for_status()

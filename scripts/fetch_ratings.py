@@ -65,7 +65,7 @@ def fetch_venue_list(token: str, list_id: str) -> list[dict] | None:
     try:
         probe = requests.get(
             url,
-            params={"oauth_token": token, "v": API_V, "limit": 1, "offset": 0},
+            params={"oauth_token": token, "v": API_V, "limit": "1", "offset": "0"},
             timeout=30,
         )
     except requests.RequestException as exc:
@@ -86,7 +86,7 @@ def fetch_venue_list(token: str, list_id: str) -> list[dict] | None:
     while True:
         resp = requests.get(
             url,
-            params={"oauth_token": token, "v": API_V, "limit": LIMIT, "offset": offset},
+            params={"oauth_token": token, "v": API_V, "limit": str(LIMIT), "offset": str(offset)},
             timeout=30,
         )
         resp.raise_for_status()
@@ -155,7 +155,7 @@ def fetch_likes_via_lists(
         try:
             probe = requests.get(
                 url,
-                params={"oauth_token": token, "v": API_V, "limit": 1, "offset": 0},
+                params={"oauth_token": token, "v": API_V, "limit": "1", "offset": "0"},
                 timeout=30,
             )
         except requests.RequestException as exc:
@@ -177,7 +177,7 @@ def fetch_likes_via_lists(
         while True:
             resp = requests.get(
                 url,
-                params={"oauth_token": token, "v": API_V, "limit": LIMIT, "offset": offset},
+                params={"oauth_token": token, "v": API_V, "limit": str(LIMIT), "offset": str(offset)},
                 timeout=30,
             )
             resp.raise_for_status()

@@ -90,8 +90,8 @@ def fetch_venue_via_checkin(token: str, venue_id: str, timestamps: list[int]) ->
                 CHECKINS_API,
                 params={
                     "oauth_token": token, "v": API_V,
-                    "limit": 50,
-                    "beforeTimestamp": ts + 1,
+                    "limit": "50",
+                    "beforeTimestamp": str(ts + 1),
                 },
                 timeout=30,
             )

@@ -319,7 +319,7 @@ def fetch_checkin_comments(token: str, cid: str, timeout: int = 30) -> tuple[lis
     """
     resp = requests.get(
         CHECKIN_COMMENTS_API.format(cid=cid),
-        params={"oauth_token": token, "v": API_V, "limit": 200},
+        params={"oauth_token": token, "v": API_V, "limit": "200"},
         timeout=timeout,
     )
     if _is_rate_limit(resp):
