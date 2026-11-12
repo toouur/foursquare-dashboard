@@ -97,6 +97,7 @@ Full key-file map, implementation notes and deployment details. Moved out of CLA
 
 ## Stable Implementation Notes
 
+- **Build pass failures** (`build._pass_failed` / `report_pass_failures`, both repos): every `try/except` pass in `build.py` records its failure instead of only logging it. Passes that ship a page (the generator loop, year/country/venue/compare/life/culture/flights/photos pages, `explore`, post-process, feeds, SEO) are CRITICAL: the build prints the summary (also to `$GITHUB_STEP_SUMMARY`) and exits 1, so CI never deploys a half-built site. Data enrichment (flights load, milestones, coverage, routes, transport mode, then & now, lists, comments, anomalies, Last.fm, visits, travel atlas) stays soft but is listed. `--allow-partial` = old behaviour for local previews.
 - All generators read plain `templates/*.tmpl` files. (The old base64-embedded `_TMPL_B64` templates were fully removed — no generator embeds one anymore.)
 - `fetch_tips.py --sweep` is required to recover tips missing from `/users/self/tips` (often closed/deleted venue cases).
 - Tips UI normalization path: country via `CTRY_NORM` (loaded from `config/country_aliases.json`), city via `city_merge.yaml`.
