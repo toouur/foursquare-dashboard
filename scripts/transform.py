@@ -395,6 +395,14 @@ def apply_transforms(
         if ts and not ts.lstrip("-").isdigit():
             malformed_dates += 1
 
+    # A whole-country check-in ("Russia" from a train, "Hungary" at the line)
+    # inherits the city you were in a moment ago — often across the border, so
+    # "Minsk" turned up in Russia and "Vienna" in Hungary. Such a row keeps its
+    # country and loses a city that belongs to another country.
+    foreign = drop_foreign_city_on_country_rows(rows)
+    if foreign:
+        log.info("Whole-country check-ins: %d foreign city name(s) dropped", foreign)
+
     if blank_filled:
         log.info("Blank-city inference filled %d rows", blank_filled)
     if malformed_dates:
@@ -404,6 +412,29 @@ def apply_transforms(
 
 
 STRADDLE_WINDOW_S = 12 * 3600
+
+
+_COUNTRY_LEVEL = frozenset({"Country", "State"})
+
+
+def drop_foreign_city_on_country_rows(rows: list[dict]) -> int:
+    """Blank the city of a whole-country check-in when that city is another country's.
+
+    A city's country is the one most of its check-ins carry. Returns the count."""
+    votes: dict[str, Counter] = defaultdict(Counter)
+    for r in rows:
+        if r.get("city") and (r.get("category") or "").strip() not in _COUNTRY_LEVEL:
+            votes[r["city"]][r.get("country", "")] += 1
+    n = 0
+    for r in rows:
+        city = r.get("city")
+        if not city or (r.get("category") or "").strip() not in _COUNTRY_LEVEL:
+            continue
+        v = votes.get(city)
+        if v and v.most_common(1)[0][0] != r.get("country", ""):
+            r["city"] = ""
+            n += 1
+    return n
 
 
 def straddle_sides(rows: list[dict], straddles: dict[str, dict]) -> dict[int, tuple[str, str]]:

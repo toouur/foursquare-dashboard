@@ -128,5 +128,135 @@
     "city": "Warnemünde",
     "country": "Germany",
     "_note": "Baltic Sea (sea venue at 54.52,12.21, Foursquare says Copenhagen/Denmark); checked in from the Warnemünde beach 2024-03-09"
+  },
+  "4b8a3246f964a520b56332e3": {
+    "city": "Macau",
+    "country": "Macao",
+    "_note": "city review 2026-11-13: Ruins of St. Paul's — Foursquare says China"
+  },
+  "4ecd1f51d3e377110d4a915d": {
+    "city": "Neydens",
+    "country": "France",
+    "_note": "city review 2026-11-13: A40/A41 interchange on the French side, was shown as Geneva"
+  },
+  "4c78e75d794e224b71a36328": {
+    "city": "Rava-Ruska",
+    "country": "Ukraine",
+    "_note": "city review 2026-11-13: UA side of the Hrebenne crossing, was Hrebenne/Ukraine"
+  },
+  "4cab37bbf47ea143aaa78921": {
+    "city": "Iffezheim",
+    "country": "Germany",
+    "_note": "city review 2026-11-13: Rhine crossing Iffezheim/Neuhaeusel, Foursquare says France"
+  },
+  "4e70e561aeb7424433bde8b0": {
+    "city": "Lin",
+    "country": "Albania",
+    "_note": "city review 2026-11-13: Qafë Thanë, Albanian side; city_merge Lin->Struga put it in a Macedonian town"
+  },
+  "521785ca11d2695f551b0e99": {
+    "city": "Borisov",
+    "country": "Belarus",
+    "_note": "city review 2026-11-13: M1 fuel station 12 km east of Borisov, Foursquare said Brest"
+  },
+  "4f5cd761e4b075ad7ad25840": {
+    "city": "Pavlodar",
+    "country": "Kazakhstan",
+    "_note": "city review 2026-11-13: the city venue itself, was inferred as Astana"
+  },
+  "556197a7498e9707b8b3c236": {
+    "city": "Strehla",
+    "country": "Germany",
+    "_note": "city review 2026-11-13: monument at 51.352,13.229 (Strehla, Saxony), Foursquare said Wismar"
+  },
+  "4da9f2b4fa8cc7649728597c": {
+    "city": "San Luis",
+    "country": "Argentina",
+    "_note": "city review 2026-11-13: toll booth in San Luis province, was inferred as Córdoba"
+  },
+  "50fee125c84c3dccfa64dc66": {
+    "city": "Horyn",
+    "country": "Belarus",
+    "_note": "city review 2026-11-13: Horyn rail station (Stolin district), Foursquare said Rechytsa"
+  },
+  "4d0d11dceea9b60ce4495c3f": {
+    "city": "Alexandria",
+    "country": "Egypt",
+    "_note": "city review 2026-11-13: coffee shop in downtown Alexandria, was Cairo"
+  },
+  "4f879f0ce5e83a6f7656d284": {
+    "city": "Almaty Region",
+    "country": "Kazakhstan",
+    "_note": "city review 2026-11-13: Sharyn Canyon, 170 km from Almaty"
+  },
+  "4f86f2dae4b0bdd47d3a3a72": {
+    "city": "Brno",
+    "country": "Czech Republic",
+    "_note": "city review 2026-11-13: the city venue itself, was inferred as Prague"
+  },
+  "5190eabf498e89cb8e5d1353": {
+    "city": "Popravka",
+    "country": "Ukraine",
+    "_note": "city review 2026-11-13: the village venue itself, was inferred as Kyiv"
+  },
+  "4c540953479fc928c0fc7292": {
+    "city": "Eindhoven",
+    "country": "Netherlands",
+    "_note": "city review 2026-11-13: the city venue itself, was inferred as Rotterdam"
+  },
+  "50decd61e4b0cf8b366d0bfe": {
+    "city": "Eindhoven",
+    "country": "Netherlands",
+    "_note": "city review 2026-11-13: Philipsdorp, an Eindhoven district, was Rotterdam"
+  },
+  "53666489498e539664afb1d6": {
+    "city": "Amsterdam",
+    "country": "Netherlands",
+    "_note": "city review 2026-11-13: Buiksloterkanaal, Amsterdam-Noord, was Rotterdam"
+  },
+  "5134ede7e4b087251815dd6f": {
+    "city": "Liège",
+    "country": "Belgium",
+    "_note": "city review 2026-11-13: Rue Grétry, Liège, was Charleroi"
+  },
+  "5af30fe560d11b0039696392": {
+    "city": "Liège",
+    "country": "Belgium",
+    "_note": "city review 2026-11-13: Longdoz, Liège, was Charleroi"
+  },
+  "51738d0fe4b01c0ba006dfb8": {
+    "city": "Liège",
+    "country": "Belgium",
+    "_note": "city review 2026-11-13: Pont de Huy (Liège), was Charleroi"
+  },
+  "4fc79560e4b07cfb195b404d": {
+    "city": "Liège",
+    "country": "Belgium",
+    "_note": "city review 2026-11-13: Guillemins, Liège, was Charleroi"
+  },
+  "4e47cfb6887781a619bca4fa": {
+    "city": "Łomża",
+    "country": "Poland",
+    "_note": "city review 2026-11-13: bus station at 53.17,22.07 (Łomża), was inferred as Białystok"
+  },
+  "624c081e0e2c082f3679892e": {
+    "city": "Pasargadae",
+    "country": "Iran",
+    "_note": "city review 2026-11-13: restaurant by Pasargadae, Foursquare said Shiraz (90 km)"
+  },
+  "52d5763d498e98a4da238587": {
+    "city": "Kaunas",
+    "country": "Lithuania",
+    "_note": "city review 2026-11-13: platform at Kaunas station, Foursquare said Vilnius"
+  },
+  "65007c6720724257f79f468e": {
+    "city": "Shkodër",
+    "country": "Albania",
+    "_note": "city review 2026-11-13: monument in Shkodër, was inferred as Tirana"
+  },
+  "59d63aed646e3814e7a07b6a": {
+    "city": "Ronda",
+    "country": "Spain",
+    "_note": "city review 2026-11-13: El Tajo gorge is in Ronda, Foursquare said Málaga"
   }
 }

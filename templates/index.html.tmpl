@@ -145,6 +145,7 @@ a.cnt:hover{color:var(--gold);text-decoration:none;}
 .bar-row.hidden,.country-city-row.hidden,.country-group.hidden,.world-city-row.hidden{display:none;}
 
 /* ── COUNTRIES GRID ── */
+.days-total{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--muted);margin:0 0 10px;}.days-total b{color:var(--text);font-weight:500;}
 .country-table{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(var(--rows-3, 21), auto);grid-auto-flow:column;gap:6px;}
 .country-item{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;}
 .ci-rank{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);width:22px;flex-shrink:0;}
@@ -747,7 +748,7 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
     <span class="section-insight" id="insight-countries"></span>
     <div class="pane active" id="pane-checkins"><div class="country-table" id="countriesCheckins"></div></div>
     <div class="pane" id="pane-places"><div class="country-table" id="countriesPlaces"></div></div>
-    <div class="pane" id="pane-days"><div class="country-table" id="countriesDays"></div></div>
+    <div class="pane" id="pane-days"><div class="days-total" id="countriesDaysTotal"></div><div class="country-table" id="countriesDays"></div></div>
   </div>
 
   <div class="card full cities-card" id="s-cities">
@@ -1154,7 +1155,7 @@ function makeCountryGrid(data,id,drilldown){
 }
 makeCountryGrid(S.countries,'countriesCheckins',true);
 makeCountryGrid(S.countries_by_venues,'countriesPlaces');
-if(S.countries_by_days) makeCountryGrid(S.countries_by_days,'countriesDays');
+if(S.countries_by_days){makeCountryGrid(S.countries_by_days,'countriesDays');var _cd=S.countries_by_days.reduce(function(a,c){return a+c[1];},0),_rd=S.days_real||0;document.getElementById('countriesDaysTotal').innerHTML='<b>'+_cd.toLocaleString('en-US')+'</b> days across countries'+(_rd?' · <b>'+_rd.toLocaleString('en-US')+'</b> calendar days'+(_cd>_rd?' (<b>'+(_cd-_rd).toLocaleString('en-US')+'</b> spent in two or more countries)':''):'');}
 // event delegation: country count clicks
 document.getElementById('pane-checkins').addEventListener('click',function(e){
   const a=e.target.closest('a[data-filter-country]');

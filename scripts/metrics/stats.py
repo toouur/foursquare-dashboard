@@ -50,6 +50,48 @@ def day_anchors(r: dict, skip_venues: set[str] | frozenset = frozenset()) -> boo
     return cat not in DAY_TRANSIT and cat not in DAY_WEAK
 
 
+# A transit / weak check-in can still prove a day when it sits INSIDE a stay:
+# the anchoring check-ins before and after it (each within a week) are in the
+# same country, so you were not crossing anywhere (a street or trolleybus at
+# home, a village day trip). Borders, airports, planes and whole-country
+# check-ins never qualify.
+STAY_WINDOW_S = 7 * 86400
+_NEVER_STAY = frozenset({"Border Crossing", "Plane", "Baggage Claim", "Duty-free Store",
+                         "Country", "State", "County"})
+
+
+def stay_anchors(rows: list[dict], anchors: list[bool], country_of) -> set[int]:
+    """Indices of non-anchoring rows that sit inside a one-country stay."""
+    out: set[int] = set()
+    prev = -1
+    nxt = [-1] * len(rows)
+    last = -1
+    for i in range(len(rows) - 1, -1, -1):
+        nxt[i] = last
+        if anchors[i]:
+            last = i
+    for i, r in enumerate(rows):
+        if anchors[i]:
+            prev = i
+            continue
+        cat = (r.get("category") or "").strip()
+        n = nxt[i]
+        if prev < 0 or n < 0 or "Airport" in cat or cat in _NEVER_STAY:
+            continue
+        c = country_of(i)
+        if not c or country_of(prev) != c or country_of(n) != c:
+            continue
+        try:
+            ts = int(r.get("date") or 0)
+            since = ts - int(rows[prev].get("date") or 0)
+            until = int(rows[n].get("date") or 0) - ts
+            if since < STAY_WINDOW_S and until < STAY_WINDOW_S:
+                out.add(i)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 # ── Cross-dimensional analytics ────────────────────────────────────────────────
 
 def cross_dim_analysis(rows: list[dict], categorize) -> dict:
@@ -399,11 +441,14 @@ def process(
     # bridge or fuel stop on the road do not; a day made only of them is dropped.
     country_days: dict[str, set] = defaultdict(set)
     city_days:    dict[str, set] = defaultdict(set)
+    real_days: set[int] = set()
     _day_skip = mappings.get("day_skip_venues") or frozenset()
     # A venue between two countries counts for the side you came from — here only.
     _sides = straddle_sides(rows, mappings.get("straddle_venues") or {})
+    _anch = [day_anchors(r, _day_skip) for r in rows]
+    _stay = stay_anchors(rows, _anch, lambda i: (_sides.get(i) or (rows[i].get("country", "").strip(),))[0])
     for _i, r in enumerate(rows):
-        if not day_anchors(r, _day_skip):
+        if not _anch[_i] and _i not in _stay:
             continue
         try:
             ts = int(r.get("date") or 0)
@@ -414,6 +459,7 @@ def process(
             continue
         day = (ts + int(lng / 15 * 3600)) // 86400
         c, cy = _sides.get(_i) or (r.get("country", "").strip(), r.get("city", "").strip())
+        real_days.add(day)
         if c:
             country_days[c].add(day)
         if cy:
@@ -1878,6 +1924,7 @@ def process(
         "countries":          [[c, n] for c, n in countries.most_common()],
         "countries_by_venues":countries_by_venues,
         "countries_by_days":  countries_by_days,
+        "days_real":          len(real_days),
         "cities_by_days":     cities_by_days,
         "cities":             [[c, n, city_primary_country.get(c, "")] for c, n in cities.most_common()],
         "cities_by_venues":   cities_by_venues,

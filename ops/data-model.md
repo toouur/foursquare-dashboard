@@ -270,6 +270,16 @@ are passing through:
 A rail or bus station still counts: you got off or stood there (Terespol by train yes,
 Terespol by bus no). Reconstructed rf rows keep their area-level days.
 
+Exception, inside a stay (`metrics.stats.stay_anchors`): a road, trolleybus, taxi,
+village or town check-in counts when the real check-ins before AND after it (each within
+a week) are in the same country, so you were not crossing anywhere (a street in Minsk on
+a quiet day, a village day trip). Borders, airports, planes and whole-country check-ins
+never qualify. Audit of 2026-11-13: it brought back 4 home days, nothing else.
+
+A whole-country check-in ("Russia" from the Minsk–Moscow train) never carries a city of
+another country (`transform.drop_foreign_city_on_country_rows`): the city goes blank, the
+country stays.
+
 A check-in made from across a border goes to `venue_fixes.json`, pinned to the side it
 was made from: Ağrı Dağı seen from Khor Virap → Armenia. Check-ins ≠ days, so a lower
 count is expected.

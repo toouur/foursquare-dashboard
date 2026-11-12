@@ -76,3 +76,38 @@ def test_straddle_config_is_well_formed():
         if k.startswith("_"):
             continue
         assert len(k) == 24 and len([c for c in v if not c.startswith("_")]) == 2, k
+
+
+def _r(ts, cat, country, vid="v"):
+    return {"date": str(ts), "category": cat, "country": country, "venue_id": vid}
+
+
+def test_stay_anchor_counts_a_street_inside_a_home_stay():
+    from metrics.stats import stay_anchors
+    rows = [_r(0, "Café", "Belarus"), _r(86400, "Road", "Belarus"), _r(2 * 86400, "Park", "Belarus")]
+    anch = [True, False, True]
+    assert stay_anchors(rows, anch, lambda i: rows[i]["country"]) == {1}
+
+
+def test_stay_anchor_never_counts_a_crossing_or_a_border_post():
+    from metrics.stats import stay_anchors
+    rows = [_r(0, "Café", "Belarus"), _r(3600, "Fuel Station", "Russia"), _r(7200, "Hotel", "Russia"),
+            _r(9000, "Border Crossing", "Russia"), _r(9900, "Hotel", "Russia")]
+    anch = [True, False, True, False, True]
+    assert stay_anchors(rows, anch, lambda i: rows[i]["country"]) == set()
+
+
+def test_stay_anchor_needs_both_neighbours_within_a_week():
+    from metrics.stats import stay_anchors
+    rows = [_r(0, "Café", "Moldova"), _r(10 * 86400, "Road", "Moldova"), _r(11 * 86400, "Park", "Moldova")]
+    assert stay_anchors(rows, [True, False, True], lambda i: rows[i]["country"]) == set()
+
+
+def test_country_checkin_loses_a_city_of_another_country():
+    from transform import drop_foreign_city_on_country_rows
+    rows = [{"city": "Minsk", "country": "Belarus", "category": "Café"},
+            {"city": "Minsk", "country": "Belarus", "category": "Park"},
+            {"city": "Minsk", "country": "Russia", "category": "Country"},
+            {"city": "Minsk", "country": "Belarus", "category": "Country"}]
+    assert drop_foreign_city_on_country_rows(rows) == 1
+    assert [r["city"] for r in rows] == ["Minsk", "Minsk", "", "Minsk"]
