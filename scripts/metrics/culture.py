@@ -62,7 +62,8 @@ def _trip_on(day: str, spans: list[tuple[str, str, int, str]]) -> tuple[int, str
 
 def compute_culture(rows: list[dict], trips: list[dict] | None = None,
                     films: list[dict] | None = None, wines: list[dict] | None = None,
-                    scrobbles: list[tuple[int, str, str, str]] | None = None) -> dict:
+                    scrobbles: list[tuple[int, str, str, str]] | None = None,
+                    stage: list[dict] | None = None) -> dict:
     trips = trips or []
     films = films or []
     wines = wines or []
@@ -190,8 +191,66 @@ def compute_culture(rows: list[dict], trips: list[dict] | None = None,
         for y, c in sy.items():
             years[y]["top_tracks"] = [[a_, t_, n] for (a_, t_), n in c.most_common(TOP)]
 
+    stage_out = stage_visits(stage or [], tl, spans)
+    for v in stage_out:
+        if v.get("date"):
+            years[v["date"][:4]]["stage"] = years[v["date"][:4]].get("stage", 0) + 1
+
     return {"films": film_out, "wines": wine_out, "trips": {str(k): v for k, v in by_trip.items()},
-            "years": {y: years[y] for y in sorted(years)}}
+            "years": {y: years[y] for y in sorted(years)}, "stage": stage_out}
+
+
+STAGE_KIND = (("Opera House", "opera"), ("Concert Hall", "concert"), ("Circus", "circus"),
+              ("Theater", "theatre"), ("Performing Arts", "theatre"))
+_KIND_WORDS = (("opera", ("опер", "opera", "балет", "ballet", "operă")),
+               ("concert", ("филармон", "filharmon", "filarmon", "орган", "organ", "orgă", "sinfonie",
+                            "концерт", "concert", "jazz", "folk", "release", "recital", "symphon")),
+               ("circus", ("цирк", "circ",)))
+
+
+def stage_kind(category: str, place: str, show: str = "") -> str:
+    """opera / concert / circus / theatre: the show's own words first (a symphony
+    night in a drama theatre is a concert), then the check-in category, then the place."""
+    def words(text: str) -> str | None:
+        low = (text or "").lower()
+        for kind, ws in _KIND_WORDS:
+            if any(w in low for w in ws):
+                return kind
+        return None
+    k = words(show)
+    if k:
+        return k
+    for cat, kind in STAGE_KIND:
+        if cat in (category or ""):
+            return kind
+    return words(place) or "theatre"
+
+
+def stage_visits(stage: list[dict], tl: list[tuple[int, date, dict]],
+                 spans: list[tuple[str, str, int, str]]) -> list[dict]:
+    """Each stage.csv visit joined to its check-in (venue, place, trip), newest first."""
+    by_id = {(r.get("checkin_id") or ""): (ld, r) for _, ld, r in tl if r.get("checkin_id")}
+    out: list[dict[str, Any]] = []
+    for v in stage:
+        rec: dict[str, Any] = {"date": v.get("date") or "", "show": v.get("show") or "",
+                               "place": v.get("place") or "", "city": v.get("city") or ""}
+        hit = by_id.get(v.get("checkin_id") or "")
+        cat = ""
+        if hit:
+            ld, r = hit
+            cat = r.get("category") or ""
+            rec.update({"date": rec["date"] or ld.isoformat(), "venue": r.get("venue") or "",
+                        "venue_id": r.get("venue_id") or "", "checkin_id": r.get("checkin_id") or "",
+                        "at_city": r.get("city") or "", "country": r.get("country") or "",
+                        "lat": _f(r.get("lat")), "lng": _f(r.get("lng"))})
+        rec["kind"] = stage_kind(cat, rec["place"], rec["show"])
+        if rec["date"]:
+            tr = _trip_on(rec["date"], spans)
+            if tr:
+                rec["trip"], rec["trip_name"] = tr
+        out.append(rec)
+    out.sort(key=lambda r: r["date"] or "0", reverse=True)
+    return out
 
 
 def _trip_bounds(t: dict) -> tuple[int | None, int | None]:

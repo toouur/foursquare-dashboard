@@ -175,6 +175,21 @@ def load_vivino_any(data_dir: str | Path) -> list[dict]:
     return load_vivino_json(d / "vivino_ratings.json") or load_vivino(d / "full_wine_list.csv")
 
 
+def load_stage(path: str | Path) -> list[dict]:
+    """Theatre / opera / concert visits from stage.csv (data repo).
+
+    Columns: date (YYYY-MM-DD, may be empty), place, city, show, checkin_id
+    (the check-in made at the show, may be empty), source."""
+    p = Path(path)
+    if not p.exists():
+        return []
+    import csv
+    with p.open(encoding="utf-8", newline="") as fh:
+        out = [{k: (v or "").strip() for k, v in r.items()} for r in csv.DictReader(fh)]
+    log.info("stage.csv: %d visits", len(out))
+    return out
+
+
 def load_scrobbles(dir_: str | Path) -> list[tuple[int, str, str, str]]:
     """[(ts, artist, track, album)] from lastfm/scrobbles_<YYYY>.tsv, oldest first."""
     d = Path(dir_)

@@ -51,7 +51,7 @@ Venue renames, monthly re-fetch and deletions: `ops/d1.md`.
 
 ### Run tests / lint
 ```bash
-# Offline suite (630 unit + parity tests, no network/secrets, seconds) — run before committing script changes
+# Offline suite (632 unit + parity tests, no network/secrets, seconds) — run before committing script changes
 python -m pytest tests/ -m "not live" -q
 
 # Live suite (22 API contract + 33 Playwright E2E + 8 axe-core a11y against the deployed site)
@@ -98,14 +98,14 @@ Full map: `ops/internals.md`. Most used:
   `hit`/`visits` = the private visit counter, `visits` is STATS_KEY-gated)
 - `scripts/telegram_on_this_day.py`, `scripts/telegram_checkin_echo.py` (texts via `scripts/llm_ladder.py`: Haiku/Sonnet → Opus on a failed call or text check), `scripts/visits_report.py` (weekly, private chat)
 - Newer pages: `gen_venue_page.py` (venue.html#id, 256 FNV shards), `gen_country_pages.py` (also `city-<slug>.html` for cities with ≥20 check-ins; map outlines from `fetch_boundaries.py` → data repo `boundaries.json`, warmed daily in `warm-routes.yml`), `metrics/explore.py` (stats extremes/tiles/daylight/weather/regions/chains/capitals; weather, elevation, regions, region outlines and ERA5 normals from `fetch_geo_context.py` → data repo `geo_context.json`, same nightly job; regions resolve via `config/regions_iso.json` + `region_fixes.json`) + `metrics/frontiers.py` (borders, time zones, streaks, weather luck, nearest unvisited regions) + `metrics/rhythms.py` (soundtrack of places, weather & you, left behind, jet lag, holidays via Nager.Date, companion reach → companions page), `metrics/horizons.py` (UNESCO via `config/unesco.json`, food passport `cuisines.json`, closed places from data repo `venue_closed.json` written by `fetch_checkins.py`, centre of gravity, replay → `history-points.json`, then & now, city twins, next-trip forecast + `countries_geo.json`), `gen_compare.py`, `gen_life.py`,
-  `gen_culture.py` + `culture_sources.py` (IMDb/Vivino exports + Last.fm raw layer), `gen_visits.py`
+  `gen_culture.py` + `culture_sources.py` (IMDb/Vivino exports + Last.fm raw layer + data repo `stage.csv`: theatre/opera/concert nights, each linked to its check-in by `checkin_id`), `gen_visits.py`
 - `scripts/seo.py` — last build pass: extensionless canonical/og URLs (Pages 308s every `*.html`), og:image (+ generated `og-card.png`), JSON-LD, `404.html` (no 404 = Pages serves index with 200), sitemap with per-page lastmod
 - `scripts/build_backfill.py`, `scripts/refresh_backfill_venue.py`
 - `scripts/check_city_count.py` (also SPELLING TWIN? pairs; known-distinct in `config/city_twins_ok.json`), `scripts/check_city_config.py`, `scripts/validate_html.py`
 - `scripts/sweep_overlaps.py` — monthly `sweep-overlaps.yml`: every friend's shared check-ins via Swarm history search; missing overlaps → `companion_fixes.json` (committed + deploy), untagged-later → private Telegram chat only
 - `config/companion_aliases.json` — second Swarm accounts of one person (alias id → canonical id/name), applied in transform after companion_fixes; D1 reconciles the rewritten rows
 - `scripts/audit_report.py` — monthly `data-audit.yml`: city twins, unknown categories, category suspects (reviewed ids in `config/category_audit_ok.json`) → private Telegram chat
-- Tests: `tests/` — pytest suite (693 tests: 630 offline, 22 live API contract, 41 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
+- Tests: `tests/` — pytest suite (695 tests: 632 offline, 22 live API contract, 41 live+e2e). Markers in `tests/conftest.py` (`make_row()` factory). CI `tests.yml`: ruff + mypy + offline on push/PR; live weekly.
 - Type-check config: `setup.cfg` `[mypy]` — tree is CLEAN in CI (0 errors / 103 files) and must stay so.
   NOTE: allow_redefinition does NOT cover names with an explicit annotation or cross-branch rebinds — rename instead.
 
