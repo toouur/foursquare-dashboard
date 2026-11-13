@@ -212,7 +212,7 @@ class TestBlankCityInference:
     def test_blank_city_filled_and_flagged(self):
         row = make_row(800, city="", country="Belarus")
         m = mappings()
-        apply_transforms([row], m, blank_city_resolver=lambda r: "Lepel")
+        apply_transforms([row], m, blank_city_resolver=lambda r, live=None: "Lepel")
         assert row["city"] == "Lepel"
         assert row["city_inferred"] == "1"
 
@@ -221,13 +221,13 @@ class TestBlankCityInference:
         row = make_row(801, city="", country="Belarus")
         m = mappings(city_merge={"Мачулищи": "Machulishchy"})
         apply_transforms([row], m,
-                         blank_city_resolver=lambda r: "Мачулищи")
+                         blank_city_resolver=lambda r, live=None: "Мачулищи")
         assert row["city"] == "Machulishchy"
         assert row["city_inferred"] == "1"
 
     def test_resolver_returning_none_leaves_blank(self):
         row = make_row(802, city="", country="Belarus")
-        apply_transforms([row], mappings(), blank_city_resolver=lambda r: None)
+        apply_transforms([row], mappings(), blank_city_resolver=lambda r, live=None: None)
         assert row["city"] == ""
         assert row["city_inferred"] == "0"
 

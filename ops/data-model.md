@@ -278,7 +278,20 @@ never qualify. Audit of 2026-11-13: it brought back 4 home days, nothing else.
 
 A whole-country check-in ("Russia" from the Minsk–Moscow train) never carries a city of
 another country (`transform.drop_foreign_city_on_country_rows`): the city goes blank, the
-country stays.
+country stays. "Another country" = no real check-in puts that city in this country, so a
+border twin (Sculeni, Ungheni) keeps its name on both sides.
+
+Two guards against a city being named from far away (review of 2026-11-13):
+- **Generic merge names** (`transform.GENERIC_CITY_NAMES`: Downtown, Centre, Old Town…)
+  merge only within `GENERIC_MERGE_KM` (50 km) of a real check-in of the target city;
+  otherwise the row is treated as blank and inferred. `"Downtown": "Cairo"` had turned
+  downtown Alexandria into Cairo.
+- **Blank-city inference** still trusts the reviewed points of
+  `city_merge_normalized_review.csv`. A city the review never saw (Liège, Eindhoven,
+  Amsterdam) wins only where no reviewed point lies within 15 km AND a real check-in of
+  that city is within 3 km (`live_city_points`). A plain nearest-real-check-in rule was
+  tried and rejected: Foursquare labels many Minsk suburbs "Minsk" (Minsk Sea beaches,
+  Сеница), and unreviewed suburbs pulled Minsk districts away.
 
 A check-in made from across a border goes to `venue_fixes.json`, pinned to the side it
 was made from: Ağrı Dağı seen from Khor Virap → Armenia. Check-ins ≠ days, so a lower
