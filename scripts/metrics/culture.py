@@ -201,6 +201,7 @@ def compute_culture(rows: list[dict], trips: list[dict] | None = None,
 
 
 STAGE_KIND = (("Opera House", "opera"), ("Concert Hall", "concert"), ("Circus", "circus"),
+              ("Rock Club", "concert"), ("Music Venue", "concert"), ("Jazz", "concert"), ("Music Festival", "concert"),
               ("Theater", "theatre"), ("Performing Arts", "theatre"))
 _KIND_WORDS = (("opera", ("опер", "opera", "балет", "ballet", "operă")),
                ("concert", ("филармон", "filharmon", "filarmon", "орган", "organ", "orgă", "sinfonie",
@@ -243,7 +244,8 @@ def stage_visits(stage: list[dict], tl: list[tuple[int, date, dict]],
                         "venue_id": r.get("venue_id") or "", "checkin_id": r.get("checkin_id") or "",
                         "at_city": r.get("city") or "", "country": r.get("country") or "",
                         "lat": _f(r.get("lat")), "lng": _f(r.get("lng"))})
-        rec["kind"] = stage_kind(cat, rec["place"], rec["show"])
+        # an explicit kind column wins (poetry readings sit in libraries and clubs)
+        rec["kind"] = (v.get("kind") or "").strip().lower() or stage_kind(cat, rec["place"], rec["show"])
         if rec["date"]:
             tr = _trip_on(rec["date"], spans)
             if tr:

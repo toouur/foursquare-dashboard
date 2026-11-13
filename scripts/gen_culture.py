@@ -27,7 +27,7 @@ PAGE_TEMPLATE = r"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Culture · Foursquare history</title>
-<meta name="description" content="Sound, taste, frame and stage: Last.fm scrobbles, Vivino wines, IMDb films and theatre nights on the check-in timeline.">
+<meta name="description" content="Sound, taste, frame and stage: Last.fm scrobbles, Vivino wines, IMDb films, theatre, concert and poetry nights on the check-in timeline.">
 <link rel="canonical" href="{site}/culture.html">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -68,7 +68,7 @@ section{{margin-top:50px;}}
 .item .r{{font-family:'DM Mono',monospace;font-size:.8rem;color:var(--gold);white-space:nowrap;}}
 .pill{{font-family:'DM Mono',monospace;font-size:.52rem;text-transform:uppercase;letter-spacing:.1em;border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:6px;color:var(--muted);}}
 .pill.cinema{{color:var(--gold);border-color:var(--gold);}} .pill.road{{color:var(--rose);border-color:var(--rose);}}
-.pill.opera{{color:#ff6fae;border-color:#ff6fae;}} .pill.concert{{color:#4cb8ff;border-color:#4cb8ff;}} .pill.theatre{{color:#f6c25b;border-color:#f6c25b;}} .pill.circus{{color:#2fd6b5;border-color:#2fd6b5;}}
+.pill.opera{{color:#ff6fae;border-color:#ff6fae;}} .pill.concert{{color:#4cb8ff;border-color:#4cb8ff;}} .pill.theatre{{color:#f6c25b;border-color:#f6c25b;}} .pill.circus{{color:#2fd6b5;border-color:#2fd6b5;}} .pill.reading{{color:#b48cff;border-color:#b48cff;}}
 .more{{margin-top:10px;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 14px;font-family:'DM Mono',monospace;font-size:.66rem;cursor:pointer;}}
 .more:hover{{color:var(--gold);border-color:var(--gold);}}
 .yr .a{{font-size:.86rem;margin-top:2px;}} .yr .n{{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);}}
@@ -108,7 +108,7 @@ section{{margin-top:50px;}}
 <div class="kpis" id="kpis"></div>
 <section><div class="big-h"><span>The wine <em>wall</em></span><small>latest 18 · tap for Vivino</small></div><div class="wall" id="wall"></div></section>
 <section><div class="big-h"><span>Recently <em>watched</em></span><small>colour = first genre · number = your rating</small></div><div class="films" id="ftiles"></div></section>
-<section id="stage" hidden><div class="big-h"><span>On <em>stage</em></span><small>theatre · opera · concerts · circus · each at its check-in</small></div><div class="tabs" id="stabs" style="margin-bottom:8px"></div><div class="list" id="slist"></div><button class="more" id="smore" hidden>Show more</button></section>
+<section id="stage" hidden><div class="big-h"><span>On <em>stage</em></span><small>theatre · opera · concerts · circus · readings · each at its check-in</small></div><div class="tabs" id="stabs" style="margin-bottom:8px"></div><div class="list" id="slist"></div><button class="more" id="smore" hidden>Show more</button></section>
 <section><div class="sec-h">Wine map <em>· each rated bottle at the check-in nearest its scan</em></div><div id="wmap"></div><div class="legend" id="wlegend"></div></section>
 <section><div class="big-h"><span>Year by <em>year</em></span><small>films · wines · stage · most-played artist</small></div><div class="years" id="sound"></div></section>
 <section><div class="sec-h">All films <div class="tabs" id="ftabs"></div></div><div class="list" id="flist"></div><button class="more" id="fmore" hidden>Show more</button>
@@ -189,12 +189,12 @@ function render(D) {{
   // stage: every theatre / opera / concert night, joined to the check-in made there
   if (stage.length) {{
     document.getElementById('stage').hidden = false;
-    const SK = {{opera: '🎼 Opera', concert: '🎻 Concerts', theatre: '🎭 Theatre', circus: '🎪 Circus'}};
+    const SK = {{opera: '🎼 Opera', concert: '🎻 Concerts', theatre: '🎭 Theatre', circus: '🎪 Circus', reading: '🎙️ Readings'}};
     const sc = k => stage.filter(v => v.kind === k).length;
     const srow = v => '<div class="item"><span class="d">' + esc(v.date || 'date unknown') + '</span><span class="t">' + esc(v.show || v.place) +
       '<span class="pill ' + v.kind + '">' + v.kind + '</span><span class="s">' + [v.venue ? venueLink(v) : esc(v.place), esc(v.at_city || v.city), tripLink(v)].filter(Boolean).join(' · ') + '</span></span>' +
       '<span class="r">' + (v.checkin_id ? '✓' : '') + '</span></div>';
-    const kinds = ['theatre', 'opera', 'concert', 'circus'].filter(k => sc(k));
+    const kinds = ['theatre', 'opera', 'concert', 'circus', 'reading'].filter(k => sc(k));
     tabs(document.getElementById('stabs'), [['all', 'All ' + stage.length]].concat(kinds.map(k => [k, SK[k] + ' ' + sc(k)])),
       k => pager(document.getElementById('slist'), document.getElementById('smore'), k === 'all' ? stage : stage.filter(v => v.kind === k), srow));
   }}

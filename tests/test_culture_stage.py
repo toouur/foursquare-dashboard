@@ -24,3 +24,11 @@ def test_visit_takes_venue_and_trip_from_its_checkin():
                          "checkin_id": ""}], tl, spans)
     assert out[0]["venue_id"] == "v1" and out[0]["kind"] == "opera" and out[0]["trip"] == 7
     assert out[1]["date"] == "" and "venue" not in out[1] and out[1]["kind"] == "theatre"
+
+
+def test_explicit_kind_wins_and_clubs_are_concerts():
+    assert stage_kind("Rock Club", "Проходной двор", "Che MD") == "concert"
+    r = {"checkin_id": "rf1", "venue": "Biblioteca M. V. Lomonosov", "category": "Library"}
+    out = stage_visits([{"date": "2009-05-31", "place": "Библиотека Ломоносова", "show": "Литературная гостиная",
+                         "checkin_id": "rf1", "kind": "reading"}], [(1243785600, date(2009, 5, 31), r)], [])
+    assert out[0]["kind"] == "reading" and out[0]["venue"] == "Biblioteca M. V. Lomonosov"

@@ -179,7 +179,8 @@ def load_stage(path: str | Path) -> list[dict]:
     """Theatre / opera / concert visits from stage.csv (data repo).
 
     Columns: date (YYYY-MM-DD, may be empty), place, city, show, checkin_id
-    (the check-in made at the show, may be empty), source."""
+    (the check-in made at the show, may be empty), source, kind (optional:
+    theatre / opera / concert / circus / reading; empty = guessed from the show)."""
     p = Path(path)
     if not p.exists():
         return []
