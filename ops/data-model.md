@@ -292,6 +292,13 @@ Two guards against a city being named from far away (review of 2026-11-13):
   that city is within 3 km (`live_city_points`). A plain nearest-real-check-in rule was
   tried and rejected: Foursquare labels many Minsk suburbs "Minsk" (Minsk Sea beaches,
   Сеница), and unreviewed suburbs pulled Minsk districts away.
+- **Keeping the review table fresh**: `scripts/refresh_city_review.py --write` appends one
+  point (median of the real check-ins, `review` = `AUTO_ADDED`) for every city with ≥2 real
+  check-ins that the table lacks AND that has no reviewed point within 15 km. Closer ones
+  are suburbs (Valeryanovo, Pryluky) and stay with the live rule above — adding them pulled
+  33 Minsk rows away. First run 2026-11-14: 80 cities (all of Tajikistan, Khiva, Urgench,
+  Amsterdam, Liège, Bologna…), 21 rows changed. The monthly `audit_report.py` lists cities
+  that need it again.
 
 A check-in made from across a border goes to `venue_fixes.json`, pinned to the side it
 was made from: Ağrı Dağı seen from Khor Virap → Armenia. Check-ins ≠ days, so a lower

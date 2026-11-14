@@ -30,3 +30,12 @@ def test_unknown_categories_and_quiet_render():
     assert ar.unknown_categories(rows, CFG) == [("Public Bathroom", 2)]
     assert "Nothing new" in ar.render([], [], [])
     assert "Public Bathroom × 2" in ar.render([], [("Public Bathroom", 2)], [])
+
+
+def test_review_missing_section():
+    import refresh_city_review as rcr
+    m = rcr.Missing("Netherlands", "Amsterdam", 226, 52.37, 4.89, 48.0, "Rotterdam")
+    out = ar.render([], [], [], [m])
+    assert "Cities missing from the blank-city review table (1)" in out
+    assert "Amsterdam, Netherlands × 226" in out
+    assert "Amsterdam" in ar.telegram_text([], [], [], "", [m])

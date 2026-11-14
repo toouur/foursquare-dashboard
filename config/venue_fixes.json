@@ -258,5 +258,15 @@
     "city": "Ronda",
     "country": "Spain",
     "_note": "city review 2026-11-13: El Tajo gorge is in Ronda, Foursquare said Málaga"
+  },
+  "601f911e303b206d26994649": {
+    "city": "Chișinău",
+    "country": "Moldova",
+    "_note": "city review 2026-11-14: Belavia B2 820 flight venue at Chișinău airport, blank city was inferred as Ialoveni"
+  },
+  "6a21d83919881f01867b8261": {
+    "city": "Chișinău",
+    "country": "Moldova",
+    "_note": "city review 2026-11-14: Wizzair W6 1422 flight venue at Chișinău airport, blank city was inferred as Ialoveni"
   }
 }

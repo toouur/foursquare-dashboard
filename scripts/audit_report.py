@@ -4,7 +4,7 @@
 
 """audit_report.py — monthly list of data to look at, never an auto-fix.
 
-Three sections, each one only what a human has not reviewed yet:
+Four sections, each one only what a human has not reviewed yet:
   • spelling twins — two displayed cities that look like one place
     (check_city_count.find_spelling_twins; known pairs: city_twins_ok.json)
   • unknown categories — raw Foursquare categories categories.json lacks
@@ -13,6 +13,9 @@ Three sections, each one only what a human has not reviewed yet:
     category groups it as another ("Белоруснефть" filed as a car repair shop).
     Reviewed venues go in config/category_audit_ok.json and are not shown again;
     a real mistake is fixed with a venue_category_fixes.json pin.
+  • cities missing from the blank-city review table — a city first visited
+    after the table was built, so its blank-city check-ins land in a reviewed
+    neighbour (refresh_city_review.py; fix: run it with --write and commit)
 
 Prints markdown; with --telegram also sends a short summary to the private
 alerts chat (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID), only when there are findings.
@@ -115,9 +118,11 @@ def spelling_twins(csv_path: str, backfill: str | None, config_dir: str) -> list
             for s, b, r, d in ccc.find_spelling_twins(counts, centroids, ccc.load_twin_allowlist(config_dir))]
 
 
-def render(twins: list[tuple], unknown: list[tuple[str, int]], suspects: list[dict]) -> str:
+def render(twins: list[tuple], unknown: list[tuple[str, int]], suspects: list[dict],
+           review_missing: list | None = None) -> str:
+    review_missing = review_missing or []
     lines = ["## Monthly data audit", ""]
-    if not (twins or unknown or suspects):
+    if not (twins or unknown or suspects or review_missing):
         return "\n".join(lines + ["Nothing new to review."])
     if twins:
         lines += [f"### Spelling twins ({len(twins)})", ""]
@@ -131,11 +136,18 @@ def render(twins: list[tuple], unknown: list[tuple[str, int]], suspects: list[di
         lines += [f"### Category suspects ({len(suspects)})", ""]
         lines += [f"- {s['venue']} ({s['city']}, {s['checkins']}) — {s['category']} → {s['group']}; "
                   f"looks like {s['looks_like']} · `{s['venue_id']}`" for s in suspects]
-        lines += ["", "Fix: pin in `venue_category_fixes.json`, or add the id to `category_audit_ok.json`."]
+        lines += ["", "Fix: pin in `venue_category_fixes.json`, or add the id to `category_audit_ok.json`.", ""]
+    if review_missing:
+        lines += [f"### Cities missing from the blank-city review table ({len(review_missing)})", ""]
+        lines += [f"- {m.city}, {m.country} × {m.checkins} — nearest reviewed point {m.nearest_city or '—'}"
+                  for m in review_missing]
+        lines += ["", "Fix: `python scripts/refresh_city_review.py --csv … --backfill … --write`, then commit."]
     return "\n".join(lines)
 
 
-def telegram_text(twins: list[tuple], unknown: list[tuple[str, int]], suspects: list[dict], run_url: str) -> str:
+def telegram_text(twins: list[tuple], unknown: list[tuple[str, int]], suspects: list[dict], run_url: str,
+                  review_missing: list | None = None) -> str:
+    review_missing = review_missing or []
     e = html.escape
     parts = ["🧹 <b>Monthly data audit</b>"]
     if twins:
@@ -148,6 +160,10 @@ def telegram_text(twins: list[tuple], unknown: list[tuple[str, int]], suspects: 
         parts.append(f"\n<b>Category suspects: {len(suspects)}</b>")
         parts += [f"• {e(s['venue'])} ({e(s['city'])}) — {e(s['category'])}, looks like {e(s['looks_like'])}"
                   for s in suspects[:15]]
+    if review_missing:
+        parts.append(f"\n<b>Cities missing from the review table: {len(review_missing)}</b>")
+        parts.append(e(", ".join(m.city for m in review_missing[:20])))
+        parts.append("Run refresh_city_review.py --write")
     if run_url:
         parts.append(f"\n<a href=\"{e(run_url)}\">Full list</a>")
     return "\n".join(parts)[:4000]
@@ -185,9 +201,12 @@ def main() -> int:
 
     twins = spelling_twins(args.csv, args.backfill, args.config_dir)
     unknown = unknown_categories(rows, cfg)
-    print(render(twins, unknown, suspects))
+    import refresh_city_review as rcr
+    review_missing = [m for m in rcr.missing_cities(rcr.load_rows(args.csv, args.backfill, args.config_dir),
+                                                    cdir / "city_merge_normalized_review.csv") if m.addable]
+    print(render(twins, unknown, suspects, review_missing))
 
-    if args.telegram and (twins or unknown or suspects):
+    if args.telegram and (twins or unknown or suspects or review_missing):
         import requests
         token, chat = os.environ.get("TELEGRAM_BOT_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
         if not token or not chat:
@@ -198,7 +217,7 @@ def main() -> int:
             run_url = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
                        f"{os.environ.get('GITHUB_REPOSITORY')}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
         r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", timeout=30, data={
-            "chat_id": chat, "text": telegram_text(twins, unknown, suspects, run_url),
+            "chat_id": chat, "text": telegram_text(twins, unknown, suspects, run_url, review_missing),
             "parse_mode": "HTML", "disable_web_page_preview": "true"})
         if r.status_code != 200:
             print(f"Telegram sendMessage failed: {r.status_code} {r.text[:300]}", file=sys.stderr)

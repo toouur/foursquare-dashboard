@@ -51,6 +51,74 @@ def _parse_detail(detail: str) -> list[tuple[str, str]]:
     return result
 
 
+REVIEW_CSV_NAME = "city_merge_normalized_review.csv"
+
+
+def review_points(review_csv_path: str | Path) -> tuple[dict[str, str], dict[str, list[tuple[float, float, str]]], dict[str, set[str]]]:
+    """Read the reviewed blank-city table (config/city_merge_normalized_review.csv).
+
+    Returns (ts_map, centroids, reviewed):
+      ts_map    — unix ts -> city for the low-volume rows the review listed one by one
+      centroids — country -> [(lat, lng, city)] reviewed points
+      reviewed  — country -> every city name the review knows (NFC, plus what
+                  city_merge.yaml turns those names into)
+    Rows with decision_source BLANK_CITY_INFERRED are the points; rows added by
+    scripts/refresh_city_review.py (review AUTO_ADDED) count the same.
+    """
+    review_csv_path = Path(review_csv_path)
+    ts_map: dict[str, str] = {}
+    centroids: dict[str, list[tuple[float, float, str]]] = defaultdict(list)
+    reviewed: dict[str, set[str]] = defaultdict(set)
+    if not review_csv_path.exists():
+        log.warning("Blank-city review CSV not found at %s — inference disabled", review_csv_path)
+        return ts_map, centroids, reviewed
+
+    import csv as _csv
+    with open(review_csv_path, encoding="utf-8-sig") as fh:
+        review_rows = list(_csv.DictReader(fh))
+
+    inferred_rows = [
+        r for r in review_rows
+        if r.get("decision_source") == "BLANK_CITY_INFERRED"
+        and r.get("resolved_city", "").strip()
+        and not r["resolved_city"].startswith("(BLANK")
+    ]
+
+    # Pass 1: unix-timestamp -> city  (from low_volume_checkins_detail)
+    for r in inferred_rows:
+        city = r["resolved_city"]
+        for ts_utc, _ in _parse_detail(r.get("low_volume_checkins_detail", "")):
+            try:
+                dt = datetime.strptime(ts_utc, "%Y-%m-%dT%H:%M:%SZ").replace(
+                    tzinfo=timezone.utc
+                )
+                ts_map[str(int(dt.timestamp()))] = city
+            except ValueError:
+                pass
+
+    # Pass 2: country -> list of (lat, lng, city) centroids for nearest-neighbour
+    for r in inferred_rows:
+        try:
+            centroids[r["country"]].append(
+                (float(r["lat"]), float(r["lng"]), r["resolved_city"])
+            )
+        except (ValueError, TypeError):
+            pass
+
+    for _c, _pts in centroids.items():
+        for _a, _b, _city in _pts:
+            reviewed[_c].add(unicodedata.normalize("NFC", _city))
+    # a reviewed raw name may be merged later (Мачулищи -> Machulishchy); the
+    # review CSV sits in the config dir next to city_merge.yaml
+    try:
+        reviewed_merge = load_mappings(review_csv_path.parent).get("city_merge", {})
+    except Exception:  # noqa: BLE001 — a missing/odd config only weakens the filter
+        reviewed_merge = {}
+    for _c in list(reviewed):
+        reviewed[_c] |= {reviewed_merge.get(x, x) for x in reviewed[_c]}
+    return ts_map, centroids, reviewed
+
+
 def build_blank_city_resolver(review_csv_path: str | Path):
     """
     Build a callable that infers a city for rows whose city field is blank.
@@ -72,60 +140,9 @@ def build_blank_city_resolver(review_csv_path: str | Path):
     MAX_DIST_KM = 90  # covers ~99.6 % of blank rows; beyond this, locations are
                       # genuine remote/open-sea venues that should stay uncategorised
 
-    review_csv_path = Path(review_csv_path)
-    if not review_csv_path.exists():
-        log.warning(
-            "Blank-city review CSV not found at %s — inference disabled",
-            review_csv_path,
-        )
+    ts_map, centroids, reviewed = review_points(review_csv_path)
+    if not centroids and not ts_map:
         return lambda row, live=None: None
-
-    import csv as _csv
-    with open(review_csv_path, encoding="utf-8-sig") as fh:
-        review_rows = list(_csv.DictReader(fh))
-
-    inferred_rows = [
-        r for r in review_rows
-        if r.get("decision_source") == "BLANK_CITY_INFERRED"
-        and r.get("resolved_city", "").strip()
-        and not r["resolved_city"].startswith("(BLANK")
-    ]
-
-    # Pass 1: unix-timestamp -> city  (from low_volume_checkins_detail)
-    ts_map: dict[str, str] = {}
-    for r in inferred_rows:
-        city = r["resolved_city"]
-        for ts_utc, _ in _parse_detail(r.get("low_volume_checkins_detail", "")):
-            try:
-                dt = datetime.strptime(ts_utc, "%Y-%m-%dT%H:%M:%SZ").replace(
-                    tzinfo=timezone.utc
-                )
-                ts_map[str(int(dt.timestamp()))] = city
-            except ValueError:
-                pass
-
-    # Pass 2: country -> list of (lat, lng, city) centroids for nearest-neighbour
-    centroids: dict[str, list[tuple[float, float, str]]] = defaultdict(list)
-    for r in inferred_rows:
-        try:
-            centroids[r["country"]].append(
-                (float(r["lat"]), float(r["lng"]), r["resolved_city"])
-            )
-        except (ValueError, TypeError):
-            pass
-
-    reviewed: dict[str, set[str]] = defaultdict(set)
-    for _c, _pts in centroids.items():
-        for _a, _b, _city in _pts:
-            reviewed[_c].add(unicodedata.normalize("NFC", _city))
-    # a reviewed raw name may be merged later (Мачулищи -> Machulishchy); the
-    # review CSV sits in the config dir next to city_merge.yaml
-    try:
-        reviewed_merge = load_mappings(review_csv_path.parent).get("city_merge", {})
-    except Exception:  # noqa: BLE001 — a missing/odd config only weakens the filter
-        reviewed_merge = {}
-    for _c in list(reviewed):
-        reviewed[_c] |= {reviewed_merge.get(x, x) for x in reviewed[_c]}
 
     log.info(
         "Blank-city resolver ready: %d ts-mapped, %d centroids across %d countries",
