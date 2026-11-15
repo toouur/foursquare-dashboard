@@ -133,12 +133,15 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 #byCountryList::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 #worldCitiesList::-webkit-scrollbar{width:3px;}
 #worldCitiesList::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-.bar-row{display:grid;grid-template-columns:28px 1fr 110px 58px;align-items:center;gap:8px;}
+.bar-row{display:grid;grid-template-columns:28px 1fr 110px 30px 58px;align-items:center;gap:8px;}
 .bar-row .rank{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);text-align:right;}
 .bar-row .name{font-size:0.80rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
 .bar-row .name .city-tag{font-size:0.64rem;color:var(--muted);margin-left:5px;font-style:italic;}
 .bar-row .track{height:5px;background:var(--card2);border-radius:3px;overflow:hidden;}
 .bar-row .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--teal));}
+.mv{font-family:'DM Mono',monospace;font-size:0.58rem;text-align:right;white-space:nowrap;cursor:default;}
+.mv.up{color:#5fd39a;}.mv.dn{color:#ff7a7a;}.mv.nw{color:var(--gold);letter-spacing:.04em;}
+.country-item .mv{flex-shrink:0;}
 .bar-row .cnt{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--muted);text-align:right;}
 a.bar-row .cnt,a.cnt{color:var(--teal);text-decoration:none;cursor:pointer;}
 a.cnt:hover{color:var(--gold);text-decoration:none;}
@@ -452,7 +455,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:none;}
   .card.full{grid-column:1;}
   .country-table{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(var(--rows-2, 32), auto);}
   #map{height:420px;}
-  .bar-row{grid-template-columns:22px 1fr 80px 44px;gap:6px;}
+  .bar-row{grid-template-columns:22px 1fr 80px 28px 44px;gap:6px;}
   .bar-row .name{font-size:0.75rem;}
   .cat-pill{font-size:0.57rem;padding:4px 10px;}
 }
@@ -463,7 +466,7 @@ a.ci-count:hover{color:var(--gold);text-decoration:none;}
   .kpi .num{font-size:1.5rem;}
   .country-table{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row;}.kpis{flex-wrap:wrap;}
   #map{height:320px;}
-  .bar-row{grid-template-columns:18px 1fr 60px 36px;gap:5px;}
+  .bar-row{grid-template-columns:18px 1fr 52px 26px 36px;gap:5px;}
   .bar-row .name .city-tag{display:none;}
   .grid{padding:10px 10px 36px;}
   .card{padding:14px 14px;}
@@ -558,7 +561,7 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
 /* phones (and enlarged system fonts): columns sized in rem so a 3-digit rank or a
    long IATA route never runs into its neighbour */
 @media(max-width:600px){
-  .bar-row{grid-template-columns:1.9rem minmax(0,1fr) 3.4rem 3rem;gap:4px;}
+  .bar-row{grid-template-columns:1.9rem minmax(0,1fr) 2.8rem 1.8rem 3rem;gap:4px;}
   .bar-row .rank{text-align:left;}
   .country-item{gap:6px;padding:8px 10px;}
   .ci-rank{width:auto;min-width:1.3rem;}
@@ -1101,6 +1104,16 @@ if(S.total_km){const el=document.getElementById('kpiKm');if(el){el.style.display
 })();
 
 
+// ── Rank moves: ▲/▼ vs WINDOW days ago (metrics/rank_moves.py) ─────
+const RM=S.rank_moves||{};
+function mvHtml(map,key){
+  const m=map&&map[key];
+  if(m===undefined||m===null) return '<span class="mv"></span>';
+  const w=RM.window||30;
+  if(m==='n') return `<span class="mv nw" title="New in this list over the last ${w} days">new</span>`;
+  const up=m>0, n=Math.abs(m);
+  return `<span class="mv ${up?'up':'dn'}" title="${up?'Up':'Down'} ${n} place${n===1?'':'s'} in the last ${w} days">${up?'▲':'▼'}${n}</span>`;
+}
 const explorerData=S.explorer, explorerCats=S.explorer_cats;
 let activeCat=explorerCats[0];
 const pillsEl=document.getElementById('catPills');
@@ -1123,14 +1136,14 @@ function renderExplorer(cat){
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(name)} · ${esc(city)}">${vname}<span class="city-tag">${esc(city||'')} </span></span>
       <div class="track"><div class="fill" style="width:${(count/max*100).toFixed(1)}%"></div></div>
-      <span class="cnt">${count.toLocaleString()}</span>
+      ${mvHtml((RM.explorer||{})[cat],vid)}<span class="cnt">${count.toLocaleString()}</span>
     </div>`;
   }).join('')||'<div style="color:var(--muted);padding:8px;font-size:0.85rem">No data</div>';
 }
 renderExplorer(activeCat);
 
 // ── Countries ─────────────────────────────────────────────────────
-function makeCountryGrid(data,id,drilldown){
+function makeCountryGrid(data,id,drilldown,moves){
   // DOM emit is row-major (rank 1..n) so mobile's 1-col layout reads
   // naturally.  Desktop / tablet restore the original column-major
   // visual via CSS:
@@ -1150,11 +1163,11 @@ function makeCountryGrid(data,id,drilldown){
       : `<span class="ci-count">${count.toLocaleString()}</span>`;
     return `<div class="country-item"><span class="ci-rank">#${rank}</span>`+
       `<a class="ci-name" href="country-${countrySlug(name)}.html" title="Explore ${esc(name)}">${f} ${esc(name)}</a>`+
-      countEl+`</div>`;
+      (moves?mvHtml(moves,name):'')+countEl+`</div>`;
   }).join('');
 }
-makeCountryGrid(S.countries,'countriesCheckins',true);
-makeCountryGrid(S.countries_by_venues,'countriesPlaces');
+makeCountryGrid(S.countries,'countriesCheckins',true,RM.countries);
+makeCountryGrid(S.countries_by_venues,'countriesPlaces',false,RM.countries_p);
 if(S.countries_by_days){makeCountryGrid(S.countries_by_days,'countriesDays');var _cd=S.countries_by_days.reduce(function(a,c){return a+c[1];},0),_rd=S.days_real||0;document.getElementById('countriesDaysTotal').innerHTML='<b>'+_cd.toLocaleString('en-US')+'</b> days across countries'+(_rd?' · <b>'+_rd.toLocaleString('en-US')+'</b> calendar days'+(_cd>_rd?' (<b>'+(_cd-_rd).toLocaleString('en-US')+'</b> spent in two or more countries)':''):'');}
 // event delegation: country count clicks
 document.getElementById('pane-checkins').addEventListener('click',function(e){
@@ -1172,7 +1185,7 @@ function switchCountryTab(name,el){
 
 // ── Bar Lists ─────────────────────────────────────────────────────
 function barList(id,data,opts){
-  const linkCity=opts&&opts.linkCity;
+  const linkCity=opts&&opts.linkCity, moves=opts&&opts.moves;
   const max=data[0][1];
   document.getElementById(id).innerHTML=data.map(([n,c,country],i)=>{
     const f=country?flagHtml(country):'';
@@ -1183,11 +1196,11 @@ function barList(id,data,opts){
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(n)}">${f} ${linkCity?cityName(n):esc(n)}</span>
       <div class="track"><div class="fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
-      ${cntEl}
+      ${mvHtml(moves,n)}${cntEl}
     </div>`;
   }).join('');
 }
-barList('citiesList',S.cities,{linkCity:true});
+barList('citiesList',S.cities,{linkCity:true,moves:RM.cities});
 // the hidden "by places" pane (~6k nodes) is built when its tab first opens
 let _cityPlacesBuilt=false;
 // event delegation: city count clicks
@@ -1206,7 +1219,7 @@ document.getElementById('paneCityCheckins').addEventListener('click',function(e)
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(n)}${city?' · '+esc(city):''}">  ${vname}<span class="city-tag">${esc(city||'')} </span></span>
       <div class="track"><div class="fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
-      <span class="cnt">${c.toLocaleString()}</span>
+      ${mvHtml(RM.venues,vid)}<span class="cnt">${c.toLocaleString()}</span>
     </div>`;
   }).join('');
 })();
@@ -2309,7 +2322,7 @@ function buildCityMap(){
   window.switchCityTab=function(tab,el){
     document.getElementById('paneCityCheckins').style.display=tab==='checkins'?'':'none';
     document.getElementById('paneCityPlaces').style.display=tab==='places'?'':'none';
-    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues);}
+    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues,{moves:RM.cities_p});}
     document.getElementById('paneCityDays').style.display=tab==='days'?'':'none';
     if(tab==='days'&&!document.getElementById('citiesDaysList').innerHTML&&S.cities_by_days)barList('citiesDaysList',S.cities_by_days);
     document.getElementById('paneCityCountry').style.display=tab==='country'?'':'none';

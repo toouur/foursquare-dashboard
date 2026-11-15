@@ -13,6 +13,7 @@ from typing import Any
 from transform import build_categorize_fn, group_category, straddle_sides
 
 from .companions import collect_companions
+from .rank_moves import rank_moves
 from .shouts import shout_analysis, shout_records
 from .trip_insights import trip_insights
 from .trips import _COUNTRY_TZ, _localise, _parse_ts, _tz_at, detect_trips
@@ -1935,6 +1936,16 @@ def process(
         "explorer_cats":      explorer_cats,
         "explorer_groups":    explorer_groups,
         "explorer":           explorer,
+        "rank_moves":         rank_moves(
+            rows,
+            {"venues": [v[3] for v in venues_list if v[3]],
+             "cities": [c for c, _ in cities.most_common()],
+             "cities_p": [str(c[0]) for c in cities_by_venues],
+             "countries": list(countries),
+             "countries_p": [str(c[0]) for c in countries_by_venues]},
+            explorer_groups,
+            {g: [x[3] for x in lst] for g, lst in explorer.items()},
+            group_category),
         "unique_places":      unique_places,
         "venues_heatmap":     venues_heatmap,
         "companions":         companions,
