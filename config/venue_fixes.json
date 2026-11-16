@@ -268,5 +268,446 @@
     "city": "Chișinău",
     "country": "Moldova",
     "_note": "city review 2026-11-14: Wizzair W6 1422 flight venue at Chișinău airport, blank city was inferred as Ialoveni"
+  },
+  "_comment_slavechna": "Vystupovychi (UA) <-> Slavechna (BY) rail crossing on the Chișinău–Minsk train. Foursquare put the 'Славечна (Белорусская граница)' venue at the Ukrainian post (100 m from Vystupovychi, country Україна), but the timestamps show it is the Belarusian post: towards Minsk it comes 30 min after Vystupovychi, towards Chișinău 30 min before. Pinned to Belarus (user decision 2026-11-16). The middle venue 'Українсько-Білоруський Кордонний Пункт' (4ecfff65…) is NOT pinned here: its country follows the direction (the side you leave) via per-ts country_fixes + city_fixes.",
+  "521979a811d276316031135f": {
+    "city": "Slavechna",
+    "country": "Belarus"
+  },
+  "_comment_border_posts_2026_11_16": "Every border post that had no pin, pinned at the city/country the build gave it on 2026-11-16 so a Foursquare edit or the monthly full re-fetch cannot move it (border audit). Exceptions: Romanian Albița side (was 'Leușeni', a Moldovan village), the Medininkai posts (was the district 'Vilniaus Rajonas') and the Lavoriškės post (was 'Kena'), aligned with the posts already pinned next to them.",
+  "50368870e4b0a614207e0c73": {
+    "city": "Palanca",
+    "country": "Moldova",
+    "_note": "Vama Palanca (MD-UA)"
+  },
+  "4d60eaa69f67f04d3ba87efb": {
+    "city": "Tudora",
+    "country": "Moldova",
+    "_note": "Vama Tudora (MD-UA)"
+  },
+  "4fec48afe4b0de704a0a1138": {
+    "city": "Otaci",
+    "country": "Moldova",
+    "_note": "Zona de Control Vamal"
+  },
+  "4fb10a8ae4b08a88c69faf7e": {
+    "city": "Mohyliv-Podilskyy",
+    "country": "Ukraine",
+    "_note": "Міжнародний пункт пропуску через державний кордон України"
+  },
+  "5726989e498e719c7079a498": {
+    "city": "Vystupovychi",
+    "country": "Ukraine",
+    "_note": "Пагранпераход \"Виступовичі\""
+  },
+  "4dbe7c7afa8cee7273802456": {
+    "city": "Kuchurhan",
+    "country": "Ukraine",
+    "_note": "Kuchurgan Border Crossing (Прикордонний пост «Кучурган»)"
+  },
+  "510640c7e4b05cc1cd64ae78": {
+    "city": "Pervomaysk",
+    "country": "Moldova",
+    "_note": "Таможенный пункт пропуска «Первомайск»"
+  },
+  "55749383498edadbea0c7046": {
+    "city": "Orsha",
+    "country": "Belarus",
+    "_note": "Граница Российской Федерации и Республики Беларусь Трасса М-"
+  },
+  "4c312823213c2d7f4496335d": {
+    "city": "Suzëmka",
+    "country": "Russia",
+    "_note": "Пункт пропуска Суземка / Suzemka Border Check Point"
+  },
+  "4d83822002eb548178f91af5": {
+    "city": "Sculeni",
+    "country": "Romania",
+    "_note": "Vama Sculeni (RO-MD)"
+  },
+  "50d9c68ce4b0ce6f7a7d9cf1": {
+    "city": "Varnița",
+    "country": "Moldova",
+    "_note": "Таможенный пункт пропуска «Варница» / Post vamal Varniţa (Po"
+  },
+  "4e2c0886d4c0e5c89aca969e": {
+    "city": "Novaya Guta",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Новая Гута»"
+  },
+  "4dce98247d8b975f18d1e95c": {
+    "city": "Terekhovka",
+    "country": "Belarus",
+    "_note": "Belarus-Ukraine Border"
+  },
+  "4f653ef8e4b0e30d216ead4e": {
+    "city": "Brest",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Брест»"
+  },
+  "50267ff4e4b08ea913a60821": {
+    "city": "Nizhniy Terebezhov",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Верхний Теребежов»"
+  },
+  "4db72eb70cb6c940bfa34420": {
+    "city": "Criva",
+    "country": "Moldova",
+    "_note": "Punctul Internațional de Trecere a Frontierei Criva"
+  },
+  "501d1712e4b047a4fa0697d4": {
+    "city": "Kuźnica",
+    "country": "Poland",
+    "_note": "Przejście graniczne Kuźnica-Bruzgi"
+  },
+  "4ed702bd30f8318115e5e7e3": {
+    "city": "Bruzgi",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Брузги»"
+  },
+  "515bbda7e4b0e878e34453d5": {
+    "city": "Muravyovka",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Каменный Лог»"
+  },
+  "51b898e9498eb39a97ba647c": {
+    "city": "Hrebenne",
+    "country": "Poland",
+    "_note": "Przejście Graniczne Hrebenne (PL-UA)"
+  },
+  "5031f4c5e4b047efee96c336": {
+    "city": "Domanove",
+    "country": "Ukraine",
+    "_note": "МАПП «Доманове» / Domanove Border Crossing Point (UA-BY)"
+  },
+  "4faf27cae4b0ded8669fbb52": {
+    "city": "Mokrany",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Мокраны»"
+  },
+  "4efd50c1d3e364d5f9fd8eee": {
+    "city": "Kotlovka",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Котловка»"
+  },
+  "52f7506411d2eea0309d1f0a": {
+    "city": "Lobok",
+    "country": "Russia",
+    "_note": "Граница Россия – Беларусь"
+  },
+  "4fee829ee4b0b1e83140e652": {
+    "city": "Mohyliv-Podilskyy",
+    "country": "Ukraine",
+    "_note": "Пором на кордоні"
+  },
+  "4f4c34d8e4b088c4ace3be85": {
+    "city": "Ungheni",
+    "country": "Romania",
+    "_note": "Frontiera Ungheni Prut [RO] / Ungheni [MD]"
+  },
+  "4dba775081548ee14d7b68a0": {
+    "city": "Galați",
+    "country": "Romania",
+    "_note": "Vama Galați (RO-MD)"
+  },
+  "4dba2807fa8c2e303f1e8218": {
+    "city": "Giurgiulești",
+    "country": "Moldova",
+    "_note": "Vama Giurgiulești (MD-RO)"
+  },
+  "4da2693f7ccc816e723a687b": {
+    "city": "Giurgiu",
+    "country": "Romania",
+    "_note": "Post Control Frontieră"
+  },
+  "5797c471498e157f1b9f26f4": {
+    "city": "Giurgiu",
+    "country": "Romania",
+    "_note": "Vama Giurgiu (RO-BG)"
+  },
+  "4c1bcd61eac020a1577845c2": {
+    "city": "Ruse",
+    "country": "Bulgaria",
+    "_note": "Bulgarian Border Control"
+  },
+  "4db1632c4b22ba776d80d979": {
+    "city": "Vama Veche",
+    "country": "Romania",
+    "_note": "Punct Trecere Frontieră Vama Veche [RO-BG]"
+  },
+  "4ddf287218388714bb620a03": {
+    "city": "Albița",
+    "country": "Romania",
+    "_note": "Vama Albița (RO-MD)"
+  },
+  "4daf7ae64df00ee01d3b3bf1": {
+    "city": "Leușeni",
+    "country": "Moldova",
+    "_note": "Vama Leușeni (MD-RO)"
+  },
+  "4f58ddace4b0cd6f8d39136c": {
+    "city": "Leușeni",
+    "country": "Moldova",
+    "_note": "Passport Control - Vama Leușeni"
+  },
+  "57b80725498e65cfc778f08c": {
+    "city": "Sculeni",
+    "country": "Moldova",
+    "_note": "Vama Sculeni (MD-RO)"
+  },
+  "50320015e4b07a83cc9f310b": {
+    "city": "Mokrany",
+    "country": "Belarus",
+    "_note": "Граница Беларусь—Украина"
+  },
+  "534fd810498e1ef1f686440b": {
+    "city": "Dolostsy",
+    "country": "Russia",
+    "_note": "Граница Российской Федерации и Республики Беларусь"
+  },
+  "4f097f84e4b0aa2dc771b622": {
+    "city": "Mali Zvornik",
+    "country": "Serbia",
+    "_note": "Granica Bosna I Hercegovina - Srbija"
+  },
+  "4e07348018a8382643b2a499": {
+    "city": "Korday",
+    "country": "Kazakhstan",
+    "_note": "Пункт пропуска «Кордай» / Korday Border Checkpoint"
+  },
+  "53c2b673498ed1b2b56f48cc": {
+    "city": "Sejny",
+    "country": "Poland",
+    "_note": "Lietuva Polska Grenze"
+  },
+  "4e12e7d5fa769d21e9f99512": {
+    "city": "Stânca",
+    "country": "Romania",
+    "_note": "Vama Stânca [RO-MD]"
+  },
+  "5186871a498ec7f6533c4730": {
+    "city": "Oancea",
+    "country": "Romania",
+    "_note": "Vama Oancea [RO-MD]"
+  },
+  "4e177957d1648b834828f832": {
+    "city": "Cahul",
+    "country": "Moldova",
+    "_note": "Vama Cahul [MD-RO]"
+  },
+  "53d3bef8498e2a83f39224f9": {
+    "city": "Obrežje",
+    "country": "Slovenia",
+    "_note": "HR/SLO Border - Obrežje-Bregana (Granični prijelaz Bregana)"
+  },
+  "4c7b5bb481bca0935f0f0315": {
+    "city": "Chernyshevskoye",
+    "country": "Russia",
+    "_note": "Российско-Литовская граница"
+  },
+  "50373dace4b027db4efaf2cd": {
+    "city": "Nicosia",
+    "country": "Cyprus",
+    "_note": "Ledra Street Border Crossing (Πέρασμα της Οδού Λήδρας)"
+  },
+  "55a0cf40498ee639b236aba5": {
+    "city": "Nicosia",
+    "country": "Cyprus",
+    "_note": "Lokmacı / Ledra Gate Border Crossing (Lokmacı Sınır Kapısı)"
+  },
+  "4e4bcb458877da639668df39": {
+    "city": "Benyakoni",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Бенякони»"
+  },
+  "5051de87e4b0c9dff0e5fe64": {
+    "city": "Šalčininkai",
+    "country": "Lithuania",
+    "_note": "Salcininkai. Пункт пропуска"
+  },
+  "4e7a4ae9d16401fc62775f8a": {
+    "city": "Urbany",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Урбаны»"
+  },
+  "518523c2498e725289f0a15f": {
+    "city": "Daugavpils",
+    "country": "Latvia",
+    "_note": "Latvian - Belarus Border (Silene - Urbany)"
+  },
+  "4dbb6d6143a1d8504b708660": {
+    "city": "Bến Cầu",
+    "country": "Vietnam",
+    "_note": "Cửa Khẩu Quốc Tế Mộc Bài (Moc Bai Border Gate)"
+  },
+  "4e06e7706284d9ee92d25819": {
+    "city": "Sejny",
+    "country": "Poland",
+    "_note": "Lithuania–Poland Border"
+  },
+  "669be39b1cc268353a35468b": {
+    "city": "Kamianiuki",
+    "country": "Belarus",
+    "_note": "Кпп \"Белы Лясок\""
+  },
+  "4e15f8e11f6e29fb7d55211e": {
+    "city": "Struga",
+    "country": "North Macedonia",
+    "_note": "Kafasan Border Crossing (Граничен премин Ќафасан / Border cr"
+  },
+  "4ff91c59e4b08a4c7365e1f6": {
+    "city": "Hani i Hotit",
+    "country": "Montenegro",
+    "_note": "Božaj (MNE) - Hani i Hotit (AL) Border crossing (Гранични пр"
+  },
+  "4e43e24be4cd394059e26f2e": {
+    "city": "Metković",
+    "country": "Croatia",
+    "_note": "Border Crossing Doljani"
+  },
+  "5c7a4a75f00a70002c7d7997": {
+    "city": "Metković",
+    "country": "Croatia",
+    "_note": "Border Crossing Metković"
+  },
+  "4ff45ae164a40b36ead59d5a": {
+    "city": "Pechory",
+    "country": "Russia",
+    "_note": "Kunichina Gora border crossing point (МАПП Куничина Гора)"
+  },
+  "4c445546f97fbe9ab0faba30": {
+    "city": "Menen",
+    "country": "Belgium",
+    "_note": "Border crossing E17 / A22 - Rekkem [BE] / Neuville-en-Ferrai"
+  },
+  "511ec538e4b0841edb41976c": {
+    "city": "Feldkirch",
+    "country": "Austria",
+    "_note": "Grenzübergang Feldkirch (AT) / Schaanwald (FL)"
+  },
+  "4dc5352ed4c0ad9c0f811ffd": {
+    "city": "Weil am Rhein",
+    "country": "Germany",
+    "_note": "Grenzübergang Weil-Friedlingen [DE] / Basel [CH]"
+  },
+  "4debc1d8d4c00071b8451571": {
+    "city": "Basel",
+    "country": "Switzerland",
+    "_note": "BVB St-Louis Grenze"
+  },
+  "4ef31d2d9adfcbc0ad754d0c": {
+    "city": "Zgornje Škofije",
+    "country": "Slovenia",
+    "_note": "I/SLO Border - Skofje (Mejna SLO/I - Točka Škofije)"
+  },
+  "4cf9a79c34c1a093808f3b0e": {
+    "city": "Ivangorod",
+    "country": "Russia",
+    "_note": "МАПП Ивангород / Ivangorod Border Crossing Point (МАПП Иванг"
+  },
+  "4d0c13de3bbaa143febd33da": {
+    "city": "Narva",
+    "country": "Estonia",
+    "_note": "Narva border crossing point (Narva piiripunkt)"
+  },
+  "4e4ec4e945ddff0031b670e4": {
+    "city": "Grigorovshchina",
+    "country": "Belarus",
+    "_note": "Пункт пропуска «Григоровщина»"
+  },
+  "4e4ec250aeb70f128496c96b": {
+    "city": "Paternieki",
+    "country": "Latvia",
+    "_note": "Patarnieki Border Crossing Point (Pāternieku robežkontroles "
+  },
+  "4c56f10530d82d7f5ea3d862": {
+    "city": "Brunava",
+    "country": "Latvia",
+    "_note": "Lithuania - Latvia border crossing"
+  },
+  "69faa0b54b06e57a068e0254": {
+    "city": "Kudukli",
+    "country": "Uzbekistan",
+    "_note": "Kudukli Station UZ/TJ Border Crossing"
+  },
+  "559a0657498e20cc6c4fc19f": {
+    "city": "Medininkai",
+    "country": "Lithuania",
+    "_note": "BLR E28/M7 Ошмяны"
+  },
+  "51c5ac79498e5b5213fbb1c2": {
+    "city": "Brest",
+    "country": "Belarus",
+    "_note": "Река Западный Буг"
+  },
+  "5413f744498eb30c7a043021": {
+    "city": "Lavoriškės",
+    "country": "Lithuania",
+    "_note": "Pasienio kontrolės punktas | Lavoriškių"
+  },
+  "66eb0e93719cd630afea83af": {
+    "city": "St. Margrethen",
+    "country": "Switzerland",
+    "_note": "ÖBB Rheinbrücke Lustenau"
+  },
+  "504ae321e4b03e711eef1374": {
+    "city": "Muggia",
+    "country": "Italy",
+    "_note": "Confine I/SI - Valico Rabuiese (Confine I/SLO - Valico Rabui"
+  },
+  "51f26c30498eb025f6c47e2b": {
+    "city": "Tegelen",
+    "country": "Netherlands",
+    "_note": "Tegelen [NL] / Kaldenkirchen [DE]"
+  },
+  "4e066b15483b98d4170a6129": {
+    "city": "Bocholtz",
+    "country": "Netherlands",
+    "_note": "Border Vetschau [DE] / Bocholtz [NL] (Grens Vetschau [DE] / "
+  },
+  "4c0f74fcd64c0f47c5bc295d": {
+    "city": "Eijsden",
+    "country": "Netherlands",
+    "_note": "E25 / A2 - Visé [BE] / Eijsden [NL]"
+  },
+  "5036880fe4b0368b21ffe998": {
+    "city": "Udobnoye",
+    "country": "Ukraine",
+    "_note": "МАПП «Удобне» (UA-MD)"
+  },
+  "4dee9fe1c65bebb0611d9ccc": {
+    "city": "Albița",
+    "country": "Romania",
+    "_note": "Podul peste Prut"
+  },
+  "50204b65e4b0112a681172a0": {
+    "city": "Ungheni",
+    "country": "Romania",
+    "_note": "Eiffel Bridge (Podul Eiffel)"
+  },
+  "64cc9daefd9d300c3bb392af": {
+    "city": "Sculeni",
+    "country": "Romania",
+    "_note": "Podul de peste Prut"
+  },
+  "4d7d1be2e04d6ea8cc5007d6": {
+    "city": "Ruse",
+    "country": "Bulgaria",
+    "_note": "Giurgiu-Rousse Friendship Bridge (Дунав мост)"
+  },
+  "5019d226e4b09a651c246677": {
+    "city": "Brest",
+    "country": "Belarus",
+    "_note": "Мост через Буг"
+  },
+  "5639ceadcd1054d7f6f5539d": {
+    "city": "Medininkai",
+    "country": "Lithuania",
+    "_note": "Нейтральная территория"
+  },
+  "57cf1906498ebfce353fd8f2": {
+    "city": "Novaya Guta",
+    "country": "Belarus",
+    "_note": "Нейтральная зона РБ/Украина"
   }
 }

@@ -750,8 +750,8 @@
   "Leușeni": "Leușeni"  # ok — canonical
   "Leuşeni": "Leușeni"  # ok — ş variant
   "Leuseni": "Leușeni"  # ok — ASCII form
-  "Albița - Leușeni": "Leușeni"  # ok — Romanian side of border crossing
-  "Albița": "Leușeni"  # ok — border crossing village
+  "Albița - Leușeni": "Albița"  # Romanian side of the crossing (user decision 2026-11-16; was Leușeni, a Moldovan village)
+  "Albița": "Albița"  # Romanian border village (was merged into Leușeni until 2026-11-16)
   "Tирасполь": "Tiraspol"  # ok — Cyrillic
   "Бендеры": "Bender"  # ok — Cyrillic
   "Первомайск": "Pervomaysk"  # ok — Cyrillic → Latin

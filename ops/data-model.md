@@ -181,6 +181,17 @@ or country from the *wrong* side (e.g. "Belarus-Poland Border Crossing" comes ba
   `transform.build_blank_city_resolver`). Pin them to the nearest real town with a
   per-ts `city_fixes.json` entry (these venues span a whole road, so a venue_id
   rule would be wrong).
+- "Physical side" can come from the timestamps when Foursquare's pin is wrong:
+  `Славечна (Белорусская граница)` sits 100 m from the Ukrainian Vystupovychi post
+  with country Україна, but it is always 30 min after Vystupovychi towards Minsk
+  and 30 min before it towards Chișinău, so it is pinned Slavechna, Belarus.
+- One exception to "no per-ts entries": `Українсько-Білоруський Кордонний Пункт`
+  (4ecfff65…) is checked in BETWEEN the two posts, so it takes the side you are
+  leaving (user decision 2026-11-16) via per-ts `country_fixes` + `city_fixes`,
+  and has no venue pin (a pin would beat both).
+- Since 2026-11-16 every border post in the data has a pin (border audit). The
+  Romanian side of Albița–Leușeni is Albița (it used to merge into the Moldovan
+  village Leușeni).
 
 ### Blank-city recovery loop
 ```bash
