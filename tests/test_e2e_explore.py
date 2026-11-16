@@ -60,8 +60,13 @@ def test_stats_payload_is_only_what_the_page_reads(page):
 def test_regions_map_draws_outlines(page):
     goto(page, "/stats.html#places")
     page.eval_on_selector("#exRegMap", "e => e.scrollIntoView()")
-    page.wait_for_selector("#exRegMap .leaflet-overlay-pane canvas, #exRegMap .leaflet-overlay-pane path",
-                           timeout=20000)
+    # Any outline with a real size: wait_for_selector checks only the FIRST match, and
+    # a tiny region (one council, a city-state) renders as a zero-size path at this zoom.
+    page.wait_for_function(
+        """() => [...document.querySelectorAll('#exRegMap .leaflet-overlay-pane canvas, '
+                                              + '#exRegMap .leaflet-overlay-pane path')]
+                 .some(e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; })""",
+        timeout=20000)
     assert page.eval_on_selector("#exRegMap", "e => e.querySelectorAll('.ex-map-wait').length") == 0
 
 
@@ -76,7 +81,10 @@ def test_anchor_lands_below_the_sticky_tabs(page):
 def test_regions_map_file_is_light():
     import urllib.request
     try:
-        with urllib.request.urlopen(BASE + "/regions-map.json", timeout=30) as r:
+        # Cloudflare answers the bare Python-urllib agent from CI runners with 403.
+        req = urllib.request.Request(BASE + "/regions-map.json",
+                                     headers={"User-Agent": "foursquare-dashboard-e2e-tests"})
+        with urllib.request.urlopen(req, timeout=30) as r:
             body = r.read()
     except Exception as e:
         pytest.skip(f"live site unreachable: {e}")
