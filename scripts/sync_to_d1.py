@@ -532,6 +532,17 @@ def city_country_updates(rows: list, d1_vals: dict, sql_val) -> list[str]:
     return out
 
 
+def _sibling_backfill_venue_ids(csv_path: str | None) -> set:
+    """venue_ids of the backfill.csv next to --csv (empty when there is none)."""
+    if not csv_path:
+        return set()
+    p = Path(csv_path).with_name("backfill.csv")
+    if not p.exists():
+        return set()
+    with open(p, encoding="utf-8") as f:
+        return {(r.get("venue_id") or "").strip() for r in csv.DictReader(f)} - {""}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Incremental D1 sync for CI")
     ap.add_argument("--csv",        default=None)
@@ -1148,7 +1159,14 @@ def main() -> None:
         # Orphan detection needs the complete D1 id set: on a non-census run
         # existing_venue_ids holds only the probed subset, so this difference
         # would read as ~20k orphans and delete the table. Census runs only.
-        orphan_ids = sorted(existing_venue_ids - meta_ids) if census else []
+        # A run without --backfill (fix-city-country, tips, ratings, lists, …)
+        # does not see the reconstructed rows, so their 77 backfill-only venues
+        # read as orphans: the first such run of a UTC day (the census) deleted
+        # them on 2026-11-16. Protect the venues of the sibling backfill.csv.
+        protected = set() if args.backfill else _sibling_backfill_venue_ids(args.csv)
+        orphan_ids = sorted(existing_venue_ids - meta_ids - protected) if census else []
+        if census:
+            venue_count_after += len((existing_venue_ids & protected) - meta_ids)
         if orphan_ids:
             print(f"D1 sync: removing {len(orphan_ids)} orphaned venue(s) "
                   f"absent from check-in data", flush=True)

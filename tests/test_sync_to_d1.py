@@ -259,6 +259,21 @@ def test_orphan_venue_pruned_with_audit_row(env):
     assert audit["field"] == "venue" and audit["action"] == "deleted"
 
 
+def test_backfill_only_venue_survives_sync_without_backfill(env):
+    """A run without --backfill (fix-city-country, tips, …) must not prune the
+    venues only reconstructed rows use: the sibling backfill.csv protects them."""
+    csv_path = _sync_base(env)
+    env.fake.conn.execute("INSERT INTO venues (id, name) VALUES ('rfVenue', 'Old Post')")
+    env.fake.conn.execute("INSERT INTO venues (id, name) VALUES ('orphanY', 'Ghost')")
+    env.fake.conn.execute("DELETE FROM sync_state WHERE key='daily_counts'")
+    env.fake.conn.commit()
+    (csv_path.parent / "backfill.csv").write_text("id,date,venue_id\nrf1,100,rfVenue\n", encoding="utf-8")
+
+    _run(env, csv_path)
+    ids = env.fake.ids("venues")
+    assert "rfVenue" in ids and "orphanY" not in ids
+
+
 def test_missing_venue_reinserted(env):
     """A venue whose check-ins are in the CSV but whose venues row is missing
     from D1 (e.g. surfaced via a backdated sync) is inserted on reconcile."""

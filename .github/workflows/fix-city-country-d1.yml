@@ -79,8 +79,13 @@ jobs:
             exit 1
           fi
 
+          # Reconstructed rows too: their venues (and their city/country) are
+          # part of the comparison, as in update-dashboard.yml.
+          BACKFILL_ARG=""
+          if [ -f private-data/backfill.csv ]; then BACKFILL_ARG="--backfill private-data/backfill.csv"; fi
           python scripts/sync_to_d1.py \
             --csv         private-data/checkins.csv \
+            $BACKFILL_ARG \
             --tips        private-data/tips.json \
             --trips       trips_meta.json \
             --city-review city_review.csv \
