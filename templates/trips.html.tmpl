@@ -441,7 +441,7 @@ function tripCard(t, big){
     ${t.cover && PIX_DIR ? `<img class="tc-img" loading="lazy" src="${esc(PIX_DIR+'/t/'+t.cover)}" alt="${esc(bareName(t.name))}">` : `<div class="tc-noimg${a}"></div>`}
     <span class="tc-mode${a}">${modeIcon(t.name)}</span><span class="tc-num">#${t.id}</span>
     <div class="tc-body">
-      <div class="tc-dates">${shortD(t.start_date)}${t.end_date!==t.start_date?' – '+shortD(t.end_date):''}${t.start_date.slice(0,4)!==t.end_date.slice(0,4)?' '+t.end_date.slice(0,4):''} · ${t.duration} d</div>
+      <div class="tc-dates">${shortD(t.start_date)}${t.end_date!==t.start_date?' – '+shortD(t.end_date):''}${t.start_date.slice(0,4)!==t.end_date.slice(0,4)?' '+t.end_date.slice(0,4):''} · ${t.duration===1?'day trip':t.duration+' d'}</div>
       <div class="tc-name">${esc(bareName(t.name))}${bike}</div>
       <div class="tc-countries">${t.countries.slice(0,6).map(tFlag).join('')}<span class="c">${esc((t.cities||[]).slice(0,3).join(' · '))}</span></div>
       <div class="tc-stats">

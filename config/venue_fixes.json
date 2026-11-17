@@ -709,5 +709,76 @@
     "city": "Novaya Guta",
     "country": "Belarus",
     "_note": "Нейтральная зона РБ/Украина"
+  },
+  "_comment_point_venues_2026_11_17": "Point venues whose check-ins carried two different cities (old Foursquare city, blank-city inference, a per-ts fix). One city per venue, the nearest by coordinates (user decision 2026-11-17). Roads, seas and rivers keep a city per check-in.",
+  "4f96b222e4b08c0fe34d9b9f": {
+    "city": "Gonoles",
+    "country": "Belarus",
+    "_note": "Минский слаломный канал (outside the Minsk outline)"
+  },
+  "5534edf3498ea18b3ce1e9ab": {
+    "city": "Atolino",
+    "country": "Belarus",
+    "_note": "Атолино"
+  },
+  "52150e4511d2c2cb959b5a1d": {
+    "city": "Zarechye",
+    "country": "Belarus",
+    "_note": "Пляж № 1"
+  },
+  "5c2c7a29a0215b002cf74e83": {
+    "city": "Ashmyany",
+    "country": "Belarus",
+    "_note": "Белоруснефть (equidistant; majority of check-ins)"
+  },
+  "516a8655e4b05b24d0a39991": {
+    "city": "Muravnichi",
+    "country": "Belarus",
+    "_note": "АЗС Белнефтехим"
+  },
+  "535b7466498e282ab6eaabde": {
+    "city": "Benitsa",
+    "country": "Belarus",
+    "_note": "Беница"
+  },
+  "518d27d8498e9eba22d51405": {
+    "city": "Chiki",
+    "country": "Belarus",
+    "_note": "Родник Юцковский"
+  },
+  "53b56496498efbd69a84751e": {
+    "city": "Chiki",
+    "country": "Belarus",
+    "_note": "Гора Дзержинская"
+  },
+  "4faa470de4b0bddef5ba99ca": {
+    "city": "Navapolle",
+    "country": "Belarus",
+    "_note": "Аэродром Войровка"
+  },
+  "4fae6132e4b09cca6185a86d": {
+    "city": "Ptich'",
+    "country": "Belarus",
+    "_note": "Ходаково"
+  },
+  "6339efdd5eabba452fd41139": {
+    "city": "Kałuszyn",
+    "country": "Poland",
+    "_note": "Mop Jędrzejów (A2 rest area, 49 km from Warsaw)"
+  },
+  "612bae75c8cfe51762ca698c": {
+    "city": "Trebujeni",
+    "country": "Moldova",
+    "_note": "Orhei National Park"
+  },
+  "4f0fb868e4b0fd294cac7594": {
+    "city": "Odesa Region",
+    "country": "Ukraine",
+    "_note": "Два Столба"
+  },
+  "4f5b225ee4b0a61f4ad0d337": {
+    "city": "Killwangen",
+    "country": "Switzerland",
+    "_note": "Killwangen-Würenlos Brücke"
   }
 }

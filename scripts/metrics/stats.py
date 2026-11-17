@@ -13,9 +13,11 @@ from typing import Any
 from transform import build_categorize_fn, group_category, straddle_sides
 
 from .companions import collect_companions
+from .pulse import pulse
 from .rank_moves import rank_moves
 from .shouts import shout_analysis, shout_records
 from .trip_insights import trip_insights
+from .milestones import _f as _num, _Localiser
 from .trips import _COUNTRY_TZ, _localise, _parse_ts, _tz_at, detect_trips
 
 log = logging.getLogger(__name__)
@@ -186,11 +188,27 @@ def process(
     explorer_groups: dict[str, list[str]] = mappings.get("explorer_groups", {})
 
     # ── Core counters ─────────────────────────────────────────────────────────
+    # Every calendar bucket (year, month, hour, weekday, day heatmap, streaks,
+    # year summaries) is in the check-in's LOCAL time, like compare/year_facts:
+    # in UTC a New Year's Eve check-in landed in the old year and "12:00" was
+    # 14:00/15:00 in Chișinău or Minsk.
+    _loc_tz = _Localiser()
+    _local_by_row: dict[int, datetime] = {}
+
+    def _lt(r: dict) -> datetime:
+        """Local datetime of a row; raises like datetime.fromtimestamp on a bad date."""
+        k = id(r)
+        d = _local_by_row.get(k)
+        if d is None:
+            d = _loc_tz(datetime.fromtimestamp(int(r["date"]), tz=timezone.utc),
+                        _num(r.get("lat")), _num(r.get("lng")), (r.get("country") or "").strip())
+            _local_by_row[k] = d
+        return d
+
     dates: list[datetime] = []
     for r in rows:
-        d = _parse_ts(r)
-        if d:
-            dates.append(d)
+        if _parse_ts(r):
+            dates.append(_lt(r))
 
     countries  = Counter(r["country"] for r in rows if r.get("country", "").strip())
     cities     = Counter(r["city"]    for r in rows if r.get("city", "").strip())
@@ -344,7 +362,7 @@ def process(
         except (ValueError, KeyError, TypeError):
             has_coords = False
         ts = int(r["date"]) if r.get("date") else 0
-        yr = datetime.fromtimestamp(ts, tz=timezone.utc).year if ts else None
+        yr = _lt(r).year if ts else None
         raw_cat = r.get("category", "").strip()
         if vid:
             if vid not in _vp:
@@ -482,7 +500,7 @@ def process(
         except (ValueError, KeyError, TypeError):
             continue
         ts = int(r["date"]) if r.get("date") else 0
-        yr = datetime.fromtimestamp(ts, tz=timezone.utc).year if ts else 0
+        yr = _lt(r).year if ts else 0
         cg = categorize(group_category(r)) or ""
         if vid not in _vh:
             _vh[vid] = [lat_f, lng_f, 0, {}, cg]
@@ -532,7 +550,7 @@ def process(
     _social_yr: dict[int, list] = defaultdict(lambda: [0, 0])  # [solo, group]
     for r in rows:
         try:
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            yr = _lt(r).year
         except (ValueError, OSError):
             continue
         _social_yr[yr][1 if _has_companion(r) else 0] += 1
@@ -584,7 +602,7 @@ def process(
         if not vid:
             continue
         try:
-            d   = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc)
+            d   = _lt(r)
             key = f"{d.year}-{d.month:02d}"
         except (ValueError, OSError):
             continue
@@ -604,7 +622,7 @@ def process(
         if not vid:
             continue
         try:
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            yr = _lt(r).year
         except (ValueError, OSError):
             continue
         _vy[vid].add(yr)
@@ -638,7 +656,7 @@ def process(
         if not vid:
             continue
         try:
-            _d = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc)
+            _d = _lt(r)
             _reg_months[vid].add((_d.year, _d.month))
         except (ValueError, OSError):
             pass
@@ -692,7 +710,7 @@ def process(
             lat_f, lng_f = float(r["lat"]), float(r["lng"])
             if lat_f == 0.0 and lng_f == 0.0:
                 continue
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            yr = _lt(r).year
             _coord_rows.append((yr, lat_f, lng_f))
         except (ValueError, KeyError, TypeError, OSError):
             pass
@@ -740,7 +758,7 @@ def process(
         ci = r.get("city", "").strip()
         if (co and co not in _first_country) or (ci and ci not in _first_city):
             try:
-                _seen_yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+                _seen_yr = _lt(r).year
             except (ValueError, OSError):
                 continue
             if co and co not in _first_country:
@@ -763,7 +781,7 @@ def process(
         if not co:
             continue
         try:
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            yr = _lt(r).year
             _cpy[yr].add(co)
         except (ValueError, OSError):
             pass
@@ -779,7 +797,7 @@ def process(
         if not grp:
             continue
         try:
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            yr = _lt(r).year
             _cg_year[yr][grp] += 1
         except (ValueError, OSError):
             pass
@@ -1134,7 +1152,7 @@ def process(
         if not vid:
             continue
         try:
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            yr = _lt(r).year
         except (ValueError, OSError):
             continue
         _venue_years[vid].add(yr)
@@ -1166,7 +1184,7 @@ def process(
                 continue
             _hla, _hlo = home_at_ts(t)
             d = _haversine(_hla, _hlo, la, lo)
-            key = datetime.fromtimestamp(t, tz=timezone.utc).strftime("%Y-%m-%d")
+            key = _lt(r).strftime("%Y-%m-%d")
             _daily_dist[key].append(d)
         except (ValueError, KeyError, TypeError, OSError):
             pass
@@ -1292,7 +1310,7 @@ def process(
         if not grp:
             continue
         try:
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            yr = _lt(r).year
             _cat_abs[grp][yr] += 1
         except (ValueError, OSError):
             pass
@@ -1310,7 +1328,7 @@ def process(
         if not app:
             continue
         try:
-            yr = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc).year
+            yr = _lt(r).year
             _app_by_year[yr][app] += 1
         except (ValueError, OSError):
             pass
@@ -1403,7 +1421,7 @@ def process(
         if not t:
             continue
         try:
-            yr = datetime.fromtimestamp(t, tz=timezone.utc).year
+            yr = _lt(r).year
         except OSError:
             continue
         _yr_rows[yr].append(r)
@@ -1421,36 +1439,48 @@ def process(
         "I have never filled a year quite this full",
         "The year I barely paused for breath",
         "My busiest year on record — and I felt every mile of it",
+        "A year packed to the seams, and I would not trade a day of it",
+        "So much happened that the months blurred at the edges",
     ]
     _TRAVEL_INTROS = [
         "A year of long horizons, and I followed most of them",
         "I spent this one chasing the far edge of the map",
         "The year the departures outnumbered the quiet weeks",
         "I kept turning the map over, month after month",
+        "I was always about to leave, or just back from somewhere",
+        "The bags never quite got unpacked this year",
     ]
     _ROAM_INTROS = [
         "I scattered myself across the map this year, flag after flag",
         "A wandering year — I woke up in a different country more often than not",
         "The year my passport did most of the talking",
         "I drifted country to country and rarely looked back",
+        "Borders came and went like weekdays",
+        "A year spent mostly between one country and the next",
     ]
     _HOME_INTROS = [
         "I stayed closer to home this year, and I noticed more for it",
         "The year I let familiar streets deepen instead of chasing new ones",
         "A grounded year — I planted myself and paid attention",
         "Less distance this time, but more of what was already around me",
+        "Home did most of the work this year, and it was enough",
+        "The near and the known kept me busy",
     ]
     _QUIET_INTROS = [
         "A quieter year, and I didn't mind the stillness",
         "I moved less this year and lingered more",
         "The year of second visits and slow streets",
         "A softer chapter — fewer stops, longer pauses between them",
+        "A slower year, one I mostly spent listening",
+        "Fewer pins on the map, and each one meant a little more",
     ]
     _DEFAULT_INTROS = [
         "A steady year, and I walked it at my own pace",
         "The year found its rhythm and I kept to it",
         "A balance of familiar ground and a few new turnings",
         "I moved through this year without hurry",
+        "An even year, neither restless nor still",
+        "Some roads, some routine, and a good share of both",
     ]
     _ANCHOR_PHRASES = [
         "always circling back to <strong>{city}</strong>",
@@ -1569,9 +1599,21 @@ def process(
         "First stop <strong>{fv}</strong>{fc} in {fm}; the last was <strong>{lv}</strong>{lc}",
     ]
 
+    # Each pool is dealt in turn, oldest year first: the n-th year that draws
+    # from a pool gets its n-th phrase, so no two years repeat one until the
+    # pool runs out. `(yr + salt) % len` gave 2022 and 2026 the same opener.
+    # Years are summarised oldest-first, so a new year never rewrites an old one.
+    _pool_turn: dict[tuple[int, int], int] = {}
+    _pool_seen: dict[tuple[int, int], dict[int, int]] = {}
+
     def _pick(pool: list[str], yr: int, salt: int = 0) -> str:
         """Deterministic pick — same year reads the same on every build."""
-        return pool[(yr + salt) % len(pool)]
+        key = (id(pool), salt)
+        seen = _pool_seen.setdefault(key, {})
+        if yr not in seen:
+            seen[yr] = _pool_turn.get(key, 0)
+            _pool_turn[key] = seen[yr] + 1
+        return pool[(seen[yr] + salt) % len(pool)]
 
     def _cap_html(s: str) -> str:
         """Capitalize the first plain letter, skipping any HTML opener."""
@@ -1778,7 +1820,7 @@ def process(
         comp_y: Counter = Counter()
         for r in rows_y:
             try:
-                d = datetime.fromtimestamp(int(r["date"]), tz=timezone.utc)
+                d = _lt(r)
             except (ValueError, OSError):
                 continue
             mon_y[d.month] += 1
@@ -1823,8 +1865,7 @@ def process(
 
         def _stop(r: dict) -> tuple[str, str, str]:
             try:
-                mon = _months_full[datetime.fromtimestamp(
-                    int(r["date"]), tz=timezone.utc).month - 1]
+                mon = _months_full[_lt(r).month - 1]
             except (ValueError, OSError):
                 mon = ""
             return (r.get("venue", "").strip(), r.get("city", "").strip(), mon)
@@ -1936,6 +1977,7 @@ def process(
         "explorer_cats":      explorer_cats,
         "explorer_groups":    explorer_groups,
         "explorer":           explorer,
+        "pulse":              pulse(rows, _lt),
         "rank_moves":         rank_moves(
             rows,
             {"venues": [v[3] for v in venues_list if v[3]],

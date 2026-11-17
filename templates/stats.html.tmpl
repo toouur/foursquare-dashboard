@@ -102,6 +102,16 @@ a{color:inherit;}
 
 /* ── HEATMAP ── */
 .heatmap-outer{overflow-x:auto;padding-bottom:8px;}
+/* wide screens: two years per row, cells stretch to the card instead of
+   leaving its right half empty */
+@media(min-width:1100px){
+  .heatmap-outer{display:grid;grid-template-columns:1fr 1fr;column-gap:28px;overflow:visible;}
+  .heatmap-outer .heatmap-grid{flex:1;min-width:0;}
+  .heatmap-outer .heatmap-week{flex:1;min-width:0;}
+  .heatmap-outer .heatmap-cell{width:auto;height:auto;aspect-ratio:1;}
+}
+/* Overview: the year chart + table is tall, so hour and weekday stack beside it */
+@media(min-width:901px){.card.tall2{grid-row:span 2;}}
 .heatmap-outer::-webkit-scrollbar{height:3px;}
 .heatmap-outer::-webkit-scrollbar-thumb{background:var(--border);}
 .heatmap-year{display:flex;gap:14px;align-items:flex-start;margin-bottom:10px;}
@@ -269,6 +279,8 @@ a{color:inherit;}
 .ins:nth-child(4n+2) b{background:linear-gradient(135deg,#4cb8ff,#9b7bff);-webkit-background-clip:text;background-clip:text;}
 .ins:nth-child(4n+3) b{background:linear-gradient(135deg,#2fd6b5,#4cb8ff);-webkit-background-clip:text;background-clip:text;}
 .ins small{font-size:.74rem;color:var(--text2,#c3c7d6);}
+/* a name, not a number (Most loyal): smaller, up to two lines instead of an ellipsis */
+.ins b.long{font-size:1.2rem;line-height:1.2;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .card{border-radius:20px;}
 #statGrid[data-active="overview"] .card:not([data-tab~="overview"]),
 #statGrid[data-active="time"] .card:not([data-tab~="time"]),
@@ -313,7 +325,7 @@ a{color:inherit;}
 <script>document.getElementById('statGrid').dataset.active=(function(){const h=({weather:'movement',heights:'movement'})[(location.hash||'').slice(1)]||(location.hash||'').slice(1);return ['overview','time','places','movement','people','words','data'].includes(h)?h:'overview';})();</script>
 
   <!-- 1. Check-ins by Year -->
-  <div data-tab="overview time" class="card">
+  <div data-tab="overview time" class="card tall2">
     <div class="card-title">Check-ins by Year</div>
     <canvas id="yearChart" height="210"></canvas>
     <div id="yoyTable" style="margin-top:14px;overflow-x:auto;"></div>
@@ -2266,7 +2278,7 @@ document.addEventListener('keydown',function(e){if((e.metaKey||e.ctrlKey)&&e.key
     ['Most loyal',loyal?loyal[0]:'—',loyal?(loyal[2]||[]).length+' different years · '+(loyal[1]||''):''],
   ];
   const esc2=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  document.getElementById('insGrid').innerHTML=tiles.map(([a,b,c])=>'<div class="ins"><span>'+a+'</span><b title="'+esc2(b)+'">'+esc2(b)+'</b><small>'+esc2(c)+'</small></div>').join('');
+  document.getElementById('insGrid').innerHTML=tiles.map(([a,b,c])=>'<div class="ins"><span>'+a+'</span><b'+(String(b).length>12?' class="long"':'')+' title="'+esc2(b)+'">'+esc2(b)+'</b><small>'+esc2(c)+'</small></div>').join('');
   document.getElementById('phEyebrow').textContent='Statistics · '+(S.date_min||'').slice(0,4)+' – '+(S.date_max||'').slice(0,4);
   document.getElementById('phTitle').innerHTML=n(S.total)+' check-ins, <em>the patterns</em>';
   const grid=document.getElementById('statGrid'), tabs=[...document.querySelectorAll('#stTabs button')];

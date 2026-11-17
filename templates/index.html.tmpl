@@ -41,7 +41,7 @@ body.light a{color:var(--teal);}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;}
 
 /* ── HEADER ── */
-header{padding:52px 56px 36px;background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:nowrap;gap:28px;position:relative;}
+header{padding:52px 84px 36px 56px;/* right: clear of the fixed side-nav rail */background:linear-gradient(160deg,#0f1220 0%,#0b0d13 70%);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:nowrap;gap:28px;position:relative;}
 .header-actions{position:absolute;top:20px;right:56px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
 .header-actions-row{display:flex;align-items:center;gap:8px;}
 .solution-link{font-family:'DM Mono',monospace;font-size:0.60rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--gold);text-decoration:none;border:1px solid rgba(232,184,109,0.3);padding:7px 16px;border-radius:6px;transition:all 0.2s;white-space:nowrap;}
@@ -128,6 +128,14 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 /* Top venues: on desktop the list runs to the bottom of its card, level with the companions card beside it */
 @media(min-width:901px){#s-venues{display:flex;flex-direction:column;}#s-venues #venuesList{flex:1 1 0;min-height:520px;max-height:none;}}
 .bar-list::-webkit-scrollbar{width:3px;}
+/* City lists: no scroll-in-scroll (the wheel kept getting caught in it): the
+   first 30 rows, then a button; a search shows every match. The bar sits next
+   to the name, on a square-root scale so Minsk's 20k does not flatten the rest. */
+.bar-list.clamp{max-height:none;overflow:visible;}
+.bar-list.clamp:not(.open):not(.searching)>.bar-row:nth-child(n+31){display:none;}
+.list-more{display:block;margin:12px auto 0;background:none;border:1px solid var(--border);border-radius:999px;color:var(--text2);font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding:7px 16px;cursor:pointer;}
+.list-more:hover{color:var(--gold);border-color:var(--gold);}
+@media(min-width:901px){#s-cities .bar-row{grid-template-columns:28px minmax(0,260px) 1fr 30px 58px;}}
 .bar-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 #byCountryList::-webkit-scrollbar{width:3px;}
 #byCountryList::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -214,9 +222,27 @@ a.ci-count:hover{color:var(--gold);text-decoration:none;}
 .heatmap-month-labels{display:flex;gap:3px;margin-left:48px;margin-bottom:4px;}
 .hm-month{font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted);text-transform:uppercase;}
 
+/* ── PULSE: this month vs a year ago + first times of the last 30 days ── */
+.pulse-grid{display:grid;grid-template-columns:1fr 1fr;gap:36px;}
+@media(max-width:900px){.pulse-grid{grid-template-columns:1fr;gap:22px;}}
+.pm-row{display:grid;grid-template-columns:1fr 64px 64px 112px;white-space:nowrap;gap:8px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--border);font-size:.8rem;}
+.pm-row.h{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.pm-row b,.pm-row span{text-align:right;font-family:'DM Mono',monospace;}
+.pm-row b{color:var(--gold);font-weight:500;}
+.pm-row .up{color:#5fd39a;}.pm-row .dn{color:#ff7a7a;}
+.pf-kpis{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:12px;}
+.pf-kpi b{display:block;font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--gold);line-height:1;}
+.pf-kpi span{font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.pf-line{font-size:.78rem;color:var(--text2);margin:6px 0;line-height:1.7;}
+.pf-line em{font-style:normal;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-right:6px;}
+.pf-line a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--border);}
+.pf-line a:hover{color:var(--gold);}
+
 /* ── TRAVEL TIMELINE (Gantt) ── */
 .tl-wrap{position:relative;}
-.tl-month-ruler{display:grid;grid-template-columns:40px repeat(12,1fr);margin-bottom:4px;}
+.tl-month-ruler{display:grid;grid-template-columns:repeat(12,1fr);}
+.tl-ruler{margin-bottom:0;}
+.tl-total-h{text-transform:uppercase;letter-spacing:0.08em;font-size:0.5rem;}
 .tl-month-tick{font-family:'DM Mono',monospace;font-size:0.52rem;color:var(--muted);text-align:center;letter-spacing:0;}
 .tl-row{display:grid;grid-template-columns:40px 1fr 56px;align-items:center;gap:8px;margin-bottom:5px;}
 .tl-year-label{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--text2);text-align:right;}
@@ -707,6 +733,12 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
 </div>
 
 <div class="grid">
+  <div class="card full" id="s-pulse" style="display:none;">
+    <div class="pulse-grid">
+      <div><div class="card-title" id="pulseMonthTitle">This month</div><div id="pulseMonth"></div></div>
+      <div><div class="card-title" id="pulseFirstTitle">First times</div><div id="pulseFirsts"></div></div>
+    </div>
+  </div>
   <div class="card full" id="s-hunter" style="display:none;">
     <div class="card-title">Temperature Hunter <em>&middot; the hottest day and the coldest night you checked in on &middot; <a href="stats.html#weather" style="color:inherit">all weather ↗</a></em></div>
     <div class="th-grid" id="thGrid"></div>
@@ -1017,11 +1049,16 @@ if(S.total_km){const el=document.getElementById('kpiKm');if(el){el.style.display
   function hideTip(){tip.style.display='none';}
 
   // Month ruler
-  const ruler=document.createElement('div'); ruler.className='tl-month-ruler';
+  // same 3-column grid as the rows, so the months sit over the tracks
+  const ruler=document.createElement('div'); ruler.className='tl-row tl-ruler';
   const spc=document.createElement('div'); ruler.appendChild(spc);
+  const months=document.createElement('div'); months.className='tl-month-ruler';
   'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ').forEach(m=>{
-    const el=document.createElement('div'); el.className='tl-month-tick'; el.textContent=m; ruler.appendChild(el);
+    const el=document.createElement('div'); el.className='tl-month-tick'; el.textContent=m; months.appendChild(el);
   });
+  ruler.appendChild(months);
+  const totH=document.createElement('div'); totH.className='tl-total tl-total-h'; totH.textContent='on trips';
+  totH.title='Check-ins made during the trips of that year'; ruler.appendChild(totH);
   cont.appendChild(ruler);
 
   // Group by year
@@ -1085,6 +1122,7 @@ if(S.total_km){const el=document.getElementById('kpiKm');if(el){el.style.display
 
     const total=document.createElement('div'); total.className='tl-total';
     total.textContent=byYear[yr].reduce((s,t)=>s+t.count,0).toLocaleString();
+    total.title=`${total.textContent} check-ins on ${yr} trips`;
     row.appendChild(total);
 
     cont.appendChild(row);
@@ -1186,8 +1224,8 @@ function switchCountryTab(name,el){
 // ── Bar Lists ─────────────────────────────────────────────────────
 function barList(id,data,opts){
   const linkCity=opts&&opts.linkCity, moves=opts&&opts.moves;
-  const max=data[0][1];
-  document.getElementById(id).innerHTML=data.map(([n,c,country],i)=>{
+  const max=data[0][1], el=document.getElementById(id);
+  el.innerHTML=data.map(([n,c,country],i)=>{
     const f=country?flagHtml(country):'';
     const cntEl=linkCity
       ? `<a class="cnt" href="#" data-filter-city="${esc(n)}" data-filter-count="${c}" title="Show check-ins for ${esc(n)}">${c.toLocaleString()}</a>`
@@ -1195,12 +1233,22 @@ function barList(id,data,opts){
     return `<div class="bar-row" data-name="${esc(n).toLowerCase()}${country?' '+country.toLowerCase():''}">
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(n)}">${f} ${linkCity?cityName(n):esc(n)}</span>
-      <div class="track"><div class="fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
+      <div class="track"><div class="fill" style="width:${(Math.sqrt(c/max)*100).toFixed(1)}%"></div></div>
       ${mvHtml(moves,n)}${cntEl}
     </div>`;
   }).join('');
+  if(opts&&opts.clamp&&data.length>30){
+    el.classList.add('clamp');
+    if(!(el.nextElementSibling&&el.nextElementSibling.classList.contains('list-more'))){
+      const b=document.createElement('button'); b.type='button'; b.className='list-more';
+      const label=()=>el.classList.contains('open')?'Show top 30 ↑':`Show all ${data.length.toLocaleString()} ↓`;
+      b.textContent=label();
+      b.onclick=()=>{el.classList.toggle('open'); b.textContent=label(); if(!el.classList.contains('open')) el.scrollIntoView({block:'nearest'});};
+      el.after(b);
+    }
+  }
 }
-barList('citiesList',S.cities,{linkCity:true,moves:RM.cities});
+barList('citiesList',S.cities,{linkCity:true,moves:RM.cities,clamp:true});
 // the hidden "by places" pane (~6k nodes) is built when its tab first opens
 let _cityPlacesBuilt=false;
 // event delegation: city count clicks
@@ -1218,12 +1266,13 @@ document.getElementById('paneCityCheckins').addEventListener('click',function(e)
     return `<div class="bar-row" data-name="${n.toLowerCase().replace(/"/g,'')}${city?' '+city.toLowerCase():''}">
       <span class="rank">#${i+1}</span>
       <span class="name" title="${esc(n)}${city?' · '+esc(city):''}">  ${vname}<span class="city-tag">${esc(city||'')} </span></span>
-      <div class="track"><div class="fill" style="width:${(c/max*100).toFixed(1)}%"></div></div>
+      <div class="track"><div class="fill" style="width:${(Math.sqrt(c/max)*100).toFixed(1)}%"></div></div>
       ${mvHtml(RM.venues,vid)}<span class="cnt">${c.toLocaleString()}</span>
     </div>`;
   }).join('');
 })();
 function filterList(id,q){
+  document.getElementById(id).classList.toggle('searching',q.length>0);
   document.getElementById(id).querySelectorAll('.bar-row').forEach(r=>
     r.classList.toggle('hidden',q.length>0&&!r.dataset.name.includes(q.toLowerCase()))
   );
@@ -2322,9 +2371,9 @@ function buildCityMap(){
   window.switchCityTab=function(tab,el){
     document.getElementById('paneCityCheckins').style.display=tab==='checkins'?'':'none';
     document.getElementById('paneCityPlaces').style.display=tab==='places'?'':'none';
-    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues,{moves:RM.cities_p});}
+    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues,{moves:RM.cities_p,clamp:true});}
     document.getElementById('paneCityDays').style.display=tab==='days'?'':'none';
-    if(tab==='days'&&!document.getElementById('citiesDaysList').innerHTML&&S.cities_by_days)barList('citiesDaysList',S.cities_by_days);
+    if(tab==='days'&&!document.getElementById('citiesDaysList').innerHTML&&S.cities_by_days)barList('citiesDaysList',S.cities_by_days,{clamp:true});
     document.getElementById('paneCityCountry').style.display=tab==='country'?'':'none';
     document.getElementById('paneCityWorld').style.display=tab==='world'?'':'none';
     document.querySelectorAll('#tabCityCheckins,#tabCityPlaces,#tabCityDays,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));
@@ -2332,6 +2381,29 @@ function buildCityMap(){
     if(tab==='country' && !document.getElementById('byCountryList').innerHTML) buildByCountry(_byCountrySort);
     if(tab==='world' && !document.getElementById('worldCitiesList').innerHTML) buildWorldCities('ALL');
   };
+})();
+
+// ── Pulse: this month so far vs the same days last year; first times in 30 days ──
+(function(){
+  const P=S.pulse; if(!P||!P.month) return;
+  document.getElementById('s-pulse').style.display='';
+  const M=P.month, a=M.prev, b=M.this;
+  document.getElementById('pulseMonthTitle').innerHTML=esc(M.label)+' <em>&middot; '+b.year+' vs the same days of '+a.year+'</em>';
+  const rows=[['Check-ins','checkins'],['Places','venues'],['New places','new_venues'],['Cities','cities'],['Countries','countries']];
+  const d=(x,y)=>{if(!x&&!y)return '<span></span>'; const v=y-x, p=x?Math.round(100*v/x):null;
+    return '<span class="'+(v>0?'up':v<0?'dn':'')+'">'+(v>0?'+':'')+v.toLocaleString()+(p!=null&&v?' <small>('+(p>0?'+':'')+p+'%)</small>':'')+'</span>';};
+  document.getElementById('pulseMonth').innerHTML='<div class="pm-row h"><span style="text-align:left"></span><span>'+b.year+'</span><span>'+a.year+'</span><span>Δ</span></div>'+
+    rows.map(([l,k])=>'<div class="pm-row"><span style="text-align:left">'+l+'</span><b>'+b[k].toLocaleString()+'</b><span>'+a[k].toLocaleString()+'</span>'+d(a[k],b[k])+'</div>').join('');
+  const F=P.firsts;
+  document.getElementById('pulseFirstTitle').innerHTML='First times <em>&middot; last '+F.window+' days</em>';
+  const kpi=(n,l)=>'<div class="pf-kpi"><b>'+n.toLocaleString()+'</b><span>'+l+'</span></div>';
+  let h='<div class="pf-kpis">'+kpi(F.venues,'new places')+kpi(F.cities.length,'new cities')+kpi(F.countries.length,'new countries')+kpi(F.categories.length,'new categories')+'</div>';
+  if(F.cities.length) h+='<div class="pf-line"><em>Cities</em>'+F.cities.map(([c,co])=>flagHtml(co)+' '+esc(c)).join(', ')+'</div>';
+  if(F.countries.length) h+='<div class="pf-line"><em>Countries</em>'+F.countries.map(c=>flagHtml(c)+' '+esc(c)).join(', ')+'</div>';
+  if(F.categories.length) h+='<div class="pf-line"><em>Categories</em>'+F.categories.map(esc).join(', ')+'</div>';
+  if(F.venue_sample.length) h+='<div class="pf-line"><em>Latest new</em>'+F.venue_sample.map(([n,c,v])=>(v?'<a href="/venue.html#'+esc(v)+'">'+esc(n)+'</a>':esc(n))+(c?' <span style="color:var(--muted)">· '+esc(c)+'</span>':'')).join(', ')+'</div>';
+  if(!F.venues) h+='<div class="pf-line">Nothing new in the last '+F.window+' days.</div>';
+  document.getElementById('pulseFirsts').innerHTML=h;
 })();
 
 // ── Temperature Hunter: hottest day max / coldest night min, badges, streaks ──
