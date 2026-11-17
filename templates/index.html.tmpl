@@ -1235,10 +1235,13 @@ function barList(id,data,opts){
   if(opts&&opts.top) fitTop(el,opts.top);
 }
 // size a scrolling list so exactly its first n rows show (the rest scroll)
+// (measured again once fonts and flags have loaded: the row height changes then)
 function fitTop(el,n){
-  const r=el.children; if(r.length<=n) return;
-  const h=r[n].offsetTop-r[0].offsetTop;
-  if(h>0) el.style.maxHeight=(h-4)+'px';
+  const fit=()=>{const r=el.children; if(r.length<=n) return;
+    const h=r[n].offsetTop-r[0].offsetTop; if(h>0) el.style.maxHeight=(h-4)+'px';};
+  fit();
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fit);
+  window.addEventListener('load',fit); window.addEventListener('resize',fit);
 }
 barList('citiesList',S.cities,{linkCity:true,moves:RM.cities,top:25});
 // the hidden "by places" pane (~6k nodes) is built when its tab first opens
