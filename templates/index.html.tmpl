@@ -128,13 +128,7 @@ header .sub{margin-top:8px;font-family:'DM Mono',monospace;font-size:0.72rem;let
 /* Top venues: on desktop the list runs to the bottom of its card, level with the companions card beside it */
 @media(min-width:901px){#s-venues{display:flex;flex-direction:column;}#s-venues #venuesList{flex:1 1 0;min-height:520px;max-height:none;}}
 .bar-list::-webkit-scrollbar{width:3px;}
-/* City lists: no scroll-in-scroll (the wheel kept getting caught in it): the
-   first 30 rows, then a button; a search shows every match. The bar sits next
-   to the name, on a square-root scale so Minsk's 20k does not flatten the rest. */
-.bar-list.clamp{max-height:none;overflow:visible;}
-.bar-list.clamp:not(.open):not(.searching)>.bar-row:nth-child(n+31){display:none;}
-.list-more{display:block;margin:12px auto 0;background:none;border:1px solid var(--border);border-radius:999px;color:var(--text2);font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;padding:7px 16px;cursor:pointer;}
-.list-more:hover{color:var(--gold);border-color:var(--gold);}
+/* City lists: the bar sits next to the name, on a square-root scale so Minsk's 20k does not flatten the rest. */
 @media(min-width:901px){#s-cities .bar-row{grid-template-columns:28px minmax(0,260px) 1fr 30px 58px;}}
 .bar-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 #byCountryList::-webkit-scrollbar{width:3px;}
@@ -230,7 +224,8 @@ a.ci-count:hover{color:var(--gold);text-decoration:none;}
 .pm-row b,.pm-row span{text-align:right;font-family:'DM Mono',monospace;}
 .pm-row b{color:var(--gold);font-weight:500;}
 .pm-row .up{color:#5fd39a;}.pm-row .dn{color:#ff7a7a;}
-.pf-kpis{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:12px;}
+.pf-kpis{display:grid;grid-template-columns:repeat(4,auto);justify-content:start;gap:14px 26px;margin-bottom:12px;}
+@media(max-width:600px){.pm-row{grid-template-columns:minmax(0,1fr) 40px 40px 96px;gap:6px;font-size:.74rem;}.pf-kpis{grid-template-columns:repeat(2,1fr);}.pf-kpi b{font-size:1.45rem;}}
 .pf-kpi b{display:block;font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--gold);line-height:1;}
 .pf-kpi span{font-family:'DM Mono',monospace;font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
 .pf-line{font-size:.78rem;color:var(--text2);margin:6px 0;line-height:1.7;}
@@ -1237,18 +1232,8 @@ function barList(id,data,opts){
       ${mvHtml(moves,n)}${cntEl}
     </div>`;
   }).join('');
-  if(opts&&opts.clamp&&data.length>30){
-    el.classList.add('clamp');
-    if(!(el.nextElementSibling&&el.nextElementSibling.classList.contains('list-more'))){
-      const b=document.createElement('button'); b.type='button'; b.className='list-more';
-      const label=()=>el.classList.contains('open')?'Show top 30 ↑':`Show all ${data.length.toLocaleString()} ↓`;
-      b.textContent=label();
-      b.onclick=()=>{el.classList.toggle('open'); b.textContent=label(); if(!el.classList.contains('open')) el.scrollIntoView({block:'nearest'});};
-      el.after(b);
-    }
-  }
 }
-barList('citiesList',S.cities,{linkCity:true,moves:RM.cities,clamp:true});
+barList('citiesList',S.cities,{linkCity:true,moves:RM.cities});
 // the hidden "by places" pane (~6k nodes) is built when its tab first opens
 let _cityPlacesBuilt=false;
 // event delegation: city count clicks
@@ -1272,7 +1257,6 @@ document.getElementById('paneCityCheckins').addEventListener('click',function(e)
   }).join('');
 })();
 function filterList(id,q){
-  document.getElementById(id).classList.toggle('searching',q.length>0);
   document.getElementById(id).querySelectorAll('.bar-row').forEach(r=>
     r.classList.toggle('hidden',q.length>0&&!r.dataset.name.includes(q.toLowerCase()))
   );
@@ -2371,9 +2355,9 @@ function buildCityMap(){
   window.switchCityTab=function(tab,el){
     document.getElementById('paneCityCheckins').style.display=tab==='checkins'?'':'none';
     document.getElementById('paneCityPlaces').style.display=tab==='places'?'':'none';
-    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues,{moves:RM.cities_p,clamp:true});}
+    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues,{moves:RM.cities_p});}
     document.getElementById('paneCityDays').style.display=tab==='days'?'':'none';
-    if(tab==='days'&&!document.getElementById('citiesDaysList').innerHTML&&S.cities_by_days)barList('citiesDaysList',S.cities_by_days,{clamp:true});
+    if(tab==='days'&&!document.getElementById('citiesDaysList').innerHTML&&S.cities_by_days)barList('citiesDaysList',S.cities_by_days);
     document.getElementById('paneCityCountry').style.display=tab==='country'?'':'none';
     document.getElementById('paneCityWorld').style.display=tab==='world'?'':'none';
     document.querySelectorAll('#tabCityCheckins,#tabCityPlaces,#tabCityDays,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));
