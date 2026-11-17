@@ -1232,8 +1232,15 @@ function barList(id,data,opts){
       ${mvHtml(moves,n)}${cntEl}
     </div>`;
   }).join('');
+  if(opts&&opts.top) fitTop(el,opts.top);
 }
-barList('citiesList',S.cities,{linkCity:true,moves:RM.cities});
+// size a scrolling list so exactly its first n rows show (the rest scroll)
+function fitTop(el,n){
+  const r=el.children; if(r.length<=n) return;
+  const h=r[n].offsetTop-r[0].offsetTop;
+  if(h>0) el.style.maxHeight=(h-4)+'px';
+}
+barList('citiesList',S.cities,{linkCity:true,moves:RM.cities,top:25});
 // the hidden "by places" pane (~6k nodes) is built when its tab first opens
 let _cityPlacesBuilt=false;
 // event delegation: city count clicks
@@ -2355,9 +2362,9 @@ function buildCityMap(){
   window.switchCityTab=function(tab,el){
     document.getElementById('paneCityCheckins').style.display=tab==='checkins'?'':'none';
     document.getElementById('paneCityPlaces').style.display=tab==='places'?'':'none';
-    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues,{moves:RM.cities_p});}
+    if(tab==='places'&&!_cityPlacesBuilt){_cityPlacesBuilt=true;barList('citiesPlacesList',S.cities_by_venues,{moves:RM.cities_p,top:25});}
     document.getElementById('paneCityDays').style.display=tab==='days'?'':'none';
-    if(tab==='days'&&!document.getElementById('citiesDaysList').innerHTML&&S.cities_by_days)barList('citiesDaysList',S.cities_by_days);
+    if(tab==='days'&&!document.getElementById('citiesDaysList').innerHTML&&S.cities_by_days)barList('citiesDaysList',S.cities_by_days,{top:25});
     document.getElementById('paneCityCountry').style.display=tab==='country'?'':'none';
     document.getElementById('paneCityWorld').style.display=tab==='world'?'':'none';
     document.querySelectorAll('#tabCityCheckins,#tabCityPlaces,#tabCityDays,#tabCityCountry,#tabCityWorld').forEach(t=>t.classList.remove('active'));
