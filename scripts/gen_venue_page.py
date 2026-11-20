@@ -52,6 +52,9 @@ a{{color:var(--teal);}}
 .kpi-num.sm{{font-size:1.15rem;padding:.3rem 0;white-space:nowrap;}}
 .kpi-lbl{{font-family:'DM Mono',monospace;font-size:.54rem;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);margin-top:7px;}}
 section{{margin-top:48px;}}
+.rhythm{{margin-top:6px;font-size:.88rem;color:var(--muted);line-height:1.7;}}
+.rhythm b{{color:var(--text);font-weight:500;}}
+.rh-h{{font-family:'DM Mono',monospace;font-size:.56rem;text-transform:uppercase;letter-spacing:.16em;color:var(--gold);margin-right:10px;}}
 .sec-h{{font-family:'DM Mono',monospace;font-size:.6rem;text-transform:uppercase;letter-spacing:.2em;color:var(--gold);margin-bottom:16px;}}
 .bars{{display:flex;align-items:flex-end;gap:5px;height:140px;padding:8px 0;overflow-x:auto;overflow-y:hidden;}}
 .bar-col{{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto;min-width:30px;}}
@@ -204,6 +207,37 @@ function renderTop() {{
       '<span class="rank-name">' + esc(t.name) + ' <span class="rank-sub">· ' + esc(t.city) + '</span></span>' +
       '<span class="rank-n">' + fmt(t.n) + '</span></a>').join('') + '</div></section>';
 }}
+// "Your rhythm here", from the local visit times: the usual weekday and hour when
+// one stands out, how often (median gap between visit days), the years you kept
+// coming back without a break, and how long ago the last visit was.
+const DAYS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+function rhythm(rec, ix) {{
+  if (rec.n < 3) return '';
+  const loc = rec.v.map(v => v[ix.local]).filter(Boolean).sort();
+  const dayOf = s => new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+  const bits = [];
+  const wdN = Array(7).fill(0); loc.forEach(s => wdN[dayOf(s).getDay()]++);
+  const topWd = wdN.indexOf(Math.max(...wdN));
+  if (loc.length >= 5 && wdN[topWd] / loc.length >= 0.3) bits.push('mostly on <b>' + DAYS[topWd] + '</b>');
+  const hrs = rec.hours || [], tot = hrs.reduce((a, b) => a + b, 0);
+  let bh = -1, bn = 0;
+  for (let i = 0; i < 24; i++) {{ const n = hrs[i] + (hrs[(i + 1) % 24] || 0); if (n > bn) {{ bn = n; bh = i; }} }}
+  if (tot >= 5 && bn / tot >= 0.35) bits.push('around <b>' + String(bh).padStart(2, '0') + ':00–' + String((bh + 2) % 24).padStart(2, '0') + ':00</b>');
+  const days = [...new Set(loc.map(s => s.slice(0, 10)))].map(s => dayOf(s).getTime());
+  if (days.length >= 4) {{
+    const gaps = days.slice(1).map((t, i) => Math.round((t - days[i]) / 864e5)).sort((a, b) => a - b);
+    const med = gaps[Math.floor(gaps.length / 2)];
+    if (med <= 60) bits.push('every <b>' + (med <= 1 ? 'day' : '~' + med + ' days') + '</b>');
+  }}
+  const ys = [...new Set(loc.map(s => +s.slice(0, 4)))].sort();
+  let run = 1;
+  for (let i = ys.length - 1; i > 0 && ys[i] - ys[i - 1] === 1; i--) run++;
+  const y0 = ys[ys.length - run], y1 = ys[ys.length - 1];
+  if (run >= 3) bits.push(y1 >= new Date().getFullYear() - 1 ? 'a regular since <b>' + y0 + '</b>' : 'a regular <b>' + y0 + '–' + y1 + '</b>');
+  const ago = Math.floor((Date.now() - dayOf(loc[loc.length - 1]).getTime()) / 864e5);
+  if (ago >= 0) bits.push('last here <b>' + (ago === 0 ? 'today' : ago === 1 ? 'yesterday' : ago < 60 ? ago + ' days ago' : ago < 730 ? Math.round(ago / 30.4) + ' months ago' : Math.floor(ago / 365.25) + ' years ago') + '</b>');
+  return bits.length ? '<span class="rh-h">Your rhythm</span>' + bits.join(' · ') : '';
+}}
 function render(id, rec, f) {{
   const ix = Object.fromEntries(f.map((k, i) => [k, i]));
   const place = [rec.city, rec.country].filter(Boolean).join(', ');
@@ -218,6 +252,8 @@ function render(id, rec, f) {{
     [[fmt(rec.n), rec.n === 1 ? 'visit' : 'visits'], [rec.first, 'first visit'], [rec.last, 'last visit'],
      [span, span === 1 ? 'year' : 'years span'], [fmt(rec.companions.length), 'companions'], [fmt(rec.photos), 'photos']]
       .map(([a, b]) => '<div class="kpi"><div class="kpi-num' + (/^\d{{4}}-/.test(a) ? ' sm' : '') + '">' + esc(a) + '</div><div class="kpi-lbl">' + esc(b) + '</div></div>').join('') + '</div>';
+  const rh = rhythm(rec, ix);
+  if (rh) h += '<div class="rhythm">' + rh + '</div>';
   if (rec.lat != null && rec.lng != null) h += '<section><div class="sec-h">Where</div><div id="map"></div></section>';
   if (yrs.length > 1) h += '<section><div class="sec-h">Visits per year</div>' + bars(yrs, '') + '</section>';
   if (rec.n > 2) h += '<section><div class="sec-h">Local hour of day</div>' + bars(rec.hours.map((n, i) => [String(i).padStart(2, '0'), n]), 'h') + '</section>';

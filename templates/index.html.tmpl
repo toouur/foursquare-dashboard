@@ -326,6 +326,10 @@ a.ci-count:hover{color:var(--gold);text-decoration:none;}
 .otd-chip.active{background:var(--gold);border-color:var(--gold);color:#0b0d13;font-weight:600;}
 .otd-chip .otd-ct{opacity:0.55;margin-left:6px;}
 .otd-chip.active .otd-ct{opacity:0.8;}
+.otd-ann{margin-top:10px;font-size:.8rem;color:var(--text2);line-height:1.8;}
+.otd-ann>em{font-style:normal;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-right:8px;}
+.otd-ann b{color:var(--text);font-weight:500;}
+.otd-ann span+span::before{content:' · ';color:var(--muted);}
 .recent-scroll{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;}
 .recent-scroll::-webkit-scrollbar{height:3px;}
 .recent-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -677,6 +681,7 @@ body.light .otd-chip.active,body.light .tab.active,body.light .sort-btn.active{c
   </div>
   <div class="otd-chips" id="onThisDayChips"></div>
   <div class="recent-scroll" id="onThisDayScroll"></div>
+  <div class="otd-ann" id="otdAnn" hidden></div>
 </div>
 
 <div class="recent-section" id="tipsFeedSection" style="display:none">
@@ -1392,6 +1397,19 @@ function filterList(id,q){
   window._catIcon=catIcon;
 })();
 
+// ── Coming up: anniversaries of firsts in the next 7 days (metrics/anniversaries.py) ──
+(function(){
+  const A=S.anniversaries||[]; if(!A.length) return;
+  const when=a=>a.in_days===0?'today':a.in_days===1?'tomorrow':'in '+a.in_days+' days';
+  const yrs=a=>a.years+(a.years===1?' year':' years');
+  const what=a=>a.kind==='first'?'since your very first check-in'
+    :a.kind==='country'?'since your first day in '+flagHtml(a.country,'1em')+' <b>'+esc(a.name)+'</b>'
+    :'since your first day in <b>'+cityName(a.name)+'</b>';
+  const el=document.getElementById('otdAnn');
+  el.innerHTML='<em>Coming up</em>'+A.map(a=>'<span title="'+esc(a.first)+'">'+when(a)+': '+yrs(a)+' '+what(a)+'</span>').join('');
+  el.hidden=false;
+  document.getElementById('onThisDaySection').style.display='';
+})();
 // ── On This Day section (year selector) ──────────────────────────────────────
 (function(){
   const items=(S.on_this_day||[]);

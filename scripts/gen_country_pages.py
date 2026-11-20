@@ -229,6 +229,8 @@ section{{margin-top:52px;}}
 .chips{{display:flex;flex-wrap:wrap;gap:6px;}}
 .chip{{display:inline-flex;gap:6px;align-items:baseline;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--card);font-size:.78rem;color:var(--text);text-decoration:none;}}
 .chip b{{font-family:'DM Mono',monospace;font-weight:400;font-size:.66rem;color:var(--muted);}}
+.chip.miss{{border-style:dashed;color:var(--muted);background:none;}}
+.sec-note{{color:var(--muted);font-size:.8rem;margin:-6px 0 12px;}}
 a.chip{{border-color:#5a4632;color:#f6d38b;}}
 a.chip b{{color:#c9a27a;}}
 a.chip:hover{{border-color:#ff9a6b;color:#ff9a6b;}}
@@ -527,6 +529,88 @@ def city_slugs(cities: list[tuple[str, str]]) -> dict[str, str]:
     return out
 
 
+# Groups worth going back to (a bus stop visited once is not a place to return to)
+RETURN_GROUPS = {"Food & Drink", "Nightlife", "Culture & Sights", "Nature & Outdoors", "Sport & Fitness"}
+# Explorer groups that say nothing about a city when missing
+NOT_YET_SKIP = {"Public Transit", "Airports", "Taxis & Car Sharing", "Fuel Stations", "Parking",
+                "Border Crossings", "Home & Office", "Streets & Roads", "Neighborhoods",
+                "Cities, Towns & Villages", "Accommodation", "Banks", "Post & Pickup Points",
+                "Government & Civic", "Health", "Pharmacies", "Cemeteries", "Education", "Other Shops"}
+ONCE_SHOWN = 12
+NOT_YET_SHOWN = 8
+NOT_YET_MIN = 20          # a group you have at least this many check-ins in elsewhere
+
+
+def category_config(config_dir: Path) -> dict:
+    """raw category -> category group / explorer group, from config/categories.json."""
+    try:
+        cfg = json.loads((config_dir / "categories.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"group": {}, "explorer": {}}
+    group = {c: g for g, cats in (cfg.get("category_groups") or {}).items() for c in cats}
+    explorer = {c: g for g, cats in (cfg.get("explorer_groups") or {}).items() for c in cats}
+    return {"group": group, "explorer": explorer}
+
+
+def _cat(r: dict) -> str:
+    return (r.get("category_as") or r.get("category") or "").strip()
+
+
+def _once_and_not_yet(crows: list[dict], cat_cfg: dict, global_eg: Counter) -> str:
+    """City page: places you have been to only once (worth a return), newest first,
+    and the kinds of places you go to a lot elsewhere but never here."""
+    group, explorer = cat_cfg.get("group") or {}, cat_cfg.get("explorer") or {}
+    seen: Counter = Counter()
+    last: dict[str, dict] = {}
+    for r in crows:
+        vid = (r.get("venue_id") or "").strip()
+        if not vid:
+            continue
+        seen[vid] += 1
+        last[vid] = r
+    once = [last[v] for v, n in seen.items() if n == 1 and group.get(_cat(last[v])) in RETURN_GROUPS]
+    once.sort(key=_ts, reverse=True)
+    out = ""
+    if once:
+        chips = []
+        for r in once[:ONCE_SHOWN]:
+            yr = datetime.fromtimestamp(_ts(r), tz=timezone.utc).year if _ts(r) else ""
+            chips.append(f'<a class="chip" href="/venue.html#{_esc(r["venue_id"].strip())}">'
+                         f'{_esc((r.get("venue") or "").strip())}<b>{yr}</b></a>')
+        out += (f'<section><div class="sec-h">Been once · {len(once):,} places</div>'
+                '<div class="sec-note">Cafés, bars, sights and parks you have visited a single time, newest first.</div>'
+                '<div class="chips">' + "".join(chips) + "</div></section>")
+    here = {explorer.get(_cat(r)) for r in crows}
+    missing = [g for g, n in global_eg.most_common()
+               if n >= NOT_YET_MIN and g not in here and g not in NOT_YET_SKIP][:NOT_YET_SHOWN]
+    if missing and len(crows) >= 50:
+        out += ('<section><div class="sec-h">Not yet here</div>'
+                '<div class="sec-note">Kinds of places you often go to elsewhere, never in this city.</div>'
+                '<div class="chips">' + "".join(f'<span class="chip miss">{_esc(g)}</span>' for g in missing)
+                + "</div></section>")
+    return out
+
+
+def _region_progress(country: str, reg_row: dict | None, iso: dict) -> str:
+    """Country page: first-level regions visited out of all, the missing ones dashed."""
+    if not reg_row or not reg_row.get("regions"):
+        return ""
+    regs = reg_row["regions"]                       # [name, check-ins, code, first year]
+    of = reg_row.get("of")
+    cc = (regs[0][2] or "").split("-")[0]
+    names, parents = iso.get("names") or {}, iso.get("parents") or {}
+    visited = {g[2] for g in regs}
+    missing = sorted((names[c] for c in names
+                      if c.split("-")[0] == cc and c not in visited and c not in parents), key=str.lower) if of else []
+    head = f"Regions · {len(regs)} of {of}" if of else f"Regions · {len(regs)}"
+    chips = [f'<span class="chip" title="first visit {g[3]}">{_esc(g[0])}<b>{g[1]:,}</b></span>' for g in regs]
+    chips += [f'<span class="chip miss">{_esc(m)}</span>' for m in missing]
+    note = ("Every region visited." if of and not missing
+            else f"{len(missing)} still to go." if missing else "")
+    return (f'<section><div class="sec-h">{head}</div>' + (f'<div class="sec-note">{note}</div>' if note else "")
+            + '<div class="chips">' + "".join(chips) + "</div></section>")
+
+
 def _render(
     *,
     kind: str,
@@ -544,6 +628,10 @@ def _render(
     home_spans: list[tuple[int, int]] | None = None,
     home_years: set[int] | None = None,
     boundaries: dict | None = None,
+    cat_cfg: dict | None = None,
+    global_eg: Counter | None = None,
+    regions_by_country: dict | None = None,
+    iso: dict | None = None,
 ) -> None:
     """One country-<slug>.html or city-<slug>.html page plus its log JSON."""
     is_city = kind == "city"
@@ -748,6 +836,9 @@ def _render(
                 f'{"neighbourhoods" if is_city else "cities"}, categories…" '
                 'oninput="filterLog(this.value)"><div class="log-n" id="logN"></div><div id="logBody"></div></div></section>')
 
+    extra_html = (_once_and_not_yet(crows, cat_cfg or {}, global_eg or Counter()) if is_city
+                  else _region_progress(name, (regions_by_country or {}).get(name), iso or {}))
+
     title = f"{name} — Check-in Journal"
     if is_city:
         desc = f"{len(crows):,} check-ins at {len(venues):,} venues in {name}" + (f", {country}." if country else ".")
@@ -761,7 +852,7 @@ def _render(
         crumb_href=crumb[0], crumb_label=_esc(crumb[1]),
         flag_big=_flag(country), name=_esc(name), sub=" · ".join(sub),
         kpis=kpis, years=years_html, cmap=cmap_html, hero_style=hero_style, hero_cls=hero_cls,
-        cities=cols_html, venues=all_places_html, cats="",
+        cities=cols_html, venues=all_places_html, cats=extra_html,
         trips=trips_html, photos=photos_html, shouts=shouts_html, log=log_html,
         log_url=json.dumps(f"/{log_file}"), pix_json=json.dumps(pix_base))
     (out_dir / f"{kind}-{slug}.html").write_text(html, encoding="utf-8")
@@ -822,10 +913,20 @@ def build_page(
         stale.unlink()
 
     slugs = city_slugs([(cy, city_country[cy]) for cy in big])
+    cat_cfg = category_config(Path(config_dir))
+    global_eg: Counter = Counter(g for g in (cat_cfg["explorer"].get(_cat(r)) for r in rows) if g)
+    _reg = (((stats_data or {}).get("explore") or {}).get("regions") or {})
+    regions_by_country = {c["country"]: c for c in _reg.get("countries") or []}
+    try:
+        iso = json.loads((Path(config_dir) / "regions_iso.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        iso = {}
 
     common: dict[str, Any] = {"out_dir": out_dir, "year_span": year_span, "photos_by_checkin": photos_by_checkin,
                               "pix_base": pix_base, "local": local, "city_links": slugs,
-                              "boundaries": boundaries or {}}
+                              "boundaries": boundaries or {},
+                              "cat_cfg": cat_cfg, "global_eg": global_eg,
+                              "regions_by_country": regions_by_country, "iso": iso}
     n_pages = 0
     for country, crows in by_country.items():
         if len(crows) < min_checkins:

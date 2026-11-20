@@ -12,6 +12,7 @@ from typing import Any
 
 from transform import build_categorize_fn, group_category, straddle_sides
 
+from .anniversaries import anniversaries
 from .companions import collect_companions
 from .pulse import pulse
 from .rank_moves import rank_moves
@@ -1978,6 +1979,7 @@ def process(
         "explorer_groups":    explorer_groups,
         "explorer":           explorer,
         "pulse":              pulse(rows, _lt),
+        "anniversaries":      anniversaries(rows, _lt, datetime.now(tz=timezone.utc).date()),
         "rank_moves":         rank_moves(
             rows,
             {"venues": [v[3] for v in venues_list if v[3]],

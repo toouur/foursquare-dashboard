@@ -1739,6 +1739,15 @@ if __name__ == "__main__":
             "<script>if('serviceWorker'in navigator){"
             "addEventListener('load',function(){"
             "navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>"
+            # "/" (or Ctrl/Cmd+K) searches from any page: the index's own search box,
+            # the search page's input, or a jump to search.html everywhere else
+            "<script>addEventListener('keydown',function(e){"
+            "var k=e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey,c=(e.ctrlKey||e.metaKey)&&e.key==='k';"
+            "if(!k&&!c)return;var t=e.target,n=t&&t.tagName;"
+            "if(k&&(n==='INPUT'||n==='TEXTAREA'||n==='SELECT'||(t&&t.isContentEditable)))return;"
+            "if(window.openSearch){if(k){e.preventDefault();window.openSearch()}return}"
+            "var q=document.getElementById('qInput');e.preventDefault();"
+            "if(q){q.focus();q.select()}else location.href='/search.html'})</script>"
         )
         _n_pwa = 0
         for _html in Path(args.output_dir).glob("*.html"):
