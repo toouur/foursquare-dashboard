@@ -452,7 +452,16 @@ def detect_trips(
                             if hub_gap <= _MAX_HUB_CHAIN_GAP:
                                 dep_hub = i  # different venue → extend chain earlier
             elif row_city != "":
-                break  # different non-blank city → stop (avoid previous trips)
+                # A city the blank-city inference filled in is not a place you
+                # were in: Swarm gave the row none. On the ride to the plane the
+                # RMO "Airport bus" (Moving Target, blank) was inferred as the
+                # village Puhoi and stopped this scan one row before Gate 6, so
+                # the 2026-11-21 Warsaw trip began on landing at Modlin. Eras that
+                # tolerate transit towns (`arrival_transit`) scan through such
+                # rows like blank ones; the frozen Minsk era keeps the old stop.
+                if not (valid[i].get("city_inferred") == "1"
+                        and _era_at(int(valid[i]["date"]), home_eras).get("arrival_transit")):
+                    break  # different non-blank city → stop (avoid previous trips)
             i -= 1
         if dep_hub is not None:
             # The ride TO the hub — the taxi to RMO — opens the trip, when the era

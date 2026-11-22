@@ -500,3 +500,39 @@ class TestContainedTrips:
                              trip_end_overrides={T0 + HOUR: T0 + 11 * HOUR})
         assert len(trips) == 1
         assert {c["city"] for c in trips[0]["checkins"]} >= {"Rakov", "Zaslawye"}
+
+
+class TestDepartureThroughInferredCity:
+    """2026-11-21: the RMO "Airport bus" (Moving Target, no city in Swarm) was
+    filled in as the village Puhoi by blank-city inference, which stopped the
+    departure scan one row before Gate 6 — the Warsaw trip began on landing."""
+
+    def _rows(self):
+        rows = [home(T0)]
+        rows.append(home(T0 + 10 * HOUR, category="International Airport",
+                         venue="Home International Airport",
+                         venue_id="apt00000000000000000000a"))
+        rows.append(home(T0 + 11 * HOUR, category="Airport Gate", venue="Gate 6",
+                         venue_id="gate0000000000000000000a"))
+        bus = away(T0 + 11 * HOUR + 300, city="Puhoi", country="Belarus",
+                   category="Moving Target", venue="Airport bus", venue_id="b" * 24)
+        bus["city_inferred"] = "1"
+        rows.append(bus)
+        rows.append(home(T0 + 11 * HOUR + 600, category="Plane", venue="Flight",
+                         venue_id="p" * 24))
+        rows += [away(T0 + 13 * HOUR + i * HOUR) for i in range(6)]
+        return rows
+
+    def test_inferred_city_does_not_stop_the_departure_scan(self):
+        trips = detect_trips(self._rows(), min_checkins=5, home_eras=CHISINAU_ERA)
+        assert trips[-1]["checkins"][0]["category"] == "International Airport"
+
+    def test_a_real_city_still_stops_it(self):
+        rows = self._rows()
+        rows[3]["city_inferred"] = "0"     # Swarm itself said Puhoi
+        trips = detect_trips(rows, min_checkins=5, home_eras=CHISINAU_ERA)
+        assert trips[-1]["checkins"][0]["city"] != "Minsk"
+
+    def test_frozen_era_keeps_the_old_stop(self):
+        trips = detect_trips(self._rows(), min_checkins=5, home_eras=FROZEN_ERA)
+        assert trips[-1]["checkins"][0]["city"] != "Minsk"
