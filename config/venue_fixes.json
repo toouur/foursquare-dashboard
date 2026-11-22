@@ -780,5 +780,10 @@
     "city": "Killwangen",
     "country": "Switzerland",
     "_note": "Killwangen-Würenlos Brücke"
+  },
+  "50f4e686e4b0f0485204efd3": {
+    "city": "Chișinău",
+    "country": "Moldova",
+    "_note": "RMO apron 'Airport bus' (Moving Target, no city in Swarm, always at the airport). Inference guessed Ialoveni, then Puhoi once that village joined the review (2026-11-14), and Puhoi cut the 2026-11-21 departure scan."
   }
 }
